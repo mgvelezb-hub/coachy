@@ -12,7 +12,18 @@ const nextConfig: NextConfig = {
   outputFileTracingRoot: monorepoRoot,
   // Prisma engines must not be bundled by the server compiler.
   serverExternalPackages: ["@prisma/client", ".prisma/client"],
+  // `engine` se publica como TypeScript fuente, no compilado.
+  transpilePackages: ["engine"],
   eslint: { ignoreDuringBuilds: true },
+  webpack(config) {
+    // El motor es TypeScript fuente con imports estilo NodeNext (`./calc.js`).
+    // Sin este alias webpack busca archivos .js que no existen.
+    config.resolve.extensionAlias = {
+      ...(config.resolve.extensionAlias ?? {}),
+      ".js": [".ts", ".tsx", ".js"],
+    };
+    return config;
+  },
   async headers() {
     return [
       {

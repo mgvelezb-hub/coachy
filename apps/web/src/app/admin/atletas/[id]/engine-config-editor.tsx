@@ -11,9 +11,6 @@ import {
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
-import { DEFAULT_ENGINE_CONFIG } from "@/lib/engine-config";
-
-const DEFAULTS_JSON = JSON.stringify(DEFAULT_ENGINE_CONFIG, null, 2);
 
 function SubmitButton(): React.JSX.Element {
   const { pending } = useFormStatus();
@@ -25,12 +22,20 @@ function SubmitButton(): React.JSX.Element {
 }
 
 /** Editor JSON de la config del motor, validado antes de tocar la DB. */
+/**
+ * Los JSON de referencia llegan como props desde el servidor: así el motor
+ * entero no acaba en el bundle del navegador solo para mostrar un placeholder.
+ */
 export function EngineConfigEditor({
   userId,
   initialConfig,
+  defaultsJson,
+  starterJson,
 }: {
   userId: string;
   initialConfig: unknown;
+  defaultsJson: string;
+  starterJson: string;
 }): React.JSX.Element {
   const [state, formAction] = useActionState<ConfigState, FormData>(
     saveEngineConfig,
@@ -45,8 +50,10 @@ export function EngineConfigEditor({
       <CardHeader>
         <CardTitle>Config del motor</CardTitle>
         <CardDescription>
-          Overrides para este atleta (spec 02 §7). Déjalo vacío para usar los valores por defecto.
-          Si el JSON no cuadra con el esquema, no se guarda.
+          Overrides para este atleta: solo las llaves que quieras cambiar, el resto sale de los
+          defaults del motor. Se valida con el <code>loadConfig</code> real de{" "}
+          <code>packages/engine</code>, así que lo que se guarda es lo que el motor va a aceptar.
+          Vacío = defaults.
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -58,7 +65,7 @@ export function EngineConfigEditor({
             spellCheck={false}
             value={text}
             onChange={(event) => setText(event.target.value)}
-            placeholder={DEFAULTS_JSON}
+            placeholder={starterJson}
             className="font-mono text-xs"
           />
 
@@ -79,8 +86,11 @@ export function EngineConfigEditor({
 
           <div className="flex gap-2">
             <SubmitButton />
-            <Button type="button" variant="outline" onClick={() => setText(DEFAULTS_JSON)}>
-              Cargar defaults
+            <Button type="button" variant="outline" onClick={() => setText(starterJson)}>
+              Plantilla
+            </Button>
+            <Button type="button" variant="outline" onClick={() => setText(defaultsJson)}>
+              Config completa
             </Button>
             <Button type="button" variant="ghost" onClick={() => setText("")}>
               Vaciar

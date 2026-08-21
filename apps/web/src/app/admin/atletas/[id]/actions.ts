@@ -2,6 +2,8 @@
 
 import { revalidatePath } from "next/cache";
 
+import type { Prisma } from "@prisma/client";
+
 import { requireAdmin } from "@/lib/auth";
 import { parseEngineConfig } from "@/lib/engine-config";
 import { prisma } from "@/lib/prisma";
@@ -17,9 +19,10 @@ export const EMPTY_CONFIG_STATE: ConfigState = { status: "idle", message: null, 
 /**
  * Guarda los overrides de config del motor para un atleta.
  *
- * TODO(fase-2): cuando `@coachy/engine` exporte `loadConfig`, validar con esa
- * función en lugar del schema local — así el admin no puede guardar una config
- * que el motor luego rechace.
+ * Se valida con el `loadConfig` real del motor: lo que se guarda es lo que el
+ * motor va a aceptar después, no una copia del esquema que puede desfasarse.
+ * En la base quedan los overrides, no la config resuelta, para que el atleta
+ * herede cualquier cambio futuro en los defaults del motor.
  */
 export async function saveEngineConfig(
   _prev: ConfigState,
@@ -53,7 +56,7 @@ export async function saveEngineConfig(
 
   await prisma.profile.update({
     where: { userId },
-    data: { engineConfig: parsed.config },
+    data: { engineConfig: parsed.overrides as Prisma.InputJsonValue },
   });
 
   revalidatePath(`/admin/atletas/${userId}`);

@@ -178,8 +178,8 @@ src/
   lib/
     supabase/                   clientes browser / server / service-role, todos perezosos
     validation/                 schemas zod (check-in, onboarding, import)
-    engine-types.ts             interfaz mínima del motor — TODO: cambiar por @coachy/engine
-    engine-config.ts            schema y defaults de la config (spec 02 §7)
+    engine-types.ts             re-export de los tipos de packages/engine
+    engine-config.ts            valida la config del admin con el loadConfig del motor
     checkin-write.ts            persistencia del check-in, aislada para poder probarla
     storage.ts                  subida y URLs firmadas del bucket privado
   middleware.ts                 refresca la sesión y protege /app, /admin, /onboarding
@@ -197,13 +197,17 @@ src/
 - **El service worker solo cachea el App Shell.** Medidas, fotos y decisiones nunca tocan el caché
   del navegador.
 - **Fase inicial**: quien declara 3+ días de pesas entra en `BASE`; el resto en `REINTRO`.
+- **El motor vive en el servidor.** `packages/engine` se publica como TypeScript fuente, así que
+  `next.config.ts` lo transpila y mapea sus imports `./x.js` a `.ts`. La página del admin le pasa
+  al editor los JSON de referencia ya serializados, para no arrastrar el motor al navegador.
+- **La config del admin se guarda como overrides parciales**, no resuelta: así el atleta hereda
+  cualquier cambio futuro en los defaults del motor.
 
 ---
 
 ## 5. Pendientes de Fase 2
 
-- Conectar `@coachy/engine` (`packages/engine`) y borrar `lib/engine-types.ts` y el fallback de
-  `lib/engine-config.ts`.
+- Correr `decide()` del motor al recibir un check-in y guardar la `Decision`.
 - Cola de decisiones en `/admin/decisiones` con Aprobar / Corregir.
 - Mensaje de Coachy, menú vigente y meta de la semana en `/app`.
 - Análisis de fotos con visión, detrás de `VISION_ENABLED` y del consentimiento del atleta.

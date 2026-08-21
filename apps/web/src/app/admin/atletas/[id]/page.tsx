@@ -12,6 +12,7 @@ import {
   formatShortDate,
   phaseLabel,
 } from "@/lib/format";
+import { DEFAULT_ENGINE_CONFIG } from "@/lib/engine-config";
 import { prisma } from "@/lib/prisma";
 import { CONDITION_LABELS, GOAL_LABELS } from "@/lib/validation/onboarding";
 
@@ -180,7 +181,21 @@ export default async function AthletePage({
       </Card>
 
       {profile ? (
-        <EngineConfigEditor userId={athlete.id} initialConfig={profile.engineConfig} />
+        <EngineConfigEditor
+          userId={athlete.id}
+          initialConfig={profile.engineConfig}
+          defaultsJson={JSON.stringify(DEFAULT_ENGINE_CONFIG, null, 2)}
+          // Arranque útil: las llaves que más se tocan, no las 40 del motor.
+          starterJson={JSON.stringify(
+            {
+              deficits: { BASE: DEFAULT_ENGINE_CONFIG.deficits.BASE },
+              kcalAdjustStep: DEFAULT_ENGINE_CONFIG.kcalAdjustStep,
+              weeksForStall: DEFAULT_ENGINE_CONFIG.weeksForStall,
+            },
+            null,
+            2,
+          )}
+        />
       ) : null}
 
       {/* TODO(fase-2): cola de decisiones pendientes con Aprobar / Corregir. */}
