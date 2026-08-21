@@ -27,3 +27,4 @@ prisma/*.db
 
 # test output
 .vitest/
+.vercel

@@ -12,14 +12,5 @@
     "test": "pnpm -r test",
     "typecheck": "pnpm -r typecheck",
     "backtest": "pnpm -F engine backtest"
-  },
-  "pnpm": {
-    "onlyBuiltDependencies": [
-      "@prisma/client",
-      "@prisma/engines",
-      "prisma",
-      "esbuild",
-      "sharp"
-    ]
   }
 }
