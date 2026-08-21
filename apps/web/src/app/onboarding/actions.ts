@@ -1,5 +1,7 @@
 "use server";
 
+import type { OnboardingState } from "./state";
+export type { OnboardingState };
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 
@@ -12,13 +14,6 @@ import {
   initialPhase,
   onboardingSchema,
 } from "@/lib/validation/onboarding";
-
-export type OnboardingState = {
-  error: string | null;
-  fieldErrors: Record<string, string>;
-};
-
-export const EMPTY_ONBOARDING_STATE: OnboardingState = { error: null, fieldErrors: {} };
 
 /** Guarda el cuestionario inicial y crea (o actualiza) el Profile del atleta. */
 export async function submitOnboarding(

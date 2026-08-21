@@ -1,5 +1,8 @@
 "use server";
 
+import type { ImportState } from "./state";
+import { EMPTY_IMPORT_STATE } from "./state";
+export type { ImportState };
 import { revalidatePath } from "next/cache";
 import type { Prisma } from "@prisma/client";
 
@@ -7,20 +10,6 @@ import { requireAdmin } from "@/lib/auth";
 import { fromISODate } from "@/lib/format";
 import { prisma } from "@/lib/prisma";
 import { parseAthleteImport, type ImportedCheckIn } from "@/lib/validation/import";
-
-export type ImportState = {
-  status: "idle" | "error" | "success";
-  message: string | null;
-  errors: string[];
-  summary: { checkIns: number; decisions: number; trainingExamples: number } | null;
-};
-
-export const EMPTY_IMPORT_STATE: ImportState = {
-  status: "idle",
-  message: null,
-  errors: [],
-  summary: null,
-};
 
 function dec(value: number | null | undefined): Prisma.Decimal | null {
   if (value === null || value === undefined) return null;

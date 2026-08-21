@@ -1,5 +1,7 @@
 "use server";
 
+import type { DecisionState } from "./state";
+export type { DecisionState };
 import { revalidatePath } from "next/cache";
 import { Prisma } from "@prisma/client";
 import { macrosFor } from "engine";
@@ -22,13 +24,6 @@ import type { Phase } from "@/lib/engine-types";
  * Solo se guardan las **correcciones**, no las aprobaciones: reinyectar texto
  * que el propio modelo escribió sería entrenarlo con su propio eco.
  */
-
-export type DecisionState = {
-  status: "idle" | "error" | "success";
-  message: string | null;
-};
-
-export const EMPTY_DECISION_STATE: DecisionState = { status: "idle", message: null };
 
 const PHASES: readonly Phase[] = [
   "REINTRO",

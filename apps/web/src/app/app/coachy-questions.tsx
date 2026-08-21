@@ -3,7 +3,8 @@
 import { useActionState } from "react";
 import { useFormStatus } from "react-dom";
 
-import { EMPTY_ANSWER_STATE, answerQuestions, type AnswerState } from "@/app/app/actions";
+import { answerQuestions, type AnswerState } from "@/app/app/actions";
+import { EMPTY_ANSWER_STATE } from "@/app/app/state";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 

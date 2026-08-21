@@ -6,10 +6,10 @@ import { ArrowLeft, ArrowRight } from "lucide-react";
 import { toast } from "sonner";
 
 import {
-  EMPTY_CHECKIN_STATE,
   submitCheckIn,
   type CheckInState,
 } from "@/app/app/checkin/actions";
+import { EMPTY_CHECKIN_STATE } from "@/app/app/checkin/state";
 import { PhotoInput } from "@/app/app/checkin/photo-input";
 import { useCheckInDraft } from "@/app/app/checkin/use-checkin-draft";
 import { Badge } from "@/components/ui/badge";

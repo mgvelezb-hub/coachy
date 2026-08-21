@@ -4,10 +4,10 @@ import { useActionState, useState } from "react";
 import { useFormStatus } from "react-dom";
 
 import {
-  EMPTY_ONBOARDING_STATE,
   submitOnboarding,
   type OnboardingState,
 } from "@/app/onboarding/actions";
+import { EMPTY_ONBOARDING_STATE } from "@/app/onboarding/state";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";

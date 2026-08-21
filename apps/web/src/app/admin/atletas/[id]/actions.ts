@@ -1,5 +1,7 @@
 "use server";
 
+import type { ConfigState } from "./state";
+export type { ConfigState };
 import { revalidatePath } from "next/cache";
 
 import type { Prisma } from "@prisma/client";
@@ -7,14 +9,6 @@ import type { Prisma } from "@prisma/client";
 import { requireAdmin } from "@/lib/auth";
 import { parseEngineConfig } from "@/lib/engine-config";
 import { prisma } from "@/lib/prisma";
-
-export type ConfigState = {
-  status: "idle" | "error" | "success";
-  message: string | null;
-  errors: string[];
-};
-
-export const EMPTY_CONFIG_STATE: ConfigState = { status: "idle", message: null, errors: [] };
 
 /**
  * Guarda los overrides de config del motor para un atleta.

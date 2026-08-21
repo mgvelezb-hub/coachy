@@ -4,10 +4,10 @@ import { useActionState, useState } from "react";
 import { useFormStatus } from "react-dom";
 
 import {
-  EMPTY_CONFIG_STATE,
   saveEngineConfig,
   type ConfigState,
 } from "@/app/admin/atletas/[id]/actions";
+import { EMPTY_CONFIG_STATE } from "@/app/admin/atletas/[id]/state";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";

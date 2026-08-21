@@ -5,11 +5,11 @@ import { useFormStatus } from "react-dom";
 import { Check, Pencil } from "lucide-react";
 
 import {
-  EMPTY_DECISION_STATE,
   approveDecision,
   correctDecision,
   type DecisionState,
 } from "@/app/admin/decisiones/actions";
+import { EMPTY_DECISION_STATE } from "@/app/admin/decisiones/state";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";

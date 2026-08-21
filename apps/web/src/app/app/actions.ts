@@ -1,5 +1,7 @@
 "use server";
 
+import type { AnswerState } from "./state";
+export type { AnswerState };
 import { revalidatePath } from "next/cache";
 import type { Prisma } from "@prisma/client";
 
@@ -13,13 +15,6 @@ import { prisma } from "@/lib/prisma";
  * contexto: así la semana que viene el coach (y el prompt) pueden leer qué
  * contestó, que es la mitad del valor del check-in.
  */
-
-export type AnswerState = {
-  status: "idle" | "error" | "success";
-  message: string | null;
-};
-
-export const EMPTY_ANSWER_STATE: AnswerState = { status: "idle", message: null };
 
 export async function answerQuestions(
   _prev: AnswerState,

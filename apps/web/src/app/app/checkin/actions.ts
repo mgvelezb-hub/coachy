@@ -1,5 +1,7 @@
 "use server";
 
+import type { CheckInState } from "./state";
+export type { CheckInState };
 import { revalidatePath } from "next/cache";
 import { after } from "next/server";
 import { Prisma } from "@prisma/client";
@@ -15,21 +17,6 @@ import {
   coerceCheckInPayload,
   validatePhotoFile,
 } from "@/lib/validation/checkin";
-
-export type CheckInState = {
-  status: "idle" | "error" | "success";
-  message: string | null;
-  fieldErrors: Record<string, string>;
-  /** Avisos que no tumban el guardado, p. ej. una foto que no subió. */
-  warnings: string[];
-};
-
-export const EMPTY_CHECKIN_STATE: CheckInState = {
-  status: "idle",
-  message: null,
-  fieldErrors: {},
-  warnings: [],
-};
 
 /**
  * Guarda el check-in de la semana y sube las fotos al bucket privado.

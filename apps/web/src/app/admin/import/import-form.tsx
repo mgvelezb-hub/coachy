@@ -4,10 +4,10 @@ import { useActionState } from "react";
 import { useFormStatus } from "react-dom";
 
 import {
-  EMPTY_IMPORT_STATE,
   importAthleteHistory,
   type ImportState,
 } from "@/app/admin/import/actions";
+import { EMPTY_IMPORT_STATE } from "@/app/admin/import/state";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
