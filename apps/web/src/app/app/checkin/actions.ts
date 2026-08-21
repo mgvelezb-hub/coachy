@@ -1,10 +1,12 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { after } from "next/server";
 import { Prisma } from "@prisma/client";
 
 import { requireOnboardedUser } from "@/lib/auth";
 import { persistCheckIn } from "@/lib/checkin-write";
+import { runCoachy } from "@/lib/coachy";
 import { prisma } from "@/lib/prisma";
 import { photoPath, uploadProgressPhoto } from "@/lib/storage";
 import {
@@ -91,6 +93,17 @@ export async function submitCheckIn(
       update: { storagePath: path, analysisJson: Prisma.DbNull },
     });
   }
+
+  // Coachy corre DESPUÉS de contestarle a la atleta: el motor y Claude tardan
+  // segundos y ella no tiene por qué esperarlos. Si truena, la cola de
+  // `/api/coachy/run` lo reintenta.
+  after(async () => {
+    try {
+      await runCoachy(checkIn.id);
+    } catch (error) {
+      console.error("[coachy] falló el análisis del check-in", checkIn.id, error);
+    }
+  });
 
   revalidatePath("/app", "layout");
 
