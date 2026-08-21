@@ -474,7 +474,7 @@ function buildContext(
   const inconclusive = cycleInconclusive || !objectiveData || sick;
 
   const countsForStall = !inconclusive && !progress && !checkIn.newInjury;
-  const stallWeeks = countsForStall ? state.stallWeeks + 1 : state.stallWeeks;
+  const stallWeeks = progress ? 0 : countsForStall ? state.stallWeeks + 1 : state.stallWeeks;
 
   return {
     checkIn,

@@ -1,0 +1,1989 @@
+[
+  {
+    "id": "pechuga_pollo",
+    "name": "Pechuga de pollo cocida",
+    "role": "proteina_magra",
+    "proteinPer100": 31.0,
+    "carbPer100": 0.0,
+    "fatPer100": 3.6,
+    "fiberPer100": 0.0,
+    "kcalPer100": 156.4,
+    "gi": null,
+    "costRel": 2,
+    "prepMin": 20,
+    "tags": [
+      "mexicano",
+      "favorito",
+      "meal_prep"
+    ],
+    "servingG": 150,
+    "unit": "g"
+  },
+  {
+    "id": "pechuga_pavo",
+    "name": "Pechuga de pavo cocida",
+    "role": "proteina_magra",
+    "proteinPer100": 29.0,
+    "carbPer100": 0.0,
+    "fatPer100": 1.7,
+    "fiberPer100": 0.0,
+    "kcalPer100": 131.3,
+    "gi": null,
+    "costRel": 2,
+    "prepMin": 20,
+    "tags": [
+      "meal_prep"
+    ],
+    "servingG": 150,
+    "unit": "g"
+  },
+  {
+    "id": "claras_huevo",
+    "name": "Claras de huevo",
+    "role": "proteina_magra",
+    "proteinPer100": 10.9,
+    "carbPer100": 0.7,
+    "fatPer100": 0.2,
+    "fiberPer100": 0.0,
+    "kcalPer100": 48.2,
+    "gi": null,
+    "costRel": 1,
+    "prepMin": 8,
+    "tags": [
+      "mexicano",
+      "favorito",
+      "rapido"
+    ],
+    "servingG": 120,
+    "unit": "g"
+  },
+  {
+    "id": "atun_agua",
+    "name": "Atun en agua drenado",
+    "role": "proteina_magra",
+    "proteinPer100": 25.5,
+    "carbPer100": 0.0,
+    "fatPer100": 1.0,
+    "fiberPer100": 0.0,
+    "kcalPer100": 111.0,
+    "gi": null,
+    "costRel": 1,
+    "prepMin": 2,
+    "tags": [
+      "mexicano",
+      "favorito",
+      "rapido",
+      "sin_cocinar"
+    ],
+    "servingG": 130,
+    "unit": "g"
+  },
+  {
+    "id": "tilapia",
+    "name": "Tilapia",
+    "role": "proteina_magra",
+    "proteinPer100": 26.2,
+    "carbPer100": 0.0,
+    "fatPer100": 2.7,
+    "fiberPer100": 0.0,
+    "kcalPer100": 129.1,
+    "gi": null,
+    "costRel": 2,
+    "prepMin": 15,
+    "tags": [
+      "favorito"
+    ],
+    "servingG": 160,
+    "unit": "g"
+  },
+  {
+    "id": "bacalao",
+    "name": "Bacalao fresco",
+    "role": "proteina_magra",
+    "proteinPer100": 23.0,
+    "carbPer100": 0.0,
+    "fatPer100": 0.9,
+    "fiberPer100": 0.0,
+    "kcalPer100": 100.1,
+    "gi": null,
+    "costRel": 3,
+    "prepMin": 15,
+    "tags": [],
+    "servingG": 160,
+    "unit": "g"
+  },
+  {
+    "id": "pescado_blanco",
+    "name": "Pescado blanco (huachinango, robalo)",
+    "role": "proteina_magra",
+    "proteinPer100": 24.0,
+    "carbPer100": 0.0,
+    "fatPer100": 1.5,
+    "fiberPer100": 0.0,
+    "kcalPer100": 109.5,
+    "gi": null,
+    "costRel": 3,
+    "prepMin": 15,
+    "tags": [
+      "mexicano"
+    ],
+    "servingG": 150,
+    "unit": "g"
+  },
+  {
+    "id": "camaron",
+    "name": "Camaron cocido",
+    "role": "proteina_magra",
+    "proteinPer100": 24.0,
+    "carbPer100": 0.2,
+    "fatPer100": 0.3,
+    "fiberPer100": 0.0,
+    "kcalPer100": 99.5,
+    "gi": null,
+    "costRel": 3,
+    "prepMin": 10,
+    "tags": [
+      "mexicano"
+    ],
+    "servingG": 150,
+    "unit": "g"
+  },
+  {
+    "id": "res_magra",
+    "name": "Res magra (bistec, falda)",
+    "role": "proteina_magra",
+    "proteinPer100": 27.0,
+    "carbPer100": 0.0,
+    "fatPer100": 6.0,
+    "fiberPer100": 0.0,
+    "kcalPer100": 162.0,
+    "gi": null,
+    "costRel": 3,
+    "prepMin": 15,
+    "tags": [
+      "mexicano",
+      "favorito"
+    ],
+    "servingG": 150,
+    "unit": "g"
+  },
+  {
+    "id": "yogur_griego_0",
+    "name": "Yogur griego natural 0%",
+    "role": "proteina_magra",
+    "proteinPer100": 10.0,
+    "carbPer100": 3.6,
+    "fatPer100": 0.4,
+    "fiberPer100": 0.0,
+    "kcalPer100": 58.0,
+    "gi": 35,
+    "costRel": 2,
+    "prepMin": 1,
+    "tags": [
+      "favorito",
+      "rapido",
+      "sin_cocinar"
+    ],
+    "servingG": 200,
+    "unit": "g"
+  },
+  {
+    "id": "cottage",
+    "name": "Queso cottage bajo en grasa",
+    "role": "proteina_magra",
+    "proteinPer100": 11.0,
+    "carbPer100": 3.4,
+    "fatPer100": 1.0,
+    "fiberPer100": 0.0,
+    "kcalPer100": 66.6,
+    "gi": null,
+    "costRel": 2,
+    "prepMin": 1,
+    "tags": [
+      "rapido",
+      "sin_cocinar"
+    ],
+    "servingG": 120,
+    "unit": "g"
+  },
+  {
+    "id": "requeson",
+    "name": "Requeson",
+    "role": "proteina_magra",
+    "proteinPer100": 11.4,
+    "carbPer100": 3.0,
+    "fatPer100": 4.0,
+    "fiberPer100": 0.0,
+    "kcalPer100": 93.6,
+    "gi": null,
+    "costRel": 1,
+    "prepMin": 1,
+    "tags": [
+      "mexicano",
+      "rapido"
+    ],
+    "servingG": 120,
+    "unit": "g"
+  },
+  {
+    "id": "jamon_pavo",
+    "name": "Jamon de pechuga de pavo",
+    "role": "proteina_magra",
+    "proteinPer100": 17.0,
+    "carbPer100": 2.0,
+    "fatPer100": 2.0,
+    "fiberPer100": 0.0,
+    "kcalPer100": 94.0,
+    "gi": null,
+    "costRel": 2,
+    "prepMin": 1,
+    "tags": [
+      "rapido",
+      "sin_cocinar"
+    ],
+    "servingG": 80,
+    "unit": "g"
+  },
+  {
+    "id": "whey_isolate",
+    "name": "Proteina whey isolate en polvo",
+    "role": "proteina_magra",
+    "proteinPer100": 85.0,
+    "carbPer100": 5.0,
+    "fatPer100": 1.0,
+    "fiberPer100": 0.0,
+    "kcalPer100": 369.0,
+    "gi": null,
+    "costRel": 3,
+    "prepMin": 1,
+    "tags": [
+      "favorito",
+      "rapido",
+      "suplemento"
+    ],
+    "servingG": 30,
+    "unit": "g"
+  },
+  {
+    "id": "proteina_vegetal",
+    "name": "Proteina vegetal en polvo",
+    "role": "proteina_magra",
+    "proteinPer100": 75.0,
+    "carbPer100": 8.0,
+    "fatPer100": 3.0,
+    "fiberPer100": 4.0,
+    "kcalPer100": 359.0,
+    "gi": null,
+    "costRel": 3,
+    "prepMin": 1,
+    "tags": [
+      "vegetariano",
+      "rapido"
+    ],
+    "servingG": 30,
+    "unit": "g"
+  },
+  {
+    "id": "leche_descremada",
+    "name": "Leche descremada",
+    "role": "proteina_magra",
+    "proteinPer100": 3.4,
+    "carbPer100": 4.8,
+    "fatPer100": 0.2,
+    "fiberPer100": 0.0,
+    "kcalPer100": 34.6,
+    "gi": 32,
+    "costRel": 1,
+    "prepMin": 1,
+    "tags": [
+      "rapido"
+    ],
+    "servingG": 250,
+    "unit": "ml"
+  },
+  {
+    "id": "clara_liquida",
+    "name": "Clara de huevo liquida pasteurizada",
+    "role": "proteina_magra",
+    "proteinPer100": 11.0,
+    "carbPer100": 0.8,
+    "fatPer100": 0.2,
+    "fiberPer100": 0.0,
+    "kcalPer100": 49.0,
+    "gi": null,
+    "costRel": 2,
+    "prepMin": 3,
+    "tags": [
+      "rapido"
+    ],
+    "servingG": 150,
+    "unit": "ml"
+  },
+  {
+    "id": "huevo_entero",
+    "name": "Huevo entero",
+    "role": "proteina_grasa",
+    "proteinPer100": 12.6,
+    "carbPer100": 1.1,
+    "fatPer100": 9.9,
+    "fiberPer100": 0.0,
+    "kcalPer100": 143.9,
+    "gi": null,
+    "costRel": 1,
+    "prepMin": 8,
+    "tags": [
+      "mexicano",
+      "favorito",
+      "rapido"
+    ],
+    "servingG": 55,
+    "unit": "pieza"
+  },
+  {
+    "id": "salmon",
+    "name": "Salmon",
+    "role": "proteina_grasa",
+    "proteinPer100": 25.0,
+    "carbPer100": 0.0,
+    "fatPer100": 13.0,
+    "fiberPer100": 0.0,
+    "kcalPer100": 217.0,
+    "gi": null,
+    "costRel": 3,
+    "prepMin": 15,
+    "tags": [],
+    "servingG": 150,
+    "unit": "g"
+  },
+  {
+    "id": "sardina_agua",
+    "name": "Sardina en agua",
+    "role": "proteina_grasa",
+    "proteinPer100": 25.0,
+    "carbPer100": 0.0,
+    "fatPer100": 11.0,
+    "fiberPer100": 0.0,
+    "kcalPer100": 199.0,
+    "gi": null,
+    "costRel": 1,
+    "prepMin": 2,
+    "tags": [
+      "mexicano",
+      "rapido",
+      "sin_cocinar"
+    ],
+    "servingG": 100,
+    "unit": "g"
+  },
+  {
+    "id": "muslo_pollo",
+    "name": "Muslo de pollo sin piel",
+    "role": "proteina_grasa",
+    "proteinPer100": 24.0,
+    "carbPer100": 0.0,
+    "fatPer100": 8.0,
+    "fiberPer100": 0.0,
+    "kcalPer100": 168.0,
+    "gi": null,
+    "costRel": 2,
+    "prepMin": 25,
+    "tags": [
+      "mexicano"
+    ],
+    "servingG": 150,
+    "unit": "g"
+  },
+  {
+    "id": "queso_panela",
+    "name": "Queso panela",
+    "role": "proteina_grasa",
+    "proteinPer100": 18.0,
+    "carbPer100": 2.0,
+    "fatPer100": 17.0,
+    "fiberPer100": 0.0,
+    "kcalPer100": 233.0,
+    "gi": null,
+    "costRel": 2,
+    "prepMin": 1,
+    "tags": [
+      "mexicano",
+      "favorito",
+      "rapido"
+    ],
+    "servingG": 100,
+    "unit": "g"
+  },
+  {
+    "id": "queso_fresco",
+    "name": "Queso fresco",
+    "role": "proteina_grasa",
+    "proteinPer100": 17.0,
+    "carbPer100": 3.0,
+    "fatPer100": 15.0,
+    "fiberPer100": 0.0,
+    "kcalPer100": 215.0,
+    "gi": null,
+    "costRel": 2,
+    "prepMin": 1,
+    "tags": [
+      "mexicano",
+      "rapido"
+    ],
+    "servingG": 80,
+    "unit": "g"
+  },
+  {
+    "id": "tofu_firme",
+    "name": "Tofu firme",
+    "role": "proteina_grasa",
+    "proteinPer100": 12.0,
+    "carbPer100": 2.0,
+    "fatPer100": 7.0,
+    "fiberPer100": 1.0,
+    "kcalPer100": 119.0,
+    "gi": 15,
+    "costRel": 2,
+    "prepMin": 10,
+    "tags": [
+      "vegetariano"
+    ],
+    "servingG": 150,
+    "unit": "g"
+  },
+  {
+    "id": "edamame",
+    "name": "Edamame cocido",
+    "role": "proteina_grasa",
+    "proteinPer100": 11.0,
+    "carbPer100": 9.0,
+    "fatPer100": 5.0,
+    "fiberPer100": 5.0,
+    "kcalPer100": 125.0,
+    "gi": 18,
+    "costRel": 2,
+    "prepMin": 8,
+    "tags": [
+      "vegetariano"
+    ],
+    "servingG": 120,
+    "unit": "g"
+  },
+  {
+    "id": "atun_aceite",
+    "name": "Atun en aceite drenado",
+    "role": "proteina_grasa",
+    "proteinPer100": 25.0,
+    "carbPer100": 0.0,
+    "fatPer100": 8.0,
+    "fiberPer100": 0.0,
+    "kcalPer100": 172.0,
+    "gi": null,
+    "costRel": 1,
+    "prepMin": 2,
+    "tags": [
+      "rapido",
+      "sin_cocinar"
+    ],
+    "servingG": 130,
+    "unit": "g"
+  },
+  {
+    "id": "avena",
+    "name": "Avena en hojuelas (cruda)",
+    "role": "carbo_pre",
+    "proteinPer100": 13.2,
+    "carbPer100": 67.0,
+    "fatPer100": 6.5,
+    "fiberPer100": 10.1,
+    "kcalPer100": 379.3,
+    "gi": 55,
+    "costRel": 1,
+    "prepMin": 5,
+    "tags": [
+      "favorito",
+      "rapido"
+    ],
+    "servingG": 50,
+    "unit": "g"
+  },
+  {
+    "id": "pan_integral",
+    "name": "Pan integral",
+    "role": "carbo_pre",
+    "proteinPer100": 13.0,
+    "carbPer100": 43.0,
+    "fatPer100": 3.4,
+    "fiberPer100": 7.0,
+    "kcalPer100": 254.6,
+    "gi": 53,
+    "costRel": 1,
+    "prepMin": 1,
+    "tags": [
+      "rapido",
+      "sin_cocinar"
+    ],
+    "servingG": 60,
+    "unit": "g"
+  },
+  {
+    "id": "miel",
+    "name": "Miel de abeja",
+    "role": "carbo_pre",
+    "proteinPer100": 0.3,
+    "carbPer100": 82.0,
+    "fatPer100": 0.0,
+    "fiberPer100": 0.2,
+    "kcalPer100": 329.2,
+    "gi": 58,
+    "costRel": 2,
+    "prepMin": 1,
+    "tags": [
+      "rapido"
+    ],
+    "servingG": 15,
+    "unit": "g"
+  },
+  {
+    "id": "amaranto",
+    "name": "Amaranto tostado",
+    "role": "carbo_pre",
+    "proteinPer100": 14.0,
+    "carbPer100": 65.0,
+    "fatPer100": 7.0,
+    "fiberPer100": 6.7,
+    "kcalPer100": 379.0,
+    "gi": null,
+    "costRel": 2,
+    "prepMin": 2,
+    "tags": [
+      "mexicano",
+      "rapido"
+    ],
+    "servingG": 30,
+    "unit": "g"
+  },
+  {
+    "id": "granola_sin_azucar",
+    "name": "Granola sin azucar",
+    "role": "carbo_pre",
+    "proteinPer100": 10.0,
+    "carbPer100": 60.0,
+    "fatPer100": 12.0,
+    "fiberPer100": 8.0,
+    "kcalPer100": 388.0,
+    "gi": 50,
+    "costRel": 3,
+    "prepMin": 1,
+    "tags": [
+      "rapido"
+    ],
+    "servingG": 40,
+    "unit": "g"
+  },
+  {
+    "id": "arroz_blanco",
+    "name": "Arroz blanco cocido",
+    "role": "carbo_post",
+    "proteinPer100": 2.7,
+    "carbPer100": 28.2,
+    "fatPer100": 0.3,
+    "fiberPer100": 0.4,
+    "kcalPer100": 126.3,
+    "gi": 73,
+    "costRel": 1,
+    "prepMin": 20,
+    "tags": [
+      "mexicano",
+      "favorito"
+    ],
+    "servingG": 150,
+    "unit": "g"
+  },
+  {
+    "id": "camote",
+    "name": "Camote cocido",
+    "role": "carbo_post",
+    "proteinPer100": 2.0,
+    "carbPer100": 20.7,
+    "fatPer100": 0.1,
+    "fiberPer100": 3.3,
+    "kcalPer100": 91.7,
+    "gi": 63,
+    "costRel": 1,
+    "prepMin": 25,
+    "tags": [
+      "mexicano",
+      "favorito"
+    ],
+    "servingG": 150,
+    "unit": "g"
+  },
+  {
+    "id": "cereal_arroz_inflado",
+    "name": "Cereal de arroz inflado sin azucar",
+    "role": "carbo_post",
+    "proteinPer100": 6.5,
+    "carbPer100": 85.0,
+    "fatPer100": 1.0,
+    "fiberPer100": 1.5,
+    "kcalPer100": 375.0,
+    "gi": 82,
+    "costRel": 2,
+    "prepMin": 1,
+    "tags": [
+      "rapido",
+      "sin_cocinar"
+    ],
+    "servingG": 40,
+    "unit": "g"
+  },
+  {
+    "id": "papa",
+    "name": "Papa cocida",
+    "role": "carbo_post",
+    "proteinPer100": 2.0,
+    "carbPer100": 17.0,
+    "fatPer100": 0.1,
+    "fiberPer100": 2.2,
+    "kcalPer100": 76.9,
+    "gi": 78,
+    "costRel": 1,
+    "prepMin": 25,
+    "tags": [
+      "mexicano"
+    ],
+    "servingG": 200,
+    "unit": "g"
+  },
+  {
+    "id": "tortilla_maiz",
+    "name": "Tortilla de maiz",
+    "role": "carbo_post",
+    "proteinPer100": 5.7,
+    "carbPer100": 44.6,
+    "fatPer100": 1.8,
+    "fiberPer100": 5.5,
+    "kcalPer100": 217.4,
+    "gi": 52,
+    "costRel": 1,
+    "prepMin": 2,
+    "tags": [
+      "mexicano",
+      "favorito",
+      "rapido"
+    ],
+    "servingG": 30,
+    "unit": "pieza"
+  },
+  {
+    "id": "platano_post",
+    "name": "Platano",
+    "role": "carbo_post",
+    "proteinPer100": 1.1,
+    "carbPer100": 22.8,
+    "fatPer100": 0.3,
+    "fiberPer100": 2.6,
+    "kcalPer100": 98.3,
+    "gi": 51,
+    "costRel": 1,
+    "prepMin": 1,
+    "tags": [
+      "mexicano",
+      "favorito",
+      "rapido",
+      "sin_cocinar"
+    ],
+    "servingG": 120,
+    "unit": "pieza"
+  },
+  {
+    "id": "arroz_integral",
+    "name": "Arroz integral cocido",
+    "role": "carbo_complejo",
+    "proteinPer100": 2.6,
+    "carbPer100": 23.0,
+    "fatPer100": 0.9,
+    "fiberPer100": 1.8,
+    "kcalPer100": 110.5,
+    "gi": 50,
+    "costRel": 1,
+    "prepMin": 35,
+    "tags": [
+      "mexicano",
+      "favorito"
+    ],
+    "servingG": 180,
+    "unit": "g"
+  },
+  {
+    "id": "quinoa",
+    "name": "Quinoa cocida",
+    "role": "carbo_complejo",
+    "proteinPer100": 4.4,
+    "carbPer100": 21.3,
+    "fatPer100": 1.9,
+    "fiberPer100": 2.8,
+    "kcalPer100": 119.9,
+    "gi": 53,
+    "costRel": 3,
+    "prepMin": 20,
+    "tags": [
+      "favorito"
+    ],
+    "servingG": 180,
+    "unit": "g"
+  },
+  {
+    "id": "frijol_negro",
+    "name": "Frijol negro de olla",
+    "role": "carbo_complejo",
+    "proteinPer100": 8.9,
+    "carbPer100": 23.7,
+    "fatPer100": 0.5,
+    "fiberPer100": 8.7,
+    "kcalPer100": 134.9,
+    "gi": 30,
+    "costRel": 1,
+    "prepMin": 10,
+    "tags": [
+      "mexicano",
+      "favorito"
+    ],
+    "servingG": 120,
+    "unit": "g"
+  },
+  {
+    "id": "lenteja",
+    "name": "Lenteja cocida",
+    "role": "carbo_complejo",
+    "proteinPer100": 9.0,
+    "carbPer100": 20.0,
+    "fatPer100": 0.4,
+    "fiberPer100": 7.9,
+    "kcalPer100": 119.6,
+    "gi": 32,
+    "costRel": 1,
+    "prepMin": 30,
+    "tags": [
+      "mexicano",
+      "favorito"
+    ],
+    "servingG": 150,
+    "unit": "g"
+  },
+  {
+    "id": "garbanzo",
+    "name": "Garbanzo cocido",
+    "role": "carbo_complejo",
+    "proteinPer100": 8.9,
+    "carbPer100": 27.4,
+    "fatPer100": 2.6,
+    "fiberPer100": 7.6,
+    "kcalPer100": 168.6,
+    "gi": 28,
+    "costRel": 1,
+    "prepMin": 30,
+    "tags": [
+      "mexicano"
+    ],
+    "servingG": 120,
+    "unit": "g"
+  },
+  {
+    "id": "haba",
+    "name": "Haba cocida",
+    "role": "carbo_complejo",
+    "proteinPer100": 7.6,
+    "carbPer100": 19.7,
+    "fatPer100": 0.4,
+    "fiberPer100": 5.4,
+    "kcalPer100": 112.8,
+    "gi": 40,
+    "costRel": 1,
+    "prepMin": 30,
+    "tags": [
+      "mexicano"
+    ],
+    "servingG": 120,
+    "unit": "g"
+  },
+  {
+    "id": "pasta_integral",
+    "name": "Pasta integral cocida",
+    "role": "carbo_complejo",
+    "proteinPer100": 5.3,
+    "carbPer100": 25.0,
+    "fatPer100": 1.1,
+    "fiberPer100": 3.9,
+    "kcalPer100": 131.1,
+    "gi": 42,
+    "costRel": 2,
+    "prepMin": 15,
+    "tags": [],
+    "servingG": 150,
+    "unit": "g"
+  },
+  {
+    "id": "pan_centeno",
+    "name": "Pan de centeno",
+    "role": "carbo_complejo",
+    "proteinPer100": 8.5,
+    "carbPer100": 48.3,
+    "fatPer100": 3.3,
+    "fiberPer100": 5.8,
+    "kcalPer100": 256.9,
+    "gi": 41,
+    "costRel": 3,
+    "prepMin": 1,
+    "tags": [
+      "rapido",
+      "sin_cocinar"
+    ],
+    "servingG": 60,
+    "unit": "g"
+  },
+  {
+    "id": "elote",
+    "name": "Elote desgranado cocido",
+    "role": "carbo_complejo",
+    "proteinPer100": 3.3,
+    "carbPer100": 19.0,
+    "fatPer100": 1.4,
+    "fiberPer100": 2.0,
+    "kcalPer100": 101.8,
+    "gi": 52,
+    "costRel": 1,
+    "prepMin": 15,
+    "tags": [
+      "mexicano"
+    ],
+    "servingG": 150,
+    "unit": "g"
+  },
+  {
+    "id": "tostada_horneada",
+    "name": "Tostada de maiz horneada",
+    "role": "carbo_complejo",
+    "proteinPer100": 8.0,
+    "carbPer100": 75.0,
+    "fatPer100": 4.0,
+    "fiberPer100": 7.0,
+    "kcalPer100": 368.0,
+    "gi": 60,
+    "costRel": 1,
+    "prepMin": 1,
+    "tags": [
+      "mexicano",
+      "favorito",
+      "rapido",
+      "sin_cocinar"
+    ],
+    "servingG": 15,
+    "unit": "pieza"
+  },
+  {
+    "id": "avena_cocida",
+    "name": "Avena cocida en agua",
+    "role": "carbo_complejo",
+    "proteinPer100": 2.4,
+    "carbPer100": 12.0,
+    "fatPer100": 1.4,
+    "fiberPer100": 1.7,
+    "kcalPer100": 70.2,
+    "gi": 55,
+    "costRel": 1,
+    "prepMin": 8,
+    "tags": [
+      "rapido"
+    ],
+    "servingG": 250,
+    "unit": "g"
+  },
+  {
+    "id": "nopal_asado_carb",
+    "name": "Tortilla de nopal",
+    "role": "carbo_complejo",
+    "proteinPer100": 6.0,
+    "carbPer100": 40.0,
+    "fatPer100": 2.0,
+    "fiberPer100": 9.0,
+    "kcalPer100": 202.0,
+    "gi": 45,
+    "costRel": 2,
+    "prepMin": 2,
+    "tags": [
+      "mexicano",
+      "rapido"
+    ],
+    "servingG": 30,
+    "unit": "pieza"
+  },
+  {
+    "id": "aceite_oliva",
+    "name": "Aceite de oliva extra virgen",
+    "role": "grasa",
+    "proteinPer100": 0.0,
+    "carbPer100": 0.0,
+    "fatPer100": 100.0,
+    "fiberPer100": 0.0,
+    "kcalPer100": 900.0,
+    "gi": null,
+    "costRel": 2,
+    "prepMin": 1,
+    "tags": [
+      "rapido"
+    ],
+    "servingG": 10,
+    "unit": "ml"
+  },
+  {
+    "id": "aguacate",
+    "name": "Aguacate",
+    "role": "grasa",
+    "proteinPer100": 2.0,
+    "carbPer100": 8.5,
+    "fatPer100": 14.7,
+    "fiberPer100": 6.7,
+    "kcalPer100": 174.3,
+    "gi": null,
+    "costRel": 2,
+    "prepMin": 2,
+    "tags": [
+      "mexicano",
+      "favorito",
+      "rapido",
+      "sin_cocinar"
+    ],
+    "servingG": 70,
+    "unit": "g"
+  },
+  {
+    "id": "almendra",
+    "name": "Almendra",
+    "role": "grasa",
+    "proteinPer100": 21.2,
+    "carbPer100": 21.6,
+    "fatPer100": 49.9,
+    "fiberPer100": 12.5,
+    "kcalPer100": 620.3,
+    "gi": null,
+    "costRel": 3,
+    "prepMin": 1,
+    "tags": [
+      "favorito",
+      "rapido",
+      "sin_cocinar"
+    ],
+    "servingG": 20,
+    "unit": "g"
+  },
+  {
+    "id": "nuez",
+    "name": "Nuez de castilla",
+    "role": "grasa",
+    "proteinPer100": 15.2,
+    "carbPer100": 13.7,
+    "fatPer100": 65.2,
+    "fiberPer100": 6.7,
+    "kcalPer100": 702.4,
+    "gi": null,
+    "costRel": 3,
+    "prepMin": 1,
+    "tags": [
+      "rapido",
+      "sin_cocinar"
+    ],
+    "servingG": 20,
+    "unit": "g"
+  },
+  {
+    "id": "cacahuate",
+    "name": "Cacahuate natural",
+    "role": "grasa",
+    "proteinPer100": 25.8,
+    "carbPer100": 16.1,
+    "fatPer100": 49.2,
+    "fiberPer100": 8.5,
+    "kcalPer100": 610.4,
+    "gi": null,
+    "costRel": 1,
+    "prepMin": 1,
+    "tags": [
+      "mexicano",
+      "rapido",
+      "sin_cocinar"
+    ],
+    "servingG": 20,
+    "unit": "g"
+  },
+  {
+    "id": "crema_cacahuate",
+    "name": "Crema de cacahuate natural",
+    "role": "grasa",
+    "proteinPer100": 25.0,
+    "carbPer100": 20.0,
+    "fatPer100": 50.0,
+    "fiberPer100": 6.0,
+    "kcalPer100": 630.0,
+    "gi": null,
+    "costRel": 2,
+    "prepMin": 1,
+    "tags": [
+      "rapido"
+    ],
+    "servingG": 15,
+    "unit": "g"
+  },
+  {
+    "id": "semilla_girasol",
+    "name": "Semilla de girasol",
+    "role": "grasa",
+    "proteinPer100": 20.8,
+    "carbPer100": 20.0,
+    "fatPer100": 51.5,
+    "fiberPer100": 8.6,
+    "kcalPer100": 626.7,
+    "gi": null,
+    "costRel": 1,
+    "prepMin": 1,
+    "tags": [
+      "rapido"
+    ],
+    "servingG": 20,
+    "unit": "g"
+  },
+  {
+    "id": "chia",
+    "name": "Semilla de chia",
+    "role": "grasa",
+    "proteinPer100": 16.5,
+    "carbPer100": 42.1,
+    "fatPer100": 30.7,
+    "fiberPer100": 34.4,
+    "kcalPer100": 510.7,
+    "gi": 1,
+    "costRel": 2,
+    "prepMin": 1,
+    "tags": [
+      "favorito",
+      "rapido"
+    ],
+    "servingG": 15,
+    "unit": "g"
+  },
+  {
+    "id": "linaza",
+    "name": "Linaza molida",
+    "role": "grasa",
+    "proteinPer100": 18.3,
+    "carbPer100": 28.9,
+    "fatPer100": 42.2,
+    "fiberPer100": 27.3,
+    "kcalPer100": 568.6,
+    "gi": 1,
+    "costRel": 1,
+    "prepMin": 1,
+    "tags": [
+      "rapido"
+    ],
+    "servingG": 15,
+    "unit": "g"
+  },
+  {
+    "id": "ajonjoli",
+    "name": "Ajonjoli",
+    "role": "grasa",
+    "proteinPer100": 17.7,
+    "carbPer100": 23.4,
+    "fatPer100": 49.7,
+    "fiberPer100": 11.8,
+    "kcalPer100": 611.7,
+    "gi": null,
+    "costRel": 1,
+    "prepMin": 1,
+    "tags": [
+      "mexicano",
+      "rapido"
+    ],
+    "servingG": 10,
+    "unit": "g"
+  },
+  {
+    "id": "mantequilla",
+    "name": "Mantequilla",
+    "role": "grasa",
+    "proteinPer100": 0.9,
+    "carbPer100": 0.1,
+    "fatPer100": 81.1,
+    "fiberPer100": 0.0,
+    "kcalPer100": 733.9,
+    "gi": null,
+    "costRel": 2,
+    "prepMin": 1,
+    "tags": [
+      "rapido"
+    ],
+    "servingG": 10,
+    "unit": "g"
+  },
+  {
+    "id": "avellana",
+    "name": "Avellana",
+    "role": "grasa",
+    "proteinPer100": 15.0,
+    "carbPer100": 16.7,
+    "fatPer100": 60.8,
+    "fiberPer100": 9.7,
+    "kcalPer100": 674.0,
+    "gi": null,
+    "costRel": 3,
+    "prepMin": 1,
+    "tags": [
+      "rapido",
+      "sin_cocinar"
+    ],
+    "servingG": 20,
+    "unit": "g"
+  },
+  {
+    "id": "aceite_aguacate",
+    "name": "Aceite de aguacate",
+    "role": "grasa",
+    "proteinPer100": 0.0,
+    "carbPer100": 0.0,
+    "fatPer100": 100.0,
+    "fiberPer100": 0.0,
+    "kcalPer100": 900.0,
+    "gi": null,
+    "costRel": 3,
+    "prepMin": 1,
+    "tags": [
+      "mexicano",
+      "rapido"
+    ],
+    "servingG": 10,
+    "unit": "ml"
+  },
+  {
+    "id": "brocoli",
+    "name": "Brocoli",
+    "role": "vegetal_libre",
+    "proteinPer100": 2.8,
+    "carbPer100": 6.6,
+    "fatPer100": 0.4,
+    "fiberPer100": 2.6,
+    "kcalPer100": 41.2,
+    "gi": 15,
+    "costRel": 1,
+    "prepMin": 10,
+    "tags": [
+      "favorito"
+    ],
+    "servingG": 200,
+    "unit": "g"
+  },
+  {
+    "id": "espinaca",
+    "name": "Espinaca",
+    "role": "vegetal_libre",
+    "proteinPer100": 2.9,
+    "carbPer100": 3.6,
+    "fatPer100": 0.4,
+    "fiberPer100": 2.2,
+    "kcalPer100": 29.6,
+    "gi": 15,
+    "costRel": 1,
+    "prepMin": 3,
+    "tags": [
+      "mexicano",
+      "favorito",
+      "rapido"
+    ],
+    "servingG": 150,
+    "unit": "g"
+  },
+  {
+    "id": "lechuga_romana",
+    "name": "Lechuga romana",
+    "role": "vegetal_libre",
+    "proteinPer100": 1.2,
+    "carbPer100": 3.3,
+    "fatPer100": 0.3,
+    "fiberPer100": 2.1,
+    "kcalPer100": 20.7,
+    "gi": 15,
+    "costRel": 1,
+    "prepMin": 2,
+    "tags": [
+      "mexicano",
+      "favorito",
+      "rapido",
+      "sin_cocinar"
+    ],
+    "servingG": 150,
+    "unit": "g"
+  },
+  {
+    "id": "pepino",
+    "name": "Pepino",
+    "role": "vegetal_libre",
+    "proteinPer100": 0.7,
+    "carbPer100": 3.6,
+    "fatPer100": 0.1,
+    "fiberPer100": 0.5,
+    "kcalPer100": 18.1,
+    "gi": 15,
+    "costRel": 1,
+    "prepMin": 2,
+    "tags": [
+      "mexicano",
+      "favorito",
+      "rapido",
+      "sin_cocinar"
+    ],
+    "servingG": 200,
+    "unit": "g"
+  },
+  {
+    "id": "nopal",
+    "name": "Nopal cocido",
+    "role": "vegetal_libre",
+    "proteinPer100": 1.3,
+    "carbPer100": 3.3,
+    "fatPer100": 0.1,
+    "fiberPer100": 2.2,
+    "kcalPer100": 19.3,
+    "gi": 15,
+    "costRel": 1,
+    "prepMin": 10,
+    "tags": [
+      "mexicano",
+      "favorito"
+    ],
+    "servingG": 200,
+    "unit": "g"
+  },
+  {
+    "id": "calabacita",
+    "name": "Calabacita",
+    "role": "vegetal_libre",
+    "proteinPer100": 1.2,
+    "carbPer100": 3.1,
+    "fatPer100": 0.3,
+    "fiberPer100": 1.0,
+    "kcalPer100": 19.9,
+    "gi": 15,
+    "costRel": 1,
+    "prepMin": 10,
+    "tags": [
+      "mexicano",
+      "favorito"
+    ],
+    "servingG": 200,
+    "unit": "g"
+  },
+  {
+    "id": "esparrago",
+    "name": "Esparrago",
+    "role": "vegetal_libre",
+    "proteinPer100": 2.2,
+    "carbPer100": 3.9,
+    "fatPer100": 0.1,
+    "fiberPer100": 2.1,
+    "kcalPer100": 25.3,
+    "gi": 15,
+    "costRel": 3,
+    "prepMin": 10,
+    "tags": [
+      "favorito"
+    ],
+    "servingG": 150,
+    "unit": "g"
+  },
+  {
+    "id": "coliflor",
+    "name": "Coliflor",
+    "role": "vegetal_libre",
+    "proteinPer100": 1.9,
+    "carbPer100": 5.0,
+    "fatPer100": 0.3,
+    "fiberPer100": 2.0,
+    "kcalPer100": 30.3,
+    "gi": 15,
+    "costRel": 1,
+    "prepMin": 12,
+    "tags": [
+      "favorito"
+    ],
+    "servingG": 200,
+    "unit": "g"
+  },
+  {
+    "id": "champinon",
+    "name": "Champinon",
+    "role": "vegetal_libre",
+    "proteinPer100": 3.1,
+    "carbPer100": 3.3,
+    "fatPer100": 0.3,
+    "fiberPer100": 1.0,
+    "kcalPer100": 28.3,
+    "gi": 15,
+    "costRel": 2,
+    "prepMin": 8,
+    "tags": [
+      "mexicano",
+      "favorito"
+    ],
+    "servingG": 150,
+    "unit": "g"
+  },
+  {
+    "id": "rabano",
+    "name": "Rabano",
+    "role": "vegetal_libre",
+    "proteinPer100": 0.7,
+    "carbPer100": 3.4,
+    "fatPer100": 0.1,
+    "fiberPer100": 1.6,
+    "kcalPer100": 17.3,
+    "gi": 15,
+    "costRel": 1,
+    "prepMin": 2,
+    "tags": [
+      "mexicano",
+      "rapido",
+      "sin_cocinar"
+    ],
+    "servingG": 100,
+    "unit": "g"
+  },
+  {
+    "id": "jitomate",
+    "name": "Jitomate",
+    "role": "vegetal_libre",
+    "proteinPer100": 0.9,
+    "carbPer100": 3.9,
+    "fatPer100": 0.2,
+    "fiberPer100": 1.2,
+    "kcalPer100": 21.0,
+    "gi": 15,
+    "costRel": 1,
+    "prepMin": 2,
+    "tags": [
+      "mexicano",
+      "rapido",
+      "sin_cocinar"
+    ],
+    "servingG": 150,
+    "unit": "g"
+  },
+  {
+    "id": "cebolla",
+    "name": "Cebolla",
+    "role": "vegetal_libre",
+    "proteinPer100": 1.1,
+    "carbPer100": 9.3,
+    "fatPer100": 0.1,
+    "fiberPer100": 1.7,
+    "kcalPer100": 42.5,
+    "gi": 15,
+    "costRel": 1,
+    "prepMin": 3,
+    "tags": [
+      "mexicano",
+      "rapido"
+    ],
+    "servingG": 80,
+    "unit": "g"
+  },
+  {
+    "id": "acelga",
+    "name": "Acelga",
+    "role": "vegetal_libre",
+    "proteinPer100": 1.8,
+    "carbPer100": 3.7,
+    "fatPer100": 0.2,
+    "fiberPer100": 1.6,
+    "kcalPer100": 23.8,
+    "gi": 15,
+    "costRel": 1,
+    "prepMin": 5,
+    "tags": [
+      "mexicano"
+    ],
+    "servingG": 150,
+    "unit": "g"
+  },
+  {
+    "id": "kale",
+    "name": "Kale",
+    "role": "vegetal_libre",
+    "proteinPer100": 4.3,
+    "carbPer100": 8.8,
+    "fatPer100": 0.9,
+    "fiberPer100": 3.6,
+    "kcalPer100": 60.5,
+    "gi": 15,
+    "costRel": 2,
+    "prepMin": 5,
+    "tags": [],
+    "servingG": 120,
+    "unit": "g"
+  },
+  {
+    "id": "apio",
+    "name": "Apio",
+    "role": "vegetal_libre",
+    "proteinPer100": 0.7,
+    "carbPer100": 3.0,
+    "fatPer100": 0.2,
+    "fiberPer100": 1.6,
+    "kcalPer100": 16.6,
+    "gi": 15,
+    "costRel": 1,
+    "prepMin": 2,
+    "tags": [
+      "rapido",
+      "sin_cocinar"
+    ],
+    "servingG": 120,
+    "unit": "g"
+  },
+  {
+    "id": "col",
+    "name": "Col",
+    "role": "vegetal_libre",
+    "proteinPer100": 1.3,
+    "carbPer100": 5.8,
+    "fatPer100": 0.1,
+    "fiberPer100": 2.5,
+    "kcalPer100": 29.3,
+    "gi": 15,
+    "costRel": 1,
+    "prepMin": 5,
+    "tags": [
+      "mexicano"
+    ],
+    "servingG": 150,
+    "unit": "g"
+  },
+  {
+    "id": "chile_poblano",
+    "name": "Chile poblano",
+    "role": "vegetal_libre",
+    "proteinPer100": 1.0,
+    "carbPer100": 6.0,
+    "fatPer100": 0.2,
+    "fiberPer100": 1.7,
+    "kcalPer100": 29.8,
+    "gi": 15,
+    "costRel": 1,
+    "prepMin": 10,
+    "tags": [
+      "mexicano"
+    ],
+    "servingG": 100,
+    "unit": "g"
+  },
+  {
+    "id": "ejote",
+    "name": "Ejote",
+    "role": "vegetal_libre",
+    "proteinPer100": 1.8,
+    "carbPer100": 7.0,
+    "fatPer100": 0.1,
+    "fiberPer100": 2.7,
+    "kcalPer100": 36.1,
+    "gi": 15,
+    "costRel": 1,
+    "prepMin": 10,
+    "tags": [
+      "mexicano"
+    ],
+    "servingG": 150,
+    "unit": "g"
+  },
+  {
+    "id": "jicama",
+    "name": "Jicama",
+    "role": "vegetal_libre",
+    "proteinPer100": 0.7,
+    "carbPer100": 8.8,
+    "fatPer100": 0.1,
+    "fiberPer100": 4.9,
+    "kcalPer100": 38.9,
+    "gi": 15,
+    "costRel": 1,
+    "prepMin": 3,
+    "tags": [
+      "mexicano",
+      "rapido",
+      "sin_cocinar"
+    ],
+    "servingG": 150,
+    "unit": "g"
+  },
+  {
+    "id": "chayote",
+    "name": "Chayote",
+    "role": "vegetal_libre",
+    "proteinPer100": 0.8,
+    "carbPer100": 4.5,
+    "fatPer100": 0.1,
+    "fiberPer100": 1.7,
+    "kcalPer100": 22.1,
+    "gi": 15,
+    "costRel": 1,
+    "prepMin": 12,
+    "tags": [
+      "mexicano"
+    ],
+    "servingG": 200,
+    "unit": "g"
+  },
+  {
+    "id": "zanahoria",
+    "name": "Zanahoria",
+    "role": "vegetal_libre",
+    "proteinPer100": 0.9,
+    "carbPer100": 9.6,
+    "fatPer100": 0.2,
+    "fiberPer100": 2.8,
+    "kcalPer100": 43.8,
+    "gi": 39,
+    "costRel": 1,
+    "prepMin": 5,
+    "tags": [
+      "mexicano",
+      "rapido"
+    ],
+    "servingG": 120,
+    "unit": "g"
+  },
+  {
+    "id": "betabel",
+    "name": "Betabel cocido",
+    "role": "vegetal_libre",
+    "proteinPer100": 1.6,
+    "carbPer100": 10.0,
+    "fatPer100": 0.2,
+    "fiberPer100": 2.8,
+    "kcalPer100": 48.2,
+    "gi": 64,
+    "costRel": 1,
+    "prepMin": 25,
+    "tags": [
+      "mexicano"
+    ],
+    "servingG": 120,
+    "unit": "g"
+  },
+  {
+    "id": "germen_alfalfa",
+    "name": "Germen de alfalfa",
+    "role": "vegetal_libre",
+    "proteinPer100": 4.0,
+    "carbPer100": 2.1,
+    "fatPer100": 0.7,
+    "fiberPer100": 1.9,
+    "kcalPer100": 30.7,
+    "gi": 15,
+    "costRel": 1,
+    "prepMin": 1,
+    "tags": [
+      "rapido",
+      "sin_cocinar"
+    ],
+    "servingG": 80,
+    "unit": "g"
+  },
+  {
+    "id": "pico_de_gallo",
+    "name": "Pico de gallo (jitomate, cebolla, cilantro)",
+    "role": "vegetal_libre",
+    "proteinPer100": 1.0,
+    "carbPer100": 4.5,
+    "fatPer100": 0.2,
+    "fiberPer100": 1.3,
+    "kcalPer100": 23.8,
+    "gi": 15,
+    "costRel": 1,
+    "prepMin": 8,
+    "tags": [
+      "mexicano",
+      "favorito"
+    ],
+    "servingG": 120,
+    "unit": "g"
+  },
+  {
+    "id": "manzana",
+    "name": "Manzana",
+    "role": "fruta",
+    "proteinPer100": 0.3,
+    "carbPer100": 13.8,
+    "fatPer100": 0.2,
+    "fiberPer100": 2.4,
+    "kcalPer100": 58.2,
+    "gi": 36,
+    "costRel": 1,
+    "prepMin": 1,
+    "tags": [
+      "mexicano",
+      "favorito",
+      "rapido",
+      "sin_cocinar"
+    ],
+    "servingG": 180,
+    "unit": "pieza"
+  },
+  {
+    "id": "fresa",
+    "name": "Fresa",
+    "role": "fruta",
+    "proteinPer100": 0.7,
+    "carbPer100": 7.7,
+    "fatPer100": 0.3,
+    "fiberPer100": 2.0,
+    "kcalPer100": 36.3,
+    "gi": 40,
+    "costRel": 2,
+    "prepMin": 2,
+    "tags": [
+      "favorito",
+      "rapido",
+      "sin_cocinar"
+    ],
+    "servingG": 150,
+    "unit": "g"
+  },
+  {
+    "id": "frambuesa",
+    "name": "Frambuesa",
+    "role": "fruta",
+    "proteinPer100": 1.2,
+    "carbPer100": 11.9,
+    "fatPer100": 0.7,
+    "fiberPer100": 6.5,
+    "kcalPer100": 58.7,
+    "gi": 32,
+    "costRel": 3,
+    "prepMin": 1,
+    "tags": [
+      "favorito",
+      "rapido",
+      "sin_cocinar"
+    ],
+    "servingG": 100,
+    "unit": "g"
+  },
+  {
+    "id": "arandano",
+    "name": "Arandano azul",
+    "role": "fruta",
+    "proteinPer100": 0.7,
+    "carbPer100": 14.5,
+    "fatPer100": 0.3,
+    "fiberPer100": 2.4,
+    "kcalPer100": 63.5,
+    "gi": 53,
+    "costRel": 3,
+    "prepMin": 1,
+    "tags": [
+      "rapido",
+      "sin_cocinar"
+    ],
+    "servingG": 100,
+    "unit": "g"
+  },
+  {
+    "id": "papaya",
+    "name": "Papaya",
+    "role": "fruta",
+    "proteinPer100": 0.5,
+    "carbPer100": 10.8,
+    "fatPer100": 0.3,
+    "fiberPer100": 1.7,
+    "kcalPer100": 47.9,
+    "gi": 60,
+    "costRel": 1,
+    "prepMin": 3,
+    "tags": [
+      "mexicano",
+      "favorito",
+      "rapido"
+    ],
+    "servingG": 200,
+    "unit": "g"
+  },
+  {
+    "id": "melon",
+    "name": "Melon",
+    "role": "fruta",
+    "proteinPer100": 0.8,
+    "carbPer100": 8.2,
+    "fatPer100": 0.2,
+    "fiberPer100": 0.9,
+    "kcalPer100": 37.8,
+    "gi": 65,
+    "costRel": 1,
+    "prepMin": 3,
+    "tags": [
+      "mexicano",
+      "rapido"
+    ],
+    "servingG": 200,
+    "unit": "g"
+  },
+  {
+    "id": "platano",
+    "name": "Platano",
+    "role": "fruta",
+    "proteinPer100": 1.1,
+    "carbPer100": 22.8,
+    "fatPer100": 0.3,
+    "fiberPer100": 2.6,
+    "kcalPer100": 98.3,
+    "gi": 51,
+    "costRel": 1,
+    "prepMin": 1,
+    "tags": [
+      "mexicano",
+      "favorito",
+      "rapido",
+      "sin_cocinar"
+    ],
+    "servingG": 120,
+    "unit": "pieza"
+  },
+  {
+    "id": "naranja",
+    "name": "Naranja",
+    "role": "fruta",
+    "proteinPer100": 0.9,
+    "carbPer100": 11.8,
+    "fatPer100": 0.1,
+    "fiberPer100": 2.4,
+    "kcalPer100": 51.7,
+    "gi": 43,
+    "costRel": 1,
+    "prepMin": 2,
+    "tags": [
+      "mexicano",
+      "rapido",
+      "sin_cocinar"
+    ],
+    "servingG": 180,
+    "unit": "pieza"
+  },
+  {
+    "id": "toronja",
+    "name": "Toronja",
+    "role": "fruta",
+    "proteinPer100": 0.8,
+    "carbPer100": 8.1,
+    "fatPer100": 0.1,
+    "fiberPer100": 1.1,
+    "kcalPer100": 36.5,
+    "gi": 25,
+    "costRel": 1,
+    "prepMin": 2,
+    "tags": [
+      "mexicano",
+      "rapido",
+      "sin_cocinar"
+    ],
+    "servingG": 200,
+    "unit": "pieza"
+  },
+  {
+    "id": "mango",
+    "name": "Mango",
+    "role": "fruta",
+    "proteinPer100": 0.8,
+    "carbPer100": 15.0,
+    "fatPer100": 0.4,
+    "fiberPer100": 1.6,
+    "kcalPer100": 66.8,
+    "gi": 51,
+    "costRel": 1,
+    "prepMin": 3,
+    "tags": [
+      "mexicano",
+      "rapido"
+    ],
+    "servingG": 180,
+    "unit": "g"
+  },
+  {
+    "id": "pina",
+    "name": "Pina",
+    "role": "fruta",
+    "proteinPer100": 0.5,
+    "carbPer100": 13.1,
+    "fatPer100": 0.1,
+    "fiberPer100": 1.4,
+    "kcalPer100": 55.3,
+    "gi": 59,
+    "costRel": 1,
+    "prepMin": 5,
+    "tags": [
+      "mexicano",
+      "rapido"
+    ],
+    "servingG": 150,
+    "unit": "g"
+  },
+  {
+    "id": "pera",
+    "name": "Pera",
+    "role": "fruta",
+    "proteinPer100": 0.4,
+    "carbPer100": 15.2,
+    "fatPer100": 0.1,
+    "fiberPer100": 3.1,
+    "kcalPer100": 63.3,
+    "gi": 38,
+    "costRel": 2,
+    "prepMin": 1,
+    "tags": [
+      "rapido",
+      "sin_cocinar"
+    ],
+    "servingG": 170,
+    "unit": "pieza"
+  },
+  {
+    "id": "durazno",
+    "name": "Durazno",
+    "role": "fruta",
+    "proteinPer100": 0.9,
+    "carbPer100": 9.5,
+    "fatPer100": 0.3,
+    "fiberPer100": 1.5,
+    "kcalPer100": 44.3,
+    "gi": 42,
+    "costRel": 2,
+    "prepMin": 1,
+    "tags": [
+      "mexicano",
+      "rapido",
+      "sin_cocinar"
+    ],
+    "servingG": 150,
+    "unit": "pieza"
+  },
+  {
+    "id": "pasas",
+    "name": "Pasas",
+    "role": "fruta",
+    "proteinPer100": 3.1,
+    "carbPer100": 79.2,
+    "fatPer100": 0.5,
+    "fiberPer100": 3.7,
+    "kcalPer100": 333.7,
+    "gi": 64,
+    "costRel": 2,
+    "prepMin": 1,
+    "tags": [
+      "rapido",
+      "sin_cocinar"
+    ],
+    "servingG": 25,
+    "unit": "g"
+  },
+  {
+    "id": "psyllium",
+    "name": "Psyllium (cascara)",
+    "role": "suplemento",
+    "proteinPer100": 1.5,
+    "carbPer100": 80.0,
+    "fatPer100": 0.5,
+    "fiberPer100": 78.0,
+    "kcalPer100": 330.5,
+    "gi": null,
+    "costRel": 2,
+    "prepMin": 1,
+    "tags": [
+      "suplemento",
+      "rapido"
+    ],
+    "servingG": 5,
+    "unit": "g"
+  },
+  {
+    "id": "creatina",
+    "name": "Creatina monohidratada",
+    "role": "suplemento",
+    "proteinPer100": 0.0,
+    "carbPer100": 0.0,
+    "fatPer100": 0.0,
+    "fiberPer100": 0.0,
+    "kcalPer100": 0.0,
+    "gi": null,
+    "costRel": 2,
+    "prepMin": 1,
+    "tags": [
+      "suplemento",
+      "rapido"
+    ],
+    "servingG": 5,
+    "unit": "g"
+  },
+  {
+    "id": "canela",
+    "name": "Canela molida",
+    "role": "suplemento",
+    "proteinPer100": 4.0,
+    "carbPer100": 80.6,
+    "fatPer100": 1.2,
+    "fiberPer100": 53.1,
+    "kcalPer100": 349.2,
+    "gi": null,
+    "costRel": 1,
+    "prepMin": 1,
+    "tags": [
+      "mexicano",
+      "rapido"
+    ],
+    "servingG": 2,
+    "unit": "g"
+  },
+  {
+    "id": "vinagre_balsamico",
+    "name": "Vinagre balsamico",
+    "role": "suplemento",
+    "proteinPer100": 0.5,
+    "carbPer100": 17.0,
+    "fatPer100": 0.0,
+    "fiberPer100": 0.0,
+    "kcalPer100": 70.0,
+    "gi": null,
+    "costRel": 2,
+    "prepMin": 1,
+    "tags": [
+      "rapido"
+    ],
+    "servingG": 10,
+    "unit": "ml"
+  },
+  {
+    "id": "limon",
+    "name": "Limon",
+    "role": "suplemento",
+    "proteinPer100": 1.1,
+    "carbPer100": 9.3,
+    "fatPer100": 0.3,
+    "fiberPer100": 2.8,
+    "kcalPer100": 44.3,
+    "gi": 20,
+    "costRel": 1,
+    "prepMin": 1,
+    "tags": [
+      "mexicano",
+      "rapido"
+    ],
+    "servingG": 30,
+    "unit": "g"
+  }
+]

@@ -1,0 +1,181 @@
+{
+  "_readme": [
+    "Fixtures del backtest del motor. Repo publico: SOLO senales categoricas y numericas abstractas.",
+    "No contiene nombres, ni texto de mensajes, ni nada identificable.",
+    "Escalas 1-5. compliance en % de cumplimiento de dieta.",
+    "expected = categoria que decidio el coach real esa semana.",
+    "MENU_REFRESH cuenta como HOLD de fase en la metrica."
+  ],
+  "weeks": [
+    {
+      "week": "2026-01-24",
+      "inflammation": 1, "energy": 2, "hunger": 2, "sleep": 3,
+      "strengthTrend": "igual", "compliance": 85,
+      "symptoms": ["enfermedad", "dolor_muscular"],
+      "weeksSincePhaseChange": 0,
+      "expected": "HOLD"
+    },
+    {
+      "week": "2026-01-31",
+      "inflammation": 2, "energy": 4, "hunger": 2, "sleep": 4,
+      "strengthTrend": "sube", "compliance": 100,
+      "symptoms": [],
+      "weeksSincePhaseChange": 1,
+      "expected": "MENU_REFRESH"
+    },
+    {
+      "week": "2026-02-07",
+      "photosTrend": "mejora",
+      "inflammation": 2, "energy": 4, "hunger": 2, "sleep": 4,
+      "strengthTrend": "sube", "compliance": 95,
+      "symptoms": [],
+      "weeksSincePhaseChange": 2,
+      "expected": "HOLD"
+    },
+    {
+      "week": "2026-02-14",
+      "waistCm": 90, "weightKg": 75,
+      "inflammation": 2, "energy": 4, "hunger": 2, "sleep": 4,
+      "strengthTrend": "sube", "compliance": 80,
+      "symptoms": ["dolor_tobillo"],
+      "newInjury": true,
+      "weeksSincePhaseChange": 3,
+      "expected": "MENU_REFRESH"
+    },
+    {
+      "week": "2026-02-22",
+      "waistCm": 90,
+      "inflammation": 2, "energy": 3, "hunger": 3, "sleep": 3,
+      "strengthTrend": "igual", "compliance": 85,
+      "symptoms": ["dolor_tobillo"],
+      "activeInjury": true,
+      "weeksSincePhaseChange": 4,
+      "expected": "HOLD"
+    },
+    {
+      "week": "2026-03-01",
+      "waistCm": 89,
+      "inflammation": 3, "energy": 4, "hunger": 3, "sleep": 4,
+      "strengthTrend": "sube", "compliance": 90,
+      "symptoms": ["dolor_tobillo"],
+      "activeInjury": true,
+      "weeksSincePhaseChange": 5,
+      "expected": "MENU_REFRESH"
+    },
+    {
+      "week": "2026-03-09",
+      "photosTrend": "mejora",
+      "inflammation": 3, "energy": 4, "hunger": 3, "sleep": 4,
+      "strengthTrend": "igual", "compliance": 90,
+      "symptoms": [],
+      "weeksSincePhaseChange": 6,
+      "expected": "HOLD"
+    },
+    {
+      "week": "2026-03-15",
+      "photosTrend": "igual",
+      "inflammation": 4, "energy": 3, "hunger": 3, "sleep": 3,
+      "strengthTrend": "igual", "compliance": 90,
+      "symptoms": [],
+      "weeksSincePhaseChange": 7,
+      "expected": "TIGHTEN"
+    },
+    {
+      "week": "2026-03-21",
+      "waistCm": 89,
+      "inflammation": 2, "energy": 4, "hunger": 3, "sleep": 4,
+      "strengthTrend": "sube", "compliance": 95,
+      "symptoms": [],
+      "weeksSincePhaseChange": 0,
+      "expected": "HOLD"
+    },
+    {
+      "week": "2026-03-28",
+      "photosTrend": "igual",
+      "inflammation": 3, "energy": 2, "hunger": 4, "sleep": 2,
+      "strengthTrend": "igual", "compliance": 85,
+      "symptoms": [],
+      "weeksSincePhaseChange": 1,
+      "expected": "REFEED"
+    },
+    {
+      "week": "2026-04-11",
+      "inflammation": 3, "energy": 4, "hunger": 3, "sleep": 4,
+      "strengthTrend": "igual", "compliance": 95,
+      "symptoms": [],
+      "aggressiveRequest": true,
+      "weeksSincePhaseChange": 2,
+      "expected": "CUT"
+    },
+    {
+      "week": "2026-04-18",
+      "inflammation": 1, "energy": 4, "hunger": 3, "sleep": 4,
+      "strengthTrend": "sube", "compliance": 95,
+      "symptoms": [],
+      "weeksSincePhaseChange": 1,
+      "expected": "HOLD"
+    },
+    {
+      "week": "2026-04-25",
+      "inflammation": 1, "energy": 4, "hunger": 3, "sleep": 4,
+      "strengthTrend": "sube", "compliance": 95,
+      "symptoms": [],
+      "weeksSincePhaseChange": 2,
+      "expected": "HOLD"
+    },
+    {
+      "week": "2026-05-02",
+      "inflammation": 1, "energy": 4, "hunger": 2, "sleep": 4,
+      "strengthTrend": "sube", "compliance": 95,
+      "symptoms": [],
+      "weeksSincePhaseChange": 3,
+      "expected": "HOLD"
+    },
+    {
+      "week": "2026-05-06",
+      "photosTrend": "igual",
+      "inflammation": 4, "energy": 3, "hunger": 3, "sleep": 3,
+      "strengthTrend": "igual", "compliance": 90,
+      "symptoms": [],
+      "weeksSincePhaseChange": 4,
+      "expected": "CUT_AGRESIVO"
+    },
+    {
+      "week": "2026-05-09",
+      "photosTrend": "mejora",
+      "inflammation": 1, "energy": 4, "hunger": 3, "sleep": 4,
+      "strengthTrend": "sube", "compliance": 95,
+      "symptoms": [],
+      "weeksSincePhaseChange": 0,
+      "expected": "HOLD"
+    },
+    {
+      "week": "2026-05-17",
+      "inflammation": 3, "energy": 3, "hunger": 3, "sleep": 3,
+      "strengthTrend": "baja", "compliance": 90,
+      "symptoms": ["dolor_pie"],
+      "activeInjury": true,
+      "daysWithoutTraining": 7,
+      "weeksSincePhaseChange": 2,
+      "expected": "REFEED"
+    },
+    {
+      "week": "2026-05-31",
+      "photosTrend": "mejora",
+      "inflammation": 2, "energy": 4, "hunger": 3, "sleep": 4,
+      "strengthTrend": "igual", "compliance": 95,
+      "symptoms": ["calambres"],
+      "weeksSincePhaseChange": 1,
+      "expected": "HOLD"
+    },
+    {
+      "week": "2026-06-05",
+      "inflammation": 2, "energy": 4, "hunger": 3, "sleep": 4,
+      "strengthTrend": "igual", "compliance": 90,
+      "symptoms": [],
+      "contextChange": true,
+      "weeksSincePhaseChange": 2,
+      "expected": "CONTEXT_CHANGE"
+    }
+  ]
+}
