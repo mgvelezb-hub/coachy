@@ -27,7 +27,8 @@ El setup completo (base local, Supabase, Vercel) está en
 genéricos: ejercicios y alimentos. El historial real de un atleta entra por `/admin/import` como
 JSON privado, o vive en `data/private/` (ignorado por git). Las fotos de progreso se guardan en un
 bucket privado de Supabase con URLs firmadas, y solo se analizan con IA si el atleta lo autoriza
-explícitamente — el consentimiento queda registrado con fecha y versión.
+explícitamente — el consentimiento queda registrado con fecha y versión. Los ejemplos de tono con
+los que Coachy redacta viven en la base o en `data/private/`, nunca en el repo.
 
 Ningún secreto va al repo: `.env` y `.env*.local` están ignorados; `apps/web/.env.example` tiene
 los placeholders.
@@ -38,4 +39,4 @@ los placeholders.
 |---|---|---|
 | 0 | Motor de dietas + tests + backtest | `packages/engine` |
 | 1 | Schema, auth, check-in PWA con fotos, historial, admin | `apps/web` |
-| 2 | Coachy v1: análisis, preguntas, respuesta y validación admin | pendiente |
+| 2 | Coachy v1: análisis, preguntas, respuesta y validación admin | `apps/web/src/lib/coachy` |

@@ -41,6 +41,7 @@ autenticar. Es suficiente para trabajar en UI y en el esquema.
 | `pnpm build` | Build de producción (corre `prisma generate` primero) |
 | `pnpm typecheck` | `tsc --noEmit` |
 | `pnpm test` | vitest — las pruebas contra la base se saltan solas si no hay Postgres |
+| `pnpm eval:coachy` | Corre Coachy sobre 19 semanas reales y escribe `eval/` ([rúbrica](./eval/README.md)) |
 | `pnpm db:migrate` | `prisma migrate dev` |
 | `pnpm db:deploy` | `prisma migrate deploy` (producción) |
 | `pnpm db:seed` | Carga catálogos genéricos |
@@ -90,10 +91,13 @@ cp .env.example .env
 | `SUPABASE_SERVICE_ROLE_KEY` | Project Settings → API → `service_role` (**solo servidor**) |
 | `DATABASE_URL` | Connection string, Transaction pooler (6543) + `?pgbouncer=true` |
 | `DIRECT_URL` | Connection string, Session (5432) |
-| `ANTHROPIC_API_KEY` | console.anthropic.com — se usa hasta la Fase 2 |
+| `ANTHROPIC_API_KEY` | console.anthropic.com — Coachy no redacta sin ella |
 | `ADMIN_EMAILS` | Emails con rol ADMIN, separados por coma |
-| `VISION_ENABLED` | `false` en Fase 1 |
+| `VISION_ENABLED` | `true` prende el análisis de fotos. Aun prendido, no analiza nada sin consentimiento del atleta |
 | `REQUIRE_APPROVAL` | `true`: ninguna decisión se publica sin que el admin la apruebe |
+| `CRON_SECRET` | `openssl rand -hex 32`. Protege `/api/cron/*` y `/api/coachy/run`; sin ella responden 503 |
+| `RESEND_API_KEY` | Opcional. Sin ella los avisos existen solo dentro de la app |
+| `RESEND_FROM` | Remitente de los correos, si hay Resend |
 
 El rol se recalcula **en cada acceso** desde `ADMIN_EMAILS`. Quitar un correo de la lista degrada
 esa cuenta a `ATHLETE` sin tocar la base.
@@ -145,9 +149,27 @@ Deja instalado:
 3. **Framework Preset**: Next.js. Vercel detecta pnpm por el lockfile.
    - *Install Command*: `pnpm install --frozen-lockfile` (o el default).
    - *Build Command*: `pnpm build` — ya corre `prisma generate`.
-4. **Environment Variables**: las nueve de la tabla de arriba, en *Production* y *Preview*.
-   `SUPABASE_SERVICE_ROLE_KEY` y `ANTHROPIC_API_KEY` marcadas como sensibles.
+4. **Environment Variables**: las de la tabla de arriba, en *Production* y *Preview*.
+   `SUPABASE_SERVICE_ROLE_KEY`, `ANTHROPIC_API_KEY`, `CRON_SECRET` y `RESEND_API_KEY` marcadas
+   como sensibles.
 5. Deploy. Después, en Supabase, agrega el dominio de Vercel a *Site URL* y *Redirect URLs*.
+
+### Crons
+
+[`vercel.json`](./vercel.json) declara los dos recordatorios. Vercel los agenda en **UTC**, así que
+las horas están corridas seis: sábado 20:00 CDMX = domingo 02:00 UTC, miércoles 12:00 CDMX =
+miércoles 18:00 UTC.
+
+| Cron | Cuándo (CDMX) | Qué hace |
+|---|---|---|
+| `/api/cron/saturday` | Sábado 20:00 | "Mañana medidas y fotos, misma luz misma hora" |
+| `/api/cron/wednesday` | Miércoles 12:00 | "¿Cómo vamos?" si no llegó el check-in; a las 2 semanas, aviso al admin |
+
+Vercel manda `Authorization: Bearer $CRON_SECRET`. Para probarlos a mano:
+
+```bash
+curl -H "Authorization: Bearer $CRON_SECRET" https://<dominio>/api/cron/wednesday
+```
 
 Las migraciones **no** corren solas en el deploy, a propósito: `prisma migrate deploy` contra
 producción se ejecuta a mano cuando decides que toca.
@@ -205,9 +227,69 @@ src/
 
 ---
 
-## 5. Pendientes de Fase 2
+## 5. Coachy (Fase 2)
 
-- Correr `decide()` del motor al recibir un check-in y guardar la `Decision`.
-- Cola de decisiones en `/admin/decisiones` con Aprobar / Corregir.
-- Mensaje de Coachy, menú vigente y meta de la semana en `/app`.
-- Análisis de fotos con visión, detrás de `VISION_ENABLED` y del consentimiento del atleta.
+```
+src/lib/coachy/
+  analyze.ts        historial -> tipos del motor -> decide() -> Decision
+  vision.ts         análisis de fotos por zona (solo cambio, nunca estética)
+  questions.ts      banco de preguntas por señal, máximo 3, sin repetir
+  compose.ts        redacción con Claude: system prompt, few-shot, tool use
+  fewshot.ts        ejemplos de tono: training_examples, con fallback a data/private/
+  menu.ts           generateMenu() -> meal_plans
+  mapping.ts        Prisma <-> tipos del motor
+  notifications.ts  avisos in-app + correo opcional (Resend)
+  index.ts          orquestador
+```
+
+### La frontera que no se cruza
+
+**El motor decide los números; la IA solo los redacta y pregunta.** Tres candados lo sostienen:
+
+1. La herramienta que el modelo llama **no tiene ningún campo numérico** — no hay dónde escribir
+   kcal ni macros.
+2. `enforceEngineNumbers` revisa el texto: cualquier número mayor a 30 que no venga del motor tumba
+   la frase y la reemplaza por una escrita por nosotros con los números correctos.
+3. La cola del admin muestra los números del motor junto al texto propuesto, antes de publicar.
+
+### El ciclo completo
+
+1. La atleta guarda su check-in. La server action contesta de inmediato y dispara Coachy con
+   `after()`: nadie espera a que Claude redacte.
+2. `runCheckinAnalysis` reconstruye el historial, corre visión si aplica, llama a `decide()` y
+   guarda la `Decision` — `PENDIENTE` si `REQUIRE_APPROVAL` está prendido.
+3. `pickQuestions` elige hasta 3 preguntas del banco según las señales, sin repetir las de la
+   semana pasada.
+4. `composeReply` redacta con `claude-sonnet-5`, con el orden y el tono de la metodología y el
+   few-shot de la tabla `training_examples`.
+5. `syncMealPlans` genera los dos menús cuando cambió la fase o toca quincena.
+6. El admin ve la cola en `/admin/decisiones`: **Aprobar** (un tap) o **Corregir** (fase, kcal,
+   texto). Corregir recalcula macros con el motor y guarda el par como `training_examples` con
+   fuente `ADMIN` — que es como Coachy aprende.
+7. Al publicarse, la atleta ve en `/app` el mensaje, las preguntas para contestar inline, el menú
+   vigente con equivalencias y lista de súper, y la meta de la semana.
+
+Si algo de la IA falla, la `Decision` del motor ya quedó guardada. `POST /api/coachy/run`
+(protegido con `CRON_SECRET`) reintenta los check-ins sin texto.
+
+### Fotos y consentimiento
+
+`analyzePhotos` no manda nada sin **los tres** candados: `VISION_ENABLED=true`, `photoConsentAt`
+con fecha en el perfil, y fotos con qué comparar. La foto se descarga con una URL firmada de 60
+segundos y sus bytes van únicamente a la API de Anthropic. El esquema de salida solo admite
+`{zona, cambio, nota_breve}`: no hay dónde escribir un comentario estético.
+
+### Few-shot
+
+En producción manda la tabla `training_examples`. En local, si la tabla está vacía, se lee
+`apps/web/data/private/coach-fewshot.json` — carpeta ignorada por git, con el nombre del atleta
+reemplazado por `{{ATLETA}}`. Ese archivo **no existe en un deploy**, a propósito.
+
+## 6. Pendientes conocidos
+
+- El check-in no captura `newInjury`, `contextChange`, `aggressiveRequest`, `goalReached` ni
+  `restart`. El motor sabe usarlos; el formulario todavía no los pregunta. Hoy la lesión activa se
+  lee de las condiciones del perfil y los días sin entrenar se derivan del cumplimiento.
+- Las respuestas a las preguntas de Coachy son de texto. La API de Claude no recibe audio, así que
+  el "audio → transcripción" del plan necesita otra herramienta (Whisper o equivalente).
+- Rutina del día: `/app` la muestra si existe un `Workout`, pero nadie los crea todavía (Fase 4).
