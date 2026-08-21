@@ -67,6 +67,11 @@ export function ProgressCharts({ points }: { points: CheckInPoint[] }): React.JS
     return { label: row?.label ?? "", phase: change.phase };
   });
 
+  const MAX_VISIBLE_CHANGES = 8;
+  const visibleChanges =
+    changes.length > MAX_VISIBLE_CHANGES ? changes.slice(-MAX_VISIBLE_CHANGES) : changes;
+  const hiddenChangesCount = changes.length - visibleChanges.length;
+
   return (
     <div className="space-y-4">
       <Card>
@@ -116,13 +121,9 @@ export function ProgressCharts({ points }: { points: CheckInPoint[] }): React.JS
                   yAxisId="cm"
                   x={marker.label}
                   stroke="var(--chart-4)"
+                  strokeOpacity={0.5}
+                  strokeWidth={1}
                   strokeDasharray="4 4"
-                  label={{
-                    value: phaseLabel(marker.phase),
-                    position: "top",
-                    fontSize: 10,
-                    fill: "var(--chart-4)",
-                  }}
                 />
               ))}
 
@@ -149,6 +150,22 @@ export function ProgressCharts({ points }: { points: CheckInPoint[] }): React.JS
               />
             </LineChart>
           </ResponsiveContainer>
+
+          {changes.length > 0 ? (
+            <div className="mt-3 flex flex-wrap gap-x-3 gap-y-1 px-4 text-xs text-muted-foreground">
+              {hiddenChangesCount > 0 ? <span>+{hiddenChangesCount} anteriores</span> : null}
+              {visibleChanges.map((change) => (
+                <span key={`${change.date}-${change.phase}`} className="inline-flex items-center gap-1.5">
+                  <span
+                    className="inline-block size-1.5 rounded-full"
+                    style={{ background: "var(--chart-4)" }}
+                    aria-hidden
+                  />
+                  {shortLabel(change.date)} · {phaseLabel(change.phase)}
+                </span>
+              ))}
+            </div>
+          ) : null}
         </CardContent>
       </Card>
 
