@@ -7,7 +7,10 @@
     "node": ">=22"
   },
   "scripts": {
+    "dev": "pnpm -F web dev",
+    "build": "pnpm -r build",
     "test": "pnpm -r test",
-    "backtest": "pnpm -F @coachy/engine backtest"
+    "typecheck": "pnpm -r typecheck",
+    "backtest": "pnpm -F engine backtest"
   }
 }

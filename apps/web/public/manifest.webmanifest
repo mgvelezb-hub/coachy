@@ -1,0 +1,29 @@
+{
+  "name": "Coachy — tu coach virtual",
+  "short_name": "Coachy",
+  "description": "Check-in semanal, medidas, fotos de progreso y tu plan de la semana.",
+  "id": "/app",
+  "start_url": "/app",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#ffffff",
+  "theme_color": "#22ad74",
+  "lang": "es-MX",
+  "dir": "ltr",
+  "categories": ["health", "fitness", "lifestyle"],
+  "icons": [
+    { "src": "/icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    {
+      "src": "/icons/icon-maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ],
+  "shortcuts": [
+    { "name": "Check-in", "short_name": "Check-in", "url": "/app/checkin" },
+    { "name": "Historial", "short_name": "Historial", "url": "/app/historial" }
+  ]
+}
