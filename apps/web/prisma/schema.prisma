@@ -156,6 +156,8 @@ model Profile {
   cardioMinWk  Int          @default(0) @map("cardio_min_wk")
   work         WorkSchedule @default(SEDENTARIO)
   trainingTime TrainingTime @default(MANANA) @map("training_time")
+  /** Horario por día {LUN..DOM: MANANA|MEDIODIA|TARDE|NOCHE|DESCANSO}; null = mismo horario todos los días. */
+  trainingSchedule Json? @map("training_schedule")
   mealsPerDay  Int          @default(4) @map("meals_per_day")
   budget       Budget       @default(MEDIO)
 

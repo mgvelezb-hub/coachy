@@ -17,6 +17,8 @@ import { cn } from "@/lib/utils";
 import {
   BUDGETS,
   CONDITION_LABELS,
+  DAY_SLOTS,
+  WEEK_DAYS,
   CONDITIONS,
   GOAL_LABELS,
   GOALS,
@@ -41,6 +43,24 @@ const TIME_LABELS: Record<(typeof TRAINING_TIMES)[number], string> = {
   MEDIODIA: "Mediodía",
   TARDE: "Tarde",
   NOCHE: "Noche",
+};
+
+const DAY_LABELS: Record<(typeof WEEK_DAYS)[number], string> = {
+  LUN: "Lunes",
+  MAR: "Martes",
+  MIE: "Miércoles",
+  JUE: "Jueves",
+  VIE: "Viernes",
+  SAB: "Sábado",
+  DOM: "Domingo",
+};
+
+const SLOT_LABELS: Record<(typeof DAY_SLOTS)[number], string> = {
+  MANANA: "Mañana",
+  MEDIODIA: "Mediodía",
+  TARDE: "Tarde",
+  NOCHE: "Noche",
+  DESCANSO: "Descanso",
 };
 
 const BUDGET_LABELS: Record<(typeof BUDGETS)[number], string> = {
@@ -101,6 +121,7 @@ export function OnboardingForm({ email }: { email: string }): React.JSX.Element 
     EMPTY_ONBOARDING_STATE,
   );
   const [consent, setConsent] = useState(false);
+  const [scheduleVaries, setScheduleVaries] = useState(false);
   const errors = state.fieldErrors;
 
   return (
@@ -211,13 +232,45 @@ export function OnboardingForm({ email }: { email: string }): React.JSX.Element 
           </div>
 
           <div className="space-y-2">
-            <Label>¿A qué hora entrenas?</Label>
+            <Label>¿A qué hora entrenas normalmente?</Label>
             <RadioRow
               name="trainingTime"
               options={TRAINING_TIMES}
               labels={TIME_LABELS}
               defaultValue="MANANA"
             />
+            <label className="flex cursor-pointer items-center gap-2 pt-1 text-sm">
+              <input
+                type="checkbox"
+                name="scheduleVaries"
+                checked={scheduleVaries}
+                onChange={(event) => setScheduleVaries(event.target.checked)}
+                className="h-4 w-4 accent-[var(--primary)]"
+              />
+              Varía según el día
+            </label>
+            {scheduleVaries ? (
+              <div className="space-y-3 rounded-lg border p-3">
+                <p className="text-xs text-muted-foreground">
+                  Marca a qué hora entrenas cada día, o descanso. Con esto acomodamos las comidas
+                  de antes y después del entreno día por día.
+                </p>
+                {WEEK_DAYS.map((day) => (
+                  <div key={day} className="space-y-1">
+                    <p className="text-xs font-medium">{DAY_LABELS[day]}</p>
+                    <RadioRow
+                      name={`schedule_${day}`}
+                      options={DAY_SLOTS}
+                      labels={SLOT_LABELS}
+                      defaultValue={day === "DOM" ? "DESCANSO" : "MANANA"}
+                    />
+                  </div>
+                ))}
+                <p className="text-xs text-muted-foreground">
+                  Los días de pesas y el horario principal se calculan solos a partir de esto.
+                </p>
+              </div>
+            ) : null}
           </div>
 
           <div className="space-y-2">

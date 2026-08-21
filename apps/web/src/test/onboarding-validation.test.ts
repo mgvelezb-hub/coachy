@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   coerceOnboardingPayload,
+  deriveFromSchedule,
   initialPhase,
   onboardingSchema,
 } from "@/lib/validation/onboarding";
@@ -138,5 +139,45 @@ describe("initialPhase", () => {
   it("arranca en REINTRO a quien viene de una pausa", () => {
     expect(initialPhase({ liftingDays: 0 })).toBe("REINTRO");
     expect(initialPhase({ liftingDays: 2 })).toBe("REINTRO");
+  });
+});
+
+describe("horario por día", () => {
+  it("sin horario variable, respeta lo declarado", () => {
+    expect(deriveFromSchedule({ trainingTime: "TARDE", liftingDays: 3, trainingSchedule: null })).toEqual({
+      trainingTime: "TARDE",
+      liftingDays: 3,
+    });
+  });
+
+  it("con horario variable, deriva días de pesas y horario más frecuente", () => {
+    const schedule = {
+      LUN: "MANANA",
+      MAR: "NOCHE",
+      MIE: "MANANA",
+      JUE: "DESCANSO",
+      VIE: "NOCHE",
+      SAB: "NOCHE",
+      DOM: "DESCANSO",
+    } as const;
+    expect(deriveFromSchedule({ trainingTime: "MANANA", liftingDays: 4, trainingSchedule: schedule })).toEqual({
+      trainingTime: "NOCHE",
+      liftingDays: 5,
+    });
+  });
+
+  it("coerce arma el horario desde los campos schedule_* solo si varía", () => {
+    const raw = {
+      ...validOnboarding(),
+      scheduleVaries: "on",
+      schedule_LUN: "MANANA",
+      schedule_MAR: "TARDE",
+    };
+    const coerced = coerceOnboardingPayload(raw) as { trainingSchedule: Record<string, string> | null };
+    expect(coerced.trainingSchedule).toMatchObject({ LUN: "MANANA", MAR: "TARDE", MIE: "DESCANSO", DOM: "DESCANSO" });
+    expect(onboardingSchema.safeParse(coerced).success).toBe(true);
+
+    const fixed = coerceOnboardingPayload(validOnboarding()) as { trainingSchedule: unknown };
+    expect(fixed.trainingSchedule).toBeNull();
   });
 });

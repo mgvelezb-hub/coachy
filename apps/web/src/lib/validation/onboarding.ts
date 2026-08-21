@@ -15,6 +15,11 @@ export const GOALS = [
 ] as const;
 export const WORK_SCHEDULES = ["SEDENTARIO", "ACTIVO"] as const;
 export const TRAINING_TIMES = ["MANANA", "MEDIODIA", "TARDE", "NOCHE"] as const;
+export const WEEK_DAYS = ["LUN", "MAR", "MIE", "JUE", "VIE", "SAB", "DOM"] as const;
+export const DAY_SLOTS = [...TRAINING_TIMES, "DESCANSO"] as const;
+export type WeekDay = (typeof WEEK_DAYS)[number];
+export type DaySlot = (typeof DAY_SLOTS)[number];
+export type TrainingSchedule = Record<WeekDay, DaySlot>;
 export const BUDGETS = ["BAJO", "MEDIO", "ALTO"] as const;
 
 /** Condiciones que cambian las reglas del motor, no diagnósticos médicos. */
@@ -95,6 +100,19 @@ export const onboardingSchema = z.object({
   cardioMinWk: z.number().int().min(0, "Mínimo 0").max(1500, "Máximo 1500 min").default(0),
   work: z.enum(WORK_SCHEDULES).default("SEDENTARIO"),
   trainingTime: z.enum(TRAINING_TIMES).default("MANANA"),
+  /** Horario por día cuando varía; null si entrena siempre a la misma hora. */
+  trainingSchedule: z
+    .object({
+      LUN: z.enum(DAY_SLOTS),
+      MAR: z.enum(DAY_SLOTS),
+      MIE: z.enum(DAY_SLOTS),
+      JUE: z.enum(DAY_SLOTS),
+      VIE: z.enum(DAY_SLOTS),
+      SAB: z.enum(DAY_SLOTS),
+      DOM: z.enum(DAY_SLOTS),
+    })
+    .nullable()
+    .optional(),
   mealsPerDay: z
     .number({ message: "Elige cuántas comidas" })
     .int()
@@ -137,6 +155,10 @@ export function coerceOnboardingPayload(raw: Record<string, unknown>): unknown {
     cardioMinWk: num(raw.cardioMinWk) ?? 0,
     work: raw.work || "SEDENTARIO",
     trainingTime: raw.trainingTime || "MANANA",
+    trainingSchedule:
+      raw.scheduleVaries === "on" || raw.scheduleVaries === true
+        ? Object.fromEntries(WEEK_DAYS.map((d) => [d, raw[`schedule_${d}`] || "DESCANSO"]))
+        : null,
     mealsPerDay: num(raw.mealsPerDay),
     budget: raw.budget || "MEDIO",
     favoriteFoods: typeof raw.favoriteFoods === "string" ? raw.favoriteFoods : "",
@@ -154,4 +176,28 @@ export function coerceOnboardingPayload(raw: Record<string, unknown>): unknown {
  */
 export function initialPhase(input: Pick<OnboardingInput, "liftingDays">): "REINTRO" | "BASE" {
   return input.liftingDays >= 3 ? "BASE" : "REINTRO";
+}
+
+/**
+ * Si el horario varía por día, el horario "principal" es el más frecuente y
+ * los días de pesas son los que no son descanso. Así el motor (que trabaja con
+ * un horario y un número de días) sigue recibiendo datos coherentes.
+ */
+export function deriveFromSchedule(input: {
+  trainingTime: (typeof TRAINING_TIMES)[number];
+  liftingDays: number;
+  trainingSchedule?: TrainingSchedule | null;
+}): { trainingTime: (typeof TRAINING_TIMES)[number]; liftingDays: number } {
+  const schedule = input.trainingSchedule;
+  if (!schedule) return { trainingTime: input.trainingTime, liftingDays: input.liftingDays };
+  const counts = new Map<string, number>();
+  let days = 0;
+  for (const slot of Object.values(schedule)) {
+    if (slot === "DESCANSO") continue;
+    days += 1;
+    counts.set(slot, (counts.get(slot) ?? 0) + 1);
+  }
+  if (days === 0) return { trainingTime: input.trainingTime, liftingDays: 0 };
+  const [top] = [...counts.entries()].sort((a, b) => b[1] - a[1])[0]!;
+  return { trainingTime: top as (typeof TRAINING_TIMES)[number], liftingDays: days };
 }

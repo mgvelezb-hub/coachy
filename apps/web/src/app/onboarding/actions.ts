@@ -3,6 +3,7 @@
 import type { OnboardingState } from "./state";
 export type { OnboardingState };
 import { redirect } from "next/navigation";
+import { Prisma } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 
 import { requireUser } from "@/lib/auth";
@@ -13,6 +14,7 @@ import {
   coerceOnboardingPayload,
   initialPhase,
   onboardingSchema,
+  deriveFromSchedule,
 } from "@/lib/validation/onboarding";
 
 /** Guarda el cuestionario inicial y crea (o actualiza) el Profile del atleta. */
@@ -40,6 +42,7 @@ export async function submitOnboarding(
 
   const input = parsed.data;
   const now = new Date();
+  const derived = deriveFromSchedule(input);
 
   const consentFields = input.photoConsent
     ? { photoConsentAt: now, photoConsentVersion: PHOTO_CONSENT_VERSION }
@@ -52,10 +55,11 @@ export async function submitOnboarding(
     heightCm: input.heightCm.toFixed(1),
     weightKg: input.weightKg.toFixed(1),
     leanMassKg: input.leanMassKg ? input.leanMassKg.toFixed(1) : null,
-    liftingDays: input.liftingDays,
+    liftingDays: derived.liftingDays,
     cardioMinWk: input.cardioMinWk,
     work: input.work,
-    trainingTime: input.trainingTime,
+    trainingTime: derived.trainingTime,
+    trainingSchedule: input.trainingSchedule ?? Prisma.JsonNull,
     mealsPerDay: input.mealsPerDay,
     budget: input.budget,
     favoriteFoods: input.favoriteFoods,
@@ -71,7 +75,7 @@ export async function submitOnboarding(
     create: {
       userId: user.id,
       ...data,
-      currentPhase: initialPhase(input),
+      currentPhase: initialPhase({ liftingDays: derived.liftingDays }),
       onboardingCompletedAt: now,
     },
     update: { ...data, onboardingCompletedAt: now },
