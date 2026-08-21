@@ -1,8 +1,10 @@
 import Link from "next/link";
-import { LogOut, Upload, Users } from "lucide-react";
+import { ClipboardCheck, LogOut, Upload, Users } from "lucide-react";
 
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { requireAdmin } from "@/lib/auth";
+import { prisma } from "@/lib/prisma";
 
 export default async function AdminLayout({
   children,
@@ -10,6 +12,7 @@ export default async function AdminLayout({
   children: React.ReactNode;
 }): Promise<React.JSX.Element> {
   const admin = await requireAdmin();
+  const pending = await prisma.decision.count({ where: { status: "PENDIENTE" } });
 
   return (
     <div className="mx-auto flex min-h-dvh w-full max-w-3xl flex-col">
@@ -21,6 +24,12 @@ export default async function AdminLayout({
           <Button asChild variant="ghost" size="sm">
             <Link href="/admin">
               <Users /> Atletas
+            </Link>
+          </Button>
+          <Button asChild variant="ghost" size="sm">
+            <Link href="/admin/decisiones">
+              <ClipboardCheck /> Decisiones
+              {pending > 0 ? <Badge variant="default">{pending}</Badge> : null}
             </Link>
           </Button>
           <Button asChild variant="ghost" size="sm">
