@@ -9,8 +9,11 @@ uploads/
 *.log
 .DS_Store
 .vercel/
-# datos personales NUNCA al repo
-data/private/
+# datos personales NUNCA al repo — en cualquier nivel del monorepo
+**/data/private/
+# salidas de la evaluación de Coachy (contienen texto generado sobre un atleta)
+apps/web/eval/*
+!apps/web/eval/README.md
 
 # next / build
 .next/
