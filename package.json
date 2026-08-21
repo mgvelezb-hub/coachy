@@ -4,7 +4,7 @@
   "version": "0.0.0",
   "packageManager": "pnpm@11.22.0",
   "engines": {
-    "node": ">=22"
+    "node": "22.x"
   },
   "scripts": {
     "dev": "pnpm -F web dev",
@@ -12,5 +12,14 @@
     "test": "pnpm -r test",
     "typecheck": "pnpm -r typecheck",
     "backtest": "pnpm -F engine backtest"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "@prisma/client",
+      "@prisma/engines",
+      "prisma",
+      "esbuild",
+      "sharp"
+    ]
   }
 }
