@@ -1,0 +1,26 @@
+node_modules/
+.env
+.env.local
+.env*.local
+.next/
+dist/
+coverage/
+uploads/
+*.log
+.DS_Store
+.vercel/
+# datos personales NUNCA al repo
+data/private/
+
+# next / build
+.next/
+out/
+next-env.d.ts
+tsconfig.tsbuildinfo
+*.tsbuildinfo
+
+# prisma
+prisma/*.db
+
+# test output
+.vitest/

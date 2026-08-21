@@ -1,0 +1,387 @@
+// Coachy — modelo de datos (spec 03 §5, adaptado a Supabase).
+//
+// `User.id` es exactamente el `id` de `auth.users` de Supabase. El trigger
+// `handle_new_user` (ver supabase/setup.sql) crea la fila en `public.users`
+// cuando alguien se registra. `Profile` se crea en el onboarding.
+//
+// Medidas corporales: Decimal(5,1) — cm y kg con un decimal.
+// El repo es público: aquí no vive ningún dato personal, solo el esquema.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+// ---------------------------------------------------------------------------
+// Enums
+// ---------------------------------------------------------------------------
+
+enum Role {
+  ADMIN
+  ATHLETE
+}
+
+enum Sex {
+  FEMALE
+  MALE
+  OTHER
+}
+
+enum Phase {
+  REINTRO
+  BASE
+  CUT
+  CUT_AGRESIVO
+  REFEED
+  ESTABILIZACION
+  MANTENIMIENTO
+}
+
+enum Goal {
+  RECOMPOSICION
+  PERDIDA_GRASA
+  GANANCIA_MUSCULO
+  SALUD
+  RENDIMIENTO
+}
+
+enum WorkSchedule {
+  SEDENTARIO
+  ACTIVO
+}
+
+enum TrainingTime {
+  MANANA
+  MEDIODIA
+  TARDE
+  NOCHE
+}
+
+enum Budget {
+  BAJO
+  MEDIO
+  ALTO
+}
+
+enum StrengthTrend {
+  SUBE
+  IGUAL
+  BAJA
+}
+
+enum CyclePhase {
+  FOLICULAR
+  OVULACION
+  LUTEA
+  MENSTRUACION
+  NA
+}
+
+enum PhotoView {
+  FRENTE
+  PERFIL
+  ESPALDA
+}
+
+enum DecisionStatus {
+  PENDIENTE
+  APROBADA
+  CORREGIDA
+}
+
+enum ConversationRole {
+  COACHY
+  ATHLETE
+}
+
+enum TrainingExampleSource {
+  COACH
+  ADMIN
+}
+
+// ---------------------------------------------------------------------------
+// Identidad
+// ---------------------------------------------------------------------------
+
+model User {
+  /// Mismo UUID que `auth.users.id` en Supabase.
+  id        String   @id @db.Uuid
+  email     String   @unique
+  role      Role     @default(ATHLETE)
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  profile            Profile?
+  checkIns           CheckIn[]
+  decisions          Decision[]
+  workouts           Workout[]
+  conversations      Conversation[]
+  trainingExamples   TrainingExample[] @relation("TrainingExampleAthlete")
+  correctedDecisions Decision[]        @relation("DecisionCorrectedBy")
+
+  @@map("users")
+}
+
+/// Perfil del atleta: resultado del cuestionario de onboarding.
+model Profile {
+  id     String @id @default(uuid()) @db.Uuid
+  userId String @unique @map("user_id") @db.Uuid
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  displayName String    @map("display_name")
+  sex         Sex
+  birthDate   DateTime? @map("birth_date") @db.Date
+  heightCm    Decimal   @map("height_cm") @db.Decimal(5, 1)
+  weightKg    Decimal?  @map("weight_kg") @db.Decimal(5, 1)
+  leanMassKg  Decimal?  @map("lean_mass_kg") @db.Decimal(5, 1)
+
+  liftingDays  Int          @default(4) @map("lifting_days")
+  cardioMinWk  Int          @default(0) @map("cardio_min_wk")
+  work         WorkSchedule @default(SEDENTARIO)
+  trainingTime TrainingTime @default(MANANA) @map("training_time")
+  mealsPerDay  Int          @default(4) @map("meals_per_day")
+  budget       Budget       @default(MEDIO)
+
+  favoriteFoods String[] @map("favorite_foods")
+  excludedFoods String[] @map("excluded_foods")
+  allergies     String[]
+  /// Etiquetas libres: glucosa_alta, lesion_activa, ciclo_tracking, ...
+  conditions    String[]
+
+  goal         Goal  @default(RECOMPOSICION)
+  currentPhase Phase @default(REINTRO)
+
+  /// Overrides de la config del motor (spec 02 §7). Null = defaults.
+  engineConfig Json? @map("engine_config")
+
+  /// Consentimiento explícito para análisis de fotos con IA.
+  photoConsentAt      DateTime? @map("photo_consent_at")
+  photoConsentVersion String?   @map("photo_consent_version")
+
+  onboardingCompletedAt DateTime? @map("onboarding_completed_at")
+  createdAt             DateTime  @default(now()) @map("created_at")
+  updatedAt             DateTime  @updatedAt @map("updated_at")
+
+  @@map("profiles")
+}
+
+// ---------------------------------------------------------------------------
+// Check-in semanal
+// ---------------------------------------------------------------------------
+
+model CheckIn {
+  id     String @id @default(uuid()) @db.Uuid
+  userId String @map("user_id") @db.Uuid
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  date DateTime @db.Date
+
+  // Medidas (cm) y peso (kg)
+  weightKg   Decimal? @map("weight_kg") @db.Decimal(5, 1)
+  waistCm    Decimal? @map("waist_cm") @db.Decimal(5, 1)
+  legLeftCm  Decimal? @map("leg_left_cm") @db.Decimal(5, 1)
+  legRightCm Decimal? @map("leg_right_cm") @db.Decimal(5, 1)
+  armLeftCm  Decimal? @map("arm_left_cm") @db.Decimal(5, 1)
+  armRightCm Decimal? @map("arm_right_cm") @db.Decimal(5, 1)
+
+  // Sensaciones 1-5
+  inflammation Int
+  energy       Int
+  hunger       Int
+  satiety      Int
+  sleep        Int
+
+  // Fuerza
+  strengthRpe   Int?           @map("strength_rpe")
+  strengthTrend StrengthTrend? @map("strength_trend")
+
+  // Cumplimiento 0-100
+  dietCompliance     Int @map("diet_compliance")
+  trainingCompliance Int @map("training_compliance")
+
+  symptoms   String[]
+  cyclePhase CyclePhase? @map("cycle_phase")
+  comment    String?
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  photos   Photo[]
+  decision Decision?
+
+  @@unique([userId, date])
+  @@index([userId, date])
+  @@map("checkins")
+}
+
+model Photo {
+  id        String  @id @default(uuid()) @db.Uuid
+  checkInId String  @map("checkin_id") @db.Uuid
+  checkIn   CheckIn @relation(fields: [checkInId], references: [id], onDelete: Cascade)
+
+  view PhotoView
+
+  /// Ruta dentro del bucket privado `progress-photos`:
+  /// `{user_id}/{checkin_id}/{vista}.jpg`. Nunca una URL pública.
+  storagePath String @map("storage_path")
+
+  /// Salida estructurada del análisis de visión (Fase 2+).
+  analysisJson Json? @map("analysis_json")
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@unique([checkInId, view])
+  @@map("photos")
+}
+
+// ---------------------------------------------------------------------------
+// Decisión del motor
+// ---------------------------------------------------------------------------
+
+model Decision {
+  id        String  @id @default(uuid()) @db.Uuid
+  checkInId String  @unique @map("checkin_id") @db.Uuid
+  checkIn   CheckIn @relation(fields: [checkInId], references: [id], onDelete: Cascade)
+
+  userId String @map("user_id") @db.Uuid
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  phase    Phase
+  kcal     Int
+  proteinG Int   @map("protein_g")
+  fatG     Int   @map("fat_g")
+  carbsG   Int   @map("carbs_g")
+  fiberG   Int?  @map("fiber_g")
+
+  /// `rulesFired[]` del motor: [{ id, explicacion }]
+  rules       Json   @default("[]")
+  explanation String
+
+  status        DecisionStatus @default(PENDIENTE)
+  correctedById String?        @map("corrected_by_id") @db.Uuid
+  correctedBy   User?          @relation("DecisionCorrectedBy", fields: [correctedById], references: [id])
+  correctedJson Json?          @map("corrected_json")
+  approvedAt    DateTime?      @map("approved_at")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  mealPlans MealPlan[]
+
+  @@index([userId, status])
+  @@map("decisions")
+}
+
+model MealPlan {
+  id         String   @id @default(uuid()) @db.Uuid
+  decisionId String   @map("decision_id") @db.Uuid
+  decision   Decision @relation(fields: [decisionId], references: [id], onDelete: Cascade)
+
+  menuNumber       Int  @map("menu_number")
+  mealsJson        Json @map("meals_json")
+  equivalencesJson Json @map("equivalences_json")
+  groceryListJson  Json @map("grocery_list_json")
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@unique([decisionId, menuNumber])
+  @@map("meal_plans")
+}
+
+// ---------------------------------------------------------------------------
+// Entrenamiento
+// ---------------------------------------------------------------------------
+
+model Workout {
+  id     String @id @default(uuid()) @db.Uuid
+  userId String @map("user_id") @db.Uuid
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  date        DateTime @db.Date
+  muscleGroup String   @map("muscle_group")
+  scheme      String
+
+  exercisesJson Json  @map("exercises_json")
+  loadsJson     Json? @map("loads_json")
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([userId, date])
+  @@map("workouts")
+}
+
+/// Catálogo genérico de ejercicios (seed público, sin datos personales).
+model Exercise {
+  id          String   @id @default(uuid()) @db.Uuid
+  name        String   @unique
+  muscleGroup String   @map("muscle_group")
+  poolRole    String   @map("pool_role")
+  videoUrl    String?  @map("video_url")
+  substitutes String[]
+  /// Ejercicio trazador: se registra carga cada semana.
+  isTracker   Boolean  @default(false) @map("is_tracker")
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([muscleGroup])
+  @@map("exercises")
+}
+
+/// Catálogo genérico de alimentos, macros por 100 g.
+model Food {
+  id       String   @id @default(uuid()) @db.Uuid
+  name     String   @unique
+  role     String
+  kcal     Decimal  @db.Decimal(6, 2)
+  proteinG Decimal  @map("protein_g") @db.Decimal(6, 2)
+  carbsG   Decimal  @map("carbs_g") @db.Decimal(6, 2)
+  fatG     Decimal  @map("fat_g") @db.Decimal(6, 2)
+  fiberG   Decimal  @default(0) @map("fiber_g") @db.Decimal(6, 2)
+  gi       Int?
+  costRel  Int      @default(2) @map("cost_rel")
+  prepMin  Int      @default(10) @map("prep_min")
+  tags     String[]
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([role])
+  @@map("foods")
+}
+
+// ---------------------------------------------------------------------------
+// Coachy
+// ---------------------------------------------------------------------------
+
+model Conversation {
+  id     String @id @default(uuid()) @db.Uuid
+  userId String @map("user_id") @db.Uuid
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  date        DateTime         @default(now())
+  role        ConversationRole
+  text        String
+  contextJson Json?            @map("context_json")
+
+  @@index([userId, date])
+  @@map("conversations")
+}
+
+/// Few-shot de tono. Se carga desde /admin/import; nunca desde un seed público.
+model TrainingExample {
+  id     String  @id @default(uuid()) @db.Uuid
+  userId String? @map("user_id") @db.Uuid
+  user   User?   @relation("TrainingExampleAthlete", fields: [userId], references: [id], onDelete: SetNull)
+
+  contextJson      Json                  @map("context_json")
+  approvedResponse String                @map("approved_response")
+  source           TrainingExampleSource @default(ADMIN)
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@map("training_examples")
+}
