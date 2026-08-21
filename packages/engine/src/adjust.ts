@@ -61,6 +61,10 @@ interface EngineState {
   kcal: number;
   stallWeeks: number;
   lastMenuRefreshDate: string;
+  /** kcal del ultimo objetivo publicado (ya redondeado a macros). */
+  lastTargetKcal: number | null;
+  /** true hasta que se emite la primera decision. */
+  firstWeek: boolean;
   strengthDownStreak: number;
   electrolyteStreak: number;
   fastLossStreak: number;
@@ -387,15 +391,30 @@ function kcalOnEnterPhase(
   return kcalForDeficit(profile, pickDeficit(phase, config), config);
 }
 
-function initialState(first: CheckIn, profile: Profile, config: EngineConfig): EngineState {
-  const phase: Phase = 'BASE';
+/** Estado inicial opcional: evita replicar todo el historial cuando ya se conoce la fase vigente. */
+export interface DecideOptions {
+  initialPhase?: Phase;
+  initialKcal?: number;
+  /** ISO `YYYY-MM-DD`. Default: la fecha del primer check-in del historial. */
+  initialPhaseStartDate?: string;
+}
+
+function initialState(
+  first: CheckIn,
+  profile: Profile,
+  config: EngineConfig,
+  options: DecideOptions = {},
+): EngineState {
+  const phase: Phase = options.initialPhase ?? 'BASE';
   return {
     phase,
-    phaseStartDate: first.date,
+    phaseStartDate: options.initialPhaseStartDate ?? first.date,
     phaseBeforeRefeed: phase,
-    kcal: kcalForDeficit(profile, pickDeficit(phase, config), config),
+    kcal: options.initialKcal ?? kcalForDeficit(profile, pickDeficit(phase, config), config),
     stallWeeks: 0,
-    lastMenuRefreshDate: addWeeks(first.date, -config.menuRefreshWeeks),
+    lastMenuRefreshDate: first.date,
+    lastTargetKcal: null,
+    firstWeek: true,
     strengthDownStreak: 0,
     electrolyteStreak: 0,
     fastLossStreak: 0,
@@ -635,7 +654,7 @@ function decideWeek(
   // Refresco de menu: solo puede convertir un HOLD en MENU_REFRESH.
   const changed = phaseChanged || Math.abs(toKcal - fromKcal) > 1 || category === 'CONTEXT_CHANGE';
   const refreshDue = ctx.weeksSinceMenuRefresh >= config.menuRefreshWeeks;
-  const menuRefresh = changed || refreshDue;
+  const menuRefresh = changed || refreshDue || state.firstWeek;
   if (category === 'HOLD' && refreshDue) {
     category = 'MENU_REFRESH';
     hits.push({
@@ -684,6 +703,10 @@ function decideWeek(
   if (checkIn.weightKg !== undefined) state.lastWeight = { date: checkIn.date, kg: checkIn.weightKg };
   if (menuRefresh) state.lastMenuRefreshDate = checkIn.date;
 
+  const previousTargetKcal = state.lastTargetKcal;
+  state.lastTargetKcal = targets.kcal;
+  state.firstWeek = false;
+
   const menuSeed = Math.floor(Date.parse(checkIn.date) / (config.menuRefreshWeeks * 7 * DAY_MS));
 
   return {
@@ -691,7 +714,7 @@ function decideWeek(
     category,
     phase: toPhase,
     previousPhase: fromPhase,
-    previousKcal: Math.round(fromKcal),
+    previousKcal: previousTargetKcal ?? targets.kcal,
     deficitPct,
     targets,
     meals,
@@ -718,8 +741,9 @@ export function decide(
   history: CheckIn[],
   profile: Profile,
   config: EngineConfig = DEFAULT_CONFIG,
+  options: DecideOptions = {},
 ): Decision {
-  const decisions = decideAll(history, profile, config);
+  const decisions = decideAll(history, profile, config, options);
   const last = decisions.at(-1);
   if (!last) throw new Error('decide() necesita al menos un check-in en el historial');
   return last;
@@ -730,12 +754,13 @@ export function decideAll(
   history: CheckIn[],
   profile: Profile,
   config: EngineConfig = DEFAULT_CONFIG,
+  options: DecideOptions = {},
 ): Decision[] {
   if (history.length === 0) return [];
   const ordered = [...history].sort((a, b) => a.date.localeCompare(b.date));
   const first = ordered[0];
   if (!first) return [];
-  const state = initialState(first, profile, config);
+  const state = initialState(first, profile, config, options);
   const out: Decision[] = [];
   for (let i = 0; i < ordered.length; i += 1) {
     const checkIn = ordered[i];
