@@ -55,6 +55,7 @@ interface HistoryWeek {
   week: string;
   waistCm?: number;
   weightKg?: number;
+  photosTrend?: CheckIn["photosTrend"];
   inflammation: number;
   energy: number;
   hunger: number;
@@ -100,8 +101,11 @@ function toCheckIn(week: HistoryWeek): CheckIn {
   }
   if (week.contextChange !== undefined) checkIn.contextChange = week.contextChange;
   if (week.aggressiveRequest !== undefined) checkIn.aggressiveRequest = week.aggressiveRequest;
-  // La visión queda fuera de la evaluación a propósito: sin fotos reales, un
-  // `photosTrend` inventado contaminaría la decisión del motor.
+  // `photosTrend` sí entra: es una señal que el coach real observó esa semana y
+  // está en el fixture. Lo que queda fuera es la *llamada* de visión — sin fotos
+  // no hay nada que analizar, y sin esta señal el motor decidiría otra cosa y la
+  // evaluación mediría el tono sobre decisiones que nunca ocurrieron.
+  if (week.photosTrend !== undefined) checkIn.photosTrend = week.photosTrend;
   return checkIn;
 }
 
@@ -147,8 +151,12 @@ function signalsFor(
 const ATHLETE_NAME = "Atleta";
 
 async function main(): Promise<void> {
+  // Una llave exportada en la shell gana sobre los archivos: si no, el ejemplo
+  // `ANTHROPIC_API_KEY=... pnpm eval:coachy` quedaría pisado por .env.local.
+  const shellKey = process.env.ANTHROPIC_API_KEY;
   loadEnv({ path: path.resolve(process.cwd(), ".env"), quiet: true });
   loadEnv({ path: path.resolve(process.cwd(), ".env.local"), override: true, quiet: true });
+  if (shellKey !== undefined) process.env.ANTHROPIC_API_KEY = shellKey;
 
   if (!hasAnthropicKey()) {
     fail(

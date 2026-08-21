@@ -107,9 +107,11 @@ const BANK: BankEntry[] = [
     applies: (ctx) => ctx.signals.inflamacion >= 4,
   },
   {
+    // El motor marca la semana como no concluyente por dos razones distintas:
+    // fase del ciclo, o falta de medida. La pregunta tiene que servir para las dos.
     id: "ciclo",
-    signal: "ciclo",
-    text: "¿En qué parte del ciclo estás? Es normal que esta semana la cinta no se mueva.",
+    signal: "semana_no_concluyente",
+    text: "Esta semana no tengo con qué comparar la cinta. ¿Te mediste? Y si andas en tu periodo dímelo, es normal que no se mueva.",
     applies: (ctx) => ctx.inconclusiveWeek,
   },
   // --- Estancamiento -------------------------------------------------------

@@ -11,8 +11,10 @@ pnpm -F web eval:coachy
 Necesita `ANTHROPIC_API_KEY` en `apps/web/.env.local` o exportada en la shell. Sin ella el script
 se detiene con un mensaje que dice qué falta — no con un stack trace.
 
-Cuesta 19 llamadas a la API (una por semana). No corre visión: sin fotos reales, inventar un
-`photosTrend` contaminaría la decisión del motor.
+Cuesta 19 llamadas a la API (una por semana). **No corre visión** — sin fotos no hay nada que
+analizar — pero sí usa el `photosTrend` que el fixture ya trae: es una señal que el coach real
+observó, y sin ella el motor decidiría otra cosa y estaríamos midiendo el tono sobre decisiones
+que nunca ocurrieron.
 
 ## Qué genera
 
