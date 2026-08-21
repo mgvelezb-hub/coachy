@@ -28,13 +28,16 @@ export async function uploadProgressPhoto(
 
 const SIGNED_URL_TTL_SECONDS = 60 * 30;
 
+/** TTL corto para el análisis de visión: la URL vive lo que tarda una descarga. */
+export const SHORT_SIGNED_URL_TTL_SECONDS = 60;
+
 /**
  * URL firmada de una foto. El admin la pide con service role (ya validó que el
  * check-in existe); el atleta con su propia sesión.
  */
 export async function signedPhotoUrl(
   path: string,
-  options: { asAdmin?: boolean } = {},
+  options: { asAdmin?: boolean; ttlSeconds?: number } = {},
 ): Promise<string | null> {
   const supabase = options.asAdmin
     ? createSupabaseAdminClient()
@@ -42,7 +45,7 @@ export async function signedPhotoUrl(
 
   const { data, error } = await supabase.storage
     .from(PHOTO_BUCKET)
-    .createSignedUrl(path, SIGNED_URL_TTL_SECONDS);
+    .createSignedUrl(path, options.ttlSeconds ?? SIGNED_URL_TTL_SECONDS);
 
   if (error || !data) return null;
   return data.signedUrl;

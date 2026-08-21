@@ -1,0 +1,148 @@
+import type { CheckIn, Profile } from "@prisma/client";
+
+import { decimalToNumber } from "@/lib/format";
+import type {
+  EngineCheckIn,
+  EngineCyclePhase,
+  EngineProfile,
+  EngineStrengthTrend,
+} from "@/lib/engine-types";
+import type { PhotoChange } from "@/lib/coachy/types";
+
+/**
+ * Traducción entre las filas de Prisma y los tipos del motor.
+ *
+ * El motor no sabe nada de la base: usa unidades planas, enums en minúscula y
+ * fechas ISO. Aquí es donde se hace ese salto, y donde quedan documentadas las
+ * señales que el formulario todavía no captura.
+ */
+
+export class MissingProfileDataError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "MissingProfileDataError";
+  }
+}
+
+const TRENDS: Record<string, EngineStrengthTrend> = {
+  SUBE: "sube",
+  IGUAL: "igual",
+  BAJA: "baja",
+};
+
+const CYCLE: Record<string, EngineCyclePhase> = {
+  FOLICULAR: "folicular",
+  OVULACION: "ovulacion",
+  LUTEA: "lutea",
+  MENSTRUACION: "menstruacion",
+  NA: "na",
+};
+
+function clamp5(value: number): 1 | 2 | 3 | 4 | 5 {
+  const rounded = Math.min(5, Math.max(1, Math.round(value)));
+  return rounded as 1 | 2 | 3 | 4 | 5;
+}
+
+function yearsSince(date: Date | null): number | null {
+  if (!date) return null;
+  const ms = Date.now() - date.getTime();
+  return Math.floor(ms / (365.25 * 24 * 60 * 60 * 1000));
+}
+
+/** Edad por defecto cuando el onboarding no pidió fecha de nacimiento. */
+const DEFAULT_AGE_YEARS = 30;
+
+export function toEngineProfile(profile: Profile, latestWeightKg?: number | null): EngineProfile {
+  const heightCm = decimalToNumber(profile.heightCm);
+  const weightKg = latestWeightKg ?? decimalToNumber(profile.weightKg);
+
+  if (!heightCm) {
+    throw new MissingProfileDataError("El perfil no tiene estatura; el motor no puede calcular.");
+  }
+  if (!weightKg) {
+    throw new MissingProfileDataError(
+      "No hay peso ni en el perfil ni en los check-ins; el motor no puede calcular.",
+    );
+  }
+
+  const conditions = profile.conditions.map((condition) => condition.toLowerCase());
+
+  return {
+    // El motor solo modela `female` y `male` porque Mifflin-St Jeor solo tiene
+    // esas dos constantes. `OTHER` toma la estimación más conservadora.
+    sex: profile.sex === "MALE" ? "male" : "female",
+    ageYears: yearsSince(profile.birthDate) ?? DEFAULT_AGE_YEARS,
+    heightCm,
+    weightKg,
+    ...(decimalToNumber(profile.leanMassKg) !== null
+      ? { leanMassKg: decimalToNumber(profile.leanMassKg) as number }
+      : {}),
+    strengthDaysPerWeek: profile.liftingDays,
+    cardioMinPerWeek: profile.cardioMinWk,
+    work: profile.work === "ACTIVO" ? "activo" : "sedentario",
+    mealsPerDay: profile.mealsPerDay,
+    // El motor distingue entreno de mañana y de tarde; mediodía cuenta como mañana.
+    trainingTime:
+      profile.trainingTime === "TARDE" || profile.trainingTime === "NOCHE" ? "tarde" : "manana",
+    // El catálogo solo tiene dos niveles de costo; `ALTO` no restringe nada.
+    budget: profile.budget === "BAJO" ? "bajo" : "medio",
+    favoriteFoods: profile.favoriteFoods,
+    excludedFoods: [...profile.excludedFoods, ...profile.allergies],
+    allergies: profile.allergies,
+    conditions: {
+      glucosaAlta: conditions.includes("glucosa_alta"),
+      lesionActiva: conditions.includes("lesion_activa"),
+      cicloMenstrualTracking: conditions.includes("ciclo_tracking"),
+    },
+  };
+}
+
+/**
+ * Un check-in de la base como lo ve el motor.
+ *
+ * Pendiente conocido: el formulario de la Fase 1 no captura `newInjury`,
+ * `contextChange`, `aggressiveRequest`, `goalReached` ni `restart`. Mientras no
+ * existan esos campos, la lesión activa se lee de las condiciones del perfil y
+ * los días sin entrenar se derivan del cumplimiento de entreno.
+ */
+export function toEngineCheckIn(
+  checkIn: CheckIn,
+  options: { photosTrend?: PhotoChange | null; activeInjury?: boolean } = {},
+): EngineCheckIn {
+  const engineCheckIn: EngineCheckIn = {
+    date: checkIn.date.toISOString().slice(0, 10),
+    inflammation: clamp5(checkIn.inflammation),
+    energy: clamp5(checkIn.energy),
+    hunger: clamp5(checkIn.hunger),
+    satiety: clamp5(checkIn.satiety),
+    sleep: clamp5(checkIn.sleep),
+    strengthTrend: TRENDS[checkIn.strengthTrend ?? "IGUAL"] ?? "igual",
+    dietCompliancePct: checkIn.dietCompliance,
+    trainingCompliancePct: checkIn.trainingCompliance,
+    symptoms: checkIn.symptoms,
+  };
+
+  const numbers = {
+    weightKg: decimalToNumber(checkIn.weightKg),
+    waistCm: decimalToNumber(checkIn.waistCm),
+    legLeftCm: decimalToNumber(checkIn.legLeftCm),
+    legRightCm: decimalToNumber(checkIn.legRightCm),
+    armLeftCm: decimalToNumber(checkIn.armLeftCm),
+    armRightCm: decimalToNumber(checkIn.armRightCm),
+  } as const;
+
+  for (const [key, value] of Object.entries(numbers)) {
+    if (value !== null) Object.assign(engineCheckIn, { [key]: value });
+  }
+
+  if (checkIn.strengthRpe !== null) engineCheckIn.strengthRpe = checkIn.strengthRpe;
+  if (checkIn.cyclePhase) engineCheckIn.cyclePhase = CYCLE[checkIn.cyclePhase] ?? "na";
+  if (options.photosTrend) engineCheckIn.photosTrend = options.photosTrend;
+  if (options.activeInjury) engineCheckIn.activeInjury = true;
+
+  // Cumplimiento de entreno en 0 = una semana entera sin entrenar. Es la única
+  // señal de "días sin entrenar" que el formulario permite deducir hoy.
+  if (checkIn.trainingCompliance === 0) engineCheckIn.daysWithoutTraining = 7;
+
+  return engineCheckIn;
+}
