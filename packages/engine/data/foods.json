@@ -262,7 +262,8 @@
       "suplemento"
     ],
     "servingG": 30,
-    "unit": "g"
+    "unit": "g",
+    "maxG": 50
   },
   {
     "id": "proteina_vegetal",
@@ -278,10 +279,12 @@
     "prepMin": 1,
     "tags": [
       "vegetariano",
-      "rapido"
+      "rapido",
+      "suplemento"
     ],
     "servingG": 30,
-    "unit": "g"
+    "unit": "g",
+    "maxG": 50
   },
   {
     "id": "leche_descremada",
@@ -299,7 +302,8 @@
       "rapido"
     ],
     "servingG": 250,
-    "unit": "ml"
+    "unit": "ml",
+    "maxG": 400
   },
   {
     "id": "clara_liquida",
@@ -504,7 +508,8 @@
       "rapido"
     ],
     "servingG": 50,
-    "unit": "g"
+    "unit": "g",
+    "maxG": 100
   },
   {
     "id": "pan_integral",
@@ -523,7 +528,8 @@
       "sin_cocinar"
     ],
     "servingG": 60,
-    "unit": "g"
+    "unit": "g",
+    "maxG": 120
   },
   {
     "id": "miel",
@@ -541,7 +547,8 @@
       "rapido"
     ],
     "servingG": 15,
-    "unit": "g"
+    "unit": "g",
+    "maxG": 30
   },
   {
     "id": "amaranto",
@@ -560,7 +567,8 @@
       "rapido"
     ],
     "servingG": 30,
-    "unit": "g"
+    "unit": "g",
+    "maxG": 80
   },
   {
     "id": "granola_sin_azucar",
@@ -578,7 +586,8 @@
       "rapido"
     ],
     "servingG": 40,
-    "unit": "g"
+    "unit": "g",
+    "maxG": 60
   },
   {
     "id": "arroz_blanco",
@@ -635,7 +644,8 @@
       "sin_cocinar"
     ],
     "servingG": 40,
-    "unit": "g"
+    "unit": "g",
+    "maxG": 60
   },
   {
     "id": "papa",
@@ -673,7 +683,8 @@
       "rapido"
     ],
     "servingG": 30,
-    "unit": "pieza"
+    "unit": "pieza",
+    "maxG": 120
   },
   {
     "id": "platano_post",
@@ -840,7 +851,8 @@
       "sin_cocinar"
     ],
     "servingG": 60,
-    "unit": "g"
+    "unit": "g",
+    "maxG": 120
   },
   {
     "id": "elote",
@@ -879,7 +891,8 @@
       "sin_cocinar"
     ],
     "servingG": 15,
-    "unit": "pieza"
+    "unit": "pieza",
+    "maxG": 45
   },
   {
     "id": "avena_cocida",
@@ -916,7 +929,8 @@
       "rapido"
     ],
     "servingG": 30,
-    "unit": "pieza"
+    "unit": "pieza",
+    "maxG": 90
   },
   {
     "id": "aceite_oliva",
@@ -934,7 +948,8 @@
       "rapido"
     ],
     "servingG": 10,
-    "unit": "ml"
+    "unit": "ml",
+    "maxG": 25
   },
   {
     "id": "aguacate",
@@ -1032,7 +1047,8 @@
       "rapido"
     ],
     "servingG": 15,
-    "unit": "g"
+    "unit": "g",
+    "maxG": 30
   },
   {
     "id": "semilla_girasol",
@@ -1069,7 +1085,8 @@
       "rapido"
     ],
     "servingG": 15,
-    "unit": "g"
+    "unit": "g",
+    "maxG": 30
   },
   {
     "id": "linaza",
@@ -1087,7 +1104,8 @@
       "rapido"
     ],
     "servingG": 15,
-    "unit": "g"
+    "unit": "g",
+    "maxG": 30
   },
   {
     "id": "ajonjoli",
@@ -1106,7 +1124,8 @@
       "rapido"
     ],
     "servingG": 10,
-    "unit": "g"
+    "unit": "g",
+    "maxG": 20
   },
   {
     "id": "mantequilla",
@@ -1124,7 +1143,8 @@
       "rapido"
     ],
     "servingG": 10,
-    "unit": "g"
+    "unit": "g",
+    "maxG": 25
   },
   {
     "id": "avellana",
@@ -1162,7 +1182,8 @@
       "rapido"
     ],
     "servingG": 10,
-    "unit": "ml"
+    "unit": "ml",
+    "maxG": 25
   },
   {
     "id": "brocoli",
@@ -1890,7 +1911,8 @@
       "sin_cocinar"
     ],
     "servingG": 25,
-    "unit": "g"
+    "unit": "g",
+    "maxG": 40
   },
   {
     "id": "psyllium",
@@ -1909,7 +1931,8 @@
       "rapido"
     ],
     "servingG": 5,
-    "unit": "g"
+    "unit": "g",
+    "maxG": 10
   },
   {
     "id": "creatina",
@@ -1928,7 +1951,8 @@
       "rapido"
     ],
     "servingG": 5,
-    "unit": "g"
+    "unit": "g",
+    "maxG": 5
   },
   {
     "id": "canela",
@@ -1947,7 +1971,8 @@
       "rapido"
     ],
     "servingG": 2,
-    "unit": "g"
+    "unit": "g",
+    "maxG": 5
   },
   {
     "id": "vinagre_balsamico",
@@ -1965,7 +1990,8 @@
       "rapido"
     ],
     "servingG": 10,
-    "unit": "ml"
+    "unit": "ml",
+    "maxG": 20
   },
   {
     "id": "limon",
@@ -1984,6 +2010,7 @@
       "rapido"
     ],
     "servingG": 30,
-    "unit": "g"
+    "unit": "g",
+    "maxG": 30
   }
 ]

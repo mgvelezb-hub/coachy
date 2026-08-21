@@ -32,11 +32,20 @@ function rng(seed: number): () => number {
 
 /** Gramos maximos razonables por alimento, para no proponer 400 g de aceite. */
 function maxGrams(food: Food): number {
+  if (food.maxG !== undefined) return food.maxG;
   if (food.role === 'suplemento') return 20;
   if (food.kcalPer100 >= 700) return 40;
   if (food.kcalPer100 >= 450) return 80;
-  if (food.kcalPer100 >= 250) return 200;
+  if (food.kcalPer100 >= 250) return 250;
   return 400;
+}
+
+/**
+ * Paso de redondeo por alimento. Los alimentos muy densos (aceites, semillas,
+ * polvos) se redondean al gramo: 5 g de aceite son 45 kcal y romperian el target.
+ */
+function roundingFor(food: Food, config: EngineConfig): number {
+  return food.kcalPer100 >= config.denseFoodKcalPer100 ? 1 : config.menuGramRoundingG;
 }
 
 export interface MenuOptions {
@@ -47,10 +56,27 @@ export interface MenuOptions {
   daysPerMenu?: number;
 }
 
-function eligible(pool: Food[], profile: Profile, config: EngineConfig, role: FoodRole): Food[] {
+interface EligibleOptions {
+  /** Solo alimentos verdes de bajo carbohidrato (vegetales libres). */
+  freeVegetable?: boolean;
+  /** Slot peri-entreno: nada que haya que cocinar. */
+  quickOnly?: boolean;
+  /** Comida o cena: sin polvos ni suplementos. */
+  noSupplements?: boolean;
+}
+
+function eligible(
+  pool: Food[],
+  profile: Profile,
+  config: EngineConfig,
+  role: FoodRole,
+  options: EligibleOptions = {},
+): Food[] {
   const excluded = [...(profile.excludedFoods ?? []), ...(profile.allergies ?? [])];
-  return pool.filter((food) => {
+  const filtered = pool.filter((food) => {
     if (food.role !== role) return false;
+    if (options.freeVegetable && food.carbPer100 > config.freeVegetableMaxCarbPer100) return false;
+    if (options.noSupplements && food.tags.includes('suplemento')) return false;
     if (matchesAny(food, excluded)) return false;
     if (profile.budget === 'bajo' && food.costRel > 2) return false;
     if (profile.maxPrepMin !== undefined && food.prepMin > profile.maxPrepMin) return false;
@@ -64,6 +90,11 @@ function eligible(pool: Food[], profile: Profile, config: EngineConfig, role: Fo
     }
     return true;
   });
+  if (options.quickOnly) {
+    const quick = filtered.filter((f) => f.tags.includes('rapido'));
+    if (quick.length > 0) return quick;
+  }
+  return filtered;
 }
 
 function pick(candidates: Food[], profile: Profile, random: () => number, avoid: Set<string>): Food | undefined {
@@ -108,11 +139,26 @@ function sum(slots: Slot[], key: 'p' | 'c' | 'f'): number {
 function solveGrams(
   slots: Slot[],
   target: { p: number; c: number; f: number },
-  roundingG: number,
+  config: EngineConfig,
 ): void {
   const proteinSlot = slots.find((s) => !s.fixed && s.food.proteinPer100 >= 8);
   const carbSlot = slots.find((s) => !s.fixed && s.food.carbPer100 >= 10 && s !== proteinSlot);
-  const fatSlot = slots.find((s) => !s.fixed && s.food.fatPer100 >= 10 && s !== proteinSlot && s !== carbSlot);
+  const carbSlot2 = slots.find(
+    (s) => !s.fixed && s.food.carbPer100 >= 10 && s !== proteinSlot && s !== carbSlot,
+  );
+  const fatSlot = slots.find(
+    (s) =>
+      !s.fixed &&
+      s.food.fatPer100 >= 10 &&
+      s !== proteinSlot &&
+      s !== carbSlot &&
+      s !== carbSlot2,
+  );
+
+  if (carbSlot2) {
+    // El primero se lleva lo que puede; el segundo cierra.
+    carbSlot2.grams = maxGrams(carbSlot2.food);
+  }
 
   for (let iter = 0; iter < 24; iter += 1) {
     if (fatSlot) {
@@ -122,6 +168,13 @@ function solveGrams(
     if (carbSlot) {
       const others = sum(slots.filter((s) => s !== carbSlot), 'c');
       carbSlot.grams = clampGrams(((target.c - others) * 100) / carbSlot.food.carbPer100, carbSlot.food);
+    }
+    if (carbSlot2) {
+      const others = sum(slots.filter((s) => s !== carbSlot2), 'c');
+      carbSlot2.grams = clampGrams(
+        ((target.c - others) * 100) / carbSlot2.food.carbPer100,
+        carbSlot2.food,
+      );
     }
     if (proteinSlot) {
       const others = sum(slots.filter((s) => s !== proteinSlot), 'p');
@@ -134,16 +187,17 @@ function solveGrams(
 
   for (const slot of slots) {
     if (slot.fixed) continue;
-    slot.grams = Math.max(0, roundTo(slot.grams, roundingG));
+    slot.grams = Math.max(0, roundTo(slot.grams, roundingFor(slot.food, config)));
   }
 
   // Pase de reparacion: ajusta el carbo y luego la grasa en pasos de `roundingG`.
-  for (const slot of [carbSlot, fatSlot, proteinSlot]) {
+  for (const slot of [carbSlot, carbSlot2, fatSlot, proteinSlot]) {
     if (!slot) continue;
+    const step0 = roundingFor(slot.food, config);
     let best = error(slots, target);
-    for (let step = 0; step < 8; step += 1) {
-      const up = { ...slot, grams: slot.grams + roundingG };
-      const down = { ...slot, grams: Math.max(0, slot.grams - roundingG) };
+    for (let step = 0; step < 12; step += 1) {
+      const up = { ...slot, grams: slot.grams + step0 };
+      const down = { ...slot, grams: Math.max(0, slot.grams - step0) };
       const errUp = error(slots.map((s) => (s === slot ? up : s)), target);
       const errDown = error(slots.map((s) => (s === slot ? down : s)), target);
       if (errUp < best && errUp <= errDown && up.grams <= maxGrams(slot.food)) {
@@ -164,11 +218,16 @@ function clampGrams(grams: number, food: Food): number {
   return Math.min(Math.max(grams, 0), maxGrams(food));
 }
 
+/**
+ * Error relativo (no absoluto): 6 g de grasa de mas pesan mucho mas que
+ * 6 g de carbohidrato de mas, porque el target de grasa es cinco veces menor.
+ */
 function error(slots: Slot[], target: { p: number; c: number; f: number }): number {
-  const p = sum(slots, 'p') - target.p;
-  const c = sum(slots, 'c') - target.c;
-  const f = sum(slots, 'f') - target.f;
-  return p * p * 1.5 + c * c + f * f * 2;
+  const rel = (got: number, want: number): number => (got - want) / Math.max(want, 8);
+  const p = rel(sum(slots, 'p'), target.p);
+  const c = rel(sum(slots, 'c'), target.c);
+  const f = rel(sum(slots, 'f'), target.f);
+  return p * p * 2 + c * c + f * f * 1.5;
 }
 
 function toItem(slot: Slot, free: boolean): MenuItem {
@@ -209,23 +268,51 @@ function equivalencesFor(
   const options = eligible(pool, profile, config, slot.food.role)
     .filter((f) => f.id !== slot.food.id && f[key] > 0)
     .sort((a, b) => Math.abs(a[key] - base) - Math.abs(b[key] - base))
-    .slice(0, config.equivalencesPerItem)
+    .slice(0, config.equivalencesPerItem + 3)
     .map((f) => ({
       foodId: f.id,
       name: f.name,
       grams: Math.max(
-        config.menuGramRoundingG,
-        roundTo((slot.grams * base) / f[key], config.menuGramRoundingG),
+        roundingFor(f, config),
+        roundTo((slot.grams * base) / f[key], roundingFor(f, config)),
       ),
-    }));
+    }))
+    .filter((option) => {
+      const food = pool.find((f) => f.id === option.foodId);
+      return food !== undefined && option.grams <= maxGrams(food);
+    })
+    .slice(0, config.equivalencesPerItem);
   if (options.length === 0) return null;
   return { forFoodId: slot.food.id, forName: slot.food.name, options };
+}
+
+/**
+ * Deja solo los alimentos que pueden cubrir el macro del slot sin pasarse de
+ * su tope de gramos, y con densidad suficiente para no ser un relleno.
+ * Si ninguno califica, devuelve la lista original.
+ */
+function feasible(
+  candidates: Food[],
+  key: 'proteinPer100' | 'carbPer100' | 'fatPer100',
+  targetG: number,
+  minDensity: number,
+): Food[] {
+  const ok = candidates.filter(
+    (f) => f[key] >= minDensity && (maxGrams(f) * f[key]) / 100 >= targetG * 0.9,
+  );
+  return ok.length > 0 ? ok : candidates;
 }
 
 function slotCarbRole(slotId: MealSlot['id']): FoodRole {
   if (slotId === 'PRE') return 'carbo_pre';
   if (slotId === 'POST') return 'carbo_post';
   return 'carbo_complejo';
+}
+
+interface Residual {
+  p: number;
+  c: number;
+  f: number;
 }
 
 function buildMeal(
@@ -236,11 +323,19 @@ function buildMeal(
   avoid: Set<string>,
   pool: Food[],
   options: MenuOptions,
-): MenuMeal {
+  residual: Residual,
+): { meal: MenuMeal; slots: Slot[] } {
   const slots: Slot[] = [];
+  const periWorkout = slot.id === 'PRE' || slot.id === 'POST';
+  const filters: EligibleOptions = { quickOnly: periWorkout, noSupplements: !periWorkout };
 
   if (slot.freeVegetables && config.freeVegetableGramsPerMeal > 0) {
-    const veg = pick(eligible(pool, profile, config, 'vegetal_libre'), profile, random, avoid);
+    const veg = pick(
+      eligible(pool, profile, config, 'vegetal_libre', { freeVegetable: true }),
+      profile,
+      random,
+      avoid,
+    );
     if (veg) {
       slots.push({ food: veg, grams: config.freeVegetableGramsPerMeal, fixed: true });
       avoid.add(veg.id);
@@ -248,7 +343,7 @@ function buildMeal(
   }
 
   if (slot.id === 'PRE' && slot.allowDenseCarb && !options.simplify) {
-    const fruit = pick(eligible(pool, profile, config, 'fruta'), profile, random, avoid);
+    const fruit = pick(eligible(pool, profile, config, 'fruta', filters), profile, random, avoid);
     if (fruit) {
       slots.push({ food: fruit, grams: fruit.servingG ?? 100, fixed: true });
       avoid.add(fruit.id);
@@ -257,55 +352,95 @@ function buildMeal(
 
   const wantsFat = slot.fatG > 0;
   const proteinRole: FoodRole = wantsFat && random() < 0.35 ? 'proteina_grasa' : 'proteina_magra';
+  const proteinPool = feasible(
+    eligible(pool, profile, config, proteinRole, filters),
+    'proteinPer100',
+    slot.proteinG,
+    10,
+  );
   const protein =
-    pick(eligible(pool, profile, config, proteinRole), profile, random, avoid) ??
-    pick(eligible(pool, profile, config, 'proteina_magra'), profile, random, avoid);
+    pick(proteinPool, profile, random, avoid) ??
+    pick(
+      feasible(
+        eligible(pool, profile, config, 'proteina_magra', filters),
+        'proteinPer100',
+        slot.proteinG,
+        10,
+      ),
+      profile,
+      random,
+      avoid,
+    );
   if (protein) {
     slots.push({ food: protein, grams: 100, fixed: false });
     avoid.add(protein.id);
   }
 
   if (slot.carbG > 0 && slot.allowDenseCarb) {
-    const carb = pick(eligible(pool, profile, config, slotCarbRole(slot.id)), profile, random, avoid);
+    const carbTarget = slot.carbG - (slot.id === 'PRE' ? 20 : 0);
+    const carb = pick(
+      feasible(
+        eligible(pool, profile, config, slotCarbRole(slot.id), filters),
+        'carbPer100',
+        carbTarget,
+        10,
+      ),
+      profile,
+      random,
+      avoid,
+    );
     if (carb) {
       slots.push({ food: carb, grams: 100, fixed: false });
       avoid.add(carb.id);
+      // Un solo alimento no siempre alcanza el carbo del slot (topes de gramos):
+      // en ese caso se agrega un segundo carbohidrato del mismo rol.
+      const reach = (maxGrams(carb) * carb.carbPer100) / 100;
+      if (reach < carbTarget * 0.95) {
+        const second = pick(
+          feasible(
+            eligible(pool, profile, config, slotCarbRole(slot.id), filters),
+            'carbPer100',
+            carbTarget - reach,
+            10,
+          ),
+          profile,
+          random,
+          avoid,
+        );
+        if (second && second.id !== carb.id) {
+          slots.push({ food: second, grams: 50, fixed: false });
+          avoid.add(second.id);
+        }
+      }
     }
   }
 
   if (wantsFat) {
-    const fat = pick(eligible(pool, profile, config, 'grasa'), profile, random, avoid);
+    const fat = pick(
+      feasible(eligible(pool, profile, config, 'grasa', filters), 'fatPer100', slot.fatG, 10),
+      profile,
+      random,
+      avoid,
+    );
     if (fat) {
       slots.push({ food: fat, grams: 15, fixed: false });
       avoid.add(fat.id);
     }
   }
 
-  const fixedMacros = slots
-    .filter((s) => s.fixed)
-    .reduce(
-      (acc, s) => {
-        const m = macrosOf(s);
-        return { p: acc.p + m.p, c: acc.c + m.c, f: acc.f + m.f };
-      },
-      { p: 0, c: 0, f: 0 },
-    );
+  // El residual arrastra lo que las comidas anteriores se pasaron o se quedaron
+  // cortas (p. ej. la grasa que traen la avena o el pollo del pre-entreno).
+  const cap = (targetG: number, carry: number): number =>
+    Math.min(Math.max(0, targetG - carry), targetG * 1.8 + 5);
+  const effective = {
+    p: cap(slot.proteinG, residual.p),
+    c: cap(slot.carbG, residual.c),
+    f: cap(slot.fatG, residual.f),
+  };
+  solveGrams(slots, effective, config);
 
-  solveGrams(
-    slots,
-    {
-      p: slot.proteinG,
-      c: slot.carbG,
-      f: slot.fatG,
-    },
-    config.menuGramRoundingG,
-  );
-  void fixedMacros;
-
-  const items = slots.map((s) => toItem(s, s.fixed && s.food.role === 'vegetal_libre'));
-  const equivalences = slots
-    .map((s) => equivalencesFor(s, pool, profile, config))
-    .filter((e): e is Equivalence => e !== null);
+  const kept = slots.filter((s) => s.grams > 0);
+  const items = kept.map((s) => toItem(s, s.fixed && s.food.role === 'vegetal_libre'));
 
   const totals = items.reduce<MacroTargets>(
     (acc, item) => ({
@@ -318,21 +453,77 @@ function buildMeal(
     { kcal: 0, proteinG: 0, carbG: 0, fatG: 0, fiberG: 0 },
   );
 
+  residual.p += totals.proteinG - slot.proteinG;
+  residual.c += totals.carbG - slot.carbG;
+  residual.f += totals.fatG - slot.fatG;
+
   return {
-    slot: slot.id,
-    label: slot.label,
-    timeHint: slot.timeHint,
-    items,
-    equivalences,
-    totals,
-    target: {
-      kcal: slot.kcal,
-      proteinG: slot.proteinG,
-      carbG: slot.carbG,
-      fatG: slot.fatG,
-      fiberG: 0,
+    meal: {
+      slot: slot.id,
+      label: slot.label,
+      timeHint: slot.timeHint,
+      items,
+      equivalences: [],
+      totals,
+      target: {
+        kcal: slot.kcal,
+        proteinG: slot.proteinG,
+        carbG: slot.carbG,
+        fatG: slot.fatG,
+        fiberG: 0,
+      },
     },
+    slots,
   };
+}
+
+/** Reconstruye items y totales de una comida a partir de sus gramos. */
+function refreshMeal(meal: MenuMeal, slots: Slot[], pool: Food[], profile: Profile, config: EngineConfig): void {
+  const kept = slots.filter((s) => s.grams > 0);
+  meal.items = kept.map((s) => toItem(s, s.fixed && s.food.role === 'vegetal_libre'));
+  meal.equivalences = kept
+    .map((s) => equivalencesFor(s, pool, profile, config))
+    .filter((e): e is Equivalence => e !== null);
+  meal.totals = meal.items.reduce<MacroTargets>(
+    (acc, item) => ({
+      kcal: acc.kcal + item.kcal,
+      proteinG: round1(acc.proteinG + item.proteinG),
+      carbG: round1(acc.carbG + item.carbG),
+      fatG: round1(acc.fatG + item.fatG),
+      fiberG: round1(acc.fiberG + item.fiberG),
+    }),
+    { kcal: 0, proteinG: 0, carbG: 0, fatG: 0, fiberG: 0 },
+  );
+}
+
+/**
+ * Reparacion a nivel dia: ajusta gramos en pasos del redondeo del alimento
+ * hasta que los macros del menu completo caen lo mas cerca posible del target.
+ */
+function repairDay(all: Slot[], target: { p: number; c: number; f: number }, config: EngineConfig): void {
+  const movable = all.filter((s) => !s.fixed && s.grams > 0);
+  for (let pass = 0; pass < 40; pass += 1) {
+    let improved = false;
+    const scale = pass < 4 ? 8 : pass < 10 ? 3 : 1;
+    for (const slot of movable) {
+      const step = roundingFor(slot.food, config) * scale;
+      let best = error(all, target);
+      for (const delta of [step, -step]) {
+        const grams = slot.grams + delta;
+        if (grams <= 0 || grams > maxGrams(slot.food)) continue;
+        const previous = slot.grams;
+        slot.grams = grams;
+        const candidate = error(all, target);
+        if (candidate < best - 1e-9) {
+          best = candidate;
+          improved = true;
+        } else {
+          slot.grams = previous;
+        }
+      }
+    }
+    if (!improved && scale === 1) break;
+  }
 }
 
 function buildMenu(
@@ -347,7 +538,14 @@ function buildMenu(
 ): Menu {
   const random = rng(seed);
   const avoid = new Set<string>();
-  const meals = slots.map((slot) => buildMeal(slot, profile, config, random, avoid, pool, options));
+  const residual: Residual = { p: 0, c: 0, f: 0 };
+  const built = slots.map((slot) =>
+    buildMeal(slot, profile, config, random, avoid, pool, options, residual),
+  );
+  const allSlots = built.flatMap((b) => b.slots);
+  repairDay(allSlots, { p: target.proteinG, c: target.carbG, f: target.fatG }, config);
+  const meals = built.map((b) => b.meal);
+  for (const b of built) refreshMeal(b.meal, b.slots, pool, profile, config);
   const totals = meals.reduce<MacroTargets>(
     (acc, meal) => ({
       kcal: acc.kcal + meal.totals.kcal,
