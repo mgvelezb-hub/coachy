@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { Prisma } from "@prisma/client";
 
 import { requireOnboardedUser } from "@/lib/auth";
-import { fromISODate } from "@/lib/format";
+import { persistCheckIn } from "@/lib/checkin-write";
 import { prisma } from "@/lib/prisma";
 import { photoPath, uploadProgressPhoto } from "@/lib/storage";
 import {
@@ -62,44 +62,7 @@ export async function submitCheckIn(
     };
   }
 
-  const input = parsed.data;
-  const date = fromISODate(input.date);
-
-  // `otro` se guarda como texto libre pegado al comentario, no como chip mudo.
-  const comment =
-    input.symptoms.includes("otro") && input.otherSymptom
-      ? [input.comment, `Otro síntoma: ${input.otherSymptom}`].filter(Boolean).join("\n")
-      : (input.comment ?? null);
-
-  const dec = (value: number | null | undefined): Prisma.Decimal | null =>
-    value === null || value === undefined ? null : (value.toFixed(1) as unknown as Prisma.Decimal);
-
-  const payload = {
-    weightKg: dec(input.weightKg),
-    waistCm: dec(input.waistCm),
-    legLeftCm: dec(input.legLeftCm),
-    legRightCm: dec(input.legRightCm),
-    armLeftCm: dec(input.armLeftCm),
-    armRightCm: dec(input.armRightCm),
-    inflammation: input.inflammation,
-    energy: input.energy,
-    hunger: input.hunger,
-    satiety: input.satiety,
-    sleep: input.sleep,
-    strengthRpe: input.strengthRpe ?? null,
-    strengthTrend: input.strengthTrend ?? null,
-    dietCompliance: input.dietCompliance,
-    trainingCompliance: input.trainingCompliance,
-    symptoms: input.symptoms,
-    cyclePhase: input.cyclePhase ?? null,
-    comment: comment || null,
-  };
-
-  const checkIn = await prisma.checkIn.upsert({
-    where: { userId_date: { userId: user.id, date } },
-    create: { userId: user.id, date, ...payload },
-    update: payload,
-  });
+  const checkIn = await persistCheckIn(user.id, parsed.data);
 
   const warnings: string[] = [];
 
