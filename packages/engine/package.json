@@ -11,7 +11,10 @@
     ".": "./src/index.ts",
     "./data/foods.json": "./data/foods.json"
   },
-  "files": ["src", "data"],
+  "files": [
+    "src",
+    "data"
+  ],
   "scripts": {
     "test": "vitest run",
     "test:watch": "vitest",
@@ -24,6 +27,7 @@
   "devDependencies": {
     "tsx": "^4.20.6",
     "typescript": "^5.9.3",
-    "vitest": "^3.2.4"
+    "vitest": "^3.2.4",
+    "@types/node": "^22.18.13"
   }
 }

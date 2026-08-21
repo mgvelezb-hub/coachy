@@ -239,6 +239,8 @@ export interface Food {
   /** Minutos de preparacion. */
   prepMin: number;
   tags: string[];
+  /** Tope razonable de gramos en una comida (miel, aceites, polvos). */
+  maxG?: number;
   /** Gramos por porcion habitual, para la lista de super. */
   servingG?: number;
   /** Unidad de compra para la lista de super. */

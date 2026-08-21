@@ -87,6 +87,10 @@ export const ConfigSchema = z
     menuRefreshWeeks: z.number().int().min(1).max(8),
     lowGiMax: z.number().int().min(30).max(80),
     freeVegetableGramsPerMeal: z.number().int().min(0).max(600),
+    /** Un vegetal "libre" no puede pasar de estos carbos por 100 g. */
+    freeVegetableMaxCarbPer100: z.number().min(2).max(15),
+    /** Alimentos con esta densidad o mas se redondean al gramo, no a 5 g. */
+    denseFoodKcalPer100: z.number().int().min(150).max(900),
     menuGramRoundingG: z.number().int().min(1).max(25),
     equivalencesPerItem: z.number().int().min(1).max(5),
   })
@@ -174,6 +178,8 @@ export const DEFAULT_CONFIG: EngineConfig = {
   menuRefreshWeeks: 2,
   lowGiMax: 55,
   freeVegetableGramsPerMeal: 200,
+  freeVegetableMaxCarbPer100: 6,
+  denseFoodKcalPer100: 300,
   menuGramRoundingG: 5,
   equivalencesPerItem: 3,
 };
