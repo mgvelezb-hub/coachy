@@ -7,7 +7,7 @@
 --
 -- Qué hace:
 --   1. Trigger auth.users -> public.users (crea la fila al registrarse).
---   2. Habilita RLS en todas las tablas de la app.
+--   2. Habilita RLS en todas las tablas de la app (incluye `notifications`).
 --   3. Políticas: cada atleta ve solo lo suyo; el admin ve todo.
 --   4. Bucket privado `progress-photos` y sus políticas por carpeta de usuario.
 --
@@ -95,6 +95,7 @@ alter table public.decisions         enable row level security;
 alter table public.meal_plans        enable row level security;
 alter table public.workouts          enable row level security;
 alter table public.conversations     enable row level security;
+alter table public.notifications    enable row level security;
 alter table public.training_examples enable row level security;
 alter table public.exercises         enable row level security;
 alter table public.foods             enable row level security;
@@ -178,6 +179,22 @@ create policy conversations_all_own on public.conversations
   for all
   using (user_id = auth.uid() or public.is_admin())
   with check (user_id = auth.uid() or public.is_admin());
+
+-- notifications: el atleta lee y marca como leídas las suyas --------------
+drop policy if exists notifications_select_own on public.notifications;
+create policy notifications_select_own on public.notifications
+  for select using (user_id = auth.uid() or public.is_admin());
+
+drop policy if exists notifications_update_own on public.notifications;
+create policy notifications_update_own on public.notifications
+  for update
+  using (user_id = auth.uid() or public.is_admin())
+  with check (user_id = auth.uid() or public.is_admin());
+
+-- Las crea el servidor (crons y orquestador), nunca el navegador.
+drop policy if exists notifications_write_admin on public.notifications;
+create policy notifications_write_admin on public.notifications
+  for insert with check (public.is_admin());
 
 -- training_examples: material de entrenamiento, solo admin ----------------
 drop policy if exists training_examples_admin on public.training_examples;

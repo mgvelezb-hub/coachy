@@ -104,6 +104,17 @@ enum TrainingExampleSource {
   ADMIN
 }
 
+enum NotificationKind {
+  /// Sábado: recordatorio de medidas y fotos.
+  RECORDATORIO_CHECKIN
+  /// Miércoles: no llegó el check-in del domingo.
+  CHECKIN_PENDIENTE
+  /// El admin aprobó la decisión: ya hay mensaje de Coachy.
+  MENSAJE_COACHY
+  /// Aviso al admin: 2 semanas sin check-in de alguien.
+  ALERTA_ABANDONO
+}
+
 // ---------------------------------------------------------------------------
 // Identidad
 // ---------------------------------------------------------------------------
@@ -121,6 +132,7 @@ model User {
   decisions          Decision[]
   workouts           Workout[]
   conversations      Conversation[]
+  notifications      Notification[]
   trainingExamples   TrainingExample[] @relation("TrainingExampleAthlete")
   correctedDecisions Decision[]        @relation("DecisionCorrectedBy")
 
@@ -262,6 +274,24 @@ model Decision {
   rules       Json   @default("[]")
   explanation String
 
+  /// Semilla quincenal del motor: dice cuándo toca refrescar el menú.
+  menuSeed Int? @map("menu_seed")
+
+  /// Ids del banco de preguntas que se le hicieron al atleta esta semana.
+  /// Se usan para no repetir la misma pregunta dos semanas seguidas.
+  questionIds String[] @map("question_ids")
+
+  /// Respuesta de Coachy ya redactada: { celebracion, preguntas[], comparacion,
+  /// decision_texto, meta, cierre }. Null si la redacción falló o no corrió.
+  replyJson Json? @map("reply_json")
+
+  /// Análisis de fotos agregado por zona (visión). Null si no hubo consentimiento
+  /// o `VISION_ENABLED` está apagado.
+  visionJson Json? @map("vision_json")
+
+  /// Momento en que la decisión quedó visible para el atleta.
+  publishedAt DateTime? @map("published_at")
+
   status        DecisionStatus @default(PENDIENTE)
   correctedById String?        @map("corrected_by_id") @db.Uuid
   correctedBy   User?          @relation("DecisionCorrectedBy", fields: [correctedById], references: [id])
@@ -369,6 +399,32 @@ model Conversation {
 
   @@index([userId, date])
   @@map("conversations")
+}
+
+/// Aviso in-app. El correo (Resend) es opcional: si no hay `RESEND_API_KEY`
+/// la notificación existe igual y se ve dentro de la app.
+model Notification {
+  id     String @id @default(uuid()) @db.Uuid
+  userId String @map("user_id") @db.Uuid
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  kind  NotificationKind
+  title String
+  body  String
+
+  /// Enlace interno al que lleva el aviso, p. ej. `/app/checkin`.
+  href String?
+
+  /// Clave de idempotencia: un mismo recordatorio no se manda dos veces.
+  /// Formato `{kind}:{userId}:{YYYY-MM-DD}`.
+  dedupeKey String @unique @map("dedupe_key")
+
+  readAt    DateTime? @map("read_at")
+  emailedAt DateTime? @map("emailed_at")
+  createdAt DateTime  @default(now()) @map("created_at")
+
+  @@index([userId, createdAt])
+  @@map("notifications")
 }
 
 /// Few-shot de tono. Se carga desde /admin/import; nunca desde un seed público.
