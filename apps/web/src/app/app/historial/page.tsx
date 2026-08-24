@@ -149,7 +149,7 @@ export default async function HistorialPage(): Promise<React.JSX.Element> {
               {records.length > 0 ? (
                 <div className="space-y-2 rounded-lg border p-3">
                   <p className="flex items-center gap-2 text-sm font-semibold">
-                    <Trophy className="size-4 text-primary" /> Tus récords por ejercicio
+                    <Trophy className="size-4 text-pr" /> Tus récords por ejercicio
                   </p>
                   <ul className="divide-y text-sm">
                     {records.map((record) => (
@@ -186,7 +186,7 @@ export default async function HistorialPage(): Promise<React.JSX.Element> {
                       {session.sets} series · {session.volumeKg.toLocaleString("es-MX")} kg
                     </span>
                     {session.prs.length > 0 ? (
-                      <Trophy className="size-4 shrink-0 text-primary" aria-label="Récord" />
+                      <Trophy className="size-4 shrink-0 text-pr" aria-label="Récord" />
                     ) : null}
                   </li>
                 ))}

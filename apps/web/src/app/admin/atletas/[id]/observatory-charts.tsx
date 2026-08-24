@@ -109,8 +109,8 @@ export function ObservatoryCharts({
                     key={`inconclusive-${row.date}`}
                     yAxisId="cm"
                     x={row.label}
-                    stroke="var(--muted-foreground)"
-                    strokeOpacity={0.18}
+                    stroke="var(--chart-4)"
+                    strokeOpacity={0.16}
                     strokeWidth={18}
                   />
                 ))}

@@ -200,8 +200,8 @@ export function ExerciseLogger({
       )}
 
       {beatsRecord ? (
-        <div className="flex items-center gap-2 rounded-lg border border-primary bg-primary/10 p-3 text-sm font-medium">
-          <Trophy className="size-4 shrink-0 text-primary" />
+        <div className="flex items-center gap-2 rounded-lg border border-pr/50 bg-pr-soft p-3 text-sm font-medium text-pr-soft-foreground">
+          <Trophy className="size-4 shrink-0 text-pr" />
           {exercise.record
             ? `¡Récord! ${bestToday} kg contra los ${exercise.record.weightKg} kg de antes.`
             : `¡Récord! ${bestToday} kg es tu primera marca aquí.`}

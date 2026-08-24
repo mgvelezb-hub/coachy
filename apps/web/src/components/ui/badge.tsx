@@ -12,7 +12,9 @@ const badgeVariants = cva(
         secondary: "border-transparent bg-secondary text-secondary-foreground",
         destructive: "border-transparent bg-destructive text-destructive-foreground",
         outline: "text-foreground",
-        success: "border-transparent bg-accent text-accent-foreground",
+        /* Celebración: el rosa de Holy Gains, no un verde de sistema. */
+        success: "border-transparent bg-pr-soft text-pr-soft-foreground",
+        pr: "border-transparent bg-pr text-pr-foreground",
       },
     },
     defaultVariants: { variant: "default" },

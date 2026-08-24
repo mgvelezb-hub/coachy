@@ -287,9 +287,9 @@ export function TrainingSession({
             </div>
 
             {totals.prs.length > 0 ? (
-              <div className="space-y-1 rounded-lg border border-primary bg-primary/10 p-3">
+              <div className="space-y-1 rounded-lg border border-pr/50 bg-pr-soft p-3 text-pr-soft-foreground">
                 <p className="flex items-center gap-2 text-sm font-semibold">
-                  <Trophy className="size-4 text-primary" />
+                  <Trophy className="size-4 text-pr" />
                   {totals.prs.length === 1 ? "¡Récord personal!" : "¡Récords personales!"}
                 </p>
                 <p className="text-sm">{totals.prs.join(" · ")}</p>
