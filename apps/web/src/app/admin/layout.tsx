@@ -3,6 +3,7 @@ import { ClipboardCheck, LogOut, Upload, Users } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Wordmark } from "@/components/wordmark";
 import { requireAdmin } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 
@@ -17,8 +18,13 @@ export default async function AdminLayout({
   return (
     <div className="mx-auto flex min-h-dvh w-full max-w-3xl flex-col">
       <header className="sticky top-0 z-20 flex items-center justify-between gap-2 border-b bg-background/90 px-5 py-3 backdrop-blur">
-        <Link href="/admin" className="text-sm font-semibold uppercase tracking-widest text-primary">
-          Coachy · Admin
+        <Link
+          href="/admin"
+          aria-label="Coachy · Admin"
+          className="flex items-baseline gap-2 text-primary"
+        >
+          <Wordmark className="text-base" />
+          <span className="text-xs uppercase tracking-[0.22em] text-muted-foreground">· Admin</span>
         </Link>
         <nav className="flex items-center gap-1">
           <Button asChild variant="ghost" size="sm">

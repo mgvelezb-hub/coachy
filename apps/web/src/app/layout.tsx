@@ -1,9 +1,18 @@
 import type { Metadata, Viewport } from "next";
+import { Cormorant_Garamond } from "next/font/google";
 
 import { ServiceWorkerRegister } from "@/components/service-worker-register";
 import { Toaster } from "@/components/ui/sonner";
 
 import "./globals.css";
+
+/** Serif clásica romana de Holy Gains: títulos y logotipo. El cuerpo sigue en sans. */
+const serifDisplay = Cormorant_Garamond({
+  subsets: ["latin"],
+  display: "swap",
+  weight: ["500", "600", "700"],
+  variable: "--font-serif-display",
+});
 
 export const metadata: Metadata = {
   title: {
@@ -34,8 +43,8 @@ export const viewport: Viewport = {
   maximumScale: 5,
   viewportFit: "cover",
   themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "#ffffff" },
-    { media: "(prefers-color-scheme: dark)", color: "#1b1d20" },
+    { media: "(prefers-color-scheme: light)", color: "#f8f4ff" },
+    { media: "(prefers-color-scheme: dark)", color: "#0e0a14" },
   ],
 };
 
@@ -43,7 +52,7 @@ export default function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>): React.JSX.Element {
   return (
-    <html lang="es-MX" suppressHydrationWarning>
+    <html lang="es-MX" className={serifDisplay.variable} suppressHydrationWarning>
       <body className="min-h-dvh antialiased">
         {children}
         <Toaster />

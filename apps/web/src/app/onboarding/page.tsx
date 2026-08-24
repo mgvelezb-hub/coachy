@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 
 import { OnboardingForm } from "@/app/onboarding/onboarding-form";
+import { Wordmark } from "@/components/wordmark";
 import { requireUser } from "@/lib/auth";
 
 export const metadata = { title: "Empecemos" };
@@ -13,7 +14,7 @@ export default async function OnboardingPage(): Promise<React.JSX.Element> {
   return (
     <main className="mx-auto w-full max-w-md px-5 py-8">
       <header className="mb-6 space-y-2">
-        <p className="text-sm font-medium uppercase tracking-widest text-primary">Coachy</p>
+        <Wordmark className="text-base text-primary" />
         <h1 className="text-2xl font-bold leading-tight">Cuéntame de ti</h1>
         <p className="text-sm text-muted-foreground">
           Son dos minutos. Con esto armo tu punto de partida y la primera versión de tu plan.

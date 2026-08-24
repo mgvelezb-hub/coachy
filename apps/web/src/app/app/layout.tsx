@@ -3,6 +3,7 @@ import { CalendarCheck, Dumbbell, LibraryBig, LineChart, Shield } from "lucide-r
 
 import { Button } from "@/components/ui/button";
 import { SignOutButton } from "@/components/signout-button";
+import { Wordmark } from "@/components/wordmark";
 import { WeekVideoPrefetch } from "@/app/app/biblioteca/week-video-prefetch";
 import { requireUser } from "@/lib/auth";
 
@@ -24,8 +25,8 @@ export default async function AppLayout({
   return (
     <div className="mx-auto flex min-h-dvh w-full max-w-md flex-col">
       <header className="sticky top-0 z-20 flex items-center justify-between border-b bg-background/90 px-5 py-3 backdrop-blur">
-        <Link href="/app" className="text-sm font-semibold uppercase tracking-widest text-primary">
-          Coachy
+        <Link href="/app" aria-label="Coachy">
+          <Wordmark className="text-base text-primary" />
         </Link>
         <div className="flex items-center gap-1">
           {user.role === "ADMIN" ? (

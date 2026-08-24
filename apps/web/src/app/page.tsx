@@ -2,6 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 
 import { Button } from "@/components/ui/button";
+import { Wordmark } from "@/components/wordmark";
 import { hasSupabaseCredentials } from "@/lib/env";
 import { getSessionUser } from "@/lib/auth";
 
@@ -15,7 +16,7 @@ export default async function LandingPage(): Promise<React.JSX.Element> {
   return (
     <main className="mx-auto flex min-h-dvh w-full max-w-md flex-col justify-center gap-8 px-6 py-12">
       <div className="space-y-3">
-        <p className="text-sm font-medium uppercase tracking-widest text-primary">Coachy</p>
+        <Wordmark rule className="text-lg text-primary" />
         <h1 className="text-3xl font-bold leading-tight">
           Tu coach, cada domingo, con números que sí explican por qué.
         </h1>
