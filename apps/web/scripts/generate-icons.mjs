@@ -1,9 +1,10 @@
 /**
  * Genera los iconos PNG de la PWA sin dependencias externas.
  *
- * Dibuja la marca de Coachy — una "C" abierta sobre un cuadrado redondeado
- * verde — rasterizando con campos de distancia y codificando el PNG a mano
- * con zlib. Correr con: `node scripts/generate-icons.mjs`.
+ * Dibuja el monograma de Coachy en la identidad Holy Gains — una "C" abierta
+ * sobre un cuadrado redondeado ciruela, con el trazo degradado de violeta a
+ * rosa — rasterizando con campos de distancia y codificando el PNG a mano con
+ * zlib. Correr con: `node scripts/generate-icons.mjs`.
  */
 import { deflateSync } from "node:zlib";
 import { mkdirSync, writeFileSync } from "node:fs";
@@ -12,9 +13,11 @@ import { fileURLToPath } from "node:url";
 
 const OUT_DIR = join(dirname(fileURLToPath(import.meta.url)), "..", "public", "icons");
 
-const BRAND = [34, 173, 116]; // verde Coachy
-const BRAND_DARK = [18, 106, 72];
-const INK = [255, 255, 255];
+// Fondo: ciruela oscuro → berenjena. Glifo: violeta → rosa.
+const PLUM = [26, 16, 38];
+const PLUM_DEEP = [44, 20, 66];
+const VIOLET = [140, 92, 246];
+const PINK = [236, 72, 153];
 
 function crc32(buf) {
   let c;
@@ -92,9 +95,9 @@ function render(size, { maskable }) {
       const bgDistance = maskable ? -1 : Math.hypot(dx, dy) - radius;
       const bgAlpha = coverage(bgDistance);
 
-      // Degradado diagonal sutil en el fondo.
+      // Degradado diagonal sutil en el fondo (ciruela → berenjena).
       const t = (px + py) / (2 * size);
-      let color = mix(BRAND, BRAND_DARK, t);
+      let color = mix(PLUM, PLUM_DEEP, t);
 
       // Glifo: anillo con una abertura a la derecha → "C".
       const r = Math.hypot(px - c, py - c);
@@ -103,7 +106,8 @@ function render(size, { maskable }) {
       const ringDistance = Math.max(r - ringOuter, ringInner - r);
       const glyphAlpha = inGap ? 0 : coverage(ringDistance);
 
-      if (glyphAlpha > 0) color = mix(color, INK, glyphAlpha);
+      // El trazo va de violeta (arriba-izquierda) a rosa (abajo-derecha).
+      if (glyphAlpha > 0) color = mix(color, mix(VIOLET, PINK, t), glyphAlpha);
 
       const offset = (y * size + x) * 4;
       rgba[offset] = color[0];
