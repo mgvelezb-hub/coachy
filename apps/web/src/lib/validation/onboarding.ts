@@ -98,6 +98,13 @@ export const onboardingSchema = z.object({
     .min(0, "Mínimo 0")
     .max(7, "Máximo 7"),
   cardioMinWk: z.number().int().min(0, "Mínimo 0").max(1500, "Máximo 1500 min").default(0),
+  /** Minutos por sesión: decide cuántos ejercicios cabe meter en la rutina. */
+  sessionMinutes: z
+    .number()
+    .int()
+    .min(30, "Mínimo 30 min")
+    .max(150, "Máximo 150 min")
+    .default(60),
   work: z.enum(WORK_SCHEDULES).default("SEDENTARIO"),
   trainingTime: z.enum(TRAINING_TIMES).default("MANANA"),
   /** Horario por día cuando varía; null si entrena siempre a la misma hora. */
@@ -153,6 +160,7 @@ export function coerceOnboardingPayload(raw: Record<string, unknown>): unknown {
     leanMassKg: num(raw.leanMassKg),
     liftingDays: num(raw.liftingDays),
     cardioMinWk: num(raw.cardioMinWk) ?? 0,
+    sessionMinutes: num(raw.sessionMinutes) ?? 60,
     work: raw.work || "SEDENTARIO",
     trainingTime: raw.trainingTime || "MANANA",
     trainingSchedule:

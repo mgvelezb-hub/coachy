@@ -232,6 +232,26 @@ export function OnboardingForm({ email }: { email: string }): React.JSX.Element 
           </div>
 
           <div className="space-y-2">
+            <Label htmlFor="sessionMinutes">¿Cuánto tiempo tienes por sesión?</Label>
+            <select
+              id="sessionMinutes"
+              name="sessionMinutes"
+              defaultValue="60"
+              className="h-10 w-full rounded-md border bg-background px-3 text-sm"
+            >
+              <option value="45">45 minutos — rápido y efectivo</option>
+              <option value="60">1 hora</option>
+              <option value="75">1 hora y cuarto</option>
+              <option value="90">1 hora y media</option>
+            </select>
+            <p className="text-xs text-muted-foreground">
+              Con 45 minutos armamos sesiones de 4-5 ejercicios: se recortan accesorios, nunca los
+              básicos.
+            </p>
+            <FieldError message={errors.sessionMinutes} />
+          </div>
+
+          <div className="space-y-2">
             <Label>¿A qué hora entrenas normalmente?</Label>
             <RadioRow
               name="trainingTime"

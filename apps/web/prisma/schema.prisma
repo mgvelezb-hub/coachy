@@ -154,6 +154,8 @@ model Profile {
 
   liftingDays  Int          @default(4) @map("lifting_days")
   cardioMinWk  Int          @default(0) @map("cardio_min_wk")
+  /// Minutos por sesión. 45 ⇒ 4-5 ejercicios; 60+ ⇒ 6-8 (metodología §3).
+  sessionMinutes Int        @default(60) @map("session_minutes")
   work         WorkSchedule @default(SEDENTARIO)
   trainingTime TrainingTime @default(MANANA) @map("training_time")
   /** Horario por día {LUN..DOM: MANANA|MEDIODIA|TARDE|NOCHE|DESCANSO}; null = mismo horario todos los días. */
@@ -329,6 +331,9 @@ model MealPlan {
 // Entrenamiento
 // ---------------------------------------------------------------------------
 
+/// Una sesión del día: lo que el generador planeó (`exercises_json`) y el
+/// resumen de lo que pasó en el gimnasio (`loads_json`). El detalle serie a
+/// serie vive en `workout_sets`, que es lo que se consulta para progresión y PRs.
 model Workout {
   id     String @id @default(uuid()) @db.Uuid
   userId String @map("user_id") @db.Uuid
@@ -339,12 +344,52 @@ model Workout {
   scheme      String
 
   exercisesJson Json  @map("exercises_json")
+  /// Resumen de la sesión: { volumeKg, prs[], rpeByExercise, notes }.
   loadsJson     Json? @map("loads_json")
+
+  /// Momento en que la atleta cerró la sesión. Null = planeada, no entrenada.
+  completedAt DateTime? @map("completed_at")
 
   createdAt DateTime @default(now()) @map("created_at")
 
+  sets WorkoutSet[]
+
+  @@unique([userId, date])
   @@index([userId, date])
   @@map("workouts")
+}
+
+/// Una serie ejecutada. Es la unidad que sincroniza el modo gimnasio desde el
+/// teléfono: `client_id` la hace idempotente, así que reintentar la cola
+/// offline nunca duplica.
+model WorkoutSet {
+  id        String  @id @default(uuid()) @db.Uuid
+  workoutId String  @map("workout_id") @db.Uuid
+  workout   Workout @relation(fields: [workoutId], references: [id], onDelete: Cascade)
+
+  exerciseId String?   @map("exercise_id") @db.Uuid
+  exercise   Exercise? @relation(fields: [exerciseId], references: [id], onDelete: SetNull)
+
+  /// Nombre tal como se planeó: sobrevive aunque el catálogo cambie.
+  exerciseName String @map("exercise_name")
+
+  setIndex   Int  @map("set_index")
+  targetReps Int  @map("target_reps")
+  reps       Int
+  weightKg   Decimal? @map("weight_kg") @db.Decimal(6, 2)
+  rpe        Int?
+  /// Serie de calentamiento: no cuenta para volumen, PRs ni progresión.
+  warmup     Boolean @default(false)
+
+  /// Llave de idempotencia generada en el dispositivo.
+  clientId String @map("client_id")
+
+  performedAt DateTime @default(now()) @map("performed_at")
+
+  @@unique([workoutId, clientId])
+  @@index([workoutId])
+  @@index([exerciseId])
+  @@map("workout_sets")
 }
 
 /// Catálogo genérico de ejercicios (seed público, sin datos personales).
@@ -359,6 +404,8 @@ model Exercise {
   isTracker   Boolean  @default(false) @map("is_tracker")
 
   createdAt DateTime @default(now()) @map("created_at")
+
+  workoutSets WorkoutSet[]
 
   @@index([muscleGroup])
   @@map("exercises")

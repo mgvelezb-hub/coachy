@@ -57,6 +57,7 @@ export async function submitOnboarding(
     leanMassKg: input.leanMassKg ? input.leanMassKg.toFixed(1) : null,
     liftingDays: derived.liftingDays,
     cardioMinWk: input.cardioMinWk,
+    sessionMinutes: input.sessionMinutes,
     work: input.work,
     trainingTime: derived.trainingTime,
     trainingSchedule: input.trainingSchedule ?? Prisma.JsonNull,
