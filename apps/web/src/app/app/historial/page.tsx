@@ -1,5 +1,6 @@
 import { Dumbbell, Trophy } from "lucide-react";
 
+import { GoalCard } from "@/app/app/historial/goal-card";
 import { PhotoCompare, type PhotoSet } from "@/app/app/historial/photo-compare";
 import {
   PHOTO_VIEWS,
@@ -12,6 +13,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { requireOnboardedUser } from "@/lib/auth";
 import { listCheckIns, toChartSeries } from "@/lib/checkins";
+import { goalStatusFor } from "@/lib/coachy/goal";
 import { progressSummaryFor, todayISO } from "@/lib/coachy/progress-summary";
 import { decimalToNumber, formatCm, formatKg, formatShortDate, fromISODate } from "@/lib/format";
 import { signedPhotoUrls } from "@/lib/storage";
@@ -86,7 +88,7 @@ export default async function HistorialPage(): Promise<React.JSX.Element> {
     personalRecordList(user.id),
   ]);
 
-  const [photoSets, summary] = await Promise.all([
+  const [photoSets, summary, goalStatus] = await Promise.all([
     buildPhotoSets(checkIns),
     progressSummaryFor(user.id, {
       checkIns: checkIns.map((checkIn) => ({
@@ -98,6 +100,8 @@ export default async function HistorialPage(): Promise<React.JSX.Element> {
       records,
       today: todayISO(),
     }),
+    // Fase 6: nunca lanza — degrada al estado que la tarjeta sabe dibujar.
+    goalStatusFor(user.id, user.profile),
   ]);
 
   const totalVolume = sessions.reduce((total, session) => total + session.volumeKg, 0);
@@ -113,6 +117,8 @@ export default async function HistorialPage(): Promise<React.JSX.Element> {
       </header>
 
       <ProgressSummaryCard summary={summary} />
+
+      <GoalCard status={goalStatus} />
 
       <ProgressCharts points={points} />
 
