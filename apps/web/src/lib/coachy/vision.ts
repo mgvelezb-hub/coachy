@@ -85,11 +85,17 @@ export interface VisionInput {
   baseline: Photo[];
 }
 
-/** Descarga una foto con una URL firmada de vida corta y la vuelve base64. */
-async function fetchPhotoBase64(
-  photo: Photo,
-): Promise<{ media_type: string; data: string } | null> {
-  const url = await signedPhotoUrl(photo.storagePath, {
+export type ImageMediaType = "image/jpeg" | "image/png" | "image/webp" | "image/gif";
+
+/**
+ * Descarga una foto del bucket privado con una URL firmada de vida corta y la
+ * vuelve base64. La URL no se guarda ni se comparte: vive lo que tarda el
+ * `fetch`. Lo comparten el análisis semanal y el de objetivo (`goal.ts`).
+ */
+export async function fetchPhotoBase64(
+  storagePath: string,
+): Promise<{ media_type: ImageMediaType; data: string } | null> {
+  const url = await signedPhotoUrl(storagePath, {
     asAdmin: true,
     ttlSeconds: SHORT_SIGNED_URL_TTL_SECONDS,
   });
@@ -102,26 +108,23 @@ async function fetchPhotoBase64(
   const contentType = response.headers.get("content-type") ?? "image/jpeg";
   const mediaType = contentType.split(";")[0]?.trim() || "image/jpeg";
 
-  return { media_type: mediaType, data: buffer.toString("base64") };
+  return { media_type: mediaType as ImageMediaType, data: buffer.toString("base64") };
 }
 
-async function photoBlocks(
-  photos: Photo[],
+/** Bloques `text` + `image` para una serie de fotos, ya rotulados. */
+export async function photoContentBlocks(
+  photos: Array<{ storagePath: string; view: string }>,
   label: string,
 ): Promise<Anthropic.ContentBlockParam[]> {
   const blocks: Anthropic.ContentBlockParam[] = [];
 
   for (const photo of photos) {
-    const image = await fetchPhotoBase64(photo);
+    const image = await fetchPhotoBase64(photo.storagePath);
     if (!image) continue;
     blocks.push({ type: "text", text: `${label} — vista ${photo.view.toLowerCase()}` });
     blocks.push({
       type: "image",
-      source: {
-        type: "base64",
-        media_type: image.media_type as "image/jpeg" | "image/png" | "image/webp" | "image/gif",
-        data: image.data,
-      },
+      source: { type: "base64", media_type: image.media_type, data: image.data },
     });
   }
 
@@ -179,9 +182,9 @@ export async function analyzePhotos(input: VisionInput): Promise<VisionAnalysis 
         "Compara las fotos de ESTA SEMANA contra las de la SEMANA ANTERIOR y contra las del DÍA 1. " +
         "Una fila por zona en cada comparación. Si una zona no se ve en alguna serie, usa no_comparable.",
     },
-    ...(await photoBlocks(input.current, "ESTA SEMANA")),
-    ...(await photoBlocks(input.previous, "SEMANA ANTERIOR")),
-    ...(await photoBlocks(input.baseline, "DÍA 1")),
+    ...(await photoContentBlocks(input.current, "ESTA SEMANA")),
+    ...(await photoContentBlocks(input.previous, "SEMANA ANTERIOR")),
+    ...(await photoContentBlocks(input.baseline, "DÍA 1")),
   ];
 
   const client = anthropicClient();
