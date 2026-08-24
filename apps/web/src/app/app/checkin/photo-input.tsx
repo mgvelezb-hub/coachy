@@ -1,15 +1,27 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import Image from "next/image";
-import { Camera, Check, RefreshCw } from "lucide-react";
+import { Camera, Check, Eye, EyeOff, RefreshCw } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
 /**
- * Un input de cámara por vista, con la foto de la semana pasada de fondo como
- * guía de encuadre: misma pose, misma luz, misma distancia.
+ * Cámara guiada: un input por vista con la foto de la semana pasada encimada
+ * como fantasma, para igualar pose, encuadre y distancia.
+ *
+ * El `<input capture>` del teléfono abre la cámara nativa, así que no hay
+ * preview en vivo donde dibujar el fantasma. Se hace en los dos momentos que sí
+ * controlamos:
+ *
+ *  1. **Antes de disparar** — el hueco muestra la foto anterior de fondo, así
+ *     ella ya sabe a qué encuadre le está apuntando.
+ *  2. **Al confirmar** — la foto que acaba de elegir queda con la anterior
+ *     encimada al 35 %: si la pose no coincide, se ve de inmediato y "Repetir"
+ *     abre la cámara otra vez sin perder nada.
+ *
+ * El fantasma se puede apagar con un toque. Sin foto previa no hay fantasma, ni
+ * botón, ni estado extra: el flujo queda exactamente como estaba.
  */
 export function PhotoInput({
   view,
@@ -22,7 +34,7 @@ export function PhotoInput({
 }): React.JSX.Element {
   const inputRef = useRef<HTMLInputElement>(null);
   const [preview, setPreview] = useState<string | null>(null);
-  const [showGuide, setShowGuide] = useState(true);
+  const [showGhost, setShowGhost] = useState(true);
 
   useEffect(() => {
     return () => {
@@ -35,6 +47,8 @@ export function PhotoInput({
     if (preview) URL.revokeObjectURL(preview);
     setPreview(file ? URL.createObjectURL(file) : null);
   }
+
+  const ghostVisible = Boolean(previousUrl) && showGhost;
 
   return (
     <div className="space-y-2">
@@ -55,21 +69,28 @@ export function PhotoInput({
           preview && "border-solid border-primary",
         )}
       >
-        {previousUrl && !preview && showGuide ? (
-          <Image
-            src={previousUrl}
-            alt={`Tu foto de ${label.toLowerCase()} de la semana pasada`}
-            fill
-            unoptimized
-            className="object-cover opacity-30"
+        {preview ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={preview}
+            alt={`Foto de ${label.toLowerCase()}`}
+            className="absolute inset-0 h-full w-full object-cover"
           />
         ) : null}
 
-        {preview ? (
+        {/* El fantasma: encima de la foto nueva, debajo del texto. */}
+        {ghostVisible && previousUrl ? (
           // eslint-disable-next-line @next/next/no-img-element
-          <img src={preview} alt={`Foto de ${label.toLowerCase()}`} className="h-full w-full object-cover" />
-        ) : (
-          <span className="relative z-10 flex flex-col items-center gap-1 text-sm text-muted-foreground">
+          <img
+            src={previousUrl}
+            alt={`Tu foto de ${label.toLowerCase()} de la semana pasada`}
+            aria-hidden={preview !== null}
+            className="pointer-events-none absolute inset-0 z-10 h-full w-full object-cover opacity-35"
+          />
+        ) : null}
+
+        {preview ? null : (
+          <span className="relative z-20 flex flex-col items-center gap-1 text-sm text-muted-foreground">
             <Camera className="size-6" />
             {previousUrl ? "Encuadra como la de atrás" : "Tomar foto"}
           </span>
@@ -86,23 +107,32 @@ export function PhotoInput({
         className="sr-only"
       />
 
-      <div className="flex gap-2">
-        {previousUrl && !preview ? (
+      <div className="flex flex-wrap items-center gap-2">
+        {previousUrl ? (
           <Button
             type="button"
             variant="ghost"
             size="sm"
-            onClick={() => setShowGuide((value) => !value)}
+            aria-pressed={showGhost}
+            onClick={() => setShowGhost((value) => !value)}
           >
-            {showGuide ? "Ocultar guía" : "Ver guía"}
+            {showGhost ? <EyeOff /> : <Eye />}
+            {showGhost ? "Ocultar guía" : "Ver guía"}
           </Button>
         ) : null}
+
         {preview ? (
           <Button type="button" variant="ghost" size="sm" onClick={() => inputRef.current?.click()}>
-            <RefreshCw /> Cambiar
+            <RefreshCw /> Repetir
           </Button>
         ) : null}
       </div>
+
+      {preview && previousUrl && showGhost ? (
+        <p className="text-xs text-muted-foreground">
+          Encimada al 35 % está la de la semana pasada. Si la pose no empata, repite la foto.
+        </p>
+      ) : null}
     </div>
   );
 }
