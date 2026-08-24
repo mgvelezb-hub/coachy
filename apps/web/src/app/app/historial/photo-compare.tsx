@@ -6,11 +6,20 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
 
+/** Una foto lista para pintar, con la fecha de la que de verdad salió. */
+export interface PhotoSlotView {
+  url: string;
+  /** Fecha corta legible de la foto: puede no ser la de la columna. */
+  date: string;
+  /** La foto vino de un check-in cercano, no de esta columna. */
+  borrowed: boolean;
+}
+
 export interface PhotoSet {
-  /** Etiqueta legible: "Esta semana", "Semana pasada", "Día 1". */
+  /** Etiqueta legible: "Más reciente", "Anterior", "Día 1". */
   label: string;
   date: string;
-  urls: Partial<Record<"FRENTE" | "PERFIL" | "ESPALDA", string>>;
+  photos: Partial<Record<"FRENTE" | "PERFIL" | "ESPALDA", PhotoSlotView>>;
 }
 
 const VIEWS = [
@@ -21,14 +30,20 @@ const VIEWS = [
 
 type ViewKey = (typeof VIEWS)[number]["key"];
 
-/** Comparador lado a lado: semana N vs N−1 vs día 1, por vista. */
+/**
+ * Comparador lado a lado: semana N vs N−1 vs día 1, por vista.
+ *
+ * Cuando el check-in de una columna no trae esa vista, el servidor ya buscó la
+ * más cercana (±3 semanas) y la mandó marcada como prestada: aquí se pinta con
+ * su fecha real ("frente · 02/05") en lugar de un hueco que diga "Sin foto".
+ */
 export function PhotoCompare({ sets }: { sets: PhotoSet[] }): React.JSX.Element {
   const [view, setView] = useState<ViewKey | null>(null);
-  const available = sets.filter((set) => Object.keys(set.urls).length > 0);
+  const available = sets.filter((set) => Object.keys(set.photos).length > 0);
 
   // Solo se ofrecen las vistas que alguien tiene: una pestaña con tres huecos
   // vacíos no le dice nada a nadie.
-  const views = VIEWS.filter((item) => available.some((set) => set.urls[item.key]));
+  const views = VIEWS.filter((item) => available.some((set) => set.photos[item.key]));
   const activeView = views.some((item) => item.key === view) ? view : views[0]?.key;
 
   if (available.length === 0 || !activeView) {
@@ -81,26 +96,28 @@ export function PhotoCompare({ sets }: { sets: PhotoSet[] }): React.JSX.Element 
                 )}
               >
                 {available.map((set) => {
-                  const url = set.urls[item.key];
+                  const photo = set.photos[item.key];
                   return (
                     <figure key={`${set.label}-${item.key}`} className="space-y-1">
                       <div className="relative aspect-[3/4] overflow-hidden rounded-lg border bg-muted">
-                        {url ? (
+                        {photo ? (
                           // eslint-disable-next-line @next/next/no-img-element
                           <img
-                            src={url}
+                            src={photo.url}
                             alt={`${item.label} — ${set.label}`}
                             className="h-full w-full object-cover"
                           />
                         ) : (
-                          <span className="flex h-full items-center justify-center px-2 text-center text-[11px] text-muted-foreground">
-                            Sin foto
+                          <span className="flex h-full items-center justify-center px-2 text-center text-[11px] text-muted-foreground/70">
+                            Esa vista no se tomó en estas semanas
                           </span>
                         )}
                       </div>
                       <figcaption className="text-center text-[11px] leading-tight text-muted-foreground">
                         <span className="block font-medium text-foreground">{set.label}</span>
-                        {set.date}
+                        {photo?.borrowed
+                          ? `${item.label.toLowerCase()} · ${photo.date}`
+                          : set.date}
                       </figcaption>
                     </figure>
                   );

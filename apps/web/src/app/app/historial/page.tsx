@@ -1,71 +1,106 @@
 import { Dumbbell, Trophy } from "lucide-react";
 
 import { PhotoCompare, type PhotoSet } from "@/app/app/historial/photo-compare";
+import {
+  PHOTO_VIEWS,
+  buildPhotoColumns,
+  type PhotoCandidate,
+} from "@/app/app/historial/photo-select";
 import { ProgressCharts } from "@/app/app/historial/progress-charts";
+import { ProgressSummaryCard } from "@/app/app/historial/progress-summary-card";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { requireOnboardedUser } from "@/lib/auth";
 import { listCheckIns, toChartSeries } from "@/lib/checkins";
+import { progressSummaryFor, todayISO } from "@/lib/coachy/progress-summary";
 import { decimalToNumber, formatCm, formatKg, formatShortDate, fromISODate } from "@/lib/format";
 import { signedPhotoUrls } from "@/lib/storage";
-import { trainingHistory } from "@/lib/training/view";
+import { personalRecordList, trainingHistory } from "@/lib/training/view";
 import type { CheckInWithPhotos } from "@/lib/checkins";
 
 export const metadata = { title: "Historial" };
 
-type View = "FRENTE" | "PERFIL" | "ESPALDA";
+/** Semanas donde la cinta no es concluyente (regla R1 del motor). */
+const INCONCLUSIVE_CYCLE = new Set(["LUTEA", "MENSTRUACION"]);
+
+/** Los check-ins con foto, aplanados a una ruta por vista. */
+function toPhotoCandidates(checkIns: CheckInWithPhotos[]): PhotoCandidate[] {
+  return checkIns
+    .filter((checkIn) => checkIn.photos.length > 0)
+    .map((checkIn) => {
+      const paths: PhotoCandidate["paths"] = {};
+      for (const photo of checkIn.photos) {
+        const view = photo.view as (typeof PHOTO_VIEWS)[number];
+        // `photos` admite varias por vista desde el backfill: manda la primera.
+        paths[view] ??= photo.storagePath;
+      }
+      return {
+        checkInId: checkIn.id,
+        date: checkIn.date.toISOString().slice(0, 10),
+        paths,
+      };
+    });
+}
 
 /**
- * El comparador solo tiene sentido con check-ins que traen foto: si la última
- * semana no subió ninguna, se compara contra la última que sí tiene. Cada
- * columna aparece una sola vez aunque las tres apunten al mismo check-in.
+ * El comparador, ya resuelto: qué check-ins son las columnas y de qué fecha
+ * salió cada foto. Cuando una vista falta en la columna, se muestra la del
+ * check-in con foto más cercano en lugar de un hueco vacío.
  */
 async function buildPhotoSets(checkIns: CheckInWithPhotos[]): Promise<PhotoSet[]> {
-  const withPhotos = checkIns.filter((checkIn) => checkIn.photos.length > 0);
+  const columns = buildPhotoColumns(toPhotoCandidates(checkIns));
+  if (columns.length === 0) return [];
 
-  const latest = withPhotos.at(-1);
-  const previous = withPhotos.at(-2);
-  const first = withPhotos[0];
-  const used = new Set([latest?.id, previous?.id].filter(Boolean));
-
-  const candidates: Array<{ label: string; checkIn: CheckInWithPhotos | undefined }> = [
-    { label: "Más reciente", checkIn: latest },
-    { label: "Anterior", checkIn: previous },
-    { label: "Día 1", checkIn: first && !used.has(first.id) ? first : undefined },
-  ];
-
-  const paths = candidates
-    .flatMap((candidate) => candidate.checkIn?.photos ?? [])
-    .map((photo) => photo.storagePath);
-
+  const paths = columns.flatMap((column) =>
+    PHOTO_VIEWS.map((view) => column.slots[view]?.storagePath).filter(
+      (path): path is string => path !== undefined,
+    ),
+  );
   const signed = await signedPhotoUrls(paths);
 
-  return candidates
-    .filter((candidate) => candidate.checkIn !== undefined)
-    .map((candidate) => {
-      const checkIn = candidate.checkIn as CheckInWithPhotos;
-      const urls: PhotoSet["urls"] = {};
-      for (const photo of checkIn.photos) {
-        const url = signed[photo.storagePath];
-        if (url) urls[photo.view as View] = url;
-      }
-      return { label: candidate.label, date: formatShortDate(checkIn.date), urls };
-    });
+  return columns.map((column) => {
+    const photos: PhotoSet["photos"] = {};
+
+    for (const view of PHOTO_VIEWS) {
+      const slot = column.slots[view];
+      const url = slot ? signed[slot.storagePath] : undefined;
+      if (!slot || !url) continue;
+      photos[view] = {
+        url,
+        date: formatShortDate(fromISODate(slot.date)),
+        borrowed: slot.borrowed,
+      };
+    }
+
+    return { label: column.label, date: formatShortDate(fromISODate(column.date)), photos };
+  });
 }
 
 export default async function HistorialPage(): Promise<React.JSX.Element> {
   const user = await requireOnboardedUser();
 
-  const [checkIns, points, sessions] = await Promise.all([
+  const [checkIns, points, sessions, records] = await Promise.all([
     listCheckIns(user.id),
     toChartSeries(user.id),
     trainingHistory(user.id),
+    personalRecordList(user.id),
   ]);
-  const photoSets = await buildPhotoSets(checkIns);
+
+  const [photoSets, summary] = await Promise.all([
+    buildPhotoSets(checkIns),
+    progressSummaryFor(user.id, {
+      checkIns: checkIns.map((checkIn) => ({
+        date: checkIn.date.toISOString().slice(0, 10),
+        waistCm: decimalToNumber(checkIn.waistCm),
+        weightKg: decimalToNumber(checkIn.weightKg),
+        inconclusive: INCONCLUSIVE_CYCLE.has(checkIn.cyclePhase ?? ""),
+      })),
+      records,
+      today: todayISO(),
+    }),
+  ]);
 
   const totalVolume = sessions.reduce((total, session) => total + session.volumeKg, 0);
-  const allPrs = sessions.flatMap((session) => session.prs);
-
   const rows = [...checkIns].reverse();
 
   return (
@@ -76,6 +111,8 @@ export default async function HistorialPage(): Promise<React.JSX.Element> {
           {checkIns.length} {checkIns.length === 1 ? "semana registrada" : "semanas registradas"}.
         </p>
       </header>
+
+      <ProgressSummaryCard summary={summary} />
 
       <ProgressCharts points={points} />
 
@@ -105,9 +142,36 @@ export default async function HistorialPage(): Promise<React.JSX.Element> {
                 </div>
                 <div className="rounded-lg bg-muted p-3">
                   <p className="text-xs uppercase tracking-wide text-muted-foreground">Récords</p>
-                  <p className="text-lg font-bold">{allPrs.length}</p>
+                  <p className="text-lg font-bold">{records.length}</p>
                 </div>
               </div>
+
+              {records.length > 0 ? (
+                <div className="space-y-2 rounded-lg border p-3">
+                  <p className="flex items-center gap-2 text-sm font-semibold">
+                    <Trophy className="size-4 text-primary" /> Tus récords por ejercicio
+                  </p>
+                  <ul className="divide-y text-sm">
+                    {records.map((record) => (
+                      <li
+                        key={record.exerciseName}
+                        className="flex items-center gap-3 py-1.5"
+                      >
+                        <span className="min-w-0 flex-1 truncate">{record.exerciseName}</span>
+                        <span className="shrink-0 font-semibold tabular-nums">
+                          {record.weightKg} kg × {record.reps}
+                        </span>
+                        <span className="w-16 shrink-0 text-right text-xs text-muted-foreground">
+                          {formatShortDate(fromISODate(record.date))}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                  <p className="text-xs text-muted-foreground">
+                    El calentamiento no cuenta: solo las series efectivas hacen récord.
+                  </p>
+                </div>
+              ) : null}
 
               <ul className="divide-y text-sm">
                 {sessions.map((session) => (
