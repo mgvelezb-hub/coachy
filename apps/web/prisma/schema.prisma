@@ -113,6 +113,9 @@ enum NotificationKind {
   MENSAJE_COACHY
   /// Aviso al admin: 2 semanas sin check-in de alguien.
   ALERTA_ABANDONO
+  /// Aviso al admin: una señal de escalamiento del observatorio (Fase 3).
+  /// Notifica, nunca bloquea: la decisión del motor ya se publicó.
+  ESCALAMIENTO
 }
 
 // ---------------------------------------------------------------------------
@@ -178,6 +181,18 @@ model Profile {
   /// Consentimiento explícito para análisis de fotos con IA.
   photoConsentAt      DateTime? @map("photo_consent_at")
   photoConsentVersion String?   @map("photo_consent_version")
+
+  // -- Ciclo menstrual (Fase 7) ---------------------------------------------
+  // Opt-in explícito. Es dato de salud y es de la atleta: el admin nunca ve la
+  // fase, solo "semana no concluyente". `supabase/setup-f3f7.sql` revoca el
+  // privilegio de lectura de estas tres columnas a los roles del cliente.
+  //
+  // Estimación de calendario, jamás diagnóstico ni anticoncepción.
+  cycleTrackingEnabled Boolean   @default(false) @map("cycle_tracking_enabled")
+  /// Primer día del último periodo, tal como ella lo escribió.
+  cycleLastPeriodStart DateTime? @map("cycle_last_period_start") @db.Date
+  /// Duración típica del ciclo en días (21-45).
+  cycleAvgLength       Int       @default(28) @map("cycle_avg_length")
 
   onboardingCompletedAt DateTime? @map("onboarding_completed_at")
   createdAt             DateTime  @default(now()) @map("created_at")

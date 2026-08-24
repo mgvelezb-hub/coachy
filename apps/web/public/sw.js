@@ -4,22 +4,39 @@
  * Conservador por defecto: cachea el App Shell estático y sirve una página
  * offline. Medidas, fotos y decisiones nunca tocan el caché del navegador.
  *
- * La excepción es **el modo gimnasio** (`/app/entrenamiento`). Ahí el objetivo
- * del producto es entrenar sin señal, así que esa ruta y los estáticos de Next
- * que la pintan sí se guardan: sin eso, abrir la app en el sótano del gimnasio
- * muestra la página offline y la rutina se queda del otro lado.
+ * Las excepciones son las dos pantallas que existen para usarse sin señal:
  *
- * Ese caché vive aparte (`coachy-training-v1`) para poder borrarlo solo: la
- * pantalla de salir manda `{ type: "purge-training" }` antes de cerrar sesión,
- * y con eso el HTML con la rutina no se queda en un teléfono ajeno. Los videos
- * NO se cachean todavía: eso es Fase 5.
+ *   - **El modo gimnasio** (`/app/entrenamiento`), con la rutina del día.
+ *   - **La biblioteca** (`/app/biblioteca`), con el catálogo de ejercicios.
+ *
+ * Esas rutas y los estáticos de Next que las pintan sí se guardan: sin eso,
+ * abrir la app en el sótano del gimnasio muestra la página offline y la rutina
+ * se queda del otro lado.
+ *
+ * Cada cosa vive en su propio caché para poder borrarla sola:
+ *
+ *   - `coachy-training-v1` — HTML del modo gimnasio y bundles de Next.
+ *   - `coachy-library-v1`  — HTML de la biblioteca.
+ *   - `coachy-videos-v1`   — los videos que la atleta descargó. Lo llena y lo
+ *     vacía la página (`src/lib/video-cache.ts`); aquí solo se conserva entre
+ *     activaciones y se borra al cerrar sesión.
+ *
+ * La pantalla de salir manda `{ type: "purge-training" }` antes de cerrar
+ * sesión y con eso se van los tres: un teléfono se presta, y ni la rutina ni
+ * los videos descargados se quedan en el de alguien más.
  */
 const SHELL_CACHE = "coachy-shell-v2";
 const TRAINING_CACHE = "coachy-training-v1";
-const KEEP = [SHELL_CACHE, TRAINING_CACHE];
+const LIBRARY_CACHE = "coachy-library-v1";
+const VIDEO_CACHE = "coachy-videos-v1";
+const KEEP = [SHELL_CACHE, TRAINING_CACHE, LIBRARY_CACHE, VIDEO_CACHE];
+
+/** Todo lo que vive en el teléfono y desaparece al cerrar sesión. */
+const PRIVATE_CACHES = [TRAINING_CACHE, LIBRARY_CACHE, VIDEO_CACHE];
 
 const SHELL = ["/offline", "/manifest.webmanifest", "/icons/icon-192.png", "/icons/icon-512.png"];
 const TRAINING_ROUTE = "/app/entrenamiento";
+const LIBRARY_ROUTE = "/app/biblioteca";
 
 self.addEventListener("install", (event) => {
   event.waitUntil(
@@ -40,8 +57,17 @@ self.addEventListener("activate", (event) => {
 });
 
 self.addEventListener("message", (event) => {
-  if (event.data && event.data.type === "purge-training") {
-    event.waitUntil(caches.delete(TRAINING_CACHE));
+  const type = event.data && event.data.type;
+
+  // Cerrar sesión: no queda nada de esta persona en el teléfono.
+  if (type === "purge-training") {
+    event.waitUntil(Promise.all(PRIVATE_CACHES.map((cache) => caches.delete(cache))));
+    return;
+  }
+
+  // "Liberar espacio" desde la biblioteca, si prefiere pedirlo por aquí.
+  if (type === "purge-videos") {
+    event.waitUntil(caches.delete(VIDEO_CACHE));
   }
 });
 
@@ -68,10 +94,15 @@ self.addEventListener("fetch", (event) => {
 
   const url = new URL(request.url);
 
-  // El modo gimnasio: red primero, caché como red de seguridad.
-  if (request.mode === "navigate" && url.pathname.startsWith(TRAINING_ROUTE)) {
+  // Las dos pantallas que se usan sin señal: red primero, caché como red de
+  // seguridad. Cada una en su propio caché.
+  const offlineRoute =
+    (url.pathname.startsWith(TRAINING_ROUTE) && TRAINING_CACHE) ||
+    (url.pathname.startsWith(LIBRARY_ROUTE) && LIBRARY_CACHE);
+
+  if (request.mode === "navigate" && offlineRoute) {
     event.respondWith(
-      networkFirst(request, TRAINING_CACHE).catch(() =>
+      networkFirst(request, offlineRoute).catch(() =>
         caches.match("/offline").then((res) => res ?? Response.error()),
       ),
     );
