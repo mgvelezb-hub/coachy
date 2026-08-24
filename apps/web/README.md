@@ -353,8 +353,40 @@ IndexedDB, cae a `localStorage`.
 El service worker cachea `/app/entrenamiento` y los bundles de Next en un caché
 aparte (`coachy-training-v1`) — es la excepción a la regla de no cachear nada
 privado, y existe porque el gimnasio no tiene señal. Al salir de la sesión ese
-caché y la base local se borran. **Los videos no se pre-descargan todavía**: sin
-red, el ejercicio se muestra con su esquema y sin reproductor (Fase 5).
+caché y la base local se borran.
+
+La cola sube con la app abierta (evento `online` y un intervalo) y, donde el
+navegador lo soporta, también con la app cerrada: al encolar se registra un
+`sync` (`coachy-training-sync`) y el service worker lee la misma base para
+vaciarla. En Safari, que no lo implementa, queda el comportamiento de siempre.
+
+### Biblioteca y videos sin señal
+
+`/app/biblioteca` es el catálogo completo agrupado por zona del cuerpo, con
+buscador, sustitutos y reproductor. Su razón de ser es la descarga: por grupo
+("Descargar (12 videos · 54 MB)") o completa (42 videos, 189 MB hoy).
+
+```
+src/lib/video-cache.ts          Cache Storage: descargar, indexar, liberar
+src/lib/exercise-groups.ts      zonas del cuerpo y agrupación (puro)
+src/lib/exercise-library.ts     catálogo + firma + tamaños reales del bucket
+src/components/exercise-video.tsx   reproductor: primero el teléfono, luego la red
+src/app/api/exercise-videos/    firmas frescas (sign) y videos de la semana (week)
+```
+
+**La llave del caché es la ruta del ejercicio, no la URL firmada.** La firma
+caduca en una hora; si fuera la llave, al día siguiente todo lo "descargado"
+volvería a bajarse. Se guarda el blob bajo `/__coachy-video/{ruta}` en el caché
+`coachy-videos-v1`, y antes de cada lote se piden firmas nuevas a
+`POST /api/exercise-videos/sign`. Los MB que muestra la UI son los que reporta
+`storage.list`, no una estimación.
+
+Al abrir `/app` o `/app/entrenamiento` con red, los videos de la rutina de la
+semana se pre-descargan en segundo plano (nunca bloquean la UI, se saltan con
+ahorro de datos o red lenta, y no repiten lo que ya está).
+
+Al cerrar sesión, el mismo `{ type: "purge-training" }` borra los tres cachés
+privados —rutina, biblioteca y videos—: un teléfono se presta.
 
 ### RLS
 
@@ -377,9 +409,13 @@ psql "$DIRECT_URL" -f supabase/setup-training.sql
 - El generador no pregunta por el equipo disponible: asume un gimnasio completo.
   Si una máquina no existe, el catálogo trae `substitutes` pero la UI todavía no
   ofrece cambiar el ejercicio en el momento.
-- El modo gimnasio no pre-descarga videos: sin red se ve el nombre y el esquema.
-- La cola de sincronización se vacía con la app abierta (evento `online` y un
-  intervalo). Falta Background Sync para subirla con la app cerrada (Fase 5).
+- El modo gimnasio todavía reproduce con la URL firmada del servidor. El
+  componente que lee primero el video descargado ya existe
+  (`components/exercise-video.tsx`); falta cambiar el `<video>` de
+  `exercise-logger.tsx` por `<ExerciseVideo path={...} signedUrl={...} />`.
+- La biblioteca guarda los videos con la ruta como llave, así que sobreviven a
+  las firmas vencidas — pero el navegador puede desalojar el caché si el
+  teléfono se queda sin espacio. No se pide almacenamiento persistente.
 
 ## 8. Backfill de fotos históricas
 
