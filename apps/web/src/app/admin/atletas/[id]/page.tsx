@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation";
 
+import { ActivityCard } from "@/app/admin/atletas/[id]/activity-card";
 import { EngineConfigEditor } from "@/app/admin/atletas/[id]/engine-config-editor";
 import { Observatory } from "@/app/admin/atletas/[id]/observatory";
 import { Badge } from "@/components/ui/badge";
@@ -14,6 +15,7 @@ import {
   phaseLabel,
 } from "@/lib/format";
 import { DEFAULT_ENGINE_CONFIG } from "@/lib/engine-config";
+import { healthStatus } from "@/lib/health/db";
 import { loadObservatory } from "@/lib/observatory";
 import { prisma } from "@/lib/prisma";
 import { CONDITION_LABELS, GOAL_LABELS } from "@/lib/validation/onboarding";
@@ -53,6 +55,8 @@ export default async function AthletePage({
 
   const profile = athlete.profile;
   const observatory = await loadObservatory(id);
+  // Actividad del reloj (Fase 8): contexto, no decisión. Si falla, no aparece.
+  const activity = await healthStatus(id).catch(() => null);
 
   return (
     <div className="space-y-5">
@@ -62,6 +66,8 @@ export default async function AthletePage({
       </header>
 
       {observatory ? <Observatory data={observatory} /> : null}
+
+      {activity ? <ActivityCard status={activity} /> : null}
 
       <Card>
         <CardHeader>

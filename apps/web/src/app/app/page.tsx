@@ -3,6 +3,7 @@ import type { Prisma } from "@prisma/client";
 import { ArrowRight, Bell, Dumbbell, UtensilsCrossed } from "lucide-react";
 
 import { CoachyQuestions } from "@/app/app/coachy-questions";
+import { HealthCard } from "@/app/app/health-card";
 import {
   MealPlanView,
   type GroceryItemView,
@@ -18,6 +19,7 @@ import { currentMealPlan } from "@/lib/coachy/menu";
 import { unreadNotifications } from "@/lib/coachy/notifications";
 import type { CoachyReply } from "@/lib/coachy/types";
 import { decimalToNumber, formatCm, formatLongDate, phaseLabel, sundayOf } from "@/lib/format";
+import { ensureHealthToken, healthStatus } from "@/lib/health/db";
 import { prisma } from "@/lib/prisma";
 import { todayCard } from "@/lib/training/view";
 
@@ -92,6 +94,15 @@ export default async function AppHomePage(): Promise<React.JSX.Element> {
     console.error("[training] no se pudo armar la rutina de hoy", error);
     return null;
   });
+
+  // El reloj (Fase 8): el token del atajo se crea la primera vez que se abre
+  // esta pantalla. Si algo falla, la tarjeta no aparece y el resto sigue vivo.
+  const health = await Promise.all([ensureHealthToken(user.id), healthStatus(user.id)])
+    .then(([token, status]) => ({ token, status }))
+    .catch((error) => {
+      console.error("[salud] no se pudo preparar la tarjeta del reloj", error);
+      return null;
+    });
 
   // La alimentación se materializa a demanda igual que la rutina: si la
   // decisión vigente llegó por el importador nunca pasó por `runCoachy`, así
@@ -304,6 +315,15 @@ export default async function AppHomePage(): Promise<React.JSX.Element> {
           )}
         </CardContent>
       </Card>
+
+      {health ? (
+        <HealthCard
+          token={health.token}
+          lastDate={health.status.lastDate}
+          avgSteps={health.status.avgSteps}
+          avgSleepMin={health.status.avgSleepMin}
+        />
+      ) : null}
 
       <Card>
         <CardHeader>

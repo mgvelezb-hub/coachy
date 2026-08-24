@@ -126,8 +126,22 @@ Deja instalado:
 3. **Bucket privado `progress-photos`** — límite de 8 MB, solo imágenes, con políticas que atan
    cada archivo a la carpeta del usuario: `{user_id}/{checkin_id}/{vista}.jpg`.
 
-Después corre también [`supabase/setup-training.sql`](./supabase/setup-training.sql), que instala
-la RLS de `workout_sets` (Fase 4). Es idempotente y necesita que `setup.sql` ya haya corrido.
+Después corren los complementos, en cualquier orden. Los tres son idempotentes y necesitan que
+`setup.sql` ya haya corrido:
+
+| Script | Qué instala |
+|---|---|
+| [`setup-training.sql`](./supabase/setup-training.sql) | RLS de `workout_sets` (Fase 4) |
+| [`setup-f3f7.sql`](./supabase/setup-f3f7.sql) | Las columnas del ciclo, fuera del alcance del cliente (Fase 7) |
+| [`setup-f8.sql`](./supabase/setup-f8.sql) | RLS de `health_days` y el token del reloj, fuera del alcance del cliente (Fase 8) |
+
+```bash
+set -a && . ./.env.local && set +a
+for f in setup-training setup-f3f7 setup-f8; do psql "$DIRECT_URL" -f "supabase/$f.sql"; done
+```
+
+Los dos últimos reparten privilegios **por columna** sobre `profiles`, así que hay que volver a
+correrlos después de cada migración que le agregue columnas.
 
 > **Ojo con Prisma y RLS.** Prisma se conecta con un rol que hace `BYPASSRLS`, así que las
 > políticas **no** protegen las server actions. El filtro por `userId` en cada consulta del
@@ -360,6 +374,35 @@ navegador lo soporta, también con la app cerrada: al encolar se registra un
 `sync` (`coachy-training-sync`) y el service worker lee la misma base para
 vaciarla. En Safari, que no lo implementa, queda el comportamiento de siempre.
 
+### Cambiar ejercicio
+
+La máquina está ocupada o el gimnasio no la tiene. **"Cambiar ejercicio"**, en
+la pantalla del ejercicio, ofrece primero los `substitutes` que el catálogo
+declara y después los compañeros del mismo grupo muscular **con video** — sin
+demostración, un ejercicio nuevo a media serie no sirve. La lista se calcula en
+el servidor (`training/substitutes.ts`, puro) y viaja **dentro de la semana**,
+así que abre igual sin señal.
+
+El cambio se aplica **primero en el teléfono** y se sincroniza por la misma cola
+que las series: `substitutions` viaja en el payload de `/api/training/sync` y
+`applySubstitutions` edita `exercises_json`. No hay una ruta aparte a propósito
+— un cambio que solo funciona con red no sirve justo cuando se necesita.
+
+Tres propiedades lo sostienen:
+
+1. **Idempotencia**: si el plan ya tiene ese ejercicio en ese lugar, no se hace
+   nada. La cola puede reenviar la instrucción veinte veces.
+2. **El servidor no le cree al teléfono**: valida que la sesión sea de quien la
+   manda y que el ejercicio elegido sea equivalente (mismo grupo o sustituto
+   declarado).
+3. **Las series del ejercicio que se va se van con él** — su `client_id` empieza
+   con `{workout}:{índice}:` — y las del resto de la sesión no se tocan. Los
+   pesos sugeridos del ejercicio nuevo quedan vacíos: el peso de la prensa no es
+   el del hack squat.
+
+Si el servidor rechazara el cambio, la siguiente carga de la semana trae el plan
+del servidor y gana el servidor.
+
 ### Biblioteca y videos sin señal
 
 `/app/biblioteca` es el catálogo completo agrupado por zona del cuerpo, con
@@ -388,6 +431,15 @@ ahorro de datos o red lenta, y no repiten lo que ya está).
 Al cerrar sesión, el mismo `{ type: "purge-training" }` borra los tres cachés
 privados —rutina, biblioteca y videos—: un teléfono se presta.
 
+**Almacenamiento persistente.** Cache Storage es desalojable por default: si el
+teléfono se llena, el navegador tira lo que juzgue prescindible — y ahí se van
+los videos que se bajaron anoche. `ensurePersistentStorage()` (en
+`video-cache.ts`) pide `navigator.storage.persist()` **una sola vez**, en la
+primera descarga, que es cuando el navegador tiene la señal que quiere ver: uso
+real, no una promesa. La respuesta viaja en `BatchResult.persistence` y la
+biblioteca la dice en el toast cuando el navegador contesta que no. En Safari la
+API no existe y todo se degrada al comportamiento de siempre.
+
 ### RLS
 
 `workout_sets` estrenó política propia en
@@ -407,15 +459,11 @@ psql "$DIRECT_URL" -f supabase/setup-training.sql
 - Las respuestas a las preguntas de Coachy son de texto. La API de Claude no recibe audio, así que
   el "audio → transcripción" del plan necesita otra herramienta (Whisper o equivalente).
 - El generador no pregunta por el equipo disponible: asume un gimnasio completo.
-  Si una máquina no existe, el catálogo trae `substitutes` pero la UI todavía no
-  ofrece cambiar el ejercicio en el momento.
-- El modo gimnasio todavía reproduce con la URL firmada del servidor. El
-  componente que lee primero el video descargado ya existe
-  (`components/exercise-video.tsx`); falta cambiar el `<video>` de
-  `exercise-logger.tsx` por `<ExerciseVideo path={...} signedUrl={...} />`.
-- La biblioteca guarda los videos con la ruta como llave, así que sobreviven a
-  las firmas vencidas — pero el navegador puede desalojar el caché si el
-  teléfono se queda sin espacio. No se pide almacenamiento persistente.
+  Lo que sí existe ya es el cambio en el momento — "Cambiar ejercicio" en la
+  sesión (§6), que funciona sin señal.
+- `analyze.ts` corre `decide()` con los defaults del motor más el PAL del reloj
+  (§11). Los *overrides* que el admin guarda en `profiles.engine_config` todavía
+  no entran a esa llamada: hoy solo los usa el pronóstico del observatorio.
 
 ## 8. Backfill de fotos históricas
 
@@ -599,3 +647,83 @@ dibujar el fantasma. Se hace en los dos momentos que sí controla la app: antes 
 hueco muestra la foto anterior de esa vista como fondo; al confirmar, la foto elegida queda con la
 anterior **encimada al 35 %**, con un toque para apagarla y "Repetir" para volver a la cámara. Sin
 foto previa no hay fantasma ni estado extra: el flujo queda como estaba.
+
+
+## 11. Datos del reloj (Fase 8)
+
+Apple Watch sin app nativa. Coachy no puede leer HealthKit, así que no lo
+intenta: un **Atajo de iOS** lee Salud una vez al día y hace `POST` a
+`/api/health/ingest`. La receta completa, con los nombres exactos de cada
+acción, está en [`docs/atajo-salud.md`](./docs/atajo-salud.md).
+
+```
+src/lib/health/
+  activity.ts    bandas de pasos, fórmula del PAL y readiness (puro)
+  db.ts          token, upsert de días, ventana de actividad
+  schema.ts      zod del cuerpo que manda el atajo
+  rate-limit.ts  ventana fija en memoria
+src/app/api/health/ingest/route.ts   POST (subir) y GET (últimos 7 días)
+```
+
+### El token
+
+`profiles.health_ingest_token` es un UUID v4 que nace la primera vez que se abre
+`/app`. Es una credencial de verdad, y por eso:
+
+- **El endpoint jamás lo escribe**: ni en un log, ni en un error, ni en la
+  respuesta. Un log de Vercel no es lugar para guardar llaves.
+- Un token inválido y uno inexistente **contestan lo mismo** (`401`), para que el
+  endpoint no sirva de oráculo de qué cuentas existen.
+- Sale del alcance de `anon` y `authenticated` por privilegio de columna, igual
+  que las columnas del ciclo:
+
+```bash
+set -a && . ./.env.local && set +a
+psql "$DIRECT_URL" -f supabase/setup-f8.sql
+```
+
+Ese script también instala la RLS de `health_days` y —como el de la Fase 7— hay
+que volver a correrlo después de cada migración que agregue columnas a
+`profiles`.
+
+La tarjeta "Tu reloj" en `/app` muestra la dirección, el token tapado (con
+copiar y regenerar) y la fecha del último dato recibido, que es la única prueba
+que importa de que el atajo sigue vivo.
+
+### PAL dinámico
+
+El motor arma el PAL con lo que declara el perfil: días de pesas, minutos de
+cardio y si el trabajo es activo. Lo que nadie declara —ni sabría— es el resto
+del día. Eso es lo que traen los pasos, y por eso mueven **solo el término base**
+del PAL:
+
+| Pasos/día promedio | Banda | Δ base |
+|---|---|---|
+| < 5,000 | sedentario | −0.05 |
+| 5,000 – 7,999 | ligero | 0 |
+| 8,000 – 11,999 | activo | +0.05 |
+| ≥ 12,000 | muy activo | +0.10 |
+
+Con el default (1.20) el base queda entre 1.15 y 1.30 —dentro del rango que el
+esquema del motor admite— y el PAL resultante lo sigue acotando el motor a
+1.2-1.9. La corrección mueve el TDEE a lo mucho ~4-8 %: los pasos son un proxy,
+no una medición.
+
+**Hacen falta 14 días con pasos** dentro de una ventana de 28. Con menos, o sin
+datos, `engineConfigForActivity` devuelve `null` y `decide()` corre con los
+defaults, exactamente como antes de que existiera el reloj. Un día sin pasos
+cuenta como día sin dato, no como cero: el reloj se queda sin batería y eso no
+es sedentarismo.
+
+### Readiness
+
+Si el reloj registró **menos de 6 h** de sueño anoche, el modo gimnasio lo dice
+en `session.readinessNote`. Es texto y nada más: las cargas no se tocan solas.
+Autoregular es decisión de quien tiene la barra en las manos; el dato nada más
+se lo pone enfrente.
+
+### La frontera de privacidad
+
+El panel del admin ve **promedios de 7 días** (pasos y sueño) y la banda de
+actividad. No ve la noche por noche ni la hora a la que alguien se durmió. El
+observatorio existe para acompañar, no para vigilar.
