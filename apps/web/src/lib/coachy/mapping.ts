@@ -1,8 +1,11 @@
 import type { CheckIn, Profile } from "@prisma/client";
+import { DEFAULT_CONFIG, loadConfig } from "engine";
 
 import { decimalToNumber } from "@/lib/format";
+import { palAdjustment, type ActivityWindow, type PalAdjustment } from "@/lib/health/activity";
 import type {
   EngineCheckIn,
+  EngineConfig,
   EngineCyclePhase,
   EngineProfile,
   EngineStrengthTrend,
@@ -95,6 +98,31 @@ export function toEngineProfile(profile: Profile, latestWeightKg?: number | null
       cicloMenstrualTracking: conditions.includes("ciclo_tracking"),
     },
   };
+}
+
+/**
+ * Config del motor con el PAL corregido por los pasos del reloj (Fase 8).
+ *
+ * El perfil declara días de pesas, minutos de cardio y si el trabajo es
+ * activo; con eso el motor arma el PAL. Lo que nadie declara —ni sabría— es el
+ * resto del día: si camina al trabajo o no se para de la silla. Eso es lo que
+ * traen los pasos, y por eso mueven **solo el término base** del PAL.
+ *
+ * La banda y la tabla de la fórmula viven en `lib/health/activity.ts`. Sin al
+ * menos dos semanas de pasos esto devuelve `null` y el motor corre con sus
+ * defaults, exactamente igual que antes de que existiera el reloj.
+ */
+export type EngineActivityConfig = { config: EngineConfig; adjustment: PalAdjustment };
+
+export function engineConfigForActivity(
+  window: ActivityWindow | null,
+): EngineActivityConfig | null {
+  const adjustment = palAdjustment(window, DEFAULT_CONFIG.pal.base);
+  if (!adjustment) return null;
+
+  // `loadConfig` valida: si el base ajustado saliera del rango del esquema
+  // (1.0-1.5) esto lanzaría, y es mejor que publicar un TDEE inventado.
+  return { config: loadConfig({ pal: { base: adjustment.base } }), adjustment };
 }
 
 /**

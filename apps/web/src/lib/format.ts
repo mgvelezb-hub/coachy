@@ -13,6 +13,19 @@ export function fromISODate(iso: string): Date {
   return new Date(`${iso}T12:00:00.000Z`);
 }
 
+/**
+ * El ISO de una columna `date` de Postgres.
+ *
+ * Prisma devuelve las columnas `@db.Date` como medianoche **UTC**. Leerlas con
+ * `toISODate` (que es hora local) las corre un día hacia atrás en cualquier
+ * zona al oeste de Greenwich — en Vercel no se nota porque el runtime va en
+ * UTC, y en una laptop en CDMX el gimnasio abriría la sesión de mañana. Para
+ * una columna de solo fecha, la lectura correcta es la UTC.
+ */
+export function isoFromDateColumn(date: Date): string {
+  return date.toISOString().slice(0, 10);
+}
+
 /** El domingo de la semana de `date` (el check-in es dominical). */
 export function sundayOf(date: Date): Date {
   const copy = new Date(date);

@@ -4,7 +4,8 @@ import type { CheckIn, Decision, DecisionStatus, Photo, Profile, User } from "@p
 import { Prisma } from "@prisma/client";
 import { decide } from "engine";
 
-import { toEngineCheckIn, toEngineProfile } from "@/lib/coachy/mapping";
+import { engineConfigForActivity, toEngineCheckIn, toEngineProfile } from "@/lib/coachy/mapping";
+import { activityWindow } from "@/lib/health/db";
 import type { VisionAnalysis, WeekSignals } from "@/lib/coachy/types";
 import { analyzePhotos } from "@/lib/coachy/vision";
 import type { EngineDecision } from "@/lib/engine-types";
@@ -139,7 +140,13 @@ export async function runCheckinAnalysis(checkInId: string): Promise<AnalysisRes
     }),
   );
 
-  const engineDecision = decide(engineHistory, engineProfile);
+  // PAL dinámico (Fase 8): con dos semanas de pasos del reloj, el término base
+  // del PAL se corrige por banda de actividad. Sin datos, `null` y el motor
+  // corre con sus defaults de siempre.
+  const activity = await activityWindow(user.id, checkIn.date).catch(() => null);
+  const engineActivity = engineConfigForActivity(activity);
+
+  const engineDecision = decide(engineHistory, engineProfile, engineActivity?.config);
 
   const previousDecision = await prisma.decision.findFirst({
     where: { userId: user.id, checkIn: { date: { lt: checkIn.date } } },

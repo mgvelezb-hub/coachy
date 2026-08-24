@@ -134,6 +134,7 @@ model User {
   checkIns           CheckIn[]
   decisions          Decision[]
   workouts           Workout[]
+  healthDays         HealthDay[]
   conversations      Conversation[]
   notifications      Notification[]
   trainingExamples   TrainingExample[] @relation("TrainingExampleAthlete")
@@ -193,6 +194,11 @@ model Profile {
   cycleLastPeriodStart DateTime? @map("cycle_last_period_start") @db.Date
   /// Duración típica del ciclo en días (21-45).
   cycleAvgLength       Int       @default(28) @map("cycle_avg_length")
+
+  // -- Salud / wearables (Fase 8) -------------------------------------------
+  /// Token del Atajo de iOS que sube pasos y sueño a `/api/health/ingest`.
+  /// Es una credencial: se genera a la primera visita y se puede regenerar.
+  healthIngestToken String? @unique @map("health_ingest_token") @db.Uuid
 
   onboardingCompletedAt DateTime? @map("onboarding_completed_at")
   createdAt             DateTime  @default(now()) @map("created_at")
@@ -405,6 +411,39 @@ model WorkoutSet {
   @@index([workoutId])
   @@index([exerciseId])
   @@map("workout_sets")
+}
+
+/// Un día de datos del reloj (Fase 8): pasos, energía activa, minutos de
+/// ejercicio, sueño y frecuencia cardiaca en reposo.
+///
+/// No hay app nativa: los sube un Atajo de iOS que lee Salud y hace POST a
+/// `/api/health/ingest` con el token del atleta. Un día es una fila —
+/// `(user_id, date)` es único, así que reenviar el mismo día corrige y nunca
+/// duplica. Todos los campos son opcionales: el reloj puede no traer sueño, y
+/// medio dato sigue siendo dato.
+model HealthDay {
+  id     String @id @default(uuid()) @db.Uuid
+  userId String @map("user_id") @db.Uuid
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  date DateTime @db.Date
+
+  steps       Int?
+  activeKcal  Int? @map("active_kcal")
+  exerciseMin Int? @map("exercise_min")
+  /// Minutos dormidos esa noche (la que termina esa mañana).
+  sleepMin    Int? @map("sleep_min")
+  restingHr   Int? @map("resting_hr")
+
+  /// De dónde vino: `atajo-ios` por default. Sirve para saber qué confiar.
+  source String @default("atajo-ios")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@unique([userId, date])
+  @@index([userId, date])
+  @@map("health_days")
 }
 
 /// Catálogo genérico de ejercicios (seed público, sin datos personales).
