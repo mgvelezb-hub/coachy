@@ -442,3 +442,92 @@ idempotente — una foto ya subida se salta.
 `photos` es única por `(check-in, vista)`: si una tanda trae dos fotos de la misma vista (el
 perfil izquierdo y el derecho, por ejemplo) solo entra la primera y la otra se reporta como
 saltada.
+
+## 9. Observatorio y ciclo (Fases 3 y 7)
+
+### El autopiloto cambia qué es `/admin`
+
+Con `REQUIRE_APPROVAL=false` las decisiones del motor nacen `APROBADA` y se publican solas. El
+admin deja de aprobar y pasa a observar: `/admin` abre con las **señales de escalamiento** sin
+leer y, debajo, la lista de atletas. El panel de cada atleta trae tendencia de cintura y peso,
+volumen de fuerza y mejores marcas desde `workout_sets`, adherencia (check-ins a tiempo y
+cumplimiento declarado), el pronóstico, el timeline de decisiones y las propuestas de mejora.
+
+```
+src/lib/observatory/
+  trend.ts       regresión lineal + banda de predicción (puro)
+  signals.ts     las cuatro señales de escalamiento (puro)
+  proposals.ts   propuestas deterministas, sin IA (puro)
+  sanitize.ts    filtro de privacidad para los textos del motor (puro)
+  data.ts        arma el view model desde Prisma
+  escalation.ts  de señal a `notifications`
+```
+
+**El pronóstico dice lo que no es.** Regresión por mínimos cuadrados sobre las últimas 4-6
+semanas **concluyentes** de cintura, con banda de predicción al ~95 %. Con dos o tres puntos no
+hay grados de libertad para estimar residuos: la banda colapsa al punto y la proyección se marca
+como no confiable, con la advertencia de que dos semanas no hacen una tendencia. Las semanas que
+el motor marcó no concluyentes (regla `R1`) no entran al ajuste y salen sombreadas en la gráfica.
+
+**El escalamiento notifica, no bloquea.** Cuatro señales, ni una más: síntoma de seguridad dos
+semanas seguidas, cumplimiento por debajo del 50 % dos semanas, tres semanas sin check-in, y el
+motor proponiendo salirse de la config (kcal bajo el piso, o una fase pasada de su tope de
+semanas). `runCoachy` llama a `runEscalationCheck` justo después de sincronizar los menús —antes
+de redactar, para que el aviso salga aunque Claude falle— y cada señal se materializa como una
+`Notification` de tipo `ESCALAMIENTO` para cada admin, con `dedupeKey` por
+`{atleta}:{señal}:{fecha ancla}`.
+
+### Ciclo menstrual
+
+`profiles` guarda tres campos: `cycle_tracking_enabled`, `cycle_last_period_start` y
+`cycle_avg_length`. El opt-in es explícito y vive en el onboarding (tarjeta opcional, no aparece
+si declaró sexo masculino) y en el paso 4 del check-in, donde también se edita después.
+
+`src/lib/cycle.ts` calcula la fase por calendario: sangrado al inicio, ovulación anclada **14
+días antes del siguiente periodo** —no a la mitad del ciclo—, folicular entre una y otra, lútea
+al final. Se niega a estimar sin fecha registrada, con fecha futura o con una fecha de más de 120
+días. Es aritmética de calendario y el producto lo dice con todas sus letras: no es diagnóstico,
+no detecta embarazo y no sirve como método anticonceptivo.
+
+En el check-in la fase llega prellenada y editable; marcar "esta semana empezó mi periodo"
+reancla el conteo. La server action solo rellena `cyclePhase` cuando ella no marcó ninguna, así
+que el motor recibe la señal sin depender de que alguien se acuerde. De ahí en adelante todo es
+la regla `R1` que ya existía: semana lútea o menstrual sin caída de cintura = semana no
+concluyente, que no cuenta para estancamiento. **La rutina no cambia sola**: lo único previsto
+para el gimnasio es una frase, y solo en la semana del periodo.
+
+### La frontera de privacidad
+
+El ciclo es dato de salud y es de la atleta. El admin ve **"semana no concluyente"** y nada más:
+nunca la fase.
+
+1. El view model del observatorio no tiene campo para la fase. Viaja `inconclusive: boolean`.
+2. La explicación de la regla `R1` del motor sí nombra la fase —y así debe llegar al mensaje de
+   la atleta, que es de ella—. Antes de pintarse en `/admin` pasa por `sanitizeForAdmin`, que la
+   reemplaza por "semana no concluyente".
+3. Ninguna consulta de `/admin` selecciona `checkins.cycle_phase`.
+4. Las tres columnas de `profiles` salen del alcance de `anon` y `authenticated`:
+
+```bash
+set -a && . ./.env.local && set +a
+psql "$DIRECT_URL" -f supabase/setup-f3f7.sql
+```
+
+Ojo con la mecánica de Postgres: un `revoke` de columna **no recorta** un `grant` de tabla
+entera, y Supabase reparte `grant all` sobre `public` por defecto. El script quita el privilegio
+de tabla y lo devuelve columna por columna, saltándose las tres del ciclo — por eso hay que
+volver a correrlo después de cada migración que agregue columnas a `profiles`. Las nuevas nacen
+sin grant para esos roles, que es el lado seguro del error.
+
+### Pendientes de estas dos fases
+
+- La señal de "tres semanas sin check-in" solo se materializa cuando alguien manda datos, porque
+  vive dentro de `runCoachy`. `runEscalationSweep()` existe y hace el barrido completo; falta
+  llamarlo desde `/api/cron/wednesday`. Mientras tanto la señal sí se **muestra** en el
+  observatorio, que la calcula en vivo.
+- El modo gimnasio todavía no pinta la nota de la semana del periodo.
+  `cycleNoteForProfile(profile, isoDate)` ya devuelve el texto (o `null`) sin exponer la fase;
+  falta exponerlo en el view model de `lib/training/view.ts` como `cycleNote` y pintarlo en
+  `/app/entrenamiento`.
+- Marcar una notificación de escalamiento como leída todavía no tiene botón: se limpian
+  escribiendo `read_at` a mano.

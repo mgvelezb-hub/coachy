@@ -4,6 +4,8 @@ import {
   CYCLE_ESTIMATE_NOTE,
   DEFAULT_CYCLE_LENGTH,
   cycleNote,
+  cycleNoteForProfile,
+  cycleSettingsFromProfile,
   daysBetweenISO,
   estimateCyclePhase,
   isInconclusivePhase,
@@ -109,6 +111,22 @@ describe("semanas no concluyentes y nota del gimnasio", () => {
     expect(cycleNote("MENSTRUACION")).toContain("escuchar al cuerpo");
     expect(cycleNote("LUTEA")).toBeNull();
     expect(cycleNote(null)).toBeNull();
+  });
+
+  it("desde el perfil, la nota sale o no sale, pero la fase nunca se devuelve", () => {
+    const profile = {
+      cycleTrackingEnabled: true,
+      cycleLastPeriodStart: new Date(2026, 7, 3),
+      cycleAvgLength: 28,
+    };
+
+    expect(cycleSettingsFromProfile(profile).lastPeriodStart).toBe("2026-08-03");
+    expect(cycleNoteForProfile(profile, "2026-08-04")).toContain("escuchar al cuerpo");
+    // Día 10: folicular, ninguna nota.
+    expect(cycleNoteForProfile(profile, "2026-08-12")).toBeNull();
+    expect(
+      cycleNoteForProfile({ ...profile, cycleTrackingEnabled: false }, "2026-08-04"),
+    ).toBeNull();
   });
 
   it("el texto de la estimación dice explícitamente lo que no es", () => {

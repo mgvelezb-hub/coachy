@@ -154,6 +154,53 @@ export function cycleNote(phase: CyclePhaseName | null | undefined): string | nu
   return "Semana de escuchar al cuerpo: si lo necesitas, baja pesos o series. No pasa nada.";
 }
 
+/**
+ * Los tres campos del perfil, sin arrastrar el tipo de Prisma hasta aquí. Es
+ * estructural a propósito: `lib/cycle.ts` no depende de la base.
+ */
+export interface ProfileCycleFields {
+  cycleTrackingEnabled: boolean;
+  cycleLastPeriodStart: Date | null;
+  cycleAvgLength: number;
+}
+
+function toISODateUTC(date: Date): string {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, "0");
+  const d = String(date.getDate()).padStart(2, "0");
+  return `${y}-${m}-${d}`;
+}
+
+export function cycleSettingsFromProfile(profile: ProfileCycleFields): CycleSettings {
+  return {
+    enabled: profile.cycleTrackingEnabled,
+    lastPeriodStart: profile.cycleLastPeriodStart
+      ? toISODateUTC(profile.cycleLastPeriodStart)
+      : null,
+    avgLengthDays: profile.cycleAvgLength || DEFAULT_CYCLE_LENGTH,
+  };
+}
+
+/**
+ * Atajo para el modo gimnasio: de perfil a nota, en una línea.
+ *
+ * Devuelve texto o `null`, nunca la fase. Quien lo llame no se entera de en qué
+ * parte del ciclo va nadie: solo recibe una frase que puede pintar o no.
+ *
+ * Uso previsto en `lib/training/view.ts`:
+ *
+ * ```ts
+ * cycleNote: cycleNoteForProfile(profile, isoDate)
+ * ```
+ */
+export function cycleNoteForProfile(
+  profile: ProfileCycleFields,
+  onISODate: string,
+): string | null {
+  const estimate = estimateCyclePhase(cycleSettingsFromProfile(profile), onISODate);
+  return cycleNote(estimate?.phase ?? null);
+}
+
 export const CYCLE_PHASE_LABELS: Record<CyclePhaseName, string> = {
   MENSTRUACION: "Menstruación",
   FOLICULAR: "Folicular",
