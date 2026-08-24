@@ -531,3 +531,71 @@ sin grant para esos roles, que es el lado seguro del error.
   `/app/entrenamiento`.
 - Marcar una notificación de escalamiento como leída todavía no tiene botón: se limpian
   escribiendo `read_at` a mano.
+
+## 10. Objetivo corporal (Fase 6)
+
+```
+src/app/app/objetivo/       las tres fotos de referencia + el marco de expectativas
+src/lib/coachy/goal.ts      rutas, análisis quincenal, vocabulario cerrado y caché
+src/app/app/historial/goal-card.tsx   la tarjeta "Rumbo a tu objetivo"
+supabase/setup-f6.sql       reafirma las políticas del bucket y comprueba el prefijo
+```
+
+### Dónde viven las referencias, y por qué no hay tabla
+
+En el bucket privado que ya existe, bajo `{user_id}/goal/{vista}.jpg`. **No hay migración de
+Prisma en esta fase, a propósito.** Las políticas de `setup.sql` atan la **primera** carpeta de la
+ruta a `auth.uid()`, no la segunda: `goal/` ya queda protegido por lo que está instalado. Y
+`storage.list` ya devuelve existencia y `updated_at`, que es exactamente lo que una tabla
+`goal_photos` guardaría — con la diferencia de que una tabla sería una segunda fuente de verdad
+capaz de desincronizarse del bucket. Como `checkin_id` es un uuid, el prefijo literal `goal` no
+puede chocar con la ruta de una foto de check-in.
+
+`setup-f6.sql` no crea nada nuevo: reafirma las cuatro políticas del bucket (por si un entorno
+quedó atrás) y falla ruidosamente si `storage.foldername('{uid}/goal/frente.jpg')` dejara de
+devolver el uid como primer elemento.
+
+```bash
+set -a && . ./.env.local && set +a
+psql "$DIRECT_URL" -f supabase/setup-f6.sql
+```
+
+Es solo de Supabase: la base local no tiene los esquemas `storage` ni `auth`.
+
+### La frontera, apretada un punto más
+
+`vision.ts` todavía deja escribir una `nota_breve`. El análisis del objetivo **no tiene un solo
+campo de texto libre, ni ninguno numérico**. El modelo llena, por zona (cintura, cadera/glúteo,
+pierna, brazo, espalda), cuatro valores de cuatro listas cerradas:
+
+| campo | valores |
+|---|---|
+| `brecha` | `cerca` · `media` · `lejos` |
+| `tendencia` | `acercándose` · `igual` · `alejándose` |
+| `accion_sugerida` | `mas_volumen_gluteo` · `mas_volumen_pierna` · `mas_volumen_espalda` · `mas_volumen_brazo` · `priorizar_espalda` · `mantener_deficit` · `mas_proteina` · `sostener_cintura` · `seguir_igual` |
+
+Todo lo que lee la atleta sale de `ACTION_TEXT` y `GAP_LABEL`, escritos en `goal.ts`. Un comentario
+estético no cabe en el esquema y una cifra inventada tampoco. El parseo tolera que el modelo
+escriba la tendencia sin acentos y **tira** cualquier fila con un valor fuera del enum.
+
+### Cadencia
+
+Se pide bajo demanda al pintar `/app/historial` y se cachea en `conversations` (`kind:
+rumbo_objetivo`) por huella de las entradas — referencias más fotos de la última semana—, igual que
+"Tu avance". Encima hay un piso de 14 días: aunque la huella cambie, no se vuelve a pagar la API
+antes de la quincena.
+
+### El marco de expectativas
+
+Es texto de producto, no letra chica, y vive arriba del formulario de `/app/objetivo` sin forma de
+cerrarlo: la referencia es dirección, no promesa; se comparan proporciones y hábitos, no
+identidades; la estructura ósea y la distribución de grasa son individuales. La versión corta
+encabeza la tarjeta del historial.
+
+### Cámara guiada
+
+El `<input capture>` abre la cámara nativa del teléfono, así que no hay preview en vivo donde
+dibujar el fantasma. Se hace en los dos momentos que sí controla la app: antes de disparar, el
+hueco muestra la foto anterior de esa vista como fondo; al confirmar, la foto elegida queda con la
+anterior **encimada al 35 %**, con un toque para apagarla y "Repetir" para volver a la cámara. Sin
+foto previa no hay fantasma ni estado extra: el flujo queda como estaba.
