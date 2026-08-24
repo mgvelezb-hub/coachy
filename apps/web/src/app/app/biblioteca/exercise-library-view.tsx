@@ -172,7 +172,15 @@ export function ExerciseLibraryView({
       );
       return;
     }
-    toast.success(`${result.downloaded} videos listos para el gimnasio sin señal.`);
+    // El navegador puede negar el almacenamiento persistente. Los videos se
+    // guardan igual, pero son desalojables si el teléfono se llena: mejor
+    // decirlo que fingir que quedaron para siempre.
+    toast.success(
+      `${result.downloaded} videos listos para el gimnasio sin señal.`,
+      result.persistence === "denied"
+        ? { description: "Si el teléfono se queda sin espacio, el navegador puede borrarlos." }
+        : undefined,
+    );
   }
 
   async function free(label: string, videos: LibraryVideo[]): Promise<void> {
