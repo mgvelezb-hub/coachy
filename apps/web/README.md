@@ -47,6 +47,7 @@ autenticar. Es suficiente para trabajar en UI y en el esquema.
 | `pnpm db:seed` | Carga catálogos genéricos |
 | `pnpm db:studio` | Prisma Studio |
 | `node scripts/generate-icons.mjs` | Regenera los iconos PWA |
+| `tsx scripts/backfill-photos.mts` | Sube fotos históricas al bucket y las amarra a un check-in ([abajo](#7-backfill-de-fotos-históricas)) |
 
 ---
 
@@ -293,3 +294,29 @@ reemplazado por `{{ATLETA}}`. Ese archivo **no existe en un deploy**, a propósi
 - Las respuestas a las preguntas de Coachy son de texto. La API de Claude no recibe audio, así que
   el "audio → transcripción" del plan necesita otra herramienta (Whisper o equivalente).
 - Rutina del día: `/app` la muestra si existe un `Workout`, pero nadie los crea todavía (Fase 4).
+
+## 7. Backfill de fotos históricas
+
+Para cargar fotos viejas que nunca pasaron por el formulario de check-in:
+
+```bash
+cd apps/web
+set -a && . ./.env.local && set +a
+pnpm exec tsx scripts/backfill-photos.mts \
+  --dir <carpeta> --athlete-email <email> --dry-run
+```
+
+La carpeta trae subcarpetas `YYYY-MM-DD` con los `.jpg` de esa tanda; las fotos **nunca** entran
+al repo. Cada tanda se amarra al check-in libre más cercano (±6 días, `--window-days`) y, si no
+hay ninguno, estrena un check-in esqueleto con valores neutros para esa fecha. La vista
+(`FRENTE` / `PERFIL` / `ESPALDA`) la decide Claude Haiku con tool use: el esquema solo admite el
+ángulo, así que no hay dónde escribir un comentario sobre el cuerpo de nadie. El guion aborta si
+el perfil no tiene `photo_consent_at`.
+
+Corre siempre `--dry-run` primero: imprime el plan completo sin tocar nada. Con
+`--cache <archivo.json>` guarda las clasificaciones y la corrida real no las vuelve a pagar. Es
+idempotente — una foto ya subida se salta.
+
+`photos` es única por `(check-in, vista)`: si una tanda trae dos fotos de la misma vista (el
+perfil izquierdo y el derecho, por ejemplo) solo entra la primera y la otra se reporta como
+saltada.
