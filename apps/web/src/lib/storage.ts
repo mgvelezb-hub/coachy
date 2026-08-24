@@ -1,7 +1,14 @@
 import "server-only";
 
 import { PHOTO_BUCKET } from "@/lib/env";
+import {
+  EXERCISE_VIDEO_BUCKET,
+  exerciseVideoPath,
+  splitExerciseVideoPath,
+} from "@/lib/storage-paths";
 import { createSupabaseAdminClient, createSupabaseServerClient } from "@/lib/supabase/server";
+
+export { EXERCISE_VIDEO_BUCKET, exerciseVideoPath };
 
 /** Ruta canónica dentro del bucket privado: `{user_id}/{checkin_id}/{vista}.jpg`. */
 export function photoPath(userId: string, checkInId: string, view: string): string {
@@ -72,6 +79,66 @@ export async function signedPhotoUrls(
   for (const entry of data) {
     if (entry.signedUrl && entry.path) map[entry.path] = entry.signedUrl;
   }
+  return map;
+}
+
+/** Una hora: lo que dura una sesión de gimnasio viendo la demostración. */
+export const EXERCISE_VIDEO_TTL_SECONDS = 60 * 60;
+
+/**
+ * URL firmada del video de demostración de un ejercicio.
+ *
+ * Recibe lo que guarda `exercises.video_url` (`exercise-videos/library/{slug}.mp4`,
+ * nunca una URL firmada) y devuelve un enlace temporal listo para un `<video>`.
+ * El bucket es privado y sus políticas solo dejan leer a usuarios autenticados,
+ * así que la firma se pide con la sesión del propio usuario.
+ *
+ * Lo consume el modo gimnasio: al mostrar un ejercicio de la rutina, firma su
+ * `videoUrl` en el servidor y pasa el resultado al reproductor del cliente.
+ * Devuelve `null` si el ejercicio no tiene video o si la firma falla, para que
+ * la UI simplemente no pinte el reproductor.
+ */
+export async function signedExerciseVideoUrl(
+  path: string | null | undefined,
+  options: { asAdmin?: boolean; ttlSeconds?: number } = {},
+): Promise<string | null> {
+  if (!path) return null;
+
+  const { bucket, key } = splitExerciseVideoPath(path);
+  const supabase = options.asAdmin
+    ? createSupabaseAdminClient()
+    : await createSupabaseServerClient();
+
+  const { data, error } = await supabase.storage
+    .from(bucket)
+    .createSignedUrl(key, options.ttlSeconds ?? EXERCISE_VIDEO_TTL_SECONDS);
+
+  if (error || !data) return null;
+  return data.signedUrl;
+}
+
+/** Firma varios videos de golpe; devuelve un mapa `video_url` → URL firmada. */
+export async function signedExerciseVideoUrls(
+  paths: Array<string | null | undefined>,
+): Promise<Record<string, string>> {
+  const wanted = [...new Set(paths.filter((value): value is string => Boolean(value)))];
+  if (wanted.length === 0) return {};
+
+  const supabase = await createSupabaseServerClient();
+  const { data, error } = await supabase.storage
+    .from(EXERCISE_VIDEO_BUCKET)
+    .createSignedUrls(
+      wanted.map((value) => splitExerciseVideoPath(value).key),
+      EXERCISE_VIDEO_TTL_SECONDS,
+    );
+
+  if (error || !data) return {};
+
+  const map: Record<string, string> = {};
+  data.forEach((entry, index) => {
+    const original = wanted[index];
+    if (original && entry.signedUrl) map[original] = entry.signedUrl;
+  });
   return map;
 }
 

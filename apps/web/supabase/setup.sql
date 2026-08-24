@@ -10,6 +10,8 @@
 --   2. Habilita RLS en todas las tablas de la app (incluye `notifications`).
 --   3. Políticas: cada atleta ve solo lo suyo; el admin ve todo.
 --   4. Bucket privado `progress-photos` y sus políticas por carpeta de usuario.
+--   5. Bucket privado `exercise-videos` (banco de demostraciones, solo lectura
+--      para cualquier usuario autenticado).
 --
 -- Nota importante: Prisma se conecta con un rol que hace BYPASSRLS. Estas
 -- políticas protegen el acceso directo (PostgREST, Storage, cliente del
@@ -267,7 +269,58 @@ create policy progress_photos_delete on storage.objects
   );
 
 -- ---------------------------------------------------------------------------
--- 5. Backfill: usuarios que ya existían en auth.users antes del trigger
+-- 5. Storage: bucket privado del banco de videos de ejercicios
+--
+-- Rutas: library/{slug}.mp4 — un video por ejercicio del catálogo, el mismo
+-- para todos los atletas. `exercises.video_url` guarda la ruta
+-- `exercise-videos/library/{slug}.mp4`, nunca una URL firmada; la app la firma
+-- al vuelo con `signedExerciseVideoUrl`.
+--
+-- Solo-lectura autenticada: cualquiera con sesión puede ver la demostración;
+-- escribir y borrar es del admin (el guion `scripts/build-video-bank.mts` sube
+-- con service role, que salta RLS).
+-- ---------------------------------------------------------------------------
+
+insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+values (
+  'exercise-videos',
+  'exercise-videos',
+  false,
+  67108864,
+  array['video/mp4', 'video/quicktime']
+)
+on conflict (id) do update
+  set public = false,
+      file_size_limit = excluded.file_size_limit,
+      allowed_mime_types = excluded.allowed_mime_types;
+
+drop policy if exists exercise_videos_read on storage.objects;
+create policy exercise_videos_read on storage.objects
+  for select using (
+    bucket_id = 'exercise-videos'
+    and auth.role() = 'authenticated'
+  );
+
+drop policy if exists exercise_videos_insert on storage.objects;
+create policy exercise_videos_insert on storage.objects
+  for insert with check (
+    bucket_id = 'exercise-videos' and public.is_admin()
+  );
+
+drop policy if exists exercise_videos_update on storage.objects;
+create policy exercise_videos_update on storage.objects
+  for update using (
+    bucket_id = 'exercise-videos' and public.is_admin()
+  );
+
+drop policy if exists exercise_videos_delete on storage.objects;
+create policy exercise_videos_delete on storage.objects
+  for delete using (
+    bucket_id = 'exercise-videos' and public.is_admin()
+  );
+
+-- ---------------------------------------------------------------------------
+-- 6. Backfill: usuarios que ya existían en auth.users antes del trigger
 -- ---------------------------------------------------------------------------
 
 insert into public.users (id, email, role, created_at, updated_at)
