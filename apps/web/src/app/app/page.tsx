@@ -1,6 +1,6 @@
 import Link from "next/link";
 import type { Prisma } from "@prisma/client";
-import { ArrowRight, Bell, Dumbbell } from "lucide-react";
+import { ArrowRight, Bell, Dumbbell, UtensilsCrossed } from "lucide-react";
 
 import { CoachyQuestions } from "@/app/app/coachy-questions";
 import {
@@ -14,6 +14,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { requireOnboardedUser } from "@/lib/auth";
 import { replyToText } from "@/lib/coachy/compose";
+import { currentMealPlan } from "@/lib/coachy/menu";
 import { unreadNotifications } from "@/lib/coachy/notifications";
 import type { CoachyReply } from "@/lib/coachy/types";
 import { decimalToNumber, formatCm, formatLongDate, phaseLabel, sundayOf } from "@/lib/format";
@@ -92,6 +93,14 @@ export default async function AppHomePage(): Promise<React.JSX.Element> {
     return null;
   });
 
+  // La alimentación se materializa a demanda igual que la rutina: si la
+  // decisión vigente llegó por el importador nunca pasó por `runCoachy`, así
+  // que su menú no existe hasta que alguien abre esta pantalla.
+  const nutrition = await currentMealPlan(user.id, user.profile).catch((error) => {
+    console.error("[coachy] no se pudo cargar la alimentación", error);
+    return null;
+  });
+
   const [current, previous, total, published, notifications, answered] = await Promise.all([
     prisma.checkIn.findUnique({
       where: { userId_date: { userId: user.id, date: thisSunday } },
@@ -131,9 +140,9 @@ export default async function AppHomePage(): Promise<React.JSX.Element> {
       (row.contextJson as Record<string, unknown>).decisionId === published?.id,
   );
 
-  const menus = published?.mealPlans.map((plan) => toMenuView(plan.menuNumber, plan.mealsJson)) ?? [];
-  const groceries = published?.mealPlans[0]
-    ? toGroceries(published.mealPlans[0].groceryListJson)
+  const menus = nutrition?.plans.map((plan) => toMenuView(plan.menuNumber, plan.mealsJson)) ?? [];
+  const groceries = nutrition?.plans[0]
+    ? toGroceries(nutrition.plans[0].groceryListJson)
     : [];
 
   return (
@@ -238,21 +247,29 @@ export default async function AppHomePage(): Promise<React.JSX.Element> {
       )}
 
       <Card>
-        <CardHeader>
-          <CardTitle>Tu dieta</CardTitle>
-          <CardDescription>
-            {menus.length > 0
-              ? "Un menú por semana. Si te falta algo, checa las equivalencias."
-              : "Todavía no hay menú vigente."}
-          </CardDescription>
+        <CardHeader className="flex-row items-start gap-2 space-y-0">
+          <UtensilsCrossed className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
+          <div className="space-y-1.5">
+            <CardTitle className="text-base">Tu alimentación</CardTitle>
+            <CardDescription>
+              {menus.length > 0
+                ? `${phaseLabel(nutrition?.decision.phase ?? user.profile.currentPhase)} · ${nutrition?.decision.kcal} kcal · dos menús para alternar. Si te falta algo, checa las equivalencias.`
+                : "Aquí vive tu menú con gramos, equivalencias y lista de súper."}
+            </CardDescription>
+          </div>
         </CardHeader>
         <CardContent>
           {menus.length > 0 ? (
             <MealPlanView menus={menus} groceries={groceries} />
+          ) : nutrition ? (
+            <p className="text-sm text-muted-foreground">
+              Ya tienes decisión de la semana, pero el menú no se pudo armar todavía. Revisa que tu
+              perfil tenga estatura y peso; con eso aparece solo.
+            </p>
           ) : (
             <p className="text-sm text-muted-foreground">
-              En cuanto tu coach valide la decisión de la semana, aquí aparece el menú con sus
-              equivalencias y la lista de súper.
+              Tu primer check-in genera tu plan: con las medidas y las sensaciones de la semana,
+              Coachy arma el menú con sus equivalencias y la lista de súper.
             </p>
           )}
         </CardContent>
