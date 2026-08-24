@@ -44,10 +44,10 @@ autenticar. Es suficiente para trabajar en UI y en el esquema.
 | `pnpm eval:coachy` | Corre Coachy sobre 19 semanas reales y escribe `eval/` ([rúbrica](./eval/README.md)) |
 | `pnpm db:migrate` | `prisma migrate dev` |
 | `pnpm db:deploy` | `prisma migrate deploy` (producción) |
-| `pnpm db:seed` | Carga catálogos genéricos |
+| `pnpm db:seed` | Carga catálogos genéricos (ejercicios y alimentos) |
 | `pnpm db:studio` | Prisma Studio |
 | `node scripts/generate-icons.mjs` | Regenera los iconos PWA |
-| `tsx scripts/backfill-photos.mts` | Sube fotos históricas al bucket y las amarra a un check-in ([abajo](#7-backfill-de-fotos-históricas)) |
+| `tsx scripts/backfill-photos.mts` | Sube fotos históricas al bucket y las amarra a un check-in ([abajo](#8-backfill-de-fotos-históricas)) |
 
 ---
 
@@ -126,6 +126,9 @@ Deja instalado:
 3. **Bucket privado `progress-photos`** — límite de 8 MB, solo imágenes, con políticas que atan
    cada archivo a la carpeta del usuario: `{user_id}/{checkin_id}/{vista}.jpg`.
 
+Después corre también [`supabase/setup-training.sql`](./supabase/setup-training.sql), que instala
+la RLS de `workout_sets` (Fase 4). Es idempotente y necesita que `setup.sql` ya haya corrido.
+
 > **Ojo con Prisma y RLS.** Prisma se conecta con un rol que hace `BYPASSRLS`, así que las
 > políticas **no** protegen las server actions. El filtro por `userId` en cada consulta del
 > servidor es la defensa real; RLS cubre el acceso directo (PostgREST, Storage, el cliente del
@@ -192,8 +195,9 @@ src/
     onboarding/                 cuestionario inicial → crea Profile
     app/                        zona del atleta (layout con nav inferior)
       page.tsx                  home: check-in de la semana o invitación a hacerlo
+      entrenamiento/            modo gimnasio: sesión del día, offline-first
       checkin/                  4 pasos: medidas → fotos → sensaciones → cumplimiento
-      historial/                gráficas Recharts + comparador de fotos + tabla
+      historial/                gráficas Recharts + comparador de fotos + tabla + sesiones
     admin/                      zona del admin
       page.tsx                  lista de atletas
       atletas/[id]/             perfil + check-ins + editor de config del motor
@@ -204,7 +208,8 @@ src/
     engine-types.ts             re-export de los tipos de packages/engine
     engine-config.ts            valida la config del admin con el loadConfig del motor
     checkin-write.ts            persistencia del check-in, aislada para poder probarla
-    storage.ts                  subida y URLs firmadas del bucket privado
+    training/                   generador de rutina + modo gimnasio (§6)
+    storage.ts                  subida y URLs firmadas de los buckets privados
   middleware.ts                 refresca la sesión y protege /app, /admin, /onboarding
 ```
 
@@ -217,8 +222,9 @@ src/
 - **Borrador en `localStorage` por fecha**, sin fotos: pesan demasiado y son datos sensibles.
 - **`(userId, date)` es único.** Reenviar el mismo domingo corrige; nunca duplica. Lo mismo aplica
   al importador.
-- **El service worker solo cachea el App Shell.** Medidas, fotos y decisiones nunca tocan el caché
-  del navegador.
+- **El service worker cachea el App Shell y, aparte, el modo gimnasio.** Medidas, fotos y
+  decisiones nunca tocan el caché del navegador; la rutina sí, porque el gimnasio no tiene señal
+  (ver §6). Ese caché se borra al cerrar sesión.
 - **Fase inicial**: quien declara 3+ días de pesas entra en `BASE`; el resto en `REINTRO`.
 - **El motor vive en el servidor.** `packages/engine` se publica como TypeScript fuente, así que
   `next.config.ts` lo transpila y mapea sus imports `./x.js` a `.ts`. La página del admin le pasa
@@ -286,16 +292,96 @@ En producción manda la tabla `training_examples`. En local, si la tabla está v
 `apps/web/data/private/coach-fewshot.json` — carpeta ignorada por git, con el nombre del atleta
 reemplazado por `{{ATLETA}}`. Ese archivo **no existe en un deploy**, a propósito.
 
-## 6. Pendientes conocidos
+## 6. Entrenamiento (Fase 4)
+
+```
+src/lib/training/
+  types.ts         tipos del generador
+  schemes.ts       esquemas del coach + rotación por semana ISO
+  split.ts         split por días disponibles, protocolo de lesión
+  recipes.ts       qué huecos llena cada tipo de día y cuál se recorta primero
+  progression.ts   progresión doble y traducción de peso entre rangos de reps
+  generate.ts      generateWeek() — puro, determinista, recibe la fecha
+  db.ts            catálogo, historial y materialización en `workouts`
+  view.ts          lo que el modo gimnasio necesita, ya resuelto
+  session-write.ts persistencia de la sesión, con detección de PRs
+  offline.ts       IndexedDB + cola de sincronización (cliente)
+```
+
+### El generador
+
+`generateWeek(profile, history, config)` no lee el reloj ni la base: recibe el
+lunes de la semana y el catálogo, y devuelve la misma rutina para las mismas
+entradas. Eso es lo que la hace probable.
+
+Reproduce el split del coach (pierna 2-3×, hombro+trapecio, pecho+espalda,
+brazo), rota el esquema por **semana ISO** (piramidal → fuerza → metabólico →
+rango medio), abre el primer ejercicio con dos series de calentamiento, recorta
+accesorios cuando la sesión es de 45 minutos (4-5 ejercicios en lugar de 6-8) y
+uno más en déficit fuerte.
+
+**Protocolo de lesión**: `conditions` admite `lesion_activa` (sin zona) o
+`lesion_<zona>` (`lesion_rodilla`, `lesion_hombro`, ...). Con zona conocida esa
+zona se entrena **una sola vez por semana**, con aislados y máquinas a 3×25 de
+peso bajo; los días que sobraban se reemplazan por trabajo del resto del cuerpo,
+que sigue normal. Con lesión activa se suspende todo lo de impacto y el cardio.
+
+**Progresión doble**: si la última vez completó todas las reps con RPE ≤ 8 en la
+serie tope, sube 5 kg (barra o máquina) o 2.5 (mancuerna). Si no, repite peso.
+Sin historial el campo va vacío — no se inventa una carga. Como la rotación
+cambia el rango de reps cada semana, el peso se traduce con una tabla de
+intensidad relativa: el 5×2 no se levanta con el peso del 3×30.
+
+La semana se materializa **a demanda**, la primera vez que se abre `/app` o el
+modo gimnasio en esa semana. No hay cron: `(user_id, date)` es único, así que
+llamarla dos veces no duplica nada.
+
+### Modo gimnasio
+
+`/app/entrenamiento` es la pantalla que se usa con el teléfono en la mano y las
+manos sudadas: steppers de 44 px, peso prellenado por la progresión, dos taps
+por serie. Al marcar una serie arranca el cronómetro de descanso (30/45/60 s
+según el esquema) y el aviso es visual, no sonoro. Al cerrar el ejercicio pide
+RPE y notas; al cerrar la sesión muestra volumen y celebra los récords.
+
+**Todo se escribe primero en el teléfono.** IndexedDB guarda la semana (para
+abrir la sesión de mañana sin señal) y una cola de sincronización con reintentos
+espaciados sube las series a `POST /api/training/sync`. Cada serie lleva un
+`clientId` propio, así que la cola puede reintentar sin duplicar. Si no hay
+IndexedDB, cae a `localStorage`.
+
+El service worker cachea `/app/entrenamiento` y los bundles de Next en un caché
+aparte (`coachy-training-v1`) — es la excepción a la regla de no cachear nada
+privado, y existe porque el gimnasio no tiene señal. Al salir de la sesión ese
+caché y la base local se borran. **Los videos no se pre-descargan todavía**: sin
+red, el ejercicio se muestra con su esquema y sin reproductor (Fase 5).
+
+### RLS
+
+`workout_sets` estrenó política propia en
+[`supabase/setup-training.sql`](./supabase/setup-training.sql), que se corre
+aparte de `setup.sql`:
+
+```bash
+set -a && . ./.env.local && set +a
+psql "$DIRECT_URL" -f supabase/setup-training.sql
+```
+
+## 7. Pendientes conocidos
 
 - El check-in no captura `newInjury`, `contextChange`, `aggressiveRequest`, `goalReached` ni
   `restart`. El motor sabe usarlos; el formulario todavía no los pregunta. Hoy la lesión activa se
   lee de las condiciones del perfil y los días sin entrenar se derivan del cumplimiento.
 - Las respuestas a las preguntas de Coachy son de texto. La API de Claude no recibe audio, así que
   el "audio → transcripción" del plan necesita otra herramienta (Whisper o equivalente).
-- Rutina del día: `/app` la muestra si existe un `Workout`, pero nadie los crea todavía (Fase 4).
+- El generador no pregunta por el equipo disponible: asume un gimnasio completo.
+  Si una máquina no existe, el catálogo trae `substitutes` pero la UI todavía no
+  ofrece cambiar el ejercicio en el momento.
+- El modo gimnasio no pre-descarga videos: sin red se ve el nombre y el esquema.
+- La cola de sincronización se vacía con la app abierta (evento `online` y un
+  intervalo). Falta Background Sync para subirla con la app cerrada (Fase 5).
 
-## 7. Backfill de fotos históricas
+## 8. Backfill de fotos históricas
 
 Para cargar fotos viejas que nunca pasaron por el formulario de check-in:
 

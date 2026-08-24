@@ -96,11 +96,6 @@ export function ExerciseLogger({
   onNext: () => void;
   isLast: boolean;
 }): React.JSX.Element {
-  const suggested = (setIndex: number): number => {
-    const target = exercise.sets[setIndex];
-    return target?.weightKg ?? exercise.lastWeightKg ?? 0;
-  };
-
   const [drafts, setDrafts] = useState<Record<number, { reps: number; weightKg: number }>>(() => {
     const initial: Record<number, { reps: number; weightKg: number }> = {};
     exercise.sets.forEach((set, setIndex) => {

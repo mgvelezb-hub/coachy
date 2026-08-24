@@ -236,6 +236,9 @@ export function TrainingSession({
         </>
       ) : (
         <ExerciseLogger
+          // La llave fuerza el remonte al cambiar de ejercicio: los steppers
+          // arrancan del peso sugerido del nuevo, no del anterior.
+          key={openIndex}
           exercise={session.exercises[openIndex] as SessionView["exercises"][number]}
           index={openIndex}
           entries={draft.entries}
