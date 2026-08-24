@@ -38,7 +38,13 @@ export async function POST(request: Request): Promise<NextResponse> {
     const saved = await persistSession(user.id, session);
     results.push(
       saved
-        ? { workoutId: session.workoutId, ok: true, prs: saved.prs, volumeKg: saved.volumeKg }
+        ? {
+            workoutId: session.workoutId,
+            ok: true,
+            prs: saved.prs,
+            volumeKg: saved.volumeKg,
+            cambios: saved.substitutions,
+          }
         : { workoutId: session.workoutId, ok: false, error: "sesión no encontrada" },
     );
   }

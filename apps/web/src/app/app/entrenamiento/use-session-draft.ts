@@ -16,11 +16,25 @@ export type SessionDraft = {
   entries: Record<string, SetEntry>;
   /** RPE por ejercicio, `${exerciseIndex}` → 1-10. */
   rpe: Record<string, number>;
+  /**
+   * Cambios de ejercicio hechos hoy: `${exerciseIndex}` → id del catálogo.
+   *
+   * Viven en el borrador porque el cambio pasa en el gimnasio, sin señal: la
+   * pantalla lo aplica al momento y esto es lo que después sube la cola. Solo
+   * se guarda el último cambio de cada lugar — es el que describe el plan real.
+   */
+  substitutions: Record<string, string>;
   notes: string;
   completedAt: string | null;
 };
 
-export const EMPTY_DRAFT: SessionDraft = { entries: {}, rpe: {}, notes: "", completedAt: null };
+export const EMPTY_DRAFT: SessionDraft = {
+  entries: {},
+  rpe: {},
+  substitutions: {},
+  notes: "",
+  completedAt: null,
+};
 
 /**
  * Borrador de la sesión en el teléfono.

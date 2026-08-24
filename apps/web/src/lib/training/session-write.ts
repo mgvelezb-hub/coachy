@@ -3,6 +3,7 @@ import "server-only";
 import type { Prisma } from "@prisma/client";
 
 import { prisma } from "@/lib/prisma";
+import { applySubstitutions, type SubstitutionResult } from "@/lib/training/substitute-write";
 import type { SessionSyncInput } from "@/lib/validation/training";
 
 /**
@@ -18,6 +19,8 @@ export type PersistedSession = {
   volumeKg: number;
   /** Ejercicios donde el peso de hoy superó todo lo anterior. */
   prs: Array<{ exerciseName: string; weightKg: number; previousKg: number | null }>;
+  /** Cambios de ejercicio que traía la sesión, con su veredicto. */
+  substitutions: SubstitutionResult[];
 };
 
 export async function persistSession(
@@ -31,6 +34,11 @@ export async function persistSession(
   // El filtro por `userId` es la defensa real: Prisma se conecta con un rol que
   // ignora RLS. Si la sesión no es suya, aquí se acaba.
   if (!workout) return null;
+
+  // Los cambios de ejercicio van **antes** que las series: borran lo capturado
+  // en el lugar que se sustituye, y lo que viene en este mismo envío ya es del
+  // ejercicio nuevo.
+  const substitutions = await applySubstitutions(userId, workout.id, input.substitutions);
 
   const previousBest = await bestByExercise(
     userId,
@@ -80,6 +88,12 @@ export async function persistSession(
     if (set.rpe !== null) rpeByExercise[set.exerciseName] = set.rpe;
   }
 
+  // Un envío que solo trae un cambio de ejercicio no tiene nada que resumir, y
+  // pisar `loads_json` con ceros borraría el resumen de la sesión de ayer.
+  if (input.sets.length === 0 && input.completedAt === null) {
+    return { workoutId: workout.id, savedSets: 0, volumeKg: 0, prs, substitutions };
+  }
+
   await prisma.workout.update({
     where: { id: workout.id },
     data: {
@@ -93,7 +107,7 @@ export async function persistSession(
     },
   });
 
-  return { workoutId: workout.id, savedSets: input.sets.length, volumeKg, prs };
+  return { workoutId: workout.id, savedSets: input.sets.length, volumeKg, prs, substitutions };
 }
 
 /** Mejor peso por ejercicio antes de esta sesión. */

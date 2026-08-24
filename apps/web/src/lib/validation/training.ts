@@ -20,11 +20,24 @@ export const workoutSetSchema = z.object({
   performedAt: z.iso.datetime(),
 });
 
+/**
+ * Un cambio de ejercicio hecho en el gimnasio.
+ *
+ * Viaja con la sesión y no aparte: el cambio pasa sin señal, se aplica primero
+ * en el teléfono y llega aquí cuando vuelve la red. El servidor revisa que el
+ * ejercicio elegido sea equivalente antes de tocar el plan.
+ */
+export const substitutionSchema = z.object({
+  exerciseIndex: z.number().int().min(0).max(30),
+  exerciseId: z.uuid(),
+});
+
 export const sessionSyncSchema = z.object({
   workoutId: z.uuid(),
   completedAt: z.iso.datetime().nullable(),
   notes: z.string().max(1000).nullable().default(null),
   sets: z.array(workoutSetSchema).max(200),
+  substitutions: z.array(substitutionSchema).max(20).default([]),
 });
 
 export type WorkoutSetInput = z.infer<typeof workoutSetSchema>;

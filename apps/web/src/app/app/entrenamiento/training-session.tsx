@@ -2,7 +2,15 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { CheckCircle2, ChevronRight, CloudOff, Dumbbell, RefreshCw, Trophy } from "lucide-react";
+import {
+  CheckCircle2,
+  ChevronRight,
+  CloudOff,
+  Dumbbell,
+  Moon,
+  RefreshCw,
+  Trophy,
+} from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -18,7 +26,9 @@ import {
 import { ExerciseLogger } from "@/app/app/entrenamiento/exercise-logger";
 import { useSessionDraft, type SetEntry } from "@/app/app/entrenamiento/use-session-draft";
 import { cacheWeek, enqueue, flushQueue, listQueue, readCachedWeek } from "@/lib/training/offline";
+import type { ExerciseAlternative } from "@/lib/training/substitutes";
 import type { SessionView, WeekView } from "@/lib/training/view";
+import { signVideoUrls } from "@/lib/video-cache";
 
 /** Fecha de hoy en el teléfono. Sin red la del servidor puede venir de ayer. */
 function todayISO(): string {
@@ -34,8 +44,57 @@ type SyncPayload = {
     completedAt: string | null;
     notes: string | null;
     sets: Array<Record<string, unknown>>;
+    substitutions: Array<{ exerciseIndex: number; exerciseId: string }>;
   }>;
 };
+
+/**
+ * Cambia un ejercicio dentro de la semana que ya está en la mano.
+ *
+ * El plan del servidor se actualiza cuando la cola llegue; mientras tanto, la
+ * pantalla tiene que mostrar el ejercicio nuevo con sus series vacías, porque
+ * el peso de la prensa no es el del hack squat. Devuelve una semana nueva: el
+ * estado de React y la copia de IndexedDB se reemplazan juntos.
+ */
+function weekWithSubstitute(
+  week: WeekView,
+  workoutId: string,
+  exerciseIndex: number,
+  alternative: ExerciseAlternative,
+  videoUrl: string | null,
+): WeekView {
+  return {
+    ...week,
+    sessions: week.sessions.map((session) => {
+      if (session.workoutId !== workoutId) return session;
+
+      return {
+        ...session,
+        exercises: session.exercises.map((exercise, index) => {
+          if (index !== exerciseIndex) return exercise;
+          return {
+            ...exercise,
+            exerciseId: alternative.exerciseId,
+            name: alternative.name,
+            videoPath: alternative.videoPath,
+            videoUrl,
+            // Historial y récords son del ejercicio que se fue: aquí se empieza
+            // de cero, y prellenar con lo ajeno sería peor que dejarlo vacío.
+            lastWeightKg: null,
+            bestWeightKg: null,
+            record: null,
+            sets: exercise.sets.map((set) => ({ ...set, weightKg: null })),
+            // Ya no se puede volver a este mismo: la lista se recalcula en el
+            // servidor la próxima vez que se cargue la semana.
+            alternatives: exercise.alternatives.filter(
+              (option) => option.exerciseId !== alternative.exerciseId,
+            ),
+          };
+        }),
+      };
+    }),
+  };
+}
 
 export function TrainingSession({
   week: serverWeek,
@@ -118,7 +177,13 @@ export function TrainingSession({
         }),
       );
 
-      if (sets.length === 0) return;
+      const substitutions = Object.entries(current.substitutions).map(([index, exerciseId]) => ({
+        exerciseIndex: Number(index),
+        exerciseId,
+      }));
+
+      // Un cambio de ejercicio sí vale el viaje aunque todavía no haya series.
+      if (sets.length === 0 && substitutions.length === 0) return;
 
       const payload: SyncPayload = {
         sessions: [
@@ -127,6 +192,7 @@ export function TrainingSession({
             completedAt: completed ? new Date().toISOString() : null,
             notes: current.notes.trim() ? current.notes.trim() : null,
             sets,
+            substitutions,
           },
         ],
       };
@@ -136,6 +202,60 @@ export function TrainingSession({
       void flush();
     },
     [session, flush],
+  );
+
+  /**
+   * Cambiar el ejercicio abierto por uno equivalente.
+   *
+   * Se aplica **primero en el teléfono**: la pantalla ya muestra el ejercicio
+   * nuevo aunque el gimnasio no tenga señal. La instrucción entra a la misma
+   * cola que las series y el servidor edita el plan cuando vuelva la red; si
+   * lo rechazara, la próxima carga de la semana trae el plan del servidor y
+   * gana el servidor.
+   */
+  const handleSubstitute = useCallback(
+    async (exerciseIndex: number, alternative: ExerciseAlternative): Promise<void> => {
+      if (!week || !session) return;
+
+      // Firma fresca del video nuevo, si hay red. Sin ella el reproductor cae
+      // al video descargado, que es justo el caso del gimnasio.
+      let videoUrl: string | null = null;
+      if (alternative.videoPath && navigator.onLine) {
+        try {
+          const urls = await signVideoUrls([alternative.videoPath]);
+          videoUrl = urls[alternative.videoPath] ?? null;
+        } catch {
+          videoUrl = null;
+        }
+      }
+
+      const nextWeek = weekWithSubstitute(
+        week,
+        session.workoutId,
+        exerciseIndex,
+        alternative,
+        videoUrl,
+      );
+      setWeek(nextWeek);
+      void cacheWeek(nextWeek.weekStart, nextWeek);
+
+      // Lo capturado en ese lugar era de la otra máquina: se va con ella.
+      const entries = { ...draft.entries };
+      for (const key of Object.keys(entries)) {
+        if (key.startsWith(`${exerciseIndex}:`)) delete entries[key];
+      }
+      const rpe = { ...draft.rpe };
+      delete rpe[String(exerciseIndex)];
+
+      const next = update({
+        entries,
+        rpe,
+        substitutions: { ...draft.substitutions, [String(exerciseIndex)]: alternative.exerciseId },
+      });
+
+      await queuePayload(next, false);
+    },
+    [week, session, draft, update, queuePayload],
   );
 
   function handleMarkSet(exerciseIndex: number, setIndex: number, entry: SetEntry | null): void {
@@ -194,6 +314,12 @@ export function TrainingSession({
                 {session.cycleNote}
               </p>
             ) : null}
+            {session.readinessNote ? (
+              <p className="flex items-start gap-2 rounded-lg border border-dashed p-2 text-xs text-muted-foreground">
+                <Moon className="mt-0.5 size-3.5 shrink-0" />
+                {session.readinessNote}
+              </p>
+            ) : null}
           </header>
 
           <div className="space-y-2">
@@ -242,8 +368,9 @@ export function TrainingSession({
       ) : (
         <ExerciseLogger
           // La llave fuerza el remonte al cambiar de ejercicio: los steppers
-          // arrancan del peso sugerido del nuevo, no del anterior.
-          key={openIndex}
+          // arrancan del peso sugerido del nuevo, no del anterior. Incluye el
+          // nombre porque sustituir cambia el ejercicio sin cambiar de índice.
+          key={`${openIndex}:${session.exercises[openIndex]?.name ?? ""}`}
           exercise={session.exercises[openIndex] as SessionView["exercises"][number]}
           index={openIndex}
           entries={draft.entries}
@@ -255,6 +382,8 @@ export function TrainingSession({
             void queuePayload(next, false);
           }}
           onNotes={(value) => update({ notes: value })}
+          onSubstitute={(alternative) => void handleSubstitute(openIndex, alternative)}
+          online={online}
           onBack={() => setOpenIndex(null)}
           onNext={() => {
             if (openIndex + 1 < session.exercises.length) setOpenIndex(openIndex + 1);

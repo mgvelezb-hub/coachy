@@ -2,7 +2,7 @@ import "server-only";
 
 import type { Prisma, Profile, Workout } from "@prisma/client";
 
-import { fromISODate, toISODate } from "@/lib/format";
+import { fromISODate, isoFromDateColumn } from "@/lib/format";
 import { prisma } from "@/lib/prisma";
 import { generateWeek, mondayOf, sundayEndOf } from "@/lib/training/generate";
 import { lastPerformance, type LastPerformance } from "@/lib/training/progression";
@@ -63,7 +63,7 @@ export async function loadHistory(
   });
 
   return rows.map((row) => ({
-    date: toISODate(row.date),
+    date: isoFromDateColumn(row.date),
     exerciseNames: parseStoredPlan(row.exercisesJson).exercises.map((exercise) => exercise.name),
     sets: row.sets.map(
       (set): HistorySet => ({
@@ -298,7 +298,7 @@ export async function personalRecords(
         exerciseName: row.exerciseName,
         weightKg,
         reps: row.reps,
-        date: toISODate(row.workout.date),
+        date: isoFromDateColumn(row.workout.date),
       };
     }
   }

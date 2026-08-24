@@ -1,15 +1,23 @@
 "use client";
 
 import { useState } from "react";
-import { ArrowLeft, Check, Minus, Plus, Trophy, VideoOff } from "lucide-react";
+import { ArrowLeft, Check, Minus, Plus, Repeat2, Trophy, VideoOff } from "lucide-react";
 
 import { ExerciseVideo } from "@/components/exercise-video";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
 import { RestTimer } from "@/app/app/entrenamiento/rest-timer";
 import type { SetEntry } from "@/app/app/entrenamiento/use-session-draft";
+import type { ExerciseAlternative } from "@/lib/training/substitutes";
 import type { TargetSet } from "@/lib/training/types";
 import type { SessionExerciseView } from "@/lib/training/view";
 
@@ -93,6 +101,8 @@ export function ExerciseLogger({
   onMarkSet,
   onRpe,
   onNotes,
+  onSubstitute,
+  online,
   onBack,
   onNext,
   isLast,
@@ -105,10 +115,13 @@ export function ExerciseLogger({
   onMarkSet: (setIndex: number, entry: SetEntry | null) => void;
   onRpe: (value: number) => void;
   onNotes: (value: string) => void;
+  onSubstitute: (alternative: ExerciseAlternative) => void;
+  online: boolean;
   onBack: () => void;
   onNext: () => void;
   isLast: boolean;
 }): React.JSX.Element {
+  const [swapOpen, setSwapOpen] = useState(false);
   const [drafts, setDrafts] = useState<Record<number, { reps: number; weightKg: number }>>(() => {
     const initial: Record<number, { reps: number; weightKg: number }> = {};
     exercise.sets.forEach((set, setIndex) => {
@@ -168,10 +181,35 @@ export function ExerciseLogger({
       </button>
 
       <header className="space-y-1">
-        <h2 className="text-xl font-bold leading-tight">{exercise.name}</h2>
+        <div className="flex items-start justify-between gap-2">
+          <h2 className="text-xl font-bold leading-tight">{exercise.name}</h2>
+          {exercise.alternatives.length > 0 ? (
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="h-11 shrink-0"
+              onClick={() => setSwapOpen(true)}
+            >
+              <Repeat2 className="size-4" /> Cambiar
+            </Button>
+          ) : null}
+        </div>
         <p className="text-sm text-muted-foreground">{exercise.schemeLabel}</p>
         {exercise.note ? <p className="text-sm text-primary">{exercise.note}</p> : null}
       </header>
+
+      <SubstituteDialog
+        open={swapOpen}
+        onOpenChange={setSwapOpen}
+        exercise={exercise}
+        online={online}
+        captured={done}
+        onPick={(alternative) => {
+          setSwapOpen(false);
+          onSubstitute(alternative);
+        }}
+      />
 
       {/* La vara siempre visible: contra esto se mide lo de hoy. */}
       <div className="flex items-center gap-2 rounded-lg border bg-muted/50 px-3 py-2 text-sm">
@@ -295,6 +333,75 @@ export function ExerciseLogger({
         {allDone ? (isLast ? "Terminar sesión" : "Siguiente ejercicio") : `Faltan ${exercise.sets.length - done} series`}
       </Button>
     </div>
+  );
+}
+
+/**
+ * "Cambiar ejercicio": la máquina está ocupada y la sesión no se detiene.
+ *
+ * Primero los sustitutos que el coach considera equivalentes, después los del
+ * mismo grupo muscular con video. Todo sale de la semana que ya está en el
+ * teléfono, así que la lista abre igual sin señal — y el aviso lo dice, porque
+ * el cambio se sincroniza después y eso hay que decirlo, no esconderlo.
+ */
+function SubstituteDialog({
+  open,
+  onOpenChange,
+  exercise,
+  online,
+  captured,
+  onPick,
+}: {
+  open: boolean;
+  onOpenChange: (next: boolean) => void;
+  exercise: SessionExerciseView;
+  online: boolean;
+  captured: number;
+  onPick: (alternative: ExerciseAlternative) => void;
+}): React.JSX.Element {
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Cambiar ejercicio</DialogTitle>
+          <DialogDescription>
+            En lugar de {exercise.name}. Mismas series y mismo esquema; el peso lo escribes tú,
+            porque no es la misma máquina.
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="space-y-2">
+          {exercise.alternatives.map((alternative) => (
+            <button
+              key={alternative.exerciseId}
+              type="button"
+              onClick={() => onPick(alternative)}
+              className="flex w-full items-center justify-between gap-3 rounded-lg border p-3 text-left transition-colors hover:bg-muted/60"
+            >
+              <span className="min-w-0">
+                <span className="block truncate text-sm font-semibold">{alternative.name}</span>
+                <span className="text-xs text-muted-foreground">
+                  {alternative.declared ? "Sustituto del mismo movimiento" : "Mismo grupo muscular"}
+                </span>
+              </span>
+              {alternative.videoPath ? null : (
+                <VideoOff className="size-4 shrink-0 text-muted-foreground" />
+              )}
+            </button>
+          ))}
+        </div>
+
+        <div className="space-y-1 text-xs text-muted-foreground">
+          {captured > 0 ? (
+            <p>
+              Ojo: {captured === 1 ? "la serie que ya marcaste" : `las ${captured} series que ya marcaste`}{" "}
+              {captured === 1 ? "se borra" : "se borran"} — eran de la otra máquina.
+            </p>
+          ) : null}
+          {online ? null : <p>Sin conexión: el cambio queda en el teléfono y se sube solo.</p>}
+        </div>
+      </DialogContent>
+    </Dialog>
   );
 }
 

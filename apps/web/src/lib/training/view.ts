@@ -3,16 +3,20 @@ import "server-only";
 import { cycleNoteForProfile } from "@/lib/cycle";
 import type { Profile } from "@prisma/client";
 
-import { toISODate } from "@/lib/format";
+import { isoFromDateColumn, toISODate } from "@/lib/format";
+import { readinessNote } from "@/lib/health/activity";
+import { sleepMinutesFor } from "@/lib/health/db";
 import { prisma } from "@/lib/prisma";
 import { signedExerciseVideoUrls } from "@/lib/storage";
 import {
   ensureWeekMaterialized,
   lastPerformances,
+  loadCatalog,
   parseStoredPlan,
   personalRecords,
   type PersonalRecord,
 } from "@/lib/training/db";
+import { alternativesFor, type ExerciseAlternative } from "@/lib/training/substitutes";
 import { mondayOf, sundayEndOf } from "@/lib/training/generate";
 import { prefillSets } from "@/lib/training/progression";
 import { SCHEMES } from "@/lib/training/schemes";
@@ -33,6 +37,11 @@ export type SessionExerciseView = PlannedExercise & {
   bestWeightKg: number | null;
   /** El récord con su contexto: peso × reps y cuándo fue. */
   record: PersonalRecord | null;
+  /**
+   * A qué se puede cambiar si la máquina está ocupada. Viaja con la semana
+   * (y por lo tanto a IndexedDB) para que el cambio funcione sin señal.
+   */
+  alternatives: ExerciseAlternative[];
 };
 
 export type SessionView = {
@@ -44,6 +53,12 @@ export type SessionView = {
   cardioMinutes: number | null;
   completedAt: string | null;
   cycleNote: string | null;
+  /**
+   * Nota de readiness (Fase 8): si el reloj registró menos de 6 h de sueño
+   * anoche, se dice. **Las cargas no se tocan solas**: es una sugerencia, y la
+   * decisión sigue siendo de quien tiene la barra en las manos.
+   */
+  readinessNote: string | null;
   exercises: SessionExerciseView[];
 };
 
@@ -71,7 +86,9 @@ export async function weekView(
   const allExercises = plans.flatMap((entry) => entry.plan.exercises);
   const names = [...new Set(allExercises.map((exercise) => exercise.name))];
 
-  const [videos, records, last] = await Promise.all([
+  const today = toISODate(reference);
+
+  const [videos, records, last, catalog, sleepMin] = await Promise.all([
     signedExerciseVideoUrls(allExercises.map((exercise) => exercise.videoPath)).catch(() => ({})),
     personalRecords(userId, names),
     lastPerformances(
@@ -79,18 +96,26 @@ export async function weekView(
       mondayOf(reference),
       allExercises.map((exercise) => ({ id: exercise.exerciseId, name: exercise.name })),
     ),
+    loadCatalog().catch(() => []),
+    // Sin datos del reloj no hay nota, y el gimnasio abre igual.
+    sleepMinutesFor(userId, today).catch(() => null),
   ]);
 
   const sessions = plans.map(({ workout, plan }): SessionView => {
+    const sessionNames = plan.exercises.map((exercise) => exercise.name);
+    const date = isoFromDateColumn(workout.date);
+
     return {
       workoutId: workout.id,
-      date: toISODate(workout.date),
+      date,
       muscleGroup: workout.muscleGroup,
       scheme: workout.scheme,
       schemeLabel: plan.schemeLabel,
       cardioMinutes: plan.cardioMinutes,
       completedAt: workout.completedAt ? workout.completedAt.toISOString() : null,
-      cycleNote: cycleNoteForProfile(profile, toISODate(workout.date)),
+      cycleNote: cycleNoteForProfile(profile, date),
+      // El sueño de anoche solo habla de la sesión de hoy.
+      readinessNote: date === today ? readinessNote(sleepMin) : null,
       exercises: plan.exercises.map((exercise) => {
         const previous = last[exercise.name] ?? null;
         const scheme = SCHEMES[exercise.scheme] ?? SCHEMES.PIRAMIDAL;
@@ -106,6 +131,7 @@ export async function weekView(
           lastWeightKg: previous?.topWeightKg ?? null,
           bestWeightKg: records[exercise.name]?.weightKg ?? null,
           record: records[exercise.name] ?? null,
+          alternatives: alternativesFor(exercise, catalog, sessionNames),
         };
       }),
     };
@@ -143,7 +169,7 @@ export async function todayCard(
 ): Promise<TodayCard | null> {
   const workouts = await ensureWeekMaterialized(userId, profile, reference);
   const iso = toISODate(reference);
-  const workout = workouts.find((row) => toISODate(row.date) === iso);
+  const workout = workouts.find((row) => isoFromDateColumn(row.date) === iso);
   if (!workout) return null;
 
   const plan = parseStoredPlan(workout.exercisesJson);
@@ -191,7 +217,7 @@ export async function trainingHistory(userId: string, take = 12): Promise<Traini
 
     return {
       workoutId: row.id,
-      date: toISODate(row.date),
+      date: isoFromDateColumn(row.date),
       muscleGroup: row.muscleGroup,
       volumeKg: typeof loads.volumeKg === "number" ? loads.volumeKg : Math.round(volumeFromSets),
       sets: row.sets.length,
