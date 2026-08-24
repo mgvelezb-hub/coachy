@@ -16,6 +16,13 @@ const WEEKS = "weeks";
 const QUEUE = "queue";
 const LS_PREFIX = "coachy:training";
 
+/**
+ * Etiqueta del Background Sync. El service worker escucha exactamente esta y
+ * lee la misma base (`coachy-training`, store `queue`): si el navegador lo
+ * soporta, la cola se vacía aunque la app esté cerrada.
+ */
+export const SYNC_TAG = "coachy-training-sync";
+
 export type QueueItem<T = unknown> = {
   id: string;
   payload: T;
@@ -119,6 +126,37 @@ export async function enqueue<T>(id: string, payload: T): Promise<void> {
   if (written === null) {
     const queue = readLocal<QueueItem<T>[]>("queue") ?? [];
     writeLocal("queue", [...queue.filter((entry) => entry.id !== id), item]);
+    // Sin IndexedDB el service worker no puede leer la cola: queda el flush
+    // de la app abierta, que es el comportamiento de siempre.
+    return;
+  }
+  // Sin `await`: capturar la serie nunca espera al service worker.
+  void requestBackgroundSync();
+}
+
+/**
+ * Le pide al navegador que vacíe la cola cuando vuelva la red, aunque la app
+ * ya esté cerrada.
+ *
+ * Es un extra, no un reemplazo: Safari no implementa Background Sync y ahí la
+ * cola se sigue vaciando con el evento `online` y el intervalo de la pantalla.
+ * Devuelve `false` cuando no se pudo registrar, para poder decirlo en pruebas.
+ */
+export async function requestBackgroundSync(): Promise<boolean> {
+  try {
+    if (typeof navigator === "undefined" || !("serviceWorker" in navigator)) return false;
+
+    // `ready` se queda colgado para siempre si nadie registró un worker (dev,
+    // primera carga): `getRegistration` resuelve `undefined` y sigue la vida.
+    const registration = (await navigator.serviceWorker.getRegistration()) as
+      | (ServiceWorkerRegistration & { sync?: { register: (tag: string) => Promise<void> } })
+      | undefined;
+
+    if (!registration?.sync) return false;
+    await registration.sync.register(SYNC_TAG);
+    return true;
+  } catch {
+    return false;
   }
 }
 

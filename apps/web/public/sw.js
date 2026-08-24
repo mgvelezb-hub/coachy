@@ -38,6 +38,12 @@ const SHELL = ["/offline", "/manifest.webmanifest", "/icons/icon-192.png", "/ico
 const TRAINING_ROUTE = "/app/entrenamiento";
 const LIBRARY_ROUTE = "/app/biblioteca";
 
+// La cola de sesiones del gimnasio, tal como la escribe src/lib/training/offline.ts.
+const QUEUE_DB = "coachy-training";
+const QUEUE_STORE = "queue";
+const SYNC_TAG = "coachy-training-sync";
+const SYNC_ENDPOINT = "/api/training/sync";
+
 self.addEventListener("install", (event) => {
   event.waitUntil(
     caches
@@ -141,4 +147,100 @@ self.addEventListener("fetch", (event) => {
   if (url.pathname.startsWith("/icons/") || url.pathname === "/manifest.webmanifest") {
     event.respondWith(caches.match(request).then((cached) => cached ?? fetch(request)));
   }
+});
+
+// ---------------------------------------------------------------------------
+// Background Sync: subir la sesión aunque la app esté cerrada
+// ---------------------------------------------------------------------------
+
+/**
+ * Abre la base de la app sin crearla ni migrarla.
+ *
+ * Sin versión, `open` crea la base vacía si no existe — y esa base sin stores
+ * rompería el `onupgradeneeded` de la app. Por eso, si toca actualizar, se
+ * aborta: aquí solo se lee lo que la app ya escribió.
+ */
+function openQueueDb() {
+  return new Promise((resolve) => {
+    try {
+      const request = indexedDB.open(QUEUE_DB);
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () => resolve(null);
+      request.onblocked = () => resolve(null);
+      request.onupgradeneeded = () => {
+        try {
+          request.transaction.abort();
+        } catch (error) {
+          // La base todavía no existe: no hay cola que vaciar.
+        }
+        resolve(null);
+      };
+    } catch (error) {
+      resolve(null);
+    }
+  });
+}
+
+function queueItems(db) {
+  return new Promise((resolve) => {
+    try {
+      const request = db.transaction(QUEUE_STORE, "readonly").objectStore(QUEUE_STORE).getAll();
+      request.onsuccess = () => resolve(request.result || []);
+      request.onerror = () => resolve([]);
+    } catch (error) {
+      resolve([]);
+    }
+  });
+}
+
+function dropQueueItem(db, id) {
+  return new Promise((resolve) => {
+    try {
+      const request = db.transaction(QUEUE_STORE, "readwrite").objectStore(QUEUE_STORE).delete(id);
+      request.onsuccess = () => resolve(true);
+      request.onerror = () => resolve(false);
+    } catch (error) {
+      resolve(false);
+    }
+  });
+}
+
+/**
+ * Vacía la cola. Si algo queda pendiente por red, la promesa se rechaza y el
+ * navegador reprograma el `sync` solo — ese es todo el chiste de la API.
+ */
+async function drainQueue() {
+  const db = await openQueueDb();
+  if (!db) return;
+
+  if (!db.objectStoreNames.contains(QUEUE_STORE)) {
+    db.close();
+    return;
+  }
+
+  try {
+    for (const item of await queueItems(db)) {
+      const response = await fetch(SYNC_ENDPOINT, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(item.payload),
+        credentials: "same-origin",
+      });
+
+      // 4xx que no sea 429: el servidor la rechazó por forma, reintentar no ayuda.
+      const permanent = response.status >= 400 && response.status < 500 && response.status !== 429;
+      if (response.ok || permanent) {
+        await dropQueueItem(db, item.id);
+        continue;
+      }
+
+      throw new Error(`sync pendiente (${response.status})`);
+    }
+  } finally {
+    db.close();
+  }
+}
+
+self.addEventListener("sync", (event) => {
+  if (event.tag === SYNC_TAG) event.waitUntil(drainQueue());
 });
