@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { ArrowLeft, Check, Minus, Plus, Trophy, VideoOff } from "lucide-react";
 
+import { ExerciseVideo } from "@/components/exercise-video";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -189,21 +190,12 @@ export function ExerciseLogger({
         )}
       </div>
 
-      {exercise.videoUrl ? (
-        // eslint-disable-next-line jsx-a11y/media-has-caption
-        <video
-          src={exercise.videoUrl}
-          controls
-          playsInline
-          preload="metadata"
-          className="w-full rounded-lg border bg-black"
-        />
+      {exercise.videoPath || exercise.videoUrl ? (
+        <ExerciseVideo path={exercise.videoPath} signedUrl={exercise.videoUrl} />
       ) : (
         <div className="flex items-center gap-2 rounded-lg border border-dashed p-3 text-sm text-muted-foreground">
           <VideoOff className="size-4 shrink-0" />
-          {exercise.videoPath
-            ? "El video no cargó (sin conexión). El esquema y las series siguen aquí."
-            : "Este ejercicio todavía no tiene video."}
+          Este ejercicio todavía no tiene video.
         </div>
       )}
 
