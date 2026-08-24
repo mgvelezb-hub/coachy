@@ -46,9 +46,8 @@ interface StoredRule {
 function rulesFrom(value: Prisma.JsonValue | null): StoredRule[] {
   if (!Array.isArray(value)) return [];
   return value.filter(
-    (row): row is StoredRule =>
-      row !== null && typeof row === "object" && !Array.isArray(row) && "id" in row,
-  );
+    (row) => row !== null && typeof row === "object" && !Array.isArray(row) && "id" in row,
+  ) as unknown as StoredRule[];
 }
 
 export interface WeekRow {

@@ -8,6 +8,7 @@ import { MissingAnthropicKeyError, hasAnthropicKey } from "@/lib/coachy/anthropi
 import { loadFewShotExamples } from "@/lib/coachy/fewshot";
 import { syncMealPlans } from "@/lib/coachy/menu";
 import { notify } from "@/lib/coachy/notifications";
+import { runEscalationCheck } from "@/lib/observatory/escalation";
 import { pickQuestions, type QuestionContext } from "@/lib/coachy/questions";
 import type { ComposeInput, CoachyReply } from "@/lib/coachy/types";
 import { formatLongDate } from "@/lib/format";
@@ -97,6 +98,11 @@ export async function runCoachy(checkInId: string): Promise<CoachyRunResult> {
     menuSeedChanged: analysis.menuSeedChanged,
     latestWeightKg: analysis.latestWeightKg,
   });
+
+  // Escalamiento (Fase 3): avisa al admin, no bloquea. Va aquí y no al final
+  // porque debe correr aunque la redacción se caiga — el aviso importa más que
+  // el texto. `runEscalationCheck` nunca lanza.
+  await runEscalationCheck(analysis.user.id);
 
   if (!hasAnthropicKey()) {
     return {

@@ -13,6 +13,13 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import {
+  CYCLE_ESTIMATE_NOTE,
+  CYCLE_OPT_IN_NOTE,
+  DEFAULT_CYCLE_LENGTH,
+  MAX_CYCLE_LENGTH,
+  MIN_CYCLE_LENGTH,
+} from "@/lib/cycle";
 import { cn } from "@/lib/utils";
 import {
   BUDGETS,
@@ -79,11 +86,13 @@ function RadioRow<T extends string>({
   options,
   labels,
   defaultValue,
+  onChange,
 }: {
   name: string;
   options: readonly T[];
   labels: Record<T, string>;
   defaultValue?: T;
+  onChange?: (value: T) => void;
 }): React.JSX.Element {
   return (
     <div className="flex flex-wrap gap-2">
@@ -97,6 +106,7 @@ function RadioRow<T extends string>({
             name={name}
             value={option}
             defaultChecked={defaultValue === option}
+            onChange={() => onChange?.(option)}
             className="sr-only"
           />
           {labels[option]}
@@ -122,6 +132,8 @@ export function OnboardingForm({ email }: { email: string }): React.JSX.Element 
   );
   const [consent, setConsent] = useState(false);
   const [scheduleVaries, setScheduleVaries] = useState(false);
+  const [sex, setSex] = useState<(typeof SEXES)[number]>("FEMALE");
+  const [cycleTracking, setCycleTracking] = useState(false);
   const errors = state.fieldErrors;
 
   return (
@@ -140,7 +152,13 @@ export function OnboardingForm({ email }: { email: string }): React.JSX.Element 
 
           <div className="space-y-2">
             <Label>Sexo biológico</Label>
-            <RadioRow name="sex" options={SEXES} labels={SEX_LABELS} defaultValue="FEMALE" />
+            <RadioRow
+              name="sex"
+              options={SEXES}
+              labels={SEX_LABELS}
+              defaultValue="FEMALE"
+              onChange={setSex}
+            />
             <p className="text-xs text-muted-foreground">
               Cambia la fórmula del metabolismo basal, nada más.
             </p>
@@ -431,6 +449,56 @@ export function OnboardingForm({ email }: { email: string }): React.JSX.Element 
           </label>
         </CardContent>
       </Card>
+
+      {sex !== "MALE" ? (
+        <Card className={cn(cycleTracking && "border-primary")}>
+          <CardHeader>
+            <CardTitle>Tu ciclo</CardTitle>
+            <CardDescription>{CYCLE_OPT_IN_NOTE}</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <input type="hidden" name="cycleSettingsPresent" value="1" />
+            <label className="flex cursor-pointer items-start gap-3 text-sm">
+              <input
+                type="checkbox"
+                name="cycleTrackingEnabled"
+                checked={cycleTracking}
+                onChange={(event) => setCycleTracking(event.target.checked)}
+                className="mt-0.5 h-5 w-5 shrink-0 accent-[var(--primary)]"
+              />
+              <span>Sí, quiero llevar la cuenta de mi ciclo.</span>
+            </label>
+
+            {cycleTracking ? (
+              <>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-2">
+                    <Label htmlFor="cycleLastPeriodStart">¿Cuándo empezó tu último periodo?</Label>
+                    <Input id="cycleLastPeriodStart" name="cycleLastPeriodStart" type="date" />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="cycleAvgLength">¿Cada cuántos días te baja?</Label>
+                    <Input
+                      id="cycleAvgLength"
+                      name="cycleAvgLength"
+                      type="number"
+                      inputMode="numeric"
+                      min={MIN_CYCLE_LENGTH}
+                      max={MAX_CYCLE_LENGTH}
+                      defaultValue={DEFAULT_CYCLE_LENGTH}
+                    />
+                  </div>
+                </div>
+                <p className="text-xs text-muted-foreground">{CYCLE_ESTIMATE_NOTE}</p>
+                <p className="text-xs text-muted-foreground">
+                  Es tuyo: tu coach nunca ve en qué fase vas, solo que esa semana no cuenta como
+                  estancamiento. Lo puedes apagar cuando quieras desde tu check-in.
+                </p>
+              </>
+            ) : null}
+          </CardContent>
+        </Card>
+      ) : null}
 
       {state.error ? (
         <p role="alert" className="text-sm font-medium text-destructive">

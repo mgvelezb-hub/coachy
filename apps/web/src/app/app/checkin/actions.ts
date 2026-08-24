@@ -6,9 +6,16 @@ import { revalidatePath } from "next/cache";
 import { after } from "next/server";
 import { Prisma } from "@prisma/client";
 
-import { requireOnboardedUser } from "@/lib/auth";
+import { requireOnboardedUser, type SessionUser } from "@/lib/auth";
 import { persistCheckIn } from "@/lib/checkin-write";
 import { runCoachy } from "@/lib/coachy";
+import {
+  DEFAULT_CYCLE_LENGTH,
+  estimateCyclePhase,
+  parseCycleSettings,
+  type CyclePhaseName,
+} from "@/lib/cycle";
+import { fromISODate, toISODate } from "@/lib/format";
 import { prisma } from "@/lib/prisma";
 import { photoPath, uploadProgressPhoto } from "@/lib/storage";
 import {
@@ -16,7 +23,76 @@ import {
   checkInSchema,
   coerceCheckInPayload,
   validatePhotoFile,
+  type CheckInInput,
 } from "@/lib/validation/checkin";
+
+/**
+ * Ciclo menstrual (Fase 7): guarda lo que ella escribió y devuelve la fase
+ * estimada de la semana.
+ *
+ * Tres cosas pasan aquí, en este orden:
+ *
+ * 1. Si marcó "empezó mi periodo", esa fecha reancla el conteo. Es la forma más
+ *    barata de mantener viva una estimación de calendario.
+ * 2. Si tocó el bloque de ajustes (opt-in, fecha, duración), se guarda.
+ * 3. Con el tracking encendido se calcula la fase de la semana del check-in.
+ *
+ * El bloque es opcional de punta a punta: si viene roto o incompleto se ignora.
+ * El ciclo nunca debe impedir que un check-in se guarde.
+ */
+async function syncCycle(
+  user: SessionUser,
+  formData: FormData,
+  input: CheckInInput,
+): Promise<CyclePhaseName | null> {
+  const profile = user.profile;
+  if (!profile) return null;
+
+  const raw = Object.fromEntries(formData.entries());
+  const submitted = parseCycleSettings(raw);
+  const touchedSettings = formData.has("cycleSettingsPresent");
+
+  let enabled = profile.cycleTrackingEnabled;
+  let lastPeriodStart = profile.cycleLastPeriodStart
+    ? toISODate(profile.cycleLastPeriodStart)
+    : null;
+  let avgLength = profile.cycleAvgLength || DEFAULT_CYCLE_LENGTH;
+
+  if (touchedSettings && submitted) {
+    enabled = submitted.cycleTrackingEnabled;
+    if (submitted.cycleLastPeriodStart) lastPeriodStart = submitted.cycleLastPeriodStart;
+    avgLength = submitted.cycleAvgLength;
+  }
+
+  // "Empezó mi periodo" manda sobre cualquier fecha vieja: es el dato más nuevo.
+  if (input.periodStarted) {
+    lastPeriodStart = input.date;
+    enabled = true;
+  }
+
+  const changed =
+    enabled !== profile.cycleTrackingEnabled ||
+    avgLength !== profile.cycleAvgLength ||
+    lastPeriodStart !==
+      (profile.cycleLastPeriodStart ? toISODate(profile.cycleLastPeriodStart) : null);
+
+  if (changed) {
+    await prisma.profile.update({
+      where: { userId: user.id },
+      data: {
+        cycleTrackingEnabled: enabled,
+        cycleAvgLength: avgLength,
+        cycleLastPeriodStart: lastPeriodStart ? fromISODate(lastPeriodStart) : null,
+      },
+    });
+  }
+
+  const estimate = estimateCyclePhase(
+    { enabled, lastPeriodStart, avgLengthDays: avgLength },
+    input.date,
+  );
+  return estimate?.phase ?? null;
+}
 
 /**
  * Guarda el check-in de la semana y sube las fotos al bucket privado.
@@ -51,7 +127,15 @@ export async function submitCheckIn(
     };
   }
 
-  const checkIn = await persistCheckIn(user.id, parsed.data);
+  // La fase estimada solo rellena el hueco: si ella marcó una, esa manda. El
+  // motor ya sabe qué hacer con ella (regla R1, semana no concluyente).
+  const estimatedPhase = await syncCycle(user, formData, parsed.data);
+  const input = {
+    ...parsed.data,
+    cyclePhase: parsed.data.cyclePhase ?? estimatedPhase,
+  };
+
+  const checkIn = await persistCheckIn(user.id, input);
 
   const warnings: string[] = [];
 

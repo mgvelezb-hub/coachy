@@ -7,6 +7,7 @@ import { Prisma } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 
 import { requireUser } from "@/lib/auth";
+import { DEFAULT_CYCLE_LENGTH, parseCycleSettings } from "@/lib/cycle";
 import { PHOTO_CONSENT_VERSION } from "@/lib/env";
 import { prisma } from "@/lib/prisma";
 import { fromISODate } from "@/lib/format";
@@ -48,6 +49,27 @@ export async function submitOnboarding(
     ? { photoConsentAt: now, photoConsentVersion: PHOTO_CONSENT_VERSION }
     : { photoConsentAt: null, photoConsentVersion: null };
 
+  /**
+   * Ciclo menstrual (Fase 7): opt-in explícito, y opcional de verdad. Se valida
+   * aparte del cuestionario porque una fecha mal escrita aquí no debe impedir
+   * terminar el onboarding — simplemente no se guarda el bloque.
+   */
+  const cycle = parseCycleSettings(raw);
+  const cycleFields =
+    cycle && cycle.cycleTrackingEnabled
+      ? {
+          cycleTrackingEnabled: true,
+          cycleLastPeriodStart: cycle.cycleLastPeriodStart
+            ? fromISODate(cycle.cycleLastPeriodStart)
+            : null,
+          cycleAvgLength: cycle.cycleAvgLength,
+        }
+      : {
+          cycleTrackingEnabled: false,
+          cycleLastPeriodStart: null,
+          cycleAvgLength: DEFAULT_CYCLE_LENGTH,
+        };
+
   const data = {
     displayName: input.displayName,
     sex: input.sex,
@@ -69,6 +91,7 @@ export async function submitOnboarding(
     conditions: input.conditions,
     goal: input.goal,
     ...consentFields,
+    ...cycleFields,
   };
 
   await prisma.profile.upsert({

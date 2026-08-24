@@ -20,6 +20,12 @@ import { Label } from "@/components/ui/label";
 import { Progress } from "@/components/ui/progress";
 import { Slider } from "@/components/ui/slider";
 import { Textarea } from "@/components/ui/textarea";
+import {
+  CYCLE_ESTIMATE_NOTE,
+  CYCLE_OPT_IN_NOTE,
+  MAX_CYCLE_LENGTH,
+  MIN_CYCLE_LENGTH,
+} from "@/lib/cycle";
 import { cn } from "@/lib/utils";
 import {
   CYCLE_PHASES,
@@ -58,6 +64,19 @@ const CYCLE_LABELS: Record<(typeof CYCLE_PHASES)[number], string> = {
 export interface PreviousPhoto {
   view: string;
   url: string;
+}
+
+/** Ajustes de ciclo que llegan del perfil, ya resueltos en el servidor. */
+export interface CycleSettingsProps {
+  enabled: boolean;
+  lastPeriodStart: string | null;
+  avgLengthDays: number;
+}
+
+export interface CycleEstimateProps {
+  phase: string;
+  dayOfCycle: number;
+  stale: boolean;
 }
 
 function FieldError({ message }: { message?: string }): React.JSX.Element | null {
@@ -121,11 +140,15 @@ export function CheckInForm({
   previousPhotos,
   previousWaistCm,
   cycleTracking,
+  cycleSettings,
+  cycleEstimate,
 }: {
   date: string;
   previousPhotos: PreviousPhoto[];
   previousWaistCm: number | null;
   cycleTracking: boolean;
+  cycleSettings: CycleSettingsProps;
+  cycleEstimate: CycleEstimateProps | null;
 }): React.JSX.Element {
   const [state, formAction] = useActionState<CheckInState, FormData>(
     submitCheckIn,
@@ -134,12 +157,17 @@ export function CheckInForm({
   const { draft, loaded, setValue, clear } = useCheckInDraft(date);
   const [step, setStep] = useState(0);
   const [localErrors, setLocalErrors] = useState<Record<string, string>>({});
+  const [cycleEnabled, setCycleEnabled] = useState(cycleSettings.enabled);
+  const [cycleOpen, setCycleOpen] = useState(false);
 
   const get = (key: string, fallback = ""): string => {
     const value = draft[key];
     return typeof value === "string" ? value : fallback;
   };
   const symptoms = Array.isArray(draft.symptoms) ? draft.symptoms : [];
+
+  // La fase estimada solo rellena el hueco: en cuanto toca un chip, manda ella.
+  const cyclePhaseValue = get("cyclePhase") || (cycleEnabled ? (cycleEstimate?.phase ?? "") : "");
 
   const previousByView = useMemo(() => {
     const map: Record<string, string> = {};
@@ -526,26 +554,102 @@ export function CheckInForm({
             ) : null}
 
             {cycleTracking ? (
-              <div className="space-y-2">
-                <Label>Fase del ciclo</Label>
-                <div className="flex flex-wrap gap-2">
-                  {CYCLE_PHASES.map((phase) => (
-                    <label
-                      key={phase}
-                      className="cursor-pointer rounded-full border px-3 py-2 text-sm transition-colors has-[:checked]:border-primary has-[:checked]:bg-accent has-[:checked]:text-accent-foreground"
-                    >
-                      <input
-                        type="radio"
-                        name="cyclePhase"
-                        value={phase}
-                        checked={get("cyclePhase") === phase}
-                        onChange={() => setValue("cyclePhase", phase)}
-                        className="sr-only"
-                      />
-                      {CYCLE_LABELS[phase]}
-                    </label>
-                  ))}
+              <div className="space-y-4 rounded-lg border p-3">
+                <input type="hidden" name="cycleSettingsPresent" value="1" />
+
+                <div className="space-y-2">
+                  <Label>Fase del ciclo</Label>
+                  {cycleEnabled && cycleEstimate ? (
+                    <p className="text-xs text-muted-foreground">
+                      Por tus fechas vamos en el día {cycleEstimate.dayOfCycle}. Lo dejamos
+                      marcado; si no cuadra, cámbialo.
+                      {cycleEstimate.stale
+                        ? " Ya pasaron varios ciclos desde la fecha que tenemos: actualízala abajo."
+                        : null}
+                    </p>
+                  ) : null}
+                  <div className="flex flex-wrap gap-2">
+                    {CYCLE_PHASES.map((phase) => (
+                      <label
+                        key={phase}
+                        className="cursor-pointer rounded-full border px-3 py-2 text-sm transition-colors has-[:checked]:border-primary has-[:checked]:bg-accent has-[:checked]:text-accent-foreground"
+                      >
+                        <input
+                          type="radio"
+                          name="cyclePhase"
+                          value={phase}
+                          checked={cyclePhaseValue === phase}
+                          onChange={() => setValue("cyclePhase", phase)}
+                          className="sr-only"
+                        />
+                        {CYCLE_LABELS[phase]}
+                      </label>
+                    ))}
+                  </div>
                 </div>
+
+                <label className="flex cursor-pointer items-start gap-3 text-sm">
+                  <input
+                    type="checkbox"
+                    name="cycleTrackingEnabled"
+                    checked={cycleEnabled}
+                    onChange={(event) => setCycleEnabled(event.target.checked)}
+                    className="mt-0.5 h-5 w-5 shrink-0 accent-[var(--primary)]"
+                  />
+                  <span>
+                    <span className="font-medium">Llevar la cuenta de mi ciclo</span>
+                    <span className="block text-xs text-muted-foreground">{CYCLE_OPT_IN_NOTE}</span>
+                  </span>
+                </label>
+
+                {cycleEnabled ? (
+                  <div className="space-y-3">
+                    <label className="flex cursor-pointer items-center gap-3 text-sm">
+                      <input
+                        type="checkbox"
+                        name="periodStarted"
+                        className="h-5 w-5 shrink-0 accent-[var(--primary)]"
+                      />
+                      Esta semana empezó mi periodo
+                    </label>
+
+                    <button
+                      type="button"
+                      onClick={() => setCycleOpen((open) => !open)}
+                      className="text-xs font-medium text-primary underline underline-offset-2"
+                    >
+                      {cycleOpen ? "Listo" : "Ajustar mis fechas"}
+                    </button>
+
+                    {cycleOpen ? (
+                      <div className="grid grid-cols-2 gap-3">
+                        <div className="space-y-1.5">
+                          <Label htmlFor="cycleLastPeriodStart">Último periodo</Label>
+                          <Input
+                            id="cycleLastPeriodStart"
+                            name="cycleLastPeriodStart"
+                            type="date"
+                            defaultValue={cycleSettings.lastPeriodStart ?? ""}
+                          />
+                        </div>
+                        <div className="space-y-1.5">
+                          <Label htmlFor="cycleAvgLength">Días de ciclo</Label>
+                          <Input
+                            id="cycleAvgLength"
+                            name="cycleAvgLength"
+                            type="number"
+                            inputMode="numeric"
+                            min={MIN_CYCLE_LENGTH}
+                            max={MAX_CYCLE_LENGTH}
+                            defaultValue={cycleSettings.avgLengthDays}
+                          />
+                        </div>
+                      </div>
+                    ) : null}
+
+                    <p className="text-xs text-muted-foreground">{CYCLE_ESTIMATE_NOTE}</p>
+                  </div>
+                ) : null}
               </div>
             ) : null}
 

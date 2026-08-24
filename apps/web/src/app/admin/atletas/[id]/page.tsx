@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 
 import { EngineConfigEditor } from "@/app/admin/atletas/[id]/engine-config-editor";
+import { Observatory } from "@/app/admin/atletas/[id]/observatory";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { requireAdmin } from "@/lib/auth";
@@ -13,6 +14,7 @@ import {
   phaseLabel,
 } from "@/lib/format";
 import { DEFAULT_ENGINE_CONFIG } from "@/lib/engine-config";
+import { loadObservatory } from "@/lib/observatory";
 import { prisma } from "@/lib/prisma";
 import { CONDITION_LABELS, GOAL_LABELS } from "@/lib/validation/onboarding";
 
@@ -50,6 +52,7 @@ export default async function AthletePage({
   if (!athlete) notFound();
 
   const profile = athlete.profile;
+  const observatory = await loadObservatory(id);
 
   return (
     <div className="space-y-5">
@@ -57,6 +60,8 @@ export default async function AthletePage({
         <h1 className="text-2xl font-bold">{profile?.displayName ?? athlete.email}</h1>
         <p className="text-sm text-muted-foreground">{athlete.email}</p>
       </header>
+
+      {observatory ? <Observatory data={observatory} /> : null}
 
       <Card>
         <CardHeader>

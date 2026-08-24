@@ -86,6 +86,12 @@ export const complianceStepSchema = z.object({
   symptoms: z.array(z.enum(SYMPTOMS)).max(SYMPTOMS.length).default([]),
   otherSymptom: z.string().trim().max(120).optional(),
   cyclePhase: z.enum(CYCLE_PHASES).nullable().optional(),
+  /**
+   * "Esta semana empezó mi periodo" (Fase 7). No se guarda en el check-in: es
+   * la señal que reancla `profiles.cycle_last_period_start`, y con eso la
+   * estimación de calendario vuelve a servir.
+   */
+  periodStarted: z.boolean().default(false),
   comment: z.string().trim().max(2000, "Máximo 2000 caracteres").optional(),
 });
 
@@ -151,6 +157,7 @@ export function coerceCheckInPayload(raw: Record<string, unknown>): unknown {
     symptoms: Array.isArray(raw.symptoms) ? raw.symptoms : [],
     otherSymptom: typeof raw.otherSymptom === "string" ? raw.otherSymptom : undefined,
     cyclePhase: raw.cyclePhase === "" ? null : raw.cyclePhase,
+    periodStarted: raw.periodStarted === true || raw.periodStarted === "on",
     comment: typeof raw.comment === "string" ? raw.comment : undefined,
   };
 }
