@@ -12,15 +12,23 @@ export const metadata = { title: "Historial" };
 
 type View = "FRENTE" | "PERFIL" | "ESPALDA";
 
+/**
+ * El comparador solo tiene sentido con check-ins que traen foto: si la última
+ * semana no subió ninguna, se compara contra la última que sí tiene. Cada
+ * columna aparece una sola vez aunque las tres apunten al mismo check-in.
+ */
 async function buildPhotoSets(checkIns: CheckInWithPhotos[]): Promise<PhotoSet[]> {
-  const latest = checkIns.at(-1);
-  const previous = checkIns.at(-2);
-  const first = checkIns[0];
+  const withPhotos = checkIns.filter((checkIn) => checkIn.photos.length > 0);
+
+  const latest = withPhotos.at(-1);
+  const previous = withPhotos.at(-2);
+  const first = withPhotos[0];
+  const used = new Set([latest?.id, previous?.id].filter(Boolean));
 
   const candidates: Array<{ label: string; checkIn: CheckInWithPhotos | undefined }> = [
-    { label: "Esta semana", checkIn: latest },
-    { label: "Semana pasada", checkIn: previous },
-    { label: "Día 1", checkIn: first && first.id !== latest?.id ? first : undefined },
+    { label: "Más reciente", checkIn: latest },
+    { label: "Anterior", checkIn: previous },
+    { label: "Día 1", checkIn: first && !used.has(first.id) ? first : undefined },
   ];
 
   const paths = candidates

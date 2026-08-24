@@ -19,12 +19,19 @@ const VIEWS = [
   { key: "ESPALDA", label: "Espalda" },
 ] as const;
 
+type ViewKey = (typeof VIEWS)[number]["key"];
+
 /** Comparador lado a lado: semana N vs N−1 vs día 1, por vista. */
 export function PhotoCompare({ sets }: { sets: PhotoSet[] }): React.JSX.Element {
-  const [view, setView] = useState<(typeof VIEWS)[number]["key"]>("FRENTE");
+  const [view, setView] = useState<ViewKey | null>(null);
   const available = sets.filter((set) => Object.keys(set.urls).length > 0);
 
-  if (available.length === 0) {
+  // Solo se ofrecen las vistas que alguien tiene: una pestaña con tres huecos
+  // vacíos no le dice nada a nadie.
+  const views = VIEWS.filter((item) => available.some((set) => set.urls[item.key]));
+  const activeView = views.some((item) => item.key === view) ? view : views[0]?.key;
+
+  if (available.length === 0 || !activeView) {
     return (
       <Card>
         <CardHeader>
@@ -47,16 +54,23 @@ export function PhotoCompare({ sets }: { sets: PhotoSet[] }): React.JSX.Element 
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-3">
-        <Tabs value={view} onValueChange={(value) => setView(value as typeof view)}>
-          <TabsList className="grid w-full grid-cols-3">
-            {VIEWS.map((item) => (
+        <Tabs value={activeView} onValueChange={(value) => setView(value as ViewKey)}>
+          <TabsList
+            className={cn(
+              "grid w-full",
+              views.length === 1 && "grid-cols-1",
+              views.length === 2 && "grid-cols-2",
+              views.length >= 3 && "grid-cols-3",
+            )}
+          >
+            {views.map((item) => (
               <TabsTrigger key={item.key} value={item.key}>
                 {item.label}
               </TabsTrigger>
             ))}
           </TabsList>
 
-          {VIEWS.map((item) => (
+          {views.map((item) => (
             <TabsContent key={item.key} value={item.key}>
               <div
                 className={cn(
