@@ -1,0 +1,260 @@
+import { toISODate } from "@/lib/format";
+import {
+  buildTargetSets,
+  lastPerformance,
+  roundWeight,
+  suggestTopWeight,
+} from "@/lib/training/progression";
+import { exerciseCountFor, recipeFor, type Slot } from "@/lib/training/recipes";
+import { SCHEMES, isoWeekNumber, schemeForExercise, schemeForWeek } from "@/lib/training/schemes";
+import { DAY_LABELS, DAY_GROUPS, WEEK_DAYS, buildSplit, trainingDaysOf } from "@/lib/training/split";
+import type {
+  ExerciseOption,
+  GenerateWeekConfig,
+  GeneratedWeek,
+  HistoryWorkout,
+  MuscleGroup,
+  PlannedExercise,
+  PlannedWorkout,
+  TrainingProfile,
+} from "@/lib/training/types";
+
+/**
+ * Generador de la rutina semanal.
+ *
+ * Es una función pura: mismas entradas, misma rutina. La fecha llega por
+ * `config.weekStart` — nada aquí lee el reloj, para que se pueda probar.
+ */
+
+/** Ejercicios con impacto: se suspenden mientras haya lesión activa. */
+const IMPACT_HINTS = ["desplante", "caminando", "salto", "burpee", "sprint"];
+
+function hasImpact(name: string): boolean {
+  const lower = name.toLowerCase();
+  return IMPACT_HINTS.some((hint) => lower.includes(hint));
+}
+
+/** Calentamiento: 1-2 series de 20-50 reps con peso bajo, siempre en el primero. */
+const WARMUP_SETS = 2;
+
+/**
+ * Roles pesados: en el día de rehabilitación de la zona lesionada no se tocan.
+ * "Reps altas, peso bajo" no se hace con sentadilla ni peso muerto.
+ */
+const HEAVY_ROLES = new Set([
+  "cuadriceps_compuesto",
+  "cadena_posterior",
+  "unilateral",
+  "empuje_vertical",
+  "empuje_horizontal",
+  "empuje_inclinado",
+  "jalon_vertical",
+  "jalon_horizontal",
+  "empuje_cerrado",
+  "bicep_compuesto",
+]);
+
+function dateOfDay(weekStart: Date, dayIndex: number): string {
+  const copy = new Date(weekStart);
+  copy.setDate(copy.getDate() + dayIndex);
+  return toISODate(copy);
+}
+
+/**
+ * Elige qué huecos de la receta caben en el tiempo disponible, respetando el
+ * orden de la sesión: primero se descartan los de prioridad más baja.
+ */
+function chooseSlots(slots: Slot[], count: number): Slot[] {
+  const ranked = slots
+    .map((slot, index) => ({ slot, index }))
+    .sort((a, b) => a.slot.priority - b.slot.priority || a.index - b.index)
+    .slice(0, count);
+
+  return ranked.sort((a, b) => a.index - b.index).map((entry) => entry.slot);
+}
+
+type PickContext = {
+  catalog: ExerciseOption[];
+  usedToday: Set<string>;
+  lastWeekNames: Set<string>;
+  noImpact: boolean;
+  /** Grupos donde hoy no se admite nada pesado (día de rehabilitación). */
+  lightOnly: MuscleGroup[];
+  seed: number;
+};
+
+/**
+ * Ejercicio para un hueco.
+ *
+ * Prioriza los que tienen video (es lo que la atleta ve en el gym), luego los
+ * trazadores en los huecos básicos, y castiga repetir el accesorio exacto de la
+ * semana pasada. El desempate rota con la semana, así que la selección varía
+ * sin dejar de ser determinista.
+ */
+function pickExercise(slot: Slot, context: PickContext): ExerciseOption | null {
+  const candidates = context.catalog.filter(
+    (exercise) =>
+      slot.groups.includes(exercise.muscleGroup as MuscleGroup) &&
+      slot.roles.includes(exercise.poolRole) &&
+      !context.usedToday.has(exercise.id) &&
+      !(context.noImpact && hasImpact(exercise.name)) &&
+      !(
+        context.lightOnly.includes(exercise.muscleGroup as MuscleGroup) &&
+        HEAVY_ROLES.has(exercise.poolRole)
+      ),
+  );
+
+  if (candidates.length === 0) return null;
+
+  const scored = candidates.map((exercise) => {
+    let score = 0;
+    if (exercise.videoUrl) score += 4;
+    if (exercise.isTracker && slot.priority === 1) score += 2;
+    if (slot.priority >= 2 && context.lastWeekNames.has(exercise.name)) score -= 3;
+    return { exercise, score };
+  });
+
+  const best = Math.max(...scored.map((entry) => entry.score));
+  const pool = scored
+    .filter((entry) => entry.score === best)
+    .map((entry) => entry.exercise)
+    .sort((a, b) => a.name.localeCompare(b.name, "es"));
+
+  return pool[context.seed % pool.length] ?? null;
+}
+
+export function generateWeek(
+  profile: TrainingProfile,
+  history: HistoryWorkout[],
+  config: GenerateWeekConfig,
+): GeneratedWeek {
+  const weekStart = new Date(config.weekStart);
+  weekStart.setHours(12, 0, 0, 0);
+
+  const isoWeek = isoWeekNumber(weekStart);
+  const weekScheme = schemeForWeek(weekStart);
+
+  const days = trainingDaysOf(profile);
+  const { kinds, rehabIndexes, injury } = buildSplit({
+    liftingDays: days.length,
+    conditions: profile.conditions,
+  });
+
+  const weekStartISO = toISODate(weekStart);
+  const previousWeekStart = new Date(weekStart);
+  previousWeekStart.setDate(previousWeekStart.getDate() - 7);
+  const previousISO = toISODate(previousWeekStart);
+  const lastWeekNames = new Set(
+    history
+      .filter((workout) => workout.date >= previousISO && workout.date < weekStartISO)
+      .flatMap((workout) => workout.exerciseNames),
+  );
+
+  const exerciseCount = exerciseCountFor(profile.sessionMinutes, profile.phase);
+  const workouts: PlannedWorkout[] = [];
+
+  kinds.forEach((kind, index) => {
+    const day = days[index];
+    if (!day) return;
+
+    const rehabDay = rehabIndexes.includes(index);
+    const dayIndex = WEEK_DAYS.indexOf(day);
+
+    // En un día normal no se toca la zona lesionada: ese trabajo vive en su
+    // único día de rehabilitación.
+    const slots = recipeFor(kind).filter((slot) => {
+      if (injury.zones.length === 0) return true;
+      const touches = slot.groups.some((group) => injury.zones.includes(group));
+      if (!touches) return true;
+      if (!rehabDay) return false;
+      // Día de rehabilitación: solo aislados y máquinas, nada pesado.
+      return slot.roles.some((role) => !HEAVY_ROLES.has(role));
+    });
+
+    const chosen = chooseSlots(slots, exerciseCount);
+    const usedToday = new Set<string>();
+    const exercises: PlannedExercise[] = [];
+
+    chosen.forEach((slot, slotIndex) => {
+      const option = pickExercise(slot, {
+        catalog: config.catalog,
+        usedToday,
+        lastWeekNames,
+        noImpact: injury.active,
+        lightOnly: rehabDay ? injury.zones : [],
+        seed: isoWeek + slotIndex + index * 3,
+      });
+      if (!option) return;
+
+      usedToday.add(option.id);
+
+      const rehabExercise =
+        rehabDay && injury.zones.includes(option.muscleGroup as MuscleGroup);
+      const schemeId = schemeForExercise(option.poolRole, weekScheme, { rehab: rehabExercise });
+      const scheme = SCHEMES[schemeId];
+
+      const last = lastPerformance(history, { id: option.id, name: option.name });
+      const suggested = rehabExercise
+        ? last
+          ? roundWeight(last.topWeightKg * 0.5)
+          : null
+        : suggestTopWeight(option, scheme, last);
+
+      const isFirst = exercises.length === 0;
+
+      exercises.push({
+        exerciseId: option.id,
+        name: option.name,
+        muscleGroup: option.muscleGroup,
+        poolRole: option.poolRole,
+        scheme: schemeId,
+        schemeLabel: scheme.label,
+        restSeconds: scheme.restSeconds,
+        videoPath: option.videoUrl,
+        tracker: option.isTracker,
+        note: rehabExercise
+          ? "Zona en recuperación: reps altas, peso bajo, sin forzar."
+          : isFirst
+            ? "Empieza con 2 series de calentamiento de 30 reps con peso bajo."
+            : null,
+        sets: buildTargetSets(scheme, suggested, { warmupSets: isFirst ? WARMUP_SETS : 0 }),
+      });
+    });
+
+    workouts.push({
+      date: dateOfDay(weekStart, dayIndex),
+      dayKind: kind,
+      muscleGroup: DAY_LABELS[kind],
+      scheme: weekScheme,
+      schemeLabel: SCHEMES[weekScheme].label,
+      cardioMinutes:
+        injury.active || profile.cardioMinWk <= 0
+          ? null
+          : Math.round(profile.cardioMinWk / Math.max(1, kinds.length)),
+      exercises,
+    });
+  });
+
+  return { weekStart: weekStartISO, isoWeek, scheme: weekScheme, workouts };
+}
+
+/** Grupos que toca un tipo de día. Reexportado para las vistas. */
+export { DAY_GROUPS, DAY_LABELS };
+
+/** Lunes de la semana ISO de `date`. */
+export function mondayOf(date: Date): Date {
+  const copy = new Date(date);
+  const day = copy.getDay() || 7;
+  copy.setDate(copy.getDate() - (day - 1));
+  copy.setHours(12, 0, 0, 0);
+  return copy;
+}
+
+/** Domingo (fin) de la semana ISO de `date`. */
+export function sundayEndOf(date: Date): Date {
+  const monday = mondayOf(date);
+  monday.setDate(monday.getDate() + 6);
+  return monday;
+}
+
+export type { HistoryWorkout };
