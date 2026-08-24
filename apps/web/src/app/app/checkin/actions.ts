@@ -73,12 +73,10 @@ export async function submitCheckIn(
       continue;
     }
 
-    await prisma.photo.upsert({
-      where: { checkInId_view: { checkInId: checkIn.id, view } },
-      create: { checkInId: checkIn.id, view, storagePath: path },
-      // Foto nueva: el análisis de visión anterior deja de ser válido.
-      update: { storagePath: path, analysisJson: Prisma.DbNull },
-    });
+    // Una vista puede tener varias fotos (p. ej. dos perfiles); el check-in
+    // semanal reemplaza las de su propia vista para no acumular versiones.
+    await prisma.photo.deleteMany({ where: { checkInId: checkIn.id, view } });
+    await prisma.photo.create({ data: { checkInId: checkIn.id, view, storagePath: path } });
   }
 
   // Coachy corre DESPUÉS de contestarle a la atleta: el motor y Claude tardan

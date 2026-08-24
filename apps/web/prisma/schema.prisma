@@ -249,7 +249,7 @@ model Photo {
 
   createdAt DateTime @default(now()) @map("created_at")
 
-  @@unique([checkInId, view])
+  @@index([checkInId, view])
   @@map("photos")
 }
 

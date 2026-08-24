@@ -401,7 +401,6 @@ interface BatchReport {
 }
 
 const REASON_ALREADY = "ya existía en photos";
-const REASON_DUPLICATE_VIEW = "vista repetida en la tanda (photos es única por check-in+vista)";
 
 function printSummary(reports: BatchReport[], dryRun: boolean): void {
   const header = dryRun ? "PLAN (dry-run)" : "RESULTADO";
@@ -613,12 +612,6 @@ async function main(): Promise<void> {
         if (knownPaths.has(key)) {
           report.skipped.push({ file, reason: REASON_ALREADY });
           console.log(`  = ${file} → ${view} (${REASON_ALREADY})`);
-          continue;
-        }
-
-        if (taken.has(view)) {
-          report.skipped.push({ file, reason: REASON_DUPLICATE_VIEW });
-          console.log(`  – ${file} → ${view} (${REASON_DUPLICATE_VIEW})`);
           continue;
         }
 
