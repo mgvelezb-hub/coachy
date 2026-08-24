@@ -1,11 +1,14 @@
+import { Dumbbell, Trophy } from "lucide-react";
+
 import { PhotoCompare, type PhotoSet } from "@/app/app/historial/photo-compare";
 import { ProgressCharts } from "@/app/app/historial/progress-charts";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { requireOnboardedUser } from "@/lib/auth";
 import { listCheckIns, toChartSeries } from "@/lib/checkins";
-import { decimalToNumber, formatCm, formatKg, formatShortDate } from "@/lib/format";
+import { decimalToNumber, formatCm, formatKg, formatShortDate, fromISODate } from "@/lib/format";
 import { signedPhotoUrls } from "@/lib/storage";
+import { trainingHistory } from "@/lib/training/view";
 import type { CheckInWithPhotos } from "@/lib/checkins";
 
 export const metadata = { title: "Historial" };
@@ -53,8 +56,15 @@ async function buildPhotoSets(checkIns: CheckInWithPhotos[]): Promise<PhotoSet[]
 export default async function HistorialPage(): Promise<React.JSX.Element> {
   const user = await requireOnboardedUser();
 
-  const [checkIns, points] = await Promise.all([listCheckIns(user.id), toChartSeries(user.id)]);
+  const [checkIns, points, sessions] = await Promise.all([
+    listCheckIns(user.id),
+    toChartSeries(user.id),
+    trainingHistory(user.id),
+  ]);
   const photoSets = await buildPhotoSets(checkIns);
+
+  const totalVolume = sessions.reduce((total, session) => total + session.volumeKg, 0);
+  const allPrs = sessions.flatMap((session) => session.prs);
 
   const rows = [...checkIns].reverse();
 
@@ -70,6 +80,57 @@ export default async function HistorialPage(): Promise<React.JSX.Element> {
       <ProgressCharts points={points} />
 
       <PhotoCompare sets={photoSets} />
+
+      <Card>
+        <CardHeader className="flex-row items-center gap-2 space-y-0">
+          <Dumbbell className="size-4 text-muted-foreground" />
+          <CardTitle className="text-base">Entrenamiento</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          {sessions.length === 0 ? (
+            <p className="text-sm text-muted-foreground">
+              Todavía no hay sesiones registradas. En cuanto entrenes con el modo gimnasio, aquí
+              aparecen tus cargas y tus récords.
+            </p>
+          ) : (
+            <>
+              <div className="grid grid-cols-3 gap-2">
+                <div className="rounded-lg bg-muted p-3">
+                  <p className="text-xs uppercase tracking-wide text-muted-foreground">Sesiones</p>
+                  <p className="text-lg font-bold">{sessions.length}</p>
+                </div>
+                <div className="rounded-lg bg-muted p-3">
+                  <p className="text-xs uppercase tracking-wide text-muted-foreground">Volumen</p>
+                  <p className="text-lg font-bold">{Math.round(totalVolume / 1000)} t</p>
+                </div>
+                <div className="rounded-lg bg-muted p-3">
+                  <p className="text-xs uppercase tracking-wide text-muted-foreground">Récords</p>
+                  <p className="text-lg font-bold">{allPrs.length}</p>
+                </div>
+              </div>
+
+              <ul className="divide-y text-sm">
+                {sessions.map((session) => (
+                  <li key={session.workoutId} className="flex items-center gap-3 py-2">
+                    <span className="w-16 shrink-0 text-xs text-muted-foreground">
+                      {formatShortDate(fromISODate(session.date))}
+                    </span>
+                    <span className="min-w-0 flex-1 truncate font-medium">
+                      {session.muscleGroup}
+                    </span>
+                    <span className="shrink-0 text-xs text-muted-foreground">
+                      {session.sets} series · {session.volumeKg.toLocaleString("es-MX")} kg
+                    </span>
+                    {session.prs.length > 0 ? (
+                      <Trophy className="size-4 shrink-0 text-primary" aria-label="Récord" />
+                    ) : null}
+                  </li>
+                ))}
+              </ul>
+            </>
+          )}
+        </CardContent>
+      </Card>
 
       <Card>
         <CardHeader>

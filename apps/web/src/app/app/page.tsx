@@ -18,6 +18,7 @@ import { unreadNotifications } from "@/lib/coachy/notifications";
 import type { CoachyReply } from "@/lib/coachy/types";
 import { decimalToNumber, formatCm, formatLongDate, phaseLabel, sundayOf } from "@/lib/format";
 import { prisma } from "@/lib/prisma";
+import { todayCard } from "@/lib/training/view";
 
 export const metadata = { title: "Hoy" };
 
@@ -84,7 +85,14 @@ export default async function AppHomePage(): Promise<React.JSX.Element> {
   const today = new Date();
   today.setHours(12, 0, 0, 0);
 
-  const [current, previous, total, published, notifications, workout, answered] = await Promise.all([
+  // La rutina de la semana se materializa la primera vez que abre el home. Si
+  // algo falla, la tarjeta lo dice y el resto de la pantalla sigue viva.
+  const workout = await todayCard(user.id, user.profile, today).catch((error) => {
+    console.error("[training] no se pudo armar la rutina de hoy", error);
+    return null;
+  });
+
+  const [current, previous, total, published, notifications, answered] = await Promise.all([
     prisma.checkIn.findUnique({
       where: { userId_date: { userId: user.id, date: thisSunday } },
       include: { decision: true },
@@ -101,7 +109,6 @@ export default async function AppHomePage(): Promise<React.JSX.Element> {
       include: { checkIn: true, mealPlans: { orderBy: { menuNumber: "asc" } } },
     }),
     unreadNotifications(user.id),
-    prisma.workout.findFirst({ where: { userId: user.id, date: today } }),
     prisma.conversation.findMany({
       where: { userId: user.id, role: "ATHLETE" },
       orderBy: { date: "desc" },
@@ -254,18 +261,28 @@ export default async function AppHomePage(): Promise<React.JSX.Element> {
       <Card>
         <CardHeader className="flex-row items-center gap-2 space-y-0">
           <Dumbbell className="size-4 text-muted-foreground" />
-          <CardTitle className="text-base">Rutina de hoy</CardTitle>
+          <CardTitle className="text-base">Hoy</CardTitle>
         </CardHeader>
-        <CardContent>
+        <CardContent className="space-y-3">
           {workout ? (
-            <div className="space-y-1 text-sm">
-              <p className="font-medium">{workout.muscleGroup}</p>
-              <p className="text-muted-foreground">{workout.scheme}</p>
-            </div>
+            <>
+              <div className="flex items-baseline justify-between gap-2">
+                <p className="text-lg font-semibold">{workout.muscleGroup}</p>
+                {workout.completed ? <Badge variant="success">Hecho</Badge> : null}
+              </div>
+              <p className="text-sm text-muted-foreground">
+                {workout.exerciseCount} ejercicios · {workout.schemeLabel}
+                {workout.cardioMinutes ? ` · ${workout.cardioMinutes} min de cardio` : ""}
+              </p>
+              <Button asChild size="lg" className="w-full" variant={workout.completed ? "outline" : "default"}>
+                <Link href="/app/entrenamiento">
+                  {workout.completed ? "Ver la sesión" : "Entrenar"} <ArrowRight />
+                </Link>
+              </Button>
+            </>
           ) : (
             <p className="text-sm text-muted-foreground">
-              Hoy no hay rutina cargada. Las rutinas diarias llegan en la Fase 4; mientras tanto tu
-              coach te la manda directo.
+              Hoy toca descanso. El músculo se construye fuera del gimnasio.
             </p>
           )}
         </CardContent>

@@ -1,11 +1,13 @@
 import Link from "next/link";
-import { CalendarCheck, LineChart, LogOut, Shield } from "lucide-react";
+import { CalendarCheck, Dumbbell, LineChart, Shield } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import { SignOutButton } from "@/components/signout-button";
 import { requireUser } from "@/lib/auth";
 
 const NAV = [
   { href: "/app", label: "Hoy", icon: CalendarCheck },
+  { href: "/app/entrenamiento", label: "Gym", icon: Dumbbell },
   { href: "/app/checkin", label: "Check-in", icon: CalendarCheck },
   { href: "/app/historial", label: "Historial", icon: LineChart },
 ] as const;
@@ -31,17 +33,13 @@ export default async function AppLayout({
               </Link>
             </Button>
           ) : null}
-          <form action="/auth/signout" method="post">
-            <Button type="submit" variant="ghost" size="icon" aria-label="Salir">
-              <LogOut />
-            </Button>
-          </form>
+          <SignOutButton />
         </div>
       </header>
 
       <main className="flex-1 px-5 py-5">{children}</main>
 
-      <nav className="sticky bottom-0 z-20 grid grid-cols-3 border-t bg-background/95 backdrop-blur safe-bottom">
+      <nav className="sticky bottom-0 z-20 grid grid-cols-4 border-t bg-background/95 backdrop-blur safe-bottom">
         {NAV.map((item) => (
           <Link
             key={item.href}
