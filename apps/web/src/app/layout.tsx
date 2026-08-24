@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Cormorant_Garamond } from "next/font/google";
 
 import { ServiceWorkerRegister } from "@/components/service-worker-register";
+import { ThemeProvider } from "@/components/theme-provider";
 import { Toaster } from "@/components/ui/sonner";
 
 import "./globals.css";
@@ -54,9 +55,11 @@ export default function RootLayout({
   return (
     <html lang="es-MX" className={serifDisplay.variable} suppressHydrationWarning>
       <body className="min-h-dvh antialiased">
-        {children}
-        <Toaster />
-        <ServiceWorkerRegister />
+        <ThemeProvider>
+          {children}
+          <Toaster />
+          <ServiceWorkerRegister />
+        </ThemeProvider>
       </body>
     </html>
   );

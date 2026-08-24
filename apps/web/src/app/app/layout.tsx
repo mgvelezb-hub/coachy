@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { CalendarCheck, Dumbbell, LibraryBig, LineChart, Shield } from "lucide-react";
+import { CalendarCheck, Dumbbell, LibraryBig, LineChart, Settings, Shield } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { SignOutButton } from "@/components/signout-button";
@@ -29,6 +29,11 @@ export default async function AppLayout({
           <Wordmark className="text-base text-primary" />
         </Link>
         <div className="flex items-center gap-1">
+          <Button asChild variant="ghost" size="icon" aria-label="Ajustes">
+            <Link href="/app/ajustes">
+              <Settings />
+            </Link>
+          </Button>
           {user.role === "ADMIN" ? (
             <Button asChild variant="ghost" size="icon" aria-label="Panel de admin">
               <Link href="/admin">
