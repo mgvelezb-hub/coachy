@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { runEscalationSweep } from "@/lib/observatory/escalation";
 
 import { guardCronRequest } from "@/lib/coachy/cron-auth";
 import { notify } from "@/lib/coachy/notifications";
@@ -38,6 +39,9 @@ async function handle(request: Request): Promise<NextResponse> {
     where: { role: "ADMIN" },
     select: { id: true, email: true },
   });
+
+  // Barrido de señales de riesgo para el observatorio (dedupe interno).
+  const escalations = await runEscalationSweep(new Date()).catch(() => []);
 
   let reminders = 0;
   const abandoned: string[] = [];

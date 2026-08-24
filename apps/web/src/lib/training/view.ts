@@ -1,5 +1,6 @@
 import "server-only";
 
+import { cycleNoteForProfile } from "@/lib/cycle";
 import type { Profile } from "@prisma/client";
 
 import { toISODate } from "@/lib/format";
@@ -42,6 +43,7 @@ export type SessionView = {
   schemeLabel: string;
   cardioMinutes: number | null;
   completedAt: string | null;
+  cycleNote: string | null;
   exercises: SessionExerciseView[];
 };
 
@@ -88,6 +90,7 @@ export async function weekView(
       schemeLabel: plan.schemeLabel,
       cardioMinutes: plan.cardioMinutes,
       completedAt: workout.completedAt ? workout.completedAt.toISOString() : null,
+      cycleNote: cycleNoteForProfile(profile, toISODate(workout.date)),
       exercises: plan.exercises.map((exercise) => {
         const previous = last[exercise.name] ?? null;
         const scheme = SCHEMES[exercise.scheme] ?? SCHEMES.PIRAMIDAL;

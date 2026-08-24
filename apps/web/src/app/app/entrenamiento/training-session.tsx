@@ -189,6 +189,11 @@ export function TrainingSession({
               {session.schemeLabel} · {session.exercises.length} ejercicios
               {session.cardioMinutes ? ` · ${session.cardioMinutes} min de cardio al final` : ""}
             </p>
+            {session.cycleNote ? (
+              <p className="rounded-lg border border-dashed p-2 text-xs text-muted-foreground">
+                {session.cycleNote}
+              </p>
+            ) : null}
           </header>
 
           <div className="space-y-2">
