@@ -7,11 +7,14 @@ import { prisma } from "@/lib/prisma";
 import { signedExerciseVideoUrls } from "@/lib/storage";
 import {
   ensureWeekMaterialized,
-  lastWeights,
+  lastPerformances,
   parseStoredPlan,
-  personalBests,
+  personalRecords,
+  type PersonalRecord,
 } from "@/lib/training/db";
 import { mondayOf, sundayEndOf } from "@/lib/training/generate";
+import { prefillSets } from "@/lib/training/progression";
+import { SCHEMES } from "@/lib/training/schemes";
 import type { PlannedExercise } from "@/lib/training/types";
 
 /**
@@ -27,6 +30,8 @@ export type SessionExerciseView = PlannedExercise & {
   lastWeightKg: number | null;
   /** El mejor peso histórico: la vara del PR. */
   bestWeightKg: number | null;
+  /** El récord con su contexto: peso × reps y cuándo fue. */
+  record: PersonalRecord | null;
 };
 
 export type SessionView = {
@@ -64,10 +69,10 @@ export async function weekView(
   const allExercises = plans.flatMap((entry) => entry.plan.exercises);
   const names = [...new Set(allExercises.map((exercise) => exercise.name))];
 
-  const [videos, best, last] = await Promise.all([
+  const [videos, records, last] = await Promise.all([
     signedExerciseVideoUrls(allExercises.map((exercise) => exercise.videoPath)).catch(() => ({})),
-    personalBests(userId, names),
-    lastWeights(
+    personalRecords(userId, names),
+    lastPerformances(
       userId,
       mondayOf(reference),
       allExercises.map((exercise) => ({ id: exercise.exerciseId, name: exercise.name })),
@@ -83,12 +88,23 @@ export async function weekView(
       schemeLabel: plan.schemeLabel,
       cardioMinutes: plan.cardioMinutes,
       completedAt: workout.completedAt ? workout.completedAt.toISOString() : null,
-      exercises: plan.exercises.map((exercise) => ({
-        ...exercise,
-        videoUrl: exercise.videoPath ? ((videos as Record<string, string>)[exercise.videoPath] ?? null) : null,
-        lastWeightKg: last[exercise.name] ?? null,
-        bestWeightKg: best[exercise.name] ?? null,
-      })),
+      exercises: plan.exercises.map((exercise) => {
+        const previous = last[exercise.name] ?? null;
+        const scheme = SCHEMES[exercise.scheme] ?? SCHEMES.PIRAMIDAL;
+
+        return {
+          ...exercise,
+          // El plan pudo materializarse sin historial: aquí ya lo hay, así que
+          // se rellena serie a serie con la rampa del esquema.
+          sets: prefillSets(exercise, scheme, exercise.sets, previous),
+          videoUrl: exercise.videoPath
+            ? ((videos as Record<string, string>)[exercise.videoPath] ?? null)
+            : null,
+          lastWeightKg: previous?.topWeightKg ?? null,
+          bestWeightKg: records[exercise.name]?.weightKg ?? null,
+          record: records[exercise.name] ?? null,
+        };
+      }),
     };
   });
 
@@ -185,7 +201,29 @@ export async function trainingHistory(userId: string, take = 12): Promise<Traini
   });
 }
 
+/**
+ * Los récords vigentes por ejercicio, del más pesado al más ligero.
+ *
+ * Es lo que la sección de récords del historial marca: peso × reps y la fecha
+ * en que ocurrió. Sale de `workout_sets`, no del resumen de la sesión, así que
+ * sobrevive aunque `loads_json` se haya escrito antes de que existieran los PRs.
+ */
+export async function personalRecordList(userId: string, take = 8): Promise<PersonalRecord[]> {
+  const records = await personalRecords(userId);
+
+  return Object.values(records)
+    .sort(
+      (a, b) =>
+        b.weightKg - a.weightKg ||
+        b.reps - a.reps ||
+        a.exerciseName.localeCompare(b.exerciseName, "es"),
+    )
+    .slice(0, take);
+}
+
 /** Rango de la semana ISO de `date`, para consultas. */
 export function weekRange(date: Date): { from: Date; to: Date } {
   return { from: mondayOf(date), to: sundayEndOf(date) };
 }
+
+export type { PersonalRecord };

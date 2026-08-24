@@ -4,6 +4,7 @@ import {
   lastPerformance,
   roundWeight,
   suggestTopWeight,
+  warmupRepsFor,
 } from "@/lib/training/progression";
 import { exerciseCountFor, recipeFor, type Slot } from "@/lib/training/recipes";
 import { SCHEMES, isoWeekNumber, schemeForExercise, schemeForWeek } from "@/lib/training/schemes";
@@ -215,7 +216,7 @@ export function generateWeek(
         note: rehabExercise
           ? "Zona en recuperación: reps altas, peso bajo, sin forzar."
           : isFirst
-            ? "Empieza con 2 series de calentamiento de 30 reps con peso bajo."
+            ? `Empieza con ${WARMUP_SETS} series de calentamiento de ${warmupRepsFor(scheme)} reps con peso ligero.`
             : null,
         sets: buildTargetSets(scheme, suggested, { warmupSets: isFirst ? WARMUP_SETS : 0 }),
       });

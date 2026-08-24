@@ -72,6 +72,55 @@ export function roundWeight(value: number): number {
   return Math.round(value * 2) / 2;
 }
 
+/** Al disco de 2.5 kg más cercano: es lo que de verdad se puede armar en la barra. */
+export function roundPlate(value: number): number {
+  return Math.round(value / 2.5) * 2.5;
+}
+
+/**
+ * Calentamiento (metodología §3: "empieza con reps altas y peso ligero").
+ *
+ * Nunca puede verse igual que la serie 1. Las reps del calentamiento salen por
+ * encima de la serie más larga del esquema y se acotan a la banda de la
+ * biblioteca del coach (20–50), y el peso va al 40–50% del peso de trabajo.
+ */
+export const WARMUP_REPS_MIN = 20;
+export const WARMUP_REPS_MAX = 50;
+
+/** Porcentaje del peso de trabajo por serie de calentamiento. */
+const WARMUP_LOAD_RAMP = [0.4, 0.5];
+
+export function warmupRepsFor(scheme: Scheme): number {
+  const heaviestSet = Math.max(...scheme.reps);
+  const raw = Math.max(WARMUP_REPS_MIN, heaviestSet + 10);
+  const rounded = Math.round(raw / 5) * 5;
+  return Math.min(WARMUP_REPS_MAX, Math.max(WARMUP_REPS_MIN, rounded));
+}
+
+/**
+ * Series de calentamiento del ejercicio. Sin peso de trabajo el campo va vacío
+ * — la UI lo etiqueta "peso ligero" y ella escribe el suyo.
+ */
+export function buildWarmupSets(
+  scheme: Scheme,
+  topWeightKg: number | null,
+  count: number,
+): TargetSet[] {
+  const reps = warmupRepsFor(scheme);
+
+  return Array.from({ length: count }, (_, index): TargetSet => {
+    const factor = WARMUP_LOAD_RAMP[Math.min(index, WARMUP_LOAD_RAMP.length - 1)] as number;
+    // El calentamiento nunca puede pesar lo mismo que la primera serie efectiva:
+    // si el redondeo lo empata, se baja un disco.
+    const raw = topWeightKg === null ? null : Math.max(2.5, roundPlate(topWeightKg * factor));
+    const weightKg = raw !== null && topWeightKg !== null && raw >= topWeightKg
+      ? Math.max(2.5, roundPlate(topWeightKg * 0.4) - 2.5)
+      : raw;
+
+    return { reps, weightKg, warmup: true };
+  });
+}
+
 export type LastPerformance = {
   date: string;
   /** Peso de la serie más pesada, sin contar calentamiento. */
@@ -148,12 +197,7 @@ export function buildTargetSets(
   topWeightKg: number | null,
   options: { warmupSets?: number } = {},
 ): TargetSet[] {
-  const sets: TargetSet[] = [];
-  const warmups = options.warmupSets ?? 0;
-
-  for (let i = 0; i < warmups; i += 1) {
-    sets.push({ reps: 30, weightKg: null, warmup: true });
-  }
+  const sets: TargetSet[] = buildWarmupSets(scheme, topWeightKg, options.warmupSets ?? 0);
 
   const total = scheme.reps.length;
   scheme.reps.forEach((reps, index) => {
@@ -166,6 +210,45 @@ export function buildTargetSets(
   });
 
   return sets;
+}
+
+/**
+ * Prellenado de un plan ya materializado.
+ *
+ * La rutina de la semana se guardó cuando quizá no había historial de ese
+ * ejercicio; para entonces los pesos quedaron vacíos. Cuando la atleta abre la
+ * sesión ya sabemos qué levantó la última vez, así que aquí se rellena serie a
+ * serie **con la misma rampa del esquema**: en piramidal no se ponen los mismos
+ * kg en las 5 series, se escalan del 65% al 100%.
+ *
+ * Lo que ella ya tenía escrito manda: si el plan trae peso, no se toca.
+ */
+export function prefillSets(
+  exercise: { name: string },
+  scheme: Scheme,
+  sets: TargetSet[],
+  last: LastPerformance | null,
+): TargetSet[] {
+  if (last === null) return sets;
+  if (!sets.some((set) => set.weightKg === null)) return sets;
+
+  const top = suggestTopWeight(exercise, scheme, last);
+  if (top === null) return sets;
+
+  const warmupCount = sets.filter((set) => set.warmup).length;
+  const rebuilt = buildTargetSets(scheme, top, { warmupSets: warmupCount });
+  const warmups = rebuilt.filter((set) => set.warmup);
+  const working = rebuilt.filter((set) => !set.warmup);
+
+  let warmupIndex = 0;
+  let workingIndex = 0;
+
+  // El plan manda en reps y en cuántas series son; de aquí solo sale el peso.
+  return sets.map((set) => {
+    const suggestion = set.warmup ? warmups[warmupIndex++] : working[workingIndex++];
+    if (set.weightKg !== null || suggestion === undefined) return set;
+    return { ...set, weightKg: suggestion.weightKg };
+  });
 }
 
 /** Volumen de una sesión: Σ peso × reps de las series efectivas. */

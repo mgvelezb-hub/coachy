@@ -9,10 +9,22 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
 import { RestTimer } from "@/app/app/entrenamiento/rest-timer";
 import type { SetEntry } from "@/app/app/entrenamiento/use-session-draft";
+import type { TargetSet } from "@/lib/training/types";
 import type { SessionExerciseView } from "@/lib/training/view";
 
 /** El peso sube de 2.5 en 2.5: es el disco más chico de cualquier gimnasio. */
 const WEIGHT_STEP = 2.5;
+
+const RECORD_DATE = new Intl.DateTimeFormat("es-MX", {
+  day: "2-digit",
+  month: "2-digit",
+  timeZone: "UTC",
+});
+
+/** `YYYY-MM-DD` → `dd/mm`. Se pinta en el cliente, así que no usa el helper del server. */
+function shortDate(iso: string): string {
+  return RECORD_DATE.format(new Date(`${iso}T12:00:00.000Z`));
+}
 
 function Stepper({
   label,
@@ -102,7 +114,7 @@ export function ExerciseLogger({
       const saved = entries[`${index}:${setIndex}`];
       initial[setIndex] = {
         reps: saved?.reps ?? set.reps,
-        weightKg: saved?.weightKg ?? (set.weightKg ?? exercise.lastWeightKg ?? 0),
+        weightKg: saved?.weightKg ?? suggestedWeight(exercise, set),
       };
     });
     return initial;
@@ -135,12 +147,14 @@ export function ExerciseLogger({
     setRestStartedAt(Date.now());
   }
 
-  const beatsRecord =
-    exercise.bestWeightKg !== null &&
-    Object.entries(entries).some(
-      ([key, entry]) =>
-        key.startsWith(`${index}:`) && (entry.weightKg ?? 0) > (exercise.bestWeightKg ?? 0),
-    );
+  // El calentamiento no puede romper un récord: solo cuentan las efectivas.
+  const bestToday = exercise.sets.reduce((best, set, setIndex) => {
+    if (set.warmup) return best;
+    const entry = entries[`${index}:${setIndex}`];
+    return Math.max(best, entry?.weightKg ?? 0);
+  }, 0);
+
+  const beatsRecord = bestToday > 0 && bestToday > (exercise.bestWeightKg ?? 0);
 
   return (
     <div className="space-y-4">
@@ -157,6 +171,23 @@ export function ExerciseLogger({
         <p className="text-sm text-muted-foreground">{exercise.schemeLabel}</p>
         {exercise.note ? <p className="text-sm text-primary">{exercise.note}</p> : null}
       </header>
+
+      {/* La vara siempre visible: contra esto se mide lo de hoy. */}
+      <div className="flex items-center gap-2 rounded-lg border bg-muted/50 px-3 py-2 text-sm">
+        <Trophy className="size-4 shrink-0 text-muted-foreground" />
+        {exercise.record ? (
+          <span>
+            <span className="font-semibold">
+              PR: {exercise.record.weightKg} kg × {exercise.record.reps} reps
+            </span>{" "}
+            <span className="text-muted-foreground">({shortDate(exercise.record.date)})</span>
+          </span>
+        ) : (
+          <span className="text-muted-foreground">
+            Todavía no hay récord aquí. Lo que registres hoy es el primero.
+          </span>
+        )}
+      </div>
 
       {exercise.videoUrl ? (
         // eslint-disable-next-line jsx-a11y/media-has-caption
@@ -178,7 +209,10 @@ export function ExerciseLogger({
 
       {beatsRecord ? (
         <div className="flex items-center gap-2 rounded-lg border border-primary bg-primary/10 p-3 text-sm font-medium">
-          <Trophy className="size-4 text-primary" /> ¡Récord! Nunca habías levantado tanto aquí.
+          <Trophy className="size-4 shrink-0 text-primary" />
+          {exercise.record
+            ? `¡Récord! ${bestToday} kg contra los ${exercise.record.weightKg} kg de antes.`
+            : `¡Récord! ${bestToday} kg es tu primera marca aquí.`}
         </div>
       ) : null}
 
@@ -198,11 +232,15 @@ export function ExerciseLogger({
           return (
             <Card key={setIndex} className={saved ? "border-primary/50 bg-primary/5" : undefined}>
               <CardContent className="space-y-3 p-3">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm font-semibold">
-                    {target.warmup ? "Calentamiento" : `Serie ${setIndex + 1 - warmupsBefore(exercise, setIndex)}`}
+                <div className="flex items-center justify-between gap-2">
+                  <span className="min-w-0 truncate text-sm font-semibold">
+                    {target.warmup
+                      ? `Calentamiento · ${target.weightKg === null ? "peso ligero" : `${target.weightKg} kg`}`
+                      : `Serie ${setIndex + 1 - warmupsBefore(exercise, setIndex)}`}
                   </span>
-                  <Badge variant="secondary">objetivo {target.reps} reps</Badge>
+                  <Badge variant="secondary" className="shrink-0">
+                    objetivo {target.reps} reps
+                  </Badge>
                 </div>
 
                 <div className="flex items-end gap-2">
@@ -271,4 +309,20 @@ export function ExerciseLogger({
 /** Las series de calentamiento no cuentan para la numeración de las efectivas. */
 function warmupsBefore(exercise: SessionExerciseView, setIndex: number): number {
   return exercise.sets.slice(0, setIndex + 1).filter((set) => set.warmup).length;
+}
+
+/**
+ * Peso con el que arranca el stepper.
+ *
+ * El calentamiento **nunca** hereda el peso de trabajo: si el plan no le puso
+ * kg, se propone el 40% del último peso registrado (al disco de 2.5) y si no
+ * hay historial se deja en cero, que la UI muestra como "peso ligero".
+ */
+function suggestedWeight(exercise: SessionExerciseView, set: TargetSet): number {
+  if (set.weightKg !== null) return set.weightKg;
+  if (set.warmup) {
+    if (exercise.lastWeightKg === null) return 0;
+    return Math.max(0, Math.round((exercise.lastWeightKg * 0.4) / WEIGHT_STEP) * WEIGHT_STEP);
+  }
+  return exercise.lastWeightKg ?? 0;
 }

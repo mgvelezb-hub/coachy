@@ -5,7 +5,7 @@ import type { Prisma, Profile, Workout } from "@prisma/client";
 import { fromISODate, toISODate } from "@/lib/format";
 import { prisma } from "@/lib/prisma";
 import { generateWeek, mondayOf, sundayEndOf } from "@/lib/training/generate";
-import { lastPerformance } from "@/lib/training/progression";
+import { lastPerformance, type LastPerformance } from "@/lib/training/progression";
 import type {
   ExerciseOption,
   HistorySet,
@@ -226,20 +226,82 @@ export async function personalBests(
 }
 
 /**
- * Último peso registrado por ejercicio, para prellenar los steppers cuando la
- * rutina se generó sin historial (o cuando el ejercicio se estrenó después).
+ * Lo que hizo la última vez en cada ejercicio, para prellenar los steppers
+ * cuando la rutina se generó sin historial (o cuando el ejercicio se estrenó
+ * después). Trae reps y RPE, no solo el peso: sin eso no se puede traducir la
+ * carga al esquema de esta semana ni aplicar la progresión doble.
  */
-export async function lastWeights(
+export async function lastPerformances(
   userId: string,
   reference: Date,
   exercises: Array<{ id: string | null; name: string }>,
-): Promise<Record<string, number>> {
+): Promise<Record<string, LastPerformance>> {
   const history = await loadHistory(userId, reference);
-  const map: Record<string, number> = {};
+  const map: Record<string, LastPerformance> = {};
 
   for (const exercise of exercises) {
     const last = lastPerformance(history, exercise);
-    if (last) map[exercise.name] = last.topWeightKg;
+    if (last) map[exercise.name] = last;
   }
   return map;
+}
+
+/** Un récord: el mejor peso levantado en un ejercicio, con sus reps y su fecha. */
+export type PersonalRecord = {
+  exerciseName: string;
+  weightKg: number;
+  reps: number;
+  /** ISO `YYYY-MM-DD` de la sesión donde ocurrió. */
+  date: string;
+};
+
+/**
+ * Récord por ejercicio: el mejor peso, y a ese peso las mejores reps.
+ *
+ * El calentamiento nunca cuenta (`warmup: false`), que es la razón de que la
+ * serie ligera de arranque no pueda ensuciar un PR.
+ */
+export async function personalRecords(
+  userId: string,
+  exerciseNames?: string[],
+): Promise<Record<string, PersonalRecord>> {
+  if (exerciseNames !== undefined && exerciseNames.length === 0) return {};
+
+  const rows = await prisma.workoutSet.findMany({
+    where: {
+      workout: { userId },
+      warmup: false,
+      weightKg: { not: null },
+      reps: { gt: 0 },
+      ...(exerciseNames === undefined ? {} : { exerciseName: { in: exerciseNames } }),
+    },
+    select: {
+      exerciseName: true,
+      reps: true,
+      weightKg: true,
+      workout: { select: { date: true } },
+    },
+  });
+
+  const best: Record<string, PersonalRecord> = {};
+
+  for (const row of rows) {
+    const weightKg = Number(row.weightKg);
+    const current = best[row.exerciseName];
+    const better =
+      current === undefined ||
+      weightKg > current.weightKg ||
+      (weightKg === current.weightKg && row.reps > current.reps);
+
+    if (better) {
+      best[row.exerciseName] = {
+        exerciseName: row.exerciseName,
+        weightKg,
+        reps: row.reps,
+        date: toISODate(row.workout.date),
+      };
+    }
+  }
+
+  return best;
 }
