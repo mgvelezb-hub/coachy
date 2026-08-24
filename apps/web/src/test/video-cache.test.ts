@@ -8,8 +8,10 @@ import {
   formatBytes,
   isVideoCached,
   pendingVideos,
+  ensurePersistentStorage,
   purgeVideoCache,
   removeVideos,
+  resetPersistenceMemo,
   totalBytes,
   videoCacheKey,
   videoPathFromKey,
@@ -78,6 +80,7 @@ beforeEach(() => {
   storage = new FakeCacheStorage();
   vi.stubGlobal("caches", storage);
   vi.stubGlobal("URL", Object.assign(URL, { createObjectURL: () => "blob:fake" }));
+  resetPersistenceMemo();
 });
 
 afterEach(() => {
@@ -95,6 +98,55 @@ describe("llaves del caché de videos", () => {
     const absolute = `http://localhost${videoCacheKey(PATH_A)}`;
     expect(videoPathFromKey(absolute)).toBe(PATH_A);
     expect(videoPathFromKey("http://localhost/_next/static/chunk.js")).toBeNull();
+  });
+});
+
+describe("almacenamiento persistente", () => {
+  function stubStorage(persisted: boolean, granted: boolean) {
+    const persist = vi.fn(async () => granted);
+    vi.stubGlobal("navigator", { storage: { persisted: async () => persisted, persist } });
+    return persist;
+  }
+
+  it("se pide una sola vez, por más descargas que haya", async () => {
+    const persist = stubStorage(false, true);
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => videoResponse(128)),
+    );
+
+    await downloadVideo(PATH_A, "https://firma/uno");
+    await downloadVideo(PATH_B, "https://firma/dos");
+
+    expect(persist).toHaveBeenCalledTimes(1);
+    expect(await ensurePersistentStorage()).toBe("granted");
+  });
+
+  it("no se vuelve a pedir si el origen ya era persistente", async () => {
+    const persist = stubStorage(true, true);
+
+    expect(await ensurePersistentStorage()).toBe("granted");
+    expect(persist).not.toHaveBeenCalled();
+  });
+
+  it("un no del navegador se reporta sin romper la descarga", async () => {
+    stubStorage(false, false);
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => videoResponse(128)),
+    );
+
+    const result = await downloadVideos([{ path: PATH_A, bytes: 128 }], async (paths) =>
+      Object.fromEntries(paths.map((path) => [path, "https://firma/uno"])),
+    );
+
+    expect(result.persistence).toBe("denied");
+    expect(result.downloaded).toBe(1);
+  });
+
+  it("sin la API del navegador se degrada sola", async () => {
+    vi.stubGlobal("navigator", {});
+    expect(await ensurePersistentStorage()).toBe("unsupported");
   });
 });
 

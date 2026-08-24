@@ -49,6 +49,16 @@ export type BatchProgress = {
   current: string | null;
 };
 
+/**
+ * Qué contestó el navegador cuando le pedimos guardar esto de verdad.
+ *
+ * - `granted`: el almacenamiento es persistente, nadie lo desaloja solo.
+ * - `denied`: el navegador dijo que no; los videos siguen ahí, pero son
+ *   desalojables si el teléfono se queda sin espacio.
+ * - `unsupported`: el navegador no tiene la API (Safari viejo).
+ */
+export type PersistenceState = "granted" | "denied" | "unsupported";
+
 export type BatchResult = {
   downloaded: number;
   bytes: number;
@@ -56,6 +66,8 @@ export type BatchResult = {
   aborted: boolean;
   /** El navegador se quedó sin espacio: la UI lo dice en lugar de reintentar. */
   quotaExceeded: boolean;
+  /** Resultado de pedir almacenamiento persistente. `null` si no se pidió. */
+  persistence: PersistenceState | null;
 };
 
 /** Sin Cache Storage no hay modo offline; la UI se degrada sola. */
@@ -160,6 +172,44 @@ export async function isVideoCached(path: string): Promise<boolean> {
   }
 }
 
+// --- Persistencia -----------------------------------------------------------
+
+/**
+ * Le pide al navegador que **no desaloje** lo que guardamos.
+ *
+ * Cache Storage es "best-effort" por defecto: si el teléfono se queda sin
+ * espacio, el navegador tira lo que juzgue prescindible — y ahí se van los
+ * videos que la atleta descargó anoche para el gimnasio de hoy. `persist()`
+ * cambia el modo del origen a persistente y eso deja de pasar.
+ *
+ * Se pide **una sola vez**, la primera vez que se descarga un video, porque es
+ * cuando el navegador tiene la señal que quiere ver (uso real, no una promesa).
+ * En Chrome/Android la respuesta llega sola por heurística (app instalada,
+ * visitas frecuentes) y en Safari no existe la API: los dos casos se degradan
+ * al comportamiento de siempre, que ya funciona.
+ */
+let persistencePromise: Promise<PersistenceState> | null = null;
+
+export async function ensurePersistentStorage(): Promise<PersistenceState> {
+  persistencePromise ??= (async (): Promise<PersistenceState> => {
+    try {
+      const storage = typeof navigator === "undefined" ? undefined : navigator.storage;
+      if (!storage?.persist || !storage.persisted) return "unsupported";
+      if (await storage.persisted()) return "granted";
+      return (await storage.persist()) ? "granted" : "denied";
+    } catch {
+      return "unsupported";
+    }
+  })();
+
+  return persistencePromise;
+}
+
+/** Solo para pruebas: olvida la respuesta memoizada. */
+export function resetPersistenceMemo(): void {
+  persistencePromise = null;
+}
+
 // --- Escritura --------------------------------------------------------------
 
 /**
@@ -179,6 +229,9 @@ export async function downloadVideo(
   } = {},
 ): Promise<DownloadOutcome> {
   if (!supportsVideoCache()) return { ok: false, reason: "unsupported" };
+
+  // Antes del primer byte: guardar sin pedir persistencia es guardar en arena.
+  await ensurePersistentStorage();
 
   try {
     const response = await fetch(url, { signal: options.signal });
@@ -258,9 +311,12 @@ export async function downloadVideos(
     failed: [],
     aborted: false,
     quotaExceeded: false,
+    persistence: null,
   };
 
   if (!supportsVideoCache() || videos.length === 0) return result;
+
+  result.persistence = await ensurePersistentStorage();
 
   const total = videos.length;
   const grandTotal = totalBytes(videos);
