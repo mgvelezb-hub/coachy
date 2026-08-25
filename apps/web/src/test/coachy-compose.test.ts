@@ -210,7 +210,7 @@ describe("enforceEngineNumbers", () => {
 });
 
 describe("replyToText", () => {
-  it("respeta el orden de la metodología y firma como Coachy", () => {
+  it("respeta el orden de la metodología y firma como Holy Gains", () => {
     const text = replyToText(GOOD_REPLY);
     const lines = text.split("\n\n");
 
@@ -219,7 +219,7 @@ describe("replyToText", () => {
     expect(lines[2]).toBe(GOOD_REPLY.comparacion);
     expect(lines[3]).toBe(GOOD_REPLY.decision_texto);
     expect(lines[4]).toBe(GOOD_REPLY.meta);
-    expect(text.endsWith("— Coachy")).toBe(true);
+    expect(text.endsWith("— Holy Gains")).toBe(true);
   });
 
   it("ignora los campos vacíos de una respuesta corregida a mano", () => {
@@ -233,7 +233,7 @@ describe("replyToText", () => {
     };
 
     expect(replyToText(corrected)).toBe(
-      "Mensaje que escribió el coach de principio a fin.\n\n— Coachy",
+      "Mensaje que escribió el coach de principio a fin.\n\n— Holy Gains",
     );
   });
 });

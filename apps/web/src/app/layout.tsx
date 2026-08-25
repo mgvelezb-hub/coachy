@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import { Cormorant_Garamond } from "next/font/google";
+import { Cinzel, Cormorant_Garamond, Inter } from "next/font/google";
 
 import { ServiceWorkerRegister } from "@/components/service-worker-register";
 import { ThemeProvider } from "@/components/theme-provider";
@@ -7,25 +7,40 @@ import { Toaster } from "@/components/ui/sonner";
 
 import "./globals.css";
 
-/** Serif clásica romana de Holy Gains: títulos y logotipo. El cuerpo sigue en sans. */
+/** Tipografías del brand kit Holy Gains: Cinzel (títulos y UI chrome), Cormorant (versos y cursivas), Inter (cuerpo). */
+const displayBrand = Cinzel({
+  subsets: ["latin"],
+  display: "swap",
+  weight: ["400", "500", "600", "700"],
+  variable: "--font-display-brand",
+});
+
 const serifDisplay = Cormorant_Garamond({
   subsets: ["latin"],
   display: "swap",
-  weight: ["500", "600", "700"],
+  weight: ["300", "400", "500", "600", "700"],
+  style: ["normal", "italic"],
   variable: "--font-serif-display",
+});
+
+const sansBody = Inter({
+  subsets: ["latin"],
+  display: "swap",
+  weight: ["300", "400", "500", "600"],
+  variable: "--font-sans-body",
 });
 
 export const metadata: Metadata = {
   title: {
-    default: "Coachy",
-    template: "%s · Coachy",
+    default: "Holy Gains",
+    template: "%s · Holy Gains",
   },
   description: "Tu coach virtual: check-in semanal, medidas, fotos de progreso y plan de la semana.",
-  applicationName: "Coachy",
+  applicationName: "Holy Gains",
   manifest: "/manifest.webmanifest",
   appleWebApp: {
     capable: true,
-    title: "Coachy",
+    title: "Holy Gains",
     statusBarStyle: "default",
   },
   icons: {
@@ -44,8 +59,8 @@ export const viewport: Viewport = {
   maximumScale: 5,
   viewportFit: "cover",
   themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "#f8f4ff" },
-    { media: "(prefers-color-scheme: dark)", color: "#0e0a14" },
+    { media: "(prefers-color-scheme: light)", color: "#f5ede4" },
+    { media: "(prefers-color-scheme: dark)", color: "#1a0f12" },
   ],
 };
 
@@ -53,7 +68,11 @@ export default function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>): React.JSX.Element {
   return (
-    <html lang="es-MX" className={serifDisplay.variable} suppressHydrationWarning>
+    <html
+      lang="es-MX"
+      className={`${displayBrand.variable} ${serifDisplay.variable} ${sansBody.variable}`}
+      suppressHydrationWarning
+    >
       <body className="min-h-dvh antialiased">
         <ThemeProvider>
           {children}

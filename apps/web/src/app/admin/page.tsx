@@ -40,7 +40,7 @@ export default async function AdminHomePage(): Promise<React.JSX.Element> {
         <p className="text-sm text-muted-foreground">
           {athletes.length} {athletes.length === 1 ? "cuenta" : "cuentas"} ·{" "}
           {autopilot
-            ? "autopiloto encendido: Coachy publica y tú observas"
+            ? "autopiloto encendido: Holy Gains publica y tú observas"
             : `${pendingDecisions} ${pendingDecisions === 1 ? "decisión" : "decisiones"} por validar`}
         </p>
       </header>

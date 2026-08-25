@@ -42,7 +42,7 @@ export function resendConfigured(): boolean {
   return Boolean(process.env.RESEND_API_KEY?.trim());
 }
 
-const FROM = process.env.RESEND_FROM ?? "Coachy <coachy@resend.dev>";
+const FROM = process.env.RESEND_FROM ?? "Holy Gains <coachy@resend.dev>";
 
 /**
  * Envía el correo por la API REST de Resend. Se usa `fetch` a propósito: es una

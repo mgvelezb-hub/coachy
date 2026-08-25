@@ -130,7 +130,7 @@ function Timeline({ data }: { data: ObservatoryData }): React.JSX.Element {
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="text-base">Qué decidió Coachy</CardTitle>
+        <CardTitle className="text-base">Qué decidió Holy Gains</CardTitle>
         <CardDescription>
           Una fila por semana, de la más reciente hacia atrás. Solo lectura.
         </CardDescription>

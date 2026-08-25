@@ -9,7 +9,7 @@ export const metadata = { title: "Crear cuenta" };
 export default function SignupPage(): React.JSX.Element {
   return (
     <main className="mx-auto flex min-h-dvh w-full max-w-md flex-col justify-center gap-6 px-6 py-12">
-      <Link href="/" aria-label="Coachy">
+      <Link href="/" aria-label="Holy Gains">
         <Wordmark rule className="text-lg text-primary" />
       </Link>
 

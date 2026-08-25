@@ -20,7 +20,7 @@ export default async function AdminLayout({
       <header className="sticky top-0 z-20 flex items-center justify-between gap-2 border-b bg-background/90 px-5 py-3 backdrop-blur">
         <Link
           href="/admin"
-          aria-label="Coachy · Admin"
+          aria-label="Holy Gains · Admin"
           className="flex items-baseline gap-2 text-primary"
         >
           <Wordmark className="text-base" />

@@ -442,7 +442,7 @@ export function OnboardingForm({ email }: { email: string }): React.JSX.Element 
               className="mt-1 h-5 w-5 accent-[var(--primary)]"
             />
             <span>
-              Autorizo que Coachy analice mis fotos con inteligencia artificial para comparar los
+              Autorizo que Holy Gains analice mis fotos con inteligencia artificial para comparar los
               cambios semana a semana. Puedo quitar este permiso cuando quiera; sin él, las fotos
               nunca salen del almacenamiento privado.
             </span>

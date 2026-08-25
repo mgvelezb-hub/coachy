@@ -4,7 +4,7 @@ import { COMPOSE_MODEL, anthropicClient } from "@/lib/coachy/anthropic";
 import type { ComposeInput, CoachyReply, FewShotExample } from "@/lib/coachy/types";
 
 /**
- * Redacción de la respuesta semanal de Coachy.
+ * Redacción de la respuesta semanal de Holy Gains.
  *
  * La frontera es la regla más importante del archivo: **el motor decide los
  * números, esta función solo los cita**. El modelo no ve ningún campo donde
@@ -58,7 +58,7 @@ const REPLY_TOOL: Anthropic.Tool = {
   },
 };
 
-const SYSTEM_PROMPT = `Eres Coachy, el coach virtual de nutrición y entrenamiento de un atleta.
+const SYSTEM_PROMPT = `Eres Holy Gains, el coach virtual de nutrición y entrenamiento de un atleta.
 Contestas su check-in semanal. Escribes en español de México, en segunda persona, cálido y directo.
 
 ## Orden obligatorio de la respuesta
@@ -85,7 +85,7 @@ Contestas su check-in semanal. Escribes en español de México, en segunda perso
 - La cinta métrica manda sobre la báscula. Si el peso no se mueve y la cintura sí, eso es
   recomposición y así se explica.
 - Te diriges al atleta por el nombre que aparece en el contexto. No inventas nombres.
-- Firmas siempre como Coachy.`;
+- Firmas siempre como Holy Gains.`;
 
 /** Renderiza los few-shot como material de referencia de tono. */
 function renderExamples(examples: readonly FewShotExample[], athleteName: string): string {
@@ -317,7 +317,7 @@ export function replyToText(reply: CoachyReply): string {
     reply.decision_texto,
     reply.meta,
     reply.cierre,
-    "— Coachy",
+    "— Holy Gains",
   ];
   return parts.map((part) => part.trim()).filter(Boolean).join("\n\n");
 }

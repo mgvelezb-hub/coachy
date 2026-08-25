@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 200" width="600" height="200">
+  <defs>
+    
+  </defs>
+  
+  <line x1="180" y1="48" x2="240" y2="48" stroke="#6B1F2E" stroke-width="0.8"></line>
+  <line x1="360" y1="48" x2="420" y2="48" stroke="#6B1F2E" stroke-width="0.8"></line>
+  <circle cx="300" cy="48" r="2" fill="#6B1F2E"></circle>
+  <circle cx="280" cy="48" r="0.8" fill="#6B1F2E"></circle>
+  <circle cx="320" cy="48" r="0.8" fill="#6B1F2E"></circle>
+  
+  <text x="300" y="108" text-anchor="middle" font-family="&#39;Cinzel&#39;, &#39;Trajan Pro&#39;, serif" font-size="64" font-weight="500" letter-spacing="14" fill="#6B1F2E">HOLY</text>
+  
+  <text x="300" y="148" text-anchor="middle" font-family="&#39;Cormorant Garamond&#39;, &#39;Didot&#39;, serif" font-size="26" font-style="italic" font-weight="400" letter-spacing="10" fill="#4A1320">Gains</text>
+  
+  <line x1="200" y1="172" x2="280" y2="172" stroke="#6B1F2E" stroke-width="0.5" opacity="0.5"></line>
+  <line x1="320" y1="172" x2="400" y2="172" stroke="#6B1F2E" stroke-width="0.5" opacity="0.5"></line>
+  <text x="300" y="178" text-anchor="middle" font-family="&#39;Cinzel&#39;, serif" font-size="9" letter-spacing="5" fill="#6B1F2E" opacity="0.7">1 · COR · 16 · 14</text>
+</svg>

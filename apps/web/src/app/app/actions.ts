@@ -9,7 +9,7 @@ import { requireOnboardedUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 
 /**
- * Respuestas del atleta a las preguntas de Coachy.
+ * Respuestas del atleta a las preguntas de Holy Gains.
  *
  * Se guardan como `Conversation` con rol `ATHLETE` y el `decisionId` en el
  * contexto: así la semana que viene el coach (y el prompt) pueden leer qué
@@ -56,5 +56,5 @@ export async function answerQuestions(
 
   revalidatePath("/app", "layout");
 
-  return { status: "success", message: "Listo, ya lo tiene Coachy." };
+  return { status: "success", message: "Listo, ya lo tiene Holy Gains." };
 }

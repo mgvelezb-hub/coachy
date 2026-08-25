@@ -160,7 +160,7 @@ export async function publishNotification(
     userId,
     email,
     kind: "MENSAJE_COACHY",
-    title: "Coachy ya revisó tu semana",
+    title: "Holy Gains ya revisó tu semana",
     body: `${reply.celebracion}\n\n${reply.meta}`,
     href: "/app",
   });

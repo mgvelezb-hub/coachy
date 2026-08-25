@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg style="background:#4A1320" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400" width="400" height="400">
+  <defs>
+    <path id="topArc" d="M 60 200 A 140 140 0 0 1 340 200"></path>
+    <path id="botArc" d="M 76 220 A 124 124 0 0 0 324 220"></path>
+  </defs>
+  
+  <circle cx="200" cy="200" r="184" fill="none" stroke="#F5EDE4" stroke-width="2.4"></circle>
+  
+  <circle cx="200" cy="200" r="168" fill="none" stroke="#F5EDE4" stroke-width="1" opacity="0.6"></circle>
+  
+  <line x1="200" y1="8" x2="200" y2="24" stroke="#F5EDE4" stroke-width="1.6"></line>
+  <line x1="192" y1="16" x2="208" y2="16" stroke="#F5EDE4" stroke-width="1.6"></line>
+  
+  <circle cx="16" cy="200" r="2.4" fill="#F5EDE4"></circle>
+  <circle cx="384" cy="200" r="2.4" fill="#F5EDE4"></circle>
+  <circle cx="200" cy="384" r="2.4" fill="#F5EDE4"></circle>
+  
+  <g stroke="#F5EDE4" fill="none" stroke-width="1.4" stroke-linecap="round">
+    <path d="M 76 260 Q 100 290, 124 316"></path>
+    <ellipse cx="82" cy="268" rx="8" ry="3" transform="rotate(-30 82 268)"></ellipse>
+    <ellipse cx="92" cy="279" rx="8" ry="3" transform="rotate(-25 92 279)"></ellipse>
+    <ellipse cx="103" cy="291" rx="8" ry="3" transform="rotate(-20 103 291)"></ellipse>
+    <ellipse cx="113" cy="302" rx="8" ry="3" transform="rotate(-15 113 302)"></ellipse>
+    <ellipse cx="122" cy="312" rx="8" ry="3" transform="rotate(-10 122 312)"></ellipse>
+  </g>
+  
+  <g stroke="#F5EDE4" fill="none" stroke-width="1.4" stroke-linecap="round">
+    <path d="M 324 260 Q 300 290, 276 316"></path>
+    <ellipse cx="318" cy="268" rx="8" ry="3" transform="rotate(30 318 268)"></ellipse>
+    <ellipse cx="308" cy="279" rx="8" ry="3" transform="rotate(25 308 279)"></ellipse>
+    <ellipse cx="297" cy="291" rx="8" ry="3" transform="rotate(20 297 291)"></ellipse>
+    <ellipse cx="287" cy="302" rx="8" ry="3" transform="rotate(15 287 302)"></ellipse>
+    <ellipse cx="278" cy="312" rx="8" ry="3" transform="rotate(10 278 312)"></ellipse>
+  </g>
+  
+  <text x="200" y="216" text-anchor="middle" font-family="&#39;Cinzel&#39;, &#39;Trajan Pro&#39;, serif" font-size="116" font-weight="600" letter-spacing="4" fill="#F5EDE4">HG</text>
+  
+  <text font-family="&#39;Cinzel&#39;, serif" font-size="18" font-weight="500" letter-spacing="12" fill="#F5EDE4">
+    <textPath href="#topArc" startOffset="50%" text-anchor="middle">HOLY · GAINS</textPath>
+  </text>
+  
+  <text font-family="&#39;Cinzel&#39;, serif" font-size="14" letter-spacing="4" fill="#F5EDE4" opacity="0.85">
+    <textPath href="#botArc" startOffset="50%" text-anchor="middle">· 1 CORINTIOS · 16 · 14 ·</textPath>
+  </text>
+</svg>

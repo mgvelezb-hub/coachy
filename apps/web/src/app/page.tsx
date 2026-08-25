@@ -21,7 +21,7 @@ export default async function LandingPage(): Promise<React.JSX.Element> {
           Tu coach, cada domingo, con números que sí explican por qué.
         </h1>
         <p className="text-muted-foreground">
-          Registra medidas y fotos en menos de tres minutos. Coachy compara la semana contra la
+          Registra medidas y fotos en menos de tres minutos. Holy Gains compara la semana contra la
           anterior y contra el día 1, y decide si el plan sigue igual o cambia.
         </p>
       </div>

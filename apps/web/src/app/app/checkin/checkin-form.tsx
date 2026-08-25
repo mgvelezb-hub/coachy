@@ -194,7 +194,7 @@ export function CheckInForm({
         <CardHeader>
           <CardTitle>Listo por esta semana</CardTitle>
           <CardDescription>
-            Coachy ya tiene tus números. En cuanto revise la semana te avisa qué sigue.
+            Holy Gains ya tiene tus números. En cuanto revise la semana te avisa qué sigue.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-3">

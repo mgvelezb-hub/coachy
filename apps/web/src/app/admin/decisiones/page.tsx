@@ -188,7 +188,7 @@ export default async function AdminDecisionsPage(): Promise<React.JSX.Element> {
                   </p>
                 ) : (
                   <p className="text-sm text-destructive">
-                    Coachy no alcanzó a redactar esta semana. Puedes corregir y escribir el mensaje
+                    Holy Gains no alcanzó a redactar esta semana. Puedes corregir y escribir el mensaje
                     a mano, o reintentar desde <code>POST /api/coachy/run</code>.
                   </p>
                 )}

@@ -183,7 +183,7 @@ export default async function AppHomePage(): Promise<React.JSX.Element> {
       {reply && published ? (
         <Card>
           <CardHeader>
-            <CardTitle>Coachy · semana del {formatLongDate(published.checkIn.date)}</CardTitle>
+            <CardTitle>Holy Gains · semana del {formatLongDate(published.checkIn.date)}</CardTitle>
             <CardDescription>
               {phaseLabel(published.phase)} · {published.kcal} kcal · {published.proteinG} g de
               proteína · {published.carbsG} g de carbos · {published.fatG} g de grasa
@@ -204,7 +204,7 @@ export default async function AppHomePage(): Promise<React.JSX.Element> {
             {reply.preguntas.length > 0 && !alreadyAnswered ? (
               <div className="space-y-3 border-t pt-4">
                 <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                  Contéstale a Coachy
+                  Contéstale a Holy Gains
                 </p>
                 <CoachyQuestions decisionId={published.id} questions={reply.preguntas} />
               </div>
@@ -232,7 +232,7 @@ export default async function AppHomePage(): Promise<React.JSX.Element> {
             <p className="text-sm text-muted-foreground">
               {current.decision?.publishedAt
                 ? "Ya tienes la decisión de la semana arriba."
-                : "Coachy está revisando tu semana. En cuanto tu coach valide la decisión te avisa."}
+                : "Holy Gains está revisando tu semana. En cuanto tu coach valide la decisión te avisa."}
             </p>
             <Button asChild variant="outline" className="w-full">
               <Link href="/app/checkin">Corregir algo</Link>
@@ -280,7 +280,7 @@ export default async function AppHomePage(): Promise<React.JSX.Element> {
           ) : (
             <p className="text-sm text-muted-foreground">
               Tu primer check-in genera tu plan: con las medidas y las sensaciones de la semana,
-              Coachy arma el menú con sus equivalencias y la lista de súper.
+              Holy Gains arma el menú con sus equivalencias y la lista de súper.
             </p>
           )}
         </CardContent>

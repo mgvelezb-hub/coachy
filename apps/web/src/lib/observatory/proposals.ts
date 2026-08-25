@@ -155,7 +155,7 @@ export function hydrationMentions(
       id: "HIDRATACION_MENCIONADA",
       key: "agua",
       title: "Mencionó el agua en su comentario",
-      detail: `Lo escribió el ${latest.date}${hits.length > 1 ? ` (y en ${hits.length - 1} check-in más)` : ""}. Es un tema que ella abrió: vale la pena que Coachy lo retome en el mensaje de la semana.`,
+      detail: `Lo escribió el ${latest.date}${hits.length > 1 ? ` (y en ${hits.length - 1} check-in más)` : ""}. Es un tema que ella abrió: vale la pena que Holy Gains lo retome en el mensaje de la semana.`,
     },
   ];
 }

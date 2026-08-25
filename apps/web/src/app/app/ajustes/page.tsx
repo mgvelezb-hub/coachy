@@ -8,7 +8,7 @@ export default function AjustesPage(): React.JSX.Element {
     <div className="space-y-5">
       <header className="space-y-1">
         <h1 className="text-2xl font-bold">Ajustes</h1>
-        <p className="text-sm text-muted-foreground">Personaliza cómo se ve Coachy en tu teléfono.</p>
+        <p className="text-sm text-muted-foreground">Personaliza cómo se ve Holy Gains en tu teléfono.</p>
       </header>
 
       <Card>

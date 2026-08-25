@@ -25,7 +25,7 @@ export default async function AppLayout({
   return (
     <div className="mx-auto flex min-h-dvh w-full max-w-md flex-col">
       <header className="sticky top-0 z-20 flex items-center justify-between border-b bg-background/90 px-5 py-3 backdrop-blur">
-        <Link href="/app" aria-label="Coachy">
+        <Link href="/app" aria-label="Holy Gains">
           <Wordmark className="text-base text-primary" />
         </Link>
         <div className="flex items-center gap-1">

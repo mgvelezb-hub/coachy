@@ -8,7 +8,7 @@ import type { ProgressSummary } from "@/lib/coachy/progress-summary";
  * "Tu avance": lo primero que se ve en el historial.
  *
  * Arriba las cifras deterministas — salen del historial, no de la IA — y abajo
- * la interpretación de Coachy, que solo puede citar esas mismas cifras. La
+ * la interpretación de Holy Gains, que solo puede citar esas mismas cifras. La
  * sección existe siempre: sin datos dice qué falta para tenerlos, que es más
  * útil que una galería sin lectura.
  */
@@ -103,7 +103,7 @@ export function ProgressSummaryCard({
                 {line}
               </p>
             ))}
-            <p className="text-xs text-muted-foreground">— Coachy</p>
+            <p className="text-xs text-muted-foreground">— Holy Gains</p>
           </div>
         ) : null}
       </CardContent>
