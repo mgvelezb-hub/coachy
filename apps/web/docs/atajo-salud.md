@@ -107,6 +107,46 @@ El cuerpo que se manda se ve así:
 
 Todos los campos menos `date` son opcionales. Los decimales se redondean.
 
+### 2.3.1 Si los campos del JSON no dejan insertar variables
+
+A veces el editor de campos JSON de Atajos no muestra la barra de variables (bug conocido).
+La salida es mandar el cuerpo como texto:
+
+1. En **Obtener contenido de la URL**, cambia *Cuerpo de la solicitud* de `JSON` a **Archivo**.
+2. Antes de esa acción, agrega una acción **Texto** y escribe el JSON a mano, insertando las
+   variables dentro (en el cuadro de Texto la barra de variables sí aparece; si no, mantén
+   presionado → *Insertar variable*):
+
+   ```json
+   {
+     "date": "[Ayer]",
+     "steps": [Pasos],
+     "activeKcal": [Kcal],
+     "exerciseMin": [Ejercicio],
+     "sleepMin": [Sueño],
+     "restingHr": [FCReposo]
+   }
+   ```
+
+   `date` va entre comillas; los números no. Los `[…]` son los chips de variable, no texto.
+3. En *Cuerpo de la solicitud* → *Archivo*, selecciona el resultado de esa acción **Texto**.
+
+Consejo relacionado: guarda cada resultado con **Fijar variable** (nombre explícito) en vez de
+depender de los "resultados mágicos" — así siempre aparecen en el selector.
+
+### 2.2.1 El sueño se suma distinto
+
+"Análisis del sueño" guarda categorías (dormido/despierto/en cama), no números, así que
+**Calcular estadísticas → Suma** directo truena con *"couldn't convert from Text to Number"*.
+La duración sí es numérica:
+
+1. En **Calcular estadísticas → Suma**, toca la variable de las muestras y en el menú de
+   propiedades elige **Duración** (no el valor).
+2. La duración viene en **segundos**: agrega **Calcular** → resultado ÷ 60, y opcionalmente
+   **Redondear número**. Eso es `sleepMin`.
+3. En el **Buscar muestras de Salud** de sueño, filtra fuera *Despierto* y *En cama* para no
+   inflar el total.
+
 ### 2.4 La confirmación (opcional pero recomendable la primera vez)
 
 Agrega al final **Mostrar notificación** con el resultado de la URL. Si todo salió bien
