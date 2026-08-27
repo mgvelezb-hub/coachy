@@ -2,6 +2,8 @@ import NetInfo from "@react-native-community/netinfo";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 
+import { Chip } from "@/components/Chip";
+import { Collapsible } from "@/components/Collapsible";
 import { ExerciseCapture } from "@/components/ExerciseCapture";
 import { EmptyState, ErrorState, LoadingState } from "@/components/States";
 import {
@@ -51,6 +53,41 @@ function mondayISO(): string {
   now.setDate(now.getDate() - (day - 1));
   const month = String(now.getMonth() + 1).padStart(2, "0");
   return `${now.getFullYear()}-${month}-${String(now.getDate()).padStart(2, "0")}`;
+}
+
+/** Suma días a una fecha ISO (yyyy-mm-dd) sin salirse de horario local. */
+function addDaysISO(dateISO: string, days: number): string {
+  const [year, month, day] = dateISO.split("-").map(Number);
+  const date = new Date(year!, month! - 1, day!);
+  date.setDate(date.getDate() + days);
+  const nextMonth = String(date.getMonth() + 1).padStart(2, "0");
+  const nextDay = String(date.getDate()).padStart(2, "0");
+  return `${date.getFullYear()}-${nextMonth}-${nextDay}`;
+}
+
+const WEEKDAY_ABBR_BY_DOW = ["DOM", "LUN", "MAR", "MIÉ", "JUE", "VIE", "SÁB"];
+const WEEKDAY_LONG_BY_DOW = ["domingo", "lunes", "martes", "miércoles", "jueves", "viernes", "sábado"];
+const MONTH_ABBR = ["ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sep", "oct", "nov", "dic"];
+
+function dayOfWeek(dateISO: string): number {
+  const [year, month, day] = dateISO.split("-").map(Number);
+  return new Date(year!, month! - 1, day!).getDay();
+}
+
+/** "LUN", "MAR"… — para las filas de "Tu semana". */
+function weekdayAbbr(dateISO: string): string {
+  return WEEKDAY_ABBR_BY_DOW[dayOfWeek(dateISO)]!;
+}
+
+/** "lunes", "martes"… — para el aviso de "estás viendo otro día". */
+function weekdayLong(dateISO: string): string {
+  return WEEKDAY_LONG_BY_DOW[dayOfWeek(dateISO)]!;
+}
+
+/** "25 AGO" — fecha corta para acompañar el día abreviado. */
+function shortDateLabel(dateISO: string): string {
+  const [, month, day] = dateISO.split("-").map(Number);
+  return `${day} ${MONTH_ABBR[month! - 1]!.toUpperCase()}`;
 }
 
 function emptySessionInput(workoutId: string): SessionSyncInput {
@@ -124,11 +161,27 @@ export default function GymScreen() {
   const [draft, setDraft] = useState<SessionSyncInput | null>(null);
   const [openIndex, setOpenIndex] = useState<number | null>(null);
   const [summaryOpen, setSummaryOpen] = useState(false);
+  /** Día que se está mirando abajo de "Tu semana". Arranca en hoy; tocar otra
+   * fila de la semana la mueve, pero solo la sesión de HOY admite captura. */
+  const [selectedDate, setSelectedDate] = useState(today);
 
   const session = useMemo<SessionView | null>(
     () => week?.sessions.find((entry) => entry.date === today) ?? null,
     [week, today],
   );
+
+  const viewedSession = useMemo<SessionView | null>(
+    () => week?.sessions.find((entry) => entry.date === selectedDate) ?? null,
+    [week, selectedDate],
+  );
+  const isViewingToday = selectedDate === today;
+
+  // Cada vez que "hoy" se refresca de verdad (carga inicial, reintento tras
+  // reconexión) la vista vuelve a hoy — así no se queda "atorada" en el día
+  // que se estaba mirando en una sesión anterior de la pantalla.
+  useEffect(() => {
+    setSelectedDate(today);
+  }, [today]);
 
   const load = useCallback(async () => {
     setPhase("loading");
@@ -302,32 +355,56 @@ export default function GymScreen() {
     <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
       <ConnectionBadge online={online} pendingCount={pendingCount} onRetry={() => void syncAndNotify()} />
 
-      {!session ? (
-        <RestDay week={week} today={today} />
-      ) : openIndex === null || !draft ? (
+      {week && (
+        <WeekOverview
+          week={week}
+          today={today}
+          selectedDate={selectedDate}
+          onSelectDate={setSelectedDate}
+        />
+      )}
+
+      {!viewedSession ? (
+        <RestDay week={week} selectedDate={selectedDate} isToday={isViewingToday} />
+      ) : openIndex === null || !draft || !session ? (
         <>
           <View style={styles.header}>
-            <Text style={styles.title}>{session.muscleGroup}</Text>
+            <Text style={styles.title}>{viewedSession.muscleGroup}</Text>
             <Text style={styles.meta}>
-              {session.schemeLabel} · {session.exercises.length} ejercicios
-              {session.cardioMinutes ? ` · ${session.cardioMinutes} min de cardio al final` : ""}
+              {viewedSession.schemeLabel} · {viewedSession.exercises.length} ejercicios
+              {viewedSession.cardioMinutes ? ` · ${viewedSession.cardioMinutes} min de cardio al final` : ""}
             </Text>
-            {session.cycleNote && <Text style={styles.note}>{session.cycleNote}</Text>}
-            {session.readinessNote && <Text style={styles.note}>🌙 {session.readinessNote}</Text>}
+            {viewedSession.cycleNote && <Text style={styles.note}>{viewedSession.cycleNote}</Text>}
+            {viewedSession.readinessNote && <Text style={styles.note}>🌙 {viewedSession.readinessNote}</Text>}
           </View>
 
+          {!isViewingToday && (
+            <View style={styles.viewingNotice}>
+              <Text style={styles.viewingNoticeText}>
+                Estás viendo el {weekdayLong(selectedDate)}; la captura solo se habilita en la sesión de hoy.
+              </Text>
+            </View>
+          )}
+
           <View style={styles.list}>
-            {session.exercises.map((exercise, index) => {
-              const done = exercise.sets.filter((_, setIndex) =>
-                draft?.sets.some((set) => set.clientId === `${session.workoutId}:${index}:${setIndex}`),
-              ).length;
-              const complete = done === exercise.sets.length;
+            {viewedSession.exercises.map((exercise, index) => {
+              const done = isViewingToday
+                ? exercise.sets.filter((_, setIndex) =>
+                    draft?.sets.some(
+                      (set) => set.clientId === `${viewedSession.workoutId}:${index}:${setIndex}`,
+                    ),
+                  ).length
+                : 0;
+              const complete = isViewingToday && done === exercise.sets.length;
 
               return (
                 <Pressable
                   key={`${exercise.name}-${index}`}
-                  onPress={() => setOpenIndex(index)}
-                  style={styles.exerciseRow}
+                  onPress={() => {
+                    if (isViewingToday) setOpenIndex(index);
+                  }}
+                  disabled={!isViewingToday}
+                  style={[styles.exerciseRow, !isViewingToday && styles.exerciseRowDisabled]}
                 >
                   <View style={[styles.exerciseDot, complete && styles.exerciseDotDone]}>
                     <Text style={styles.exerciseDotText}>{complete ? "✓" : "○"}</Text>
@@ -335,24 +412,27 @@ export default function GymScreen() {
                   <View style={styles.exerciseInfo}>
                     <Text style={styles.exerciseName}>{exercise.name}</Text>
                     <Text style={styles.exerciseMeta}>
-                      {exercise.schemeLabel} · {done}/{exercise.sets.length} series
+                      {exercise.schemeLabel}
+                      {isViewingToday ? ` · ${done}/${exercise.sets.length} series` : ` · ${exercise.sets.length} series`}
                     </Text>
                   </View>
-                  <Text style={styles.chevron}>›</Text>
+                  {isViewingToday && <Text style={styles.chevron}>›</Text>}
                 </Pressable>
               );
             })}
           </View>
 
-          <Pressable
-            onPress={() => setSummaryOpen(true)}
-            disabled={totals.sets === 0}
-            style={[styles.finishButton, totals.sets === 0 && styles.finishButtonDisabled]}
-          >
-            <Text style={styles.finishButtonText}>
-              TERMINAR SESIÓN ({exercisesDone}/{session.exercises.length})
-            </Text>
-          </Pressable>
+          {isViewingToday && (
+            <Pressable
+              onPress={() => setSummaryOpen(true)}
+              disabled={totals.sets === 0}
+              style={[styles.finishButton, totals.sets === 0 && styles.finishButtonDisabled]}
+            >
+              <Text style={styles.finishButtonText}>
+                TERMINAR SESIÓN ({exercisesDone}/{viewedSession.exercises.length})
+              </Text>
+            </Pressable>
+          )}
         </>
       ) : (
         <ExerciseCapture
@@ -417,12 +497,93 @@ function ConnectionBadge({
   );
 }
 
-function RestDay({ week, today }: { week: WeekView | null; today: string }) {
-  const next = week?.sessions.find((entry) => entry.date > today) ?? null;
+/**
+ * "Tu semana": lunes→domingo de un vistazo, para que la atleta entienda la
+ * combinación de grupos musculares que salió de su onboarding antes de
+ * meterse al detalle del día. Va arriba de la sesión — es el mapa; lo de
+ * abajo es el terreno. Tocar una fila con sesión cambia `selectedDate`, y
+ * la lista de ejercicios de abajo se redibuja para ese día.
+ */
+function WeekOverview({
+  week,
+  today,
+  selectedDate,
+  onSelectDate,
+}: {
+  week: WeekView;
+  today: string;
+  selectedDate: string;
+  onSelectDate: (date: string) => void;
+}) {
+  const days = useMemo(
+    () => Array.from({ length: 7 }, (_, index) => addDaysISO(week.weekStart, index)),
+    [week.weekStart],
+  );
+
+  return (
+    <Collapsible title="Tu semana" subtitle="Cómo se reparten tus grupos musculares" defaultOpen>
+      <View style={styles.weekList}>
+        {days.map((date) => {
+          const daySession = week.sessions.find((entry) => entry.date === date) ?? null;
+          const isToday = date === today;
+          const isSelected = date === selectedDate;
+          const done = daySession?.completedAt != null;
+
+          return (
+            <Pressable
+              key={date}
+              onPress={() => onSelectDate(date)}
+              style={[
+                styles.weekRow,
+                isSelected && !isToday && styles.weekRowSelected,
+                isToday && styles.weekRowToday,
+              ]}
+            >
+              <View style={styles.weekDateCol}>
+                <Text style={styles.weekDayAbbr}>{weekdayAbbr(date)}</Text>
+                <Text style={styles.weekDateShort}>{shortDateLabel(date)}</Text>
+              </View>
+
+              <View style={styles.weekInfo}>
+                {daySession ? (
+                  <>
+                    <Text style={styles.weekMuscle}>{daySession.muscleGroup}</Text>
+                    <Text style={styles.weekMeta}>
+                      {daySession.exercises.length} ejercicios · {daySession.schemeLabel}
+                      {daySession.cardioMinutes ? ` · ${daySession.cardioMinutes} min cardio` : ""}
+                    </Text>
+                  </>
+                ) : (
+                  <Text style={styles.weekRest}>Descanso</Text>
+                )}
+              </View>
+
+              <View style={styles.weekStatus}>
+                {done && <Chip label="Hecho" tone="champan" selected />}
+                {isToday && <Chip label="Hoy" selected />}
+              </View>
+            </Pressable>
+          );
+        })}
+      </View>
+    </Collapsible>
+  );
+}
+
+function RestDay({
+  week,
+  selectedDate,
+  isToday,
+}: {
+  week: WeekView | null;
+  selectedDate: string;
+  isToday: boolean;
+}) {
+  const next = week?.sessions.find((entry) => entry.date > selectedDate) ?? null;
 
   return (
     <View style={styles.restDay}>
-      <Text style={styles.title}>Hoy toca descanso</Text>
+      <Text style={styles.title}>{isToday ? "Hoy toca descanso" : `Descanso el ${weekdayLong(selectedDate)}`}</Text>
       <Text style={styles.restMessage}>
         El descanso es parte del plan: el músculo se construye fuera del gimnasio.
       </Text>
@@ -522,6 +683,40 @@ const styles = StyleSheet.create({
   },
   badgeText: { flex: 1, fontFamily: fonts.sans, fontSize: 12, color: colors.paloRosaLight },
   badgeRetry: { fontFamily: fonts.display, fontSize: 10, letterSpacing: 1.5, color: colors.champan },
+  weekList: { gap: spacing.sm },
+  weekRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.md,
+    borderWidth: 1,
+    borderColor: colors.cardBorder,
+    borderRadius: radius.md,
+    padding: spacing.md,
+  },
+  weekRowSelected: { backgroundColor: "rgba(212,165,165,0.08)" },
+  weekRowToday: { borderColor: colors.guinda, backgroundColor: "rgba(107,31,46,0.14)" },
+  weekDateCol: { width: 46, alignItems: "flex-start" },
+  weekDayAbbr: { fontFamily: fonts.display, fontSize: 11, letterSpacing: 1.5, color: colors.paloRosa },
+  weekDateShort: {
+    fontFamily: fonts.display,
+    fontSize: 9,
+    letterSpacing: 1,
+    color: colors.paloRosaLight,
+    marginTop: 2,
+  },
+  weekInfo: { flex: 1, gap: 2 },
+  weekMuscle: { fontFamily: fonts.sansSemiBold, fontSize: 14, color: colors.marfil },
+  weekMeta: { fontFamily: fonts.sans, fontSize: 12, color: colors.paloRosaLight },
+  weekRest: { fontFamily: fonts.serifItalic, fontSize: 15, color: colors.paloRosaLight },
+  weekStatus: { flexDirection: "row", gap: spacing.xs },
+  viewingNotice: {
+    borderWidth: 1,
+    borderStyle: "dashed",
+    borderColor: colors.cardBorder,
+    borderRadius: radius.md,
+    padding: spacing.sm,
+  },
+  viewingNoticeText: { fontFamily: fonts.sans, fontSize: 12, color: colors.paloRosaLight },
   header: { gap: spacing.xs },
   title: { fontFamily: fonts.display, fontSize: 22, color: colors.marfil },
   meta: { fontFamily: fonts.sans, fontSize: 13, color: colors.paloRosaLight },
@@ -545,6 +740,7 @@ const styles = StyleSheet.create({
     borderRadius: radius.md,
     padding: spacing.md,
   },
+  exerciseRowDisabled: { opacity: 0.5 },
   exerciseDot: {
     width: 36,
     height: 36,
