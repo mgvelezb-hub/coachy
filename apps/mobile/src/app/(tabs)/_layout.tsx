@@ -91,7 +91,9 @@ export default function TabsLayout() {
       <Tabs.Screen
         name="biblioteca"
         options={{
-          tabBarLabel: tabLabel("Biblioteca"),
+          // "Videos" y no "Biblioteca": con 5 tabs el label largo se parte en
+          // dos líneas.
+          tabBarLabel: tabLabel("Videos"),
           tabBarIcon: ({ color }) => <TabIcon symbol="◎" color={color} />,
         }}
       />
