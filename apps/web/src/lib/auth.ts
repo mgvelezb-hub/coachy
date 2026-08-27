@@ -9,9 +9,30 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 export type SessionUser = User & { profile: Profile | null };
 
 /**
- * Usuario autenticado + su fila en `public.users`, creándola si el trigger de
- * Supabase no alcanzó a hacerlo. El rol se recalcula desde `ADMIN_EMAILS` en
- * cada acceso: quitar un email de la lista degrada al usuario a ATHLETE.
+ * Upsert de la fila en `public.users`, creándola si el trigger de Supabase no
+ * alcanzó a hacerlo. El rol se recalcula desde `ADMIN_EMAILS` en cada acceso:
+ * quitar un email de la lista degrada al usuario a ATHLETE.
+ *
+ * Compartida entre la sesión por cookies (`getSessionUser`) y la API pública
+ * por Bearer (`@/lib/api/auth`): ambas llegan aquí con el mismo `authUser` de
+ * Supabase, sea cual sea el transporte.
+ */
+export async function upsertSessionUser(authUser: {
+  id: string;
+  email: string;
+}): Promise<SessionUser> {
+  const role = isAdminEmail(authUser.email) ? "ADMIN" : "ATHLETE";
+
+  return prisma.user.upsert({
+    where: { id: authUser.id },
+    create: { id: authUser.id, email: authUser.email, role },
+    update: { email: authUser.email, role },
+    include: { profile: true },
+  });
+}
+
+/**
+ * Usuario autenticado + su fila en `public.users` (sesión por cookies).
  */
 export const getSessionUser = cache(async (): Promise<SessionUser | null> => {
   const supabase = await createSupabaseServerClient();
@@ -21,16 +42,7 @@ export const getSessionUser = cache(async (): Promise<SessionUser | null> => {
 
   if (!authUser?.email) return null;
 
-  const role = isAdminEmail(authUser.email) ? "ADMIN" : "ATHLETE";
-
-  const user = await prisma.user.upsert({
-    where: { id: authUser.id },
-    create: { id: authUser.id, email: authUser.email, role },
-    update: { email: authUser.email, role },
-    include: { profile: true },
-  });
-
-  return user;
+  return upsertSessionUser({ id: authUser.id, email: authUser.email });
 });
 
 /** Exige sesión. Sin ella, manda a /login. */
