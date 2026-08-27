@@ -43,6 +43,14 @@
         {
           "photosPermission": "Holy Gains necesita acceso a tus fotos para subir tus fotos de referencia del objetivo."
         }
+      ],
+      [
+        "@kingstinct/react-native-healthkit",
+        {
+          "NSHealthShareUsageDescription": "Holy Gains lee tus pasos, sueño y frecuencia cardiaca para ajustar tu gasto calórico y avisarte cuando dormiste poco.",
+          "NSHealthUpdateUsageDescription": false,
+          "background": false
+        }
       ]
     ],
     "experiments": {

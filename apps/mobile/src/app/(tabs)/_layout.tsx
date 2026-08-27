@@ -1,10 +1,11 @@
 import { Tabs } from "expo-router";
 import { CalendarCheck, Dumbbell, LibraryBig, LineChart, Sun } from "lucide-react-native";
 import { useEffect } from "react";
-import { Text, type ColorValue } from "react-native";
+import { AppState, Text, type ColorValue } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { useTheme } from "@/context/theme";
+import { autoSyncHealth } from "@/lib/health";
 import { fonts } from "@/lib/theme";
 import { startNetworkSync, syncAndNotify } from "@/lib/training-sync";
 
@@ -38,6 +39,18 @@ export default function TabsLayout() {
     const stopNetworkSync = startNetworkSync();
     void syncAndNotify();
     return stopNetworkSync;
+  }, []);
+
+  // Fase N5 — HealthKit directo: sync al montar con sesión y al volver a
+  // primer plano. `autoSyncHealth()` ya trae su propio guardián (solo iOS,
+  // solo si Salud está conectada, mínimo 6 h entre corridas), así que aquí
+  // no hay que filtrar nada — nunca lanza al UI.
+  useEffect(() => {
+    void autoSyncHealth();
+    const subscription = AppState.addEventListener("change", (state) => {
+      if (state === "active") void autoSyncHealth();
+    });
+    return () => subscription.remove();
   }, []);
 
   return (

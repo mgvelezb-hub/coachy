@@ -497,3 +497,34 @@ export function deleteGoalReference(view: GoalView): Promise<{ view: GoalView; e
     { method: "DELETE" },
   );
 }
+
+// ---------------------------------------------------------------------------
+// Salud del reloj (Fase N5) — contrato EXACTO de
+// apps/web/src/lib/health/schema.ts (`healthDaySchema` / `healthIngestSchema`).
+// Todo menos `date` es opcional y nullable: un campo ausente no borra el que
+// ya estaba guardado en el servidor.
+// ---------------------------------------------------------------------------
+
+export type HealthDayPayload = {
+  /** yyyy-MM-dd */
+  date: string;
+  steps?: number | null;
+  activeKcal?: number | null;
+  exerciseMin?: number | null;
+  sleepMin?: number | null;
+  restingHr?: number | null;
+};
+
+export type HealthDaysResponse = { dias: HealthDayPayload[] };
+
+export type PostHealthDaysResponse = { ok: true; guardados: number; fechas: string[] };
+
+/** `GET /api/v1/health` — los últimos 7 días guardados, del más reciente al más viejo. */
+export function getHealthDays(): Promise<HealthDaysResponse> {
+  return apiFetch<HealthDaysResponse>("/api/v1/health");
+}
+
+/** `POST /api/v1/health` — un día o un lote (hasta 60, tope de `healthIngestSchema`). */
+export function postHealthDays(days: HealthDayPayload[]): Promise<PostHealthDaysResponse> {
+  return apiFetch<PostHealthDaysResponse>("/api/v1/health", { method: "POST", body: { days } });
+}

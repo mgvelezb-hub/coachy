@@ -2,7 +2,7 @@ import Constants from "expo-constants";
 import { useRouter } from "expo-router";
 import { Check } from "lucide-react-native";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Alert, Platform, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import { Card } from "@/components/Card";
@@ -12,6 +12,13 @@ import { SectionLabel } from "@/components/SectionLabel";
 import { useTheme } from "@/context/theme";
 import type { ThemePreference } from "@/context/theme";
 import { ApiError, getMe, type MeResponse } from "@/lib/api";
+import {
+  connectHealth,
+  getHealthSummary,
+  isHealthConnected,
+  syncHealth,
+  type HealthSummary,
+} from "@/lib/health";
 import {
   fonts,
   paletteChampan,
@@ -69,6 +76,13 @@ export default function AjustesScreen() {
 
   const [signingOut, setSigningOut] = useState(false);
 
+  // Fase N5 — "Tu reloj" (solo iOS: Android no tiene HealthKit, ver Fase Health Connect pendiente).
+  const [healthConnected, setHealthConnected] = useState(false);
+  const [healthSummary, setHealthSummary] = useState<HealthSummary | null>(null);
+  const [connectingHealth, setConnectingHealth] = useState(false);
+  const [syncingHealth, setSyncingHealth] = useState(false);
+  const [healthMessage, setHealthMessage] = useState<string | null>(null);
+
   const loadMe = useCallback(async () => {
     setMeError(null);
     try {
@@ -96,6 +110,64 @@ export default function AjustesScreen() {
   useEffect(() => {
     refreshVideoCount();
   }, [refreshVideoCount]);
+
+  const loadHealth = useCallback(async () => {
+    if (Platform.OS !== "ios") return;
+    const connected = await isHealthConnected();
+    setHealthConnected(connected);
+    if (connected) {
+      try {
+        setHealthSummary(await getHealthSummary());
+      } catch {
+        // Sin red o el servidor no respondió: se queda con lo que ya tenía en pantalla.
+      }
+    }
+  }, []);
+
+  useEffect(() => {
+    void loadHealth();
+  }, [loadHealth]);
+
+  async function handleConnectHealth() {
+    if (connectingHealth) return;
+    setConnectingHealth(true);
+    setHealthMessage(null);
+    try {
+      const granted = await connectHealth();
+      if (!granted) {
+        setHealthMessage("No se pudo abrir el diálogo de Salud. Intenta de nuevo.");
+        return;
+      }
+      setHealthConnected(true);
+      // Primera conexión: backfill grande para que el PAL tenga sus 14+ días de una vez.
+      const result = await syncHealth(30);
+      setHealthSummary(await getHealthSummary());
+      setHealthMessage(
+        result && result.enviados > 0
+          ? `Listo: ${result.enviados} ${result.enviados === 1 ? "día enviado" : "días enviados"}.`
+          : "Conectado. Cuando el reloj traiga datos, se sincronizan solos.",
+      );
+    } finally {
+      setConnectingHealth(false);
+    }
+  }
+
+  async function handleSyncHealth() {
+    if (syncingHealth) return;
+    setSyncingHealth(true);
+    setHealthMessage(null);
+    try {
+      const result = await syncHealth(7);
+      setHealthSummary(await getHealthSummary());
+      setHealthMessage(
+        result && result.enviados > 0
+          ? `${result.enviados} ${result.enviados === 1 ? "día enviado" : "días enviados"}.`
+          : "Sin datos nuevos del reloj.",
+      );
+    } finally {
+      setSyncingHealth(false);
+    }
+  }
 
   async function handleSync() {
     if (syncing) return;
@@ -251,6 +323,45 @@ export default function AjustesScreen() {
           </View>
         </Card>
 
+        {Platform.OS === "ios" && (
+          <Card>
+            <SectionLabel>Tu reloj</SectionLabel>
+            {!healthConnected ? (
+              <View style={styles.healthBlock}>
+                <Text style={styles.profileNote}>
+                  Conecta Apple Salud para que tus pasos, sueño y frecuencia cardiaca ajusten tu gasto
+                  calórico solos — nada de armar atajos a mano.
+                </Text>
+                <PrimaryButton
+                  label="Conectar Apple Salud"
+                  onPress={handleConnectHealth}
+                  loading={connectingHealth}
+                />
+              </View>
+            ) : (
+              <View style={styles.healthBlock}>
+                <View style={styles.phoneRow}>
+                  <View style={styles.phoneInfo}>
+                    <Text style={styles.phoneLabel}>Último dato recibido</Text>
+                    <Text style={styles.phoneValue}>{healthSummary?.lastDate ?? "Todavía nada"}</Text>
+                  </View>
+                  <Pressable onPress={handleSyncHealth} disabled={syncingHealth} style={styles.actionButton}>
+                    <Text style={[styles.actionButtonText, syncingHealth && styles.actionButtonTextDisabled]}>
+                      {syncingHealth ? "Sincronizando…" : "Sincronizar ahora"}
+                    </Text>
+                  </Pressable>
+                </View>
+                <InfoRow
+                  label="Promedio de pasos"
+                  value={healthSummary?.avgSteps != null ? `${healthSummary.avgSteps.toLocaleString("es-MX")}` : "—"}
+                  styles={styles}
+                />
+              </View>
+            )}
+            {healthMessage && <Text style={styles.syncMessage}>{healthMessage}</Text>}
+          </Card>
+        )}
+
         <Card>
           <SectionLabel>Sesión</SectionLabel>
           <View style={styles.sessionBlock}>
@@ -381,6 +492,10 @@ const makeStyles = (colors: Palette) => StyleSheet.create({
   phoneList: {
     marginTop: spacing.md,
     gap: spacing.sm,
+  },
+  healthBlock: {
+    marginTop: spacing.md,
+    gap: spacing.md,
   },
   phoneRow: {
     flexDirection: "row",
