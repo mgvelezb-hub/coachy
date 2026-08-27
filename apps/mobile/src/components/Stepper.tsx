@@ -1,6 +1,8 @@
+import { useMemo } from "react";
 import { StyleSheet, Text, TextInput, View } from "react-native";
 
-import { colors, fonts, radius, spacing } from "@/lib/theme";
+import { useTheme } from "@/context/theme";
+import { fonts, radius, spacing, type Palette } from "@/lib/theme";
 
 type StepperProps = {
   label: string;
@@ -26,6 +28,8 @@ export function Stepper({
   error,
   keyboardType = "decimal-pad",
 }: StepperProps) {
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   return (
     <View style={styles.container}>
       <Text style={styles.label}>
@@ -48,7 +52,7 @@ export function Stepper({
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (colors: Palette) => StyleSheet.create({
   container: {
     gap: spacing.xs,
   },

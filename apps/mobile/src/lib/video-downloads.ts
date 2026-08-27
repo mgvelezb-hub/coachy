@@ -60,3 +60,14 @@ export function purgeVideoDownloads(): void {
   const dir = videosDirectory();
   if (dir.exists) dir.delete();
 }
+
+/** Cuántos videos hay descargados ahora mismo en el teléfono. Para Ajustes. */
+export function countDownloadedVideos(): number {
+  const dir = videosDirectory();
+  if (!dir.exists) return 0;
+  try {
+    return dir.list().length;
+  } catch {
+    return 0;
+  }
+}

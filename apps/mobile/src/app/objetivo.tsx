@@ -1,7 +1,7 @@
 import { useRouter } from "expo-router";
 import { Image } from "expo-image";
 import * as ImagePicker from "expo-image-picker";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
@@ -21,8 +21,9 @@ import {
   type GoalView,
 } from "@/lib/api";
 import { supabase } from "@/lib/supabase";
-import { colors, fonts, radius, spacing } from "@/lib/theme";
+import { fonts, radius, spacing, type Palette } from "@/lib/theme";
 import { useSession } from "@/context/session";
+import { useTheme } from "@/context/theme";
 
 /**
  * "Rumbo a tu objetivo" — pantalla empujada (fuera de tabs), espejo de
@@ -55,6 +56,8 @@ function formatAnalyzedAt(iso: string): string {
 export default function ObjetivoScreen() {
   const router = useRouter();
   const { session } = useSession();
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   const userId = session?.user.id ?? null;
 
   const [data, setData] = useState<GoalResponse | null>(null);
@@ -212,6 +215,8 @@ function Slot({
   onUpload: () => void;
   onDelete: () => void;
 }) {
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   return (
     <View style={styles.slot}>
       <Text style={styles.slotLabel}>{GOAL_VIEW_LABEL[view]}</Text>
@@ -244,6 +249,8 @@ function Slot({
 }
 
 function StatusCard({ status }: { status: GoalResponse["status"] }) {
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   if (status.state === "sin_referencia") {
     return (
       <Card>
@@ -288,7 +295,7 @@ function StatusCard({ status }: { status: GoalResponse["status"] }) {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (colors: Palette) => StyleSheet.create({
   screen: {
     flex: 1,
     backgroundColor: colors.obsidiana,

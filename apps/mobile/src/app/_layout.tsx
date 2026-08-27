@@ -10,7 +10,8 @@ import { StyleSheet, View } from "react-native";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 
 import { SessionProvider, useSession } from "@/context/session";
-import { colors } from "@/lib/theme";
+import { ThemeProvider, useTheme } from "@/context/theme";
+import { paletteLight } from "@/lib/theme";
 
 SplashScreen.preventAutoHideAsync().catch(() => {
   // Puede fallar si ya se ocultó (fast refresh); no es un error real.
@@ -18,6 +19,7 @@ SplashScreen.preventAutoHideAsync().catch(() => {
 
 function RootNavigator() {
   const { session, loading } = useSession();
+  const { colors } = useTheme();
 
   if (loading) return null;
 
@@ -26,7 +28,8 @@ function RootNavigator() {
       screenOptions={{
         headerShown: false,
         // Cada pantalla del Stack pinta su propio fondo por encima del View
-        // raíz — sin esto, el default del sistema (claro) tapa la obsidiana.
+        // raíz — sin esto, el default del sistema (claro) tapa el fondo del
+        // tema activo.
         contentStyle: { backgroundColor: colors.obsidiana },
       }}
     >
@@ -36,8 +39,25 @@ function RootNavigator() {
       <Stack.Protected guard={Boolean(session)}>
         <Stack.Screen name="(tabs)" />
         <Stack.Screen name="objetivo" />
+        <Stack.Screen name="ajustes" />
       </Stack.Protected>
     </Stack>
+  );
+}
+
+/** Fondo raíz + barra de estado, reactivos al tema activo. */
+function AppShell() {
+  const { colors } = useTheme();
+  // Claro → texto de la barra oscuro; Oscuro/Champán → texto claro. Se compara
+  // por referencia porque `resolvePalette` siempre regresa uno de los 3
+  // objetos exportados de theme.ts, nunca una copia.
+  const barStyle = colors === paletteLight ? "dark" : "light";
+
+  return (
+    <View style={[styles.background, { backgroundColor: colors.obsidiana }]}>
+      <StatusBar style={barStyle} />
+      <RootNavigator />
+    </View>
   );
 }
 
@@ -63,12 +83,11 @@ export default function RootLayout() {
 
   return (
     <SafeAreaProvider>
-      <SessionProvider>
-        <View style={styles.background}>
-          <StatusBar style="light" />
-          <RootNavigator />
-        </View>
-      </SessionProvider>
+      <ThemeProvider>
+        <SessionProvider>
+          <AppShell />
+        </SessionProvider>
+      </ThemeProvider>
     </SafeAreaProvider>
   );
 }
@@ -76,6 +95,5 @@ export default function RootLayout() {
 const styles = StyleSheet.create({
   background: {
     flex: 1,
-    backgroundColor: colors.obsidiana,
   },
 });

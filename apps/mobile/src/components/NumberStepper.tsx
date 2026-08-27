@@ -1,6 +1,8 @@
+import { useMemo } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 
-import { colors, fonts, radius, spacing } from "@/lib/theme";
+import { useTheme } from "@/context/theme";
+import { fonts, radius, spacing, type Palette } from "@/lib/theme";
 
 type NumberStepperProps = {
   label: string;
@@ -24,6 +26,8 @@ export function NumberStepper({
   min = 0,
   suffix,
 }: NumberStepperProps) {
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   const dec = () => onChange(Math.max(min, Number((value - step).toFixed(2))));
   const inc = () => onChange(Number((value + step).toFixed(2)));
 
@@ -48,7 +52,7 @@ export function NumberStepper({
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (colors: Palette) => StyleSheet.create({
   container: {
     flex: 1,
     gap: spacing.xs,

@@ -1,5 +1,5 @@
 import { useRouter } from "expo-router";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { ScrollView, StyleSheet, Switch, Text, TextInput, View } from "react-native";
 
 import { Card } from "@/components/Card";
@@ -9,6 +9,7 @@ import { PrimaryButton } from "@/components/PrimaryButton";
 import { SectionLabel } from "@/components/SectionLabel";
 import { Slider15 } from "@/components/Slider15";
 import { Stepper } from "@/components/Stepper";
+import { useTheme } from "@/context/theme";
 import {
   ApiError,
   postCheckin,
@@ -16,7 +17,7 @@ import {
   SYMPTOM_LABELS,
   type Symptom,
 } from "@/lib/api";
-import { colors, fonts, spacing } from "@/lib/theme";
+import { fonts, spacing, type Palette } from "@/lib/theme";
 
 /** yyyy-MM-dd de hoy, en hora local (no UTC: evita cruzar de día cerca de medianoche). */
 function todayISO(): string {
@@ -37,6 +38,8 @@ function parseDecimal(text: string): number | null {
 
 export default function CheckinScreen() {
   const router = useRouter();
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   const [submitted, setSubmitted] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [generalError, setGeneralError] = useState<string | null>(null);
@@ -288,6 +291,8 @@ function ScaleField({
   onChange: (value: number) => void;
   error?: string;
 }) {
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   return (
     <View style={styles.scaleField}>
       <Text style={styles.scaleLabel}>{label.toUpperCase()}</Text>
@@ -297,7 +302,7 @@ function ScaleField({
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (colors: Palette) => StyleSheet.create({
   screen: {
     flex: 1,
     backgroundColor: colors.obsidiana,

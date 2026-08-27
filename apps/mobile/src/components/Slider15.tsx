@@ -1,6 +1,8 @@
+import { useMemo } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 
-import { colors, fonts, radius, spacing } from "@/lib/theme";
+import { useTheme } from "@/context/theme";
+import { fonts, radius, spacing, type Palette } from "@/lib/theme";
 
 type Slider15Props = {
   value: number | null;
@@ -17,6 +19,9 @@ const OPTIONS = [1, 2, 3, 4, 5];
  * con los dedos en el gym, no para arrastrar con precisión.
  */
 export function Slider15({ value, onChange, lowLabel, highLabel }: Slider15Props) {
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
+
   return (
     <View>
       <View style={styles.row}>
@@ -45,7 +50,7 @@ export function Slider15({ value, onChange, lowLabel, highLabel }: Slider15Props
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (colors: Palette) => StyleSheet.create({
   row: {
     flexDirection: "row",
     gap: spacing.sm,
@@ -70,7 +75,8 @@ const styles = StyleSheet.create({
     color: colors.paloRosa,
   },
   buttonTextSelected: {
-    color: colors.marfil,
+    // pergamino: rol "texto sobre fondo de acento" (aquí guinda).
+    color: colors.pergamino,
   },
   labelsRow: {
     flexDirection: "row",

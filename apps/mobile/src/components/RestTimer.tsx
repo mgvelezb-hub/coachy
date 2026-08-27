@@ -1,7 +1,8 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 
-import { colors, fonts, radius, spacing } from "@/lib/theme";
+import { useTheme } from "@/context/theme";
+import { fonts, radius, spacing, withAlpha, type Palette } from "@/lib/theme";
 
 const PRESETS = [60, 90, 120];
 
@@ -24,6 +25,8 @@ export function RestTimer({
   seconds: number;
   onDismiss: () => void;
 }) {
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   const [now, setNow] = useState(() => Date.now());
   const [target, setTarget] = useState(seconds);
 
@@ -65,7 +68,7 @@ export function RestTimer({
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (colors: Palette) => StyleSheet.create({
   container: {
     borderRadius: radius.md,
     borderWidth: 1,
@@ -76,7 +79,7 @@ const styles = StyleSheet.create({
   },
   done: {
     borderColor: colors.champan,
-    backgroundColor: "rgba(201,169,97,0.12)",
+    backgroundColor: withAlpha(colors.champan, 0.12),
   },
   row: {
     flexDirection: "row",
@@ -116,6 +119,7 @@ const styles = StyleSheet.create({
     color: colors.paloRosa,
   },
   presetTextActive: {
-    color: colors.marfil,
+    // pergamino: rol "texto sobre fondo de acento" (aquí guindaLight).
+    color: colors.pergamino,
   },
 });

@@ -1,5 +1,6 @@
 import { useRouter } from "expo-router";
-import { useCallback, useEffect, useState } from "react";
+import { Settings } from "lucide-react-native";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from "react-native";
 
 import {
@@ -21,7 +22,8 @@ import { Chip } from "@/components/Chip";
 import { Collapsible } from "@/components/Collapsible";
 import { EmptyState, ErrorState, LoadingState } from "@/components/States";
 import { SectionLabel } from "@/components/SectionLabel";
-import { colors, fonts, radius, spacing } from "@/lib/theme";
+import { useTheme } from "@/context/theme";
+import { fonts, radius, spacing, type Palette } from "@/lib/theme";
 
 type HomeData = {
   me: MeResponse;
@@ -38,6 +40,8 @@ function isOnboardingIncomplete(error: unknown): boolean {
 
 export default function HoyScreen() {
   const router = useRouter();
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   const [data, setData] = useState<HomeData | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
@@ -103,10 +107,17 @@ export default function HoyScreen() {
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.paloRosa} />}
     >
       <View style={styles.header}>
-        <Text style={styles.greeting}>Hola, {firstName}</Text>
-        {me.profile?.currentPhase && (
-          <SectionLabel color={colors.champan}>{me.profile.currentPhase}</SectionLabel>
-        )}
+        <View style={styles.headerRow}>
+          <View style={styles.headerText}>
+            <Text style={styles.greeting}>Hola, {firstName}</Text>
+            {me.profile?.currentPhase && (
+              <SectionLabel color={colors.champan}>{me.profile.currentPhase}</SectionLabel>
+            )}
+          </View>
+          <Pressable onPress={() => router.push("/ajustes")} hitSlop={8} style={styles.settingsButton}>
+            <Settings size={22} color={colors.paloRosa} strokeWidth={1.75} />
+          </Pressable>
+        </View>
       </View>
 
       {visibleNotifications.map((notification) => (
@@ -133,6 +144,8 @@ function NotificationBanner({
   notification: Notification;
   onDismiss: () => void;
 }) {
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   return (
     <View style={styles.banner}>
       <View style={styles.bannerText}>
@@ -147,6 +160,8 @@ function NotificationBanner({
 }
 
 function DecisionCard({ decision }: { decision: Decision | null }) {
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   if (!decision) {
     return (
       <Card>
@@ -186,6 +201,8 @@ function DecisionCard({ decision }: { decision: Decision | null }) {
 }
 
 function NutritionCard({ nutrition }: { nutrition: NutritionResponse | null }) {
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   if (!nutrition || nutrition.menus.length === 0) {
     return (
       <Card>
@@ -235,6 +252,8 @@ function NutritionCard({ nutrition }: { nutrition: NutritionResponse | null }) {
 }
 
 function TodayTrainingCard({ today, onPress }: { today: TodayCard | null; onPress: () => void }) {
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   return (
     <Pressable onPress={onPress}>
       <Card>
@@ -259,7 +278,7 @@ function TodayTrainingCard({ today, onPress }: { today: TodayCard | null; onPres
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (colors: Palette) => StyleSheet.create({
   screen: {
     flex: 1,
     backgroundColor: colors.obsidiana,
@@ -269,8 +288,20 @@ const styles = StyleSheet.create({
     gap: spacing.lg,
   },
   header: {
-    gap: spacing.xs,
     marginBottom: spacing.sm,
+  },
+  headerRow: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    justifyContent: "space-between",
+    gap: spacing.sm,
+  },
+  headerText: {
+    flex: 1,
+    gap: spacing.xs,
+  },
+  settingsButton: {
+    padding: spacing.xs,
   },
   greeting: {
     fontFamily: fonts.display,

@@ -5,8 +5,9 @@ import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from
 
 import { Collapsible } from "@/components/Collapsible";
 import { EmptyState, ErrorState, LoadingState } from "@/components/States";
+import { useTheme } from "@/context/theme";
 import { ApiError, getTrainingWeek, type SessionExerciseView, type WeekView } from "@/lib/api";
-import { colors, fonts, radius, spacing } from "@/lib/theme";
+import { fonts, radius, spacing, type Palette } from "@/lib/theme";
 import { getCachedWeek, saveWeek } from "@/lib/training-db";
 import {
   downloadVideo,
@@ -105,6 +106,8 @@ function mondayISO(): string {
 }
 
 export default function BibliotecaScreen() {
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   const [week, setWeek] = useState<WeekView | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [online, setOnline] = useState(true);
@@ -246,6 +249,8 @@ function VideoRow({
   onDownload: () => void;
   onRemove: () => void;
 }) {
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   const playable = isDownloaded || (online && Boolean(video.videoUrl));
 
   return (
@@ -286,6 +291,8 @@ function VideoRow({
 }
 
 function VideoPlayer({ uri }: { uri: string }) {
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   const player = useVideoPlayer(uri, (instance) => {
     instance.play();
   });
@@ -300,7 +307,7 @@ function VideoPlayer({ uri }: { uri: string }) {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (colors: Palette) => StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.obsidiana },
   content: { padding: spacing.lg, gap: spacing.lg, paddingBottom: spacing.huge },
   title: { fontFamily: fonts.display, fontSize: 22, color: colors.marfil },

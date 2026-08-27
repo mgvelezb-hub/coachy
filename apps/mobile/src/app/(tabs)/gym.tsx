@@ -6,6 +6,7 @@ import { Chip } from "@/components/Chip";
 import { Collapsible } from "@/components/Collapsible";
 import { ExerciseCapture } from "@/components/ExerciseCapture";
 import { EmptyState, ErrorState, LoadingState } from "@/components/States";
+import { useTheme } from "@/context/theme";
 import {
   ApiError,
   getTrainingWeek,
@@ -15,7 +16,7 @@ import {
   type WeekView,
   type WorkoutSetInput,
 } from "@/lib/api";
-import { colors, fonts, radius, spacing } from "@/lib/theme";
+import { fonts, radius, spacing, withAlpha, type Palette } from "@/lib/theme";
 import {
   getCachedWeek,
   getPendingSession,
@@ -152,6 +153,8 @@ function weekWithSubstitute(
 }
 
 export default function GymScreen() {
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   const [week, setWeek] = useState<WeekView | null>(null);
   const [today, setToday] = useState(todayISO());
   const [phase, setPhase] = useState<"loading" | "onboarding" | "empty" | "ready">("loading");
@@ -407,7 +410,9 @@ export default function GymScreen() {
                   style={[styles.exerciseRow, !isViewingToday && styles.exerciseRowDisabled]}
                 >
                   <View style={[styles.exerciseDot, complete && styles.exerciseDotDone]}>
-                    <Text style={styles.exerciseDotText}>{complete ? "✓" : "○"}</Text>
+                    <Text style={[styles.exerciseDotText, complete && styles.exerciseDotTextDone]}>
+                      {complete ? "✓" : "○"}
+                    </Text>
                   </View>
                   <View style={styles.exerciseInfo}>
                     <Text style={styles.exerciseName}>{exercise.name}</Text>
@@ -479,6 +484,8 @@ function ConnectionBadge({
   pendingCount: number;
   onRetry: () => void;
 }) {
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   if (online && pendingCount === 0) return null;
 
   return (
@@ -515,6 +522,8 @@ function WeekOverview({
   selectedDate: string;
   onSelectDate: (date: string) => void;
 }) {
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   const days = useMemo(
     () => Array.from({ length: 7 }, (_, index) => addDaysISO(week.weekStart, index)),
     [week.weekStart],
@@ -579,6 +588,8 @@ function RestDay({
   selectedDate: string;
   isToday: boolean;
 }) {
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   const next = week?.sessions.find((entry) => entry.date > selectedDate) ?? null;
 
   return (
@@ -620,6 +631,8 @@ function SummaryModal({
   online: boolean;
   onConfirm: () => void;
 }) {
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   return (
     <Modal visible={open} animationType="fade" transparent onRequestClose={onClose}>
       <View style={styles.modalBackdrop}>
@@ -665,7 +678,7 @@ function SummaryModal({
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (colors: Palette) => StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.obsidiana },
   content: { padding: spacing.lg, gap: spacing.lg, paddingBottom: spacing.huge },
   center: { flex: 1, alignItems: "center", justifyContent: "center", padding: spacing.xxl },
@@ -693,8 +706,8 @@ const styles = StyleSheet.create({
     borderRadius: radius.md,
     padding: spacing.md,
   },
-  weekRowSelected: { backgroundColor: "rgba(212,165,165,0.08)" },
-  weekRowToday: { borderColor: colors.guinda, backgroundColor: "rgba(107,31,46,0.14)" },
+  weekRowSelected: { backgroundColor: withAlpha(colors.paloRosa, 0.08) },
+  weekRowToday: { borderColor: colors.guinda, backgroundColor: withAlpha(colors.guinda, 0.14) },
   weekDateCol: { width: 46, alignItems: "flex-start" },
   weekDayAbbr: { fontFamily: fonts.display, fontSize: 11, letterSpacing: 1.5, color: colors.paloRosa },
   weekDateShort: {
@@ -751,6 +764,9 @@ const styles = StyleSheet.create({
   },
   exerciseDotDone: { backgroundColor: colors.guinda },
   exerciseDotText: { fontFamily: fonts.display, fontSize: 14, color: colors.marfil },
+  // pergamino: rol "texto sobre fondo de acento" — solo cuando el punto ya
+  // pintó su fondo con guinda (ejercicio completo).
+  exerciseDotTextDone: { color: colors.pergamino },
   exerciseInfo: { flex: 1, gap: 2 },
   exerciseName: { fontFamily: fonts.sansSemiBold, fontSize: 14, color: colors.marfil },
   exerciseMeta: { fontFamily: fonts.sans, fontSize: 12, color: colors.paloRosaLight },
@@ -762,7 +778,8 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   finishButtonDisabled: { opacity: 0.5 },
-  finishButtonText: { fontFamily: fonts.display, fontSize: 12, letterSpacing: 3, color: colors.marfil },
+  // pergamino: rol "texto sobre fondo de acento" (aquí guinda, siempre).
+  finishButtonText: { fontFamily: fonts.display, fontSize: 12, letterSpacing: 3, color: colors.pergamino },
   restDay: { gap: spacing.lg, alignItems: "flex-start" },
   restMessage: { fontFamily: fonts.serifItalic, fontSize: 16, color: colors.paloRosaLight },
   nextCard: {
@@ -804,7 +821,7 @@ const styles = StyleSheet.create({
   prSummary: {
     borderWidth: 1,
     borderColor: colors.champan,
-    backgroundColor: "rgba(201,169,97,0.12)",
+    backgroundColor: withAlpha(colors.champan, 0.12),
     borderRadius: radius.md,
     padding: spacing.md,
     gap: 4,
@@ -817,7 +834,8 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.lg,
     alignItems: "center",
   },
-  confirmButtonText: { fontFamily: fonts.display, fontSize: 12, letterSpacing: 3, color: colors.marfil },
+  // pergamino: rol "texto sobre fondo de acento" (aquí guinda, siempre).
+  confirmButtonText: { fontFamily: fonts.display, fontSize: 12, letterSpacing: 3, color: colors.pergamino },
   modalClose: { alignItems: "center", paddingVertical: spacing.sm },
   modalCloseText: { fontFamily: fonts.display, fontSize: 11, letterSpacing: 2, color: colors.paloRosa },
 });

@@ -1,6 +1,8 @@
+import { useMemo } from "react";
 import { ActivityIndicator, Pressable, StyleSheet, Text } from "react-native";
 
-import { colors, fonts, radius, spacing } from "@/lib/theme";
+import { useTheme } from "@/context/theme";
+import { fonts, radius, spacing, type Palette } from "@/lib/theme";
 
 type PrimaryButtonProps = {
   label: string;
@@ -11,6 +13,8 @@ type PrimaryButtonProps = {
 
 /** CTA full-width: bg guinda, radius 16, texto Cinzel letter-spacing 4. */
 export function PrimaryButton({ label, onPress, loading = false, disabled = false }: PrimaryButtonProps) {
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   const isDisabled = disabled || loading;
 
   return (
@@ -24,7 +28,10 @@ export function PrimaryButton({ label, onPress, loading = false, disabled = fals
       ]}
     >
       {loading ? (
-        <ActivityIndicator color={colors.marfil} />
+        // pergamino: rol "texto sobre fondo de acento" — el botón siempre
+        // pinta su fondo con guinda, así que el spinner/texto usa el mismo
+        // rol que el label de abajo, nunca "marfil" (texto principal).
+        <ActivityIndicator color={colors.pergamino} />
       ) : (
         <Text style={styles.label}>{label.toUpperCase()}</Text>
       )}
@@ -32,7 +39,7 @@ export function PrimaryButton({ label, onPress, loading = false, disabled = fals
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (colors: Palette) => StyleSheet.create({
   button: {
     backgroundColor: colors.guinda,
     borderRadius: radius.lg,
@@ -49,7 +56,7 @@ const styles = StyleSheet.create({
   },
   label: {
     fontFamily: fonts.display,
-    color: colors.marfil,
+    color: colors.pergamino,
     fontSize: 13,
     letterSpacing: 4,
   },

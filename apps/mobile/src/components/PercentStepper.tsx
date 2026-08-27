@@ -1,6 +1,8 @@
+import { useMemo } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 
-import { colors, fonts, radius, spacing } from "@/lib/theme";
+import { useTheme } from "@/context/theme";
+import { fonts, radius, spacing, type Palette } from "@/lib/theme";
 
 type PercentStepperProps = {
   label: string;
@@ -11,6 +13,8 @@ type PercentStepperProps = {
 
 /** Selector 0-100% con botones +/- de paso grande, para cumplimiento dieta/entreno. */
 export function PercentStepper({ label, value, onChange, step = 10 }: PercentStepperProps) {
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   const dec = () => onChange(Math.max(0, value - step));
   const inc = () => onChange(Math.min(100, value + step));
 
@@ -32,7 +36,7 @@ export function PercentStepper({ label, value, onChange, step = 10 }: PercentSte
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (colors: Palette) => StyleSheet.create({
   container: {
     gap: spacing.xs,
   },

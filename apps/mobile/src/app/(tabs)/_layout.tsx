@@ -4,7 +4,8 @@ import { useEffect } from "react";
 import { Text, type ColorValue } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import { colors, fonts } from "@/lib/theme";
+import { useTheme } from "@/context/theme";
+import { fonts } from "@/lib/theme";
 import { startNetworkSync, syncAndNotify } from "@/lib/training-sync";
 
 function tabLabel(title: string) {
@@ -27,6 +28,7 @@ function tabLabel(title: string) {
 /** 5 tabs: Hoy, Gym, Check-in, Historial, Biblioteca. Tab bar obsidiana, borde sutil. */
 export default function TabsLayout() {
   const insets = useSafeAreaInsets();
+  const { colors } = useTheme();
   // Trigger 1 de la cola del modo gimnasio (apps/mobile/src/lib/training-sync.ts):
   // al montar la app ya con sesión, se intenta vaciar lo que haya quedado
   // pendiente de la última vez, y arranca el listener que reintenta solo al

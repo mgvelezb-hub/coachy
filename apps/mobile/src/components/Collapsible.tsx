@@ -1,7 +1,8 @@
-import { useState, type ReactNode } from "react";
+import { useMemo, useState, type ReactNode } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 
-import { colors, fonts, spacing } from "@/lib/theme";
+import { useTheme } from "@/context/theme";
+import { fonts, spacing, type Palette } from "@/lib/theme";
 
 type CollapsibleProps = {
   title: string;
@@ -14,6 +15,8 @@ type CollapsibleProps = {
 /** Acordeón simple: título tocable que muestra/oculta su contenido. */
 export function Collapsible({ title, children, defaultOpen = false, subtitle }: CollapsibleProps) {
   const [open, setOpen] = useState(defaultOpen);
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
 
   return (
     <View style={styles.container}>
@@ -29,7 +32,7 @@ export function Collapsible({ title, children, defaultOpen = false, subtitle }: 
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (colors: Palette) => StyleSheet.create({
   container: {
     borderBottomWidth: 1,
     borderBottomColor: colors.cardBorder,

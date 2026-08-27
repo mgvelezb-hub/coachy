@@ -1,11 +1,12 @@
 import { useRouter } from "expo-router";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from "react-native";
 
 import { Card } from "@/components/Card";
 import { EmptyState, ErrorState, LoadingState } from "@/components/States";
 import { SectionLabel } from "@/components/SectionLabel";
 import { WaistChart } from "@/components/WaistChart";
+import { useTheme } from "@/context/theme";
 import {
   ApiError,
   getHistoryMeasurements,
@@ -13,7 +14,7 @@ import {
   type CheckInPoint,
   type PersonalRecord,
 } from "@/lib/api";
-import { colors, fonts, radius, spacing } from "@/lib/theme";
+import { fonts, radius, spacing, withAlpha, type Palette } from "@/lib/theme";
 
 type HistorialData = {
   points: CheckInPoint[];
@@ -24,6 +25,8 @@ const CHART_POINTS = 12;
 
 export default function HistorialScreen() {
   const router = useRouter();
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   const [data, setData] = useState<HistorialData | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
@@ -121,6 +124,8 @@ export default function HistorialScreen() {
 }
 
 function CheckInRow({ point, delta }: { point: CheckInPoint; delta: number | null }) {
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   const deltaLabel = delta === null ? null : delta === 0 ? "=" : delta > 0 ? `+${delta}` : `${delta}`;
   const deltaTone = delta === null || delta === 0 ? "neutral" : delta < 0 ? "good" : "bad";
 
@@ -148,7 +153,7 @@ function CheckInRow({ point, delta }: { point: CheckInPoint; delta: number | nul
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (colors: Palette) => StyleSheet.create({
   screen: {
     flex: 1,
     backgroundColor: colors.obsidiana,
@@ -205,10 +210,10 @@ const styles = StyleSheet.create({
     backgroundColor: colors.cardBg,
   },
   deltaGood: {
-    backgroundColor: "rgba(201,169,97,0.2)",
+    backgroundColor: withAlpha(colors.champan, 0.2),
   },
   deltaBad: {
-    backgroundColor: "rgba(194,74,46,0.2)",
+    backgroundColor: withAlpha(colors.error, 0.2),
   },
   deltaText: {
     fontFamily: fonts.sans,

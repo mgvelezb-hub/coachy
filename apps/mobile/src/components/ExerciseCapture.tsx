@@ -5,8 +5,9 @@ import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from "react-nati
 import { Card } from "@/components/Card";
 import { NumberStepper } from "@/components/NumberStepper";
 import { RestTimer } from "@/components/RestTimer";
+import { useTheme } from "@/context/theme";
 import type { ExerciseAlternative, SessionExerciseView, WorkoutSetInput } from "@/lib/api";
-import { colors, fonts, radius, spacing } from "@/lib/theme";
+import { fonts, radius, spacing, withAlpha, type Palette } from "@/lib/theme";
 import { clientIdFor } from "@/lib/training-client-id";
 import { isVideoDownloaded, localVideoFile } from "@/lib/video-downloads";
 
@@ -61,6 +62,8 @@ export function ExerciseCapture({
   onNext: () => void;
   isLast: boolean;
 }) {
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   const [swapOpen, setSwapOpen] = useState(false);
   const [videoOpen, setVideoOpen] = useState(false);
   // El archivo descargado manda sobre la URL firmada: sirve sin señal y no
@@ -242,7 +245,7 @@ export function ExerciseCapture({
                   onPress={() => mark(setIndex)}
                   style={[styles.checkButton, saved && styles.checkButtonDone]}
                 >
-                  <Text style={styles.checkButtonText}>✓</Text>
+                  <Text style={[styles.checkButtonText, saved && styles.checkButtonTextDone]}>✓</Text>
                 </Pressable>
               </View>
             </Card>
@@ -280,6 +283,8 @@ function SwapModal({
   captured: number;
   onPick: (alternative: ExerciseAlternative) => void;
 }) {
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   return (
     <Modal visible={open} animationType="slide" transparent onRequestClose={onClose}>
       <View style={styles.modalBackdrop}>
@@ -325,6 +330,8 @@ function SwapModal({
 
 /** Reproductor dentro de la app: el video nunca sale a Safari. */
 function ExerciseVideo({ uri }: { uri: string }) {
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   const player = useVideoPlayer(uri, (instance) => {
     instance.play();
   });
@@ -332,7 +339,7 @@ function ExerciseVideo({ uri }: { uri: string }) {
   return <VideoView style={styles.videoView} player={player} nativeControls contentFit="contain" />;
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (colors: Palette) => StyleSheet.create({
   container: { gap: spacing.md },
   backRow: { flexDirection: "row", alignItems: "center" },
   backText: { fontFamily: fonts.sans, fontSize: 13, color: colors.paloRosaLight },
@@ -384,13 +391,13 @@ const styles = StyleSheet.create({
   prBanner: {
     borderWidth: 1,
     borderColor: colors.champan,
-    backgroundColor: "rgba(201,169,97,0.12)",
+    backgroundColor: withAlpha(colors.champan, 0.12),
     borderRadius: radius.md,
     padding: spacing.md,
   },
   prBannerText: { fontFamily: fonts.sansSemiBold, fontSize: 13, color: colors.champan },
   sets: { gap: spacing.sm },
-  setCardDone: { borderColor: colors.guindaLight, backgroundColor: "rgba(139,45,63,0.12)" },
+  setCardDone: { borderColor: colors.guindaLight, backgroundColor: withAlpha(colors.guindaLight, 0.12) },
   setHeaderRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
   setLabel: { fontFamily: fonts.sansSemiBold, fontSize: 13, color: colors.marfil, flexShrink: 1 },
   setTarget: { fontFamily: fonts.display, fontSize: 9, letterSpacing: 1.5, color: colors.paloRosa },
@@ -406,6 +413,9 @@ const styles = StyleSheet.create({
   },
   checkButtonDone: { backgroundColor: colors.guinda, borderColor: colors.guinda },
   checkButtonText: { fontFamily: fonts.display, fontSize: 20, color: colors.marfil },
+  // pergamino: rol "texto sobre fondo de acento" — solo aplica cuando el
+  // check ya se marcó y el botón pinta su fondo con guinda.
+  checkButtonTextDone: { color: colors.pergamino },
   nextButton: {
     backgroundColor: colors.guinda,
     borderRadius: radius.lg,
@@ -413,7 +423,8 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   nextButtonDisabled: { opacity: 0.5 },
-  nextButtonText: { fontFamily: fonts.display, fontSize: 12, letterSpacing: 3, color: colors.marfil },
+  // pergamino: rol "texto sobre fondo de acento" (aquí guinda, siempre).
+  nextButtonText: { fontFamily: fonts.display, fontSize: 12, letterSpacing: 3, color: colors.pergamino },
   modalBackdrop: { flex: 1, backgroundColor: "rgba(0,0,0,0.6)", justifyContent: "flex-end" },
   modalSheet: {
     backgroundColor: colors.obsidiana,

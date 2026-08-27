@@ -1,9 +1,13 @@
+import { useMemo } from "react";
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from "react-native";
 
-import { colors, fonts, radius, spacing } from "@/lib/theme";
+import { useTheme } from "@/context/theme";
+import { fonts, radius, spacing, type Palette } from "@/lib/theme";
 
-/** Loading de pantalla completa: ActivityIndicator paloRosa sobre obsidiana. */
+/** Loading de pantalla completa: ActivityIndicator paloRosa sobre el fondo del tema. */
 export function LoadingState({ label }: { label?: string }) {
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   return (
     <View style={styles.center}>
       <ActivityIndicator color={colors.paloRosa} size="large" />
@@ -14,6 +18,8 @@ export function LoadingState({ label }: { label?: string }) {
 
 /** Error de red con botón de reintentar. */
 export function ErrorState({ message, onRetry }: { message: string; onRetry: () => void }) {
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   return (
     <View style={styles.center}>
       <Text style={styles.errorTitle}>Algo no cargó</Text>
@@ -27,6 +33,8 @@ export function ErrorState({ message, onRetry }: { message: string; onRetry: () 
 
 /** Estado vacío con mensaje cálido en Cormorant itálica. */
 export function EmptyState({ message }: { message: string }) {
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   return (
     <View style={styles.emptyContainer}>
       <Text style={styles.emptyMessage}>{message}</Text>
@@ -34,7 +42,7 @@ export function EmptyState({ message }: { message: string }) {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (colors: Palette) => StyleSheet.create({
   center: {
     flex: 1,
     alignItems: "center",
@@ -68,7 +76,8 @@ const styles = StyleSheet.create({
   },
   retryLabel: {
     fontFamily: fonts.display,
-    color: colors.marfil,
+    // pergamino: rol "texto sobre fondo de acento" (aquí guinda).
+    color: colors.pergamino,
     fontSize: 11,
     letterSpacing: 2,
   },

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import {
   KeyboardAvoidingView,
   Platform,
@@ -12,14 +12,17 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { Card } from "@/components/Card";
 import { PrimaryButton } from "@/components/PrimaryButton";
 import { Wordmark } from "@/components/Wordmark";
+import { useTheme } from "@/context/theme";
 import { supabase } from "@/lib/supabase";
-import { colors, fonts, spacing } from "@/lib/theme";
+import { fonts, spacing, type Palette } from "@/lib/theme";
 
 /**
  * Login con email/contraseña. Sin registro: las cuentas las crea el sistema
  * (coach/admin), la atleta solo entra con lo que ya le dieron de alta.
  */
 export default function LoginScreen() {
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
@@ -128,7 +131,7 @@ function mapAuthError(message: string): string {
   return "No se pudo iniciar sesión. Intenta de nuevo";
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (colors: Palette) => StyleSheet.create({
   // El fondo va aquí y no solo en el layout: el native stack de iOS pinta su
   // propio fondo claro por encima del contenedor raíz.
   flex: { flex: 1, backgroundColor: colors.obsidiana },

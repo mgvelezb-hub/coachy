@@ -1,13 +1,17 @@
+import { useMemo } from "react";
 import { StyleSheet, Text, View } from "react-native";
 
-import { colors, fonts } from "@/lib/theme";
+import { useTheme } from "@/context/theme";
+import { fonts, type Palette } from "@/lib/theme";
 
 type WordmarkProps = {
   size?: "lg" | "md";
 };
 
-/** Wordmark de texto: "HOLY" Cinzel + "Gains" Cormorant itálica, versión dark. */
+/** Wordmark de texto: "HOLY" Cinzel + "Gains" Cormorant itálica, color de texto del tema activo. */
 export function Wordmark({ size = "md" }: WordmarkProps) {
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   const holySize = size === "lg" ? 34 : 22;
   const gainsSize = size === "lg" ? 26 : 18;
 
@@ -19,7 +23,7 @@ export function Wordmark({ size = "md" }: WordmarkProps) {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (colors: Palette) => StyleSheet.create({
   container: { alignItems: "center" },
   holy: {
     fontFamily: fonts.display,

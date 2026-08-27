@@ -1,8 +1,10 @@
 import type { ReactNode } from "react";
+import { useMemo } from "react";
 import { StyleSheet, View, type StyleProp, type ViewStyle } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 
-import { colors, radius, spacing } from "@/lib/theme";
+import { useTheme } from "@/context/theme";
+import { radius, spacing, type Palette } from "@/lib/theme";
 
 type CardProps = {
   children: ReactNode;
@@ -12,6 +14,9 @@ type CardProps = {
 };
 
 export function Card({ children, style, highlighted = false }: CardProps) {
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
+
   if (highlighted) {
     return (
       <LinearGradient
@@ -28,7 +33,7 @@ export function Card({ children, style, highlighted = false }: CardProps) {
   return <View style={[styles.card, styles.plain, style]}>{children}</View>;
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (colors: Palette) => StyleSheet.create({
   card: {
     borderRadius: radius.lg,
     padding: spacing.lg,

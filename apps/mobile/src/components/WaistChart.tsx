@@ -1,7 +1,9 @@
+import { useMemo } from "react";
 import { StyleSheet, Text, View } from "react-native";
 import Svg, { Circle, Line as SvgLine, Polyline } from "react-native-svg";
 
-import { colors, fonts, spacing } from "@/lib/theme";
+import { useTheme } from "@/context/theme";
+import { fonts, spacing, type Palette } from "@/lib/theme";
 import type { CheckInPoint } from "@/lib/api";
 
 type WaistChartProps = {
@@ -17,6 +19,9 @@ const PADDING = 12;
  * solo `react-native-svg`, ya que son un puñado de puntos.
  */
 export function WaistChart({ points }: WaistChartProps) {
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
+
   if (points.length < 2) {
     return (
       <View style={styles.empty}>
@@ -37,6 +42,7 @@ export function WaistChart({ points }: WaistChartProps) {
 }
 
 function ChartSvg({ points }: WaistChartProps) {
+  const { colors } = useTheme();
   const width = Math.max(points.length * 48, 240);
 
   const waistValues = points.map((p) => p.waistCm).filter((v): v is number => v !== null);
@@ -96,6 +102,8 @@ function ChartSvg({ points }: WaistChartProps) {
 }
 
 function LegendItem({ color, label, dashed }: { color: string; label: string; dashed?: boolean }) {
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   return (
     <View style={styles.legendItem}>
       <View style={[styles.legendSwatch, { backgroundColor: dashed ? "transparent" : color, borderColor: color }]} />
@@ -104,7 +112,7 @@ function LegendItem({ color, label, dashed }: { color: string; label: string; da
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (colors: Palette) => StyleSheet.create({
   container: {
     gap: spacing.sm,
   },
