@@ -109,7 +109,9 @@ function mapAuthError(message: string): string {
 }
 
 const styles = StyleSheet.create({
-  flex: { flex: 1 },
+  // El fondo va aquí y no solo en el layout: el native stack de iOS pinta su
+  // propio fondo claro por encima del contenedor raíz.
+  flex: { flex: 1, backgroundColor: colors.obsidiana },
   container: {
     flex: 1,
     justifyContent: "center",

@@ -22,7 +22,14 @@ function RootNavigator() {
   if (loading) return null;
 
   return (
-    <Stack screenOptions={{ headerShown: false }}>
+    <Stack
+      screenOptions={{
+        headerShown: false,
+        // Cada pantalla del Stack pinta su propio fondo por encima del View
+        // raíz — sin esto, el default del sistema (claro) tapa la obsidiana.
+        contentStyle: { backgroundColor: colors.obsidiana },
+      }}
+    >
       <Stack.Protected guard={!session}>
         <Stack.Screen name="login" />
       </Stack.Protected>

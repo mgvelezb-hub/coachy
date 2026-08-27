@@ -32,6 +32,9 @@ export default function TabsLayout() {
     <Tabs
       screenOptions={{
         headerShown: false,
+        // Igual que el Stack raíz: sin esto cada tab pinta el fondo claro
+        // del sistema encima de la obsidiana.
+        sceneStyle: { backgroundColor: colors.obsidiana },
         tabBarActiveTintColor: colors.guindaLight,
         tabBarInactiveTintColor: colors.paloRosa,
         tabBarStyle: {
