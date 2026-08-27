@@ -10,10 +10,12 @@ type CollapsibleProps = {
   /** Empieza abierto. Útil para el primer elemento de un acordeón. */
   defaultOpen?: boolean;
   subtitle?: string;
+  /** Va montado sobre una tarjeta de acento: el texto invierte a `pergamino`. */
+  onAccent?: boolean;
 };
 
 /** Acordeón simple: título tocable que muestra/oculta su contenido. */
-export function Collapsible({ title, children, defaultOpen = false, subtitle }: CollapsibleProps) {
+export function Collapsible({ title, children, defaultOpen = false, subtitle, onAccent = false }: CollapsibleProps) {
   const [open, setOpen] = useState(defaultOpen);
   const { colors } = useTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
@@ -22,10 +24,12 @@ export function Collapsible({ title, children, defaultOpen = false, subtitle }: 
     <View style={styles.container}>
       <Pressable onPress={() => setOpen((value) => !value)} style={styles.header}>
         <View style={styles.headerText}>
-          <Text style={styles.title}>{title}</Text>
-          {subtitle && <Text style={styles.subtitle}>{subtitle}</Text>}
+          <Text style={[styles.title, onAccent && { color: colors.pergamino }]}>{title}</Text>
+          {subtitle && (
+            <Text style={[styles.subtitle, onAccent && { color: colors.pergaminoSoft }]}>{subtitle}</Text>
+          )}
         </View>
-        <Text style={styles.chevron}>{open ? "−" : "+"}</Text>
+        <Text style={[styles.chevron, onAccent && { color: colors.pergaminoSoft }]}>{open ? "−" : "+"}</Text>
       </Pressable>
       {open && <View style={styles.body}>{children}</View>}
     </View>

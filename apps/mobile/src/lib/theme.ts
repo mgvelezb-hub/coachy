@@ -40,6 +40,12 @@ export type Palette = {
   marfil: string;
   /** Rol: texto/ícono sobre un fondo de acento (guinda/champán). Ver nota arriba. */
   pergamino: string;
+  /**
+   * Rol: texto SECUNDARIO sobre un fondo de acento (la meta en itálica de la
+   * tarjeta de decisión). No puede ser `champan`: en el tema Champán el acento
+   * ya ES champán y el texto desaparecería sobre sí mismo.
+   */
+  pergaminoSoft: string;
   /** Rol: fondo de pantalla. */
   obsidiana: string;
   champan: string;
@@ -58,6 +64,7 @@ export const paletteDark: Palette = {
   paloRosaLight: "#E8CFCF",
   marfil: "#F5EDE4",
   pergamino: "#EDE2D3",
+  pergaminoSoft: "#C9A961",
   obsidiana: "#1A0F12",
   champan: "#C9A961",
   champanSoft: "#D4B777",
@@ -75,6 +82,7 @@ export const paletteLight: Palette = {
   paloRosaLight: "#9D7D7E",
   marfil: "#3C161C",
   pergamino: "#F3EDE6",
+  pergaminoSoft: "#D9B978",
   obsidiana: "#F3EDE6",
   champan: "#AE8D44",
   champanSoft: "#C5A767",
@@ -92,6 +100,7 @@ export const paletteChampan: Palette = {
   paloRosaLight: "#8B9095",
   marfil: "#ECEFF2",
   pergamino: "#110D04",
+  pergaminoSoft: "#4A3A0C",
   obsidiana: "#020203",
   champan: "#DDB049",
   champanSoft: "#E9CA89",

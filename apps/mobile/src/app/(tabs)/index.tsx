@@ -175,7 +175,7 @@ function DecisionCard({ decision }: { decision: Decision | null }) {
 
   return (
     <Card highlighted>
-      <SectionLabel color={colors.paloRosa}>{decision.phase}</SectionLabel>
+      <SectionLabel color={colors.pergaminoSoft}>{decision.phase}</SectionLabel>
 
       <View style={styles.macroRow}>
         <Chip label={`${decision.kcal} kcal`} selected />
@@ -190,7 +190,7 @@ function DecisionCard({ decision }: { decision: Decision | null }) {
 
       {decision.texto &&
         (longText ? (
-          <Collapsible title="Mensaje de Coachy">
+          <Collapsible title="Mensaje de Coachy" onAccent>
             <Text style={styles.decisionText}>{decision.texto}</Text>
           </Collapsible>
         ) : (
@@ -347,14 +347,15 @@ const makeStyles = (colors: Palette) => StyleSheet.create({
   decisionMeta: {
     fontFamily: fonts.serifItalic,
     fontSize: 17,
-    color: colors.champan,
+    // Sobre el acento, no sobre el fondo: en Champán el acento ya es champán.
+    color: colors.pergaminoSoft,
     marginTop: spacing.lg,
   },
   decisionText: {
     fontFamily: fonts.sans,
     fontSize: 14,
     lineHeight: 20,
-    color: colors.marfil,
+    color: colors.pergamino,
     marginTop: spacing.md,
   },
   meal: {
