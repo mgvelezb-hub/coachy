@@ -26,8 +26,9 @@ import { Collapsible } from "@/components/Collapsible";
 import { EmptyState, ErrorState, LoadingState } from "@/components/States";
 import { SectionLabel } from "@/components/SectionLabel";
 import { useTheme } from "@/context/theme";
-import { activeDays, currentStreak, todayISO } from "@/lib/streak";
+import { activeDays, bestStreak, currentStreak, todayISO } from "@/lib/streak";
 import { fonts, radius, spacing, type Palette } from "@/lib/theme";
+import { formatMealItem, pickNextMeal, syncWidgetData } from "@/lib/widget";
 
 type HomeData = {
   me: MeResponse;
@@ -72,24 +73,40 @@ export default function HoyScreen() {
           getHealthDays().catch(() => null),
         ]);
 
-      const streak = currentStreak(
-        activeDays({
-          sessions: history?.sessions,
-          checkIns: checkinsRes?.checkIns,
-          healthDays: healthRes?.dias,
-        }),
-        todayISO(),
-      );
+      const days = activeDays({
+        sessions: history?.sessions,
+        checkIns: checkinsRes?.checkIns,
+        healthDays: healthRes?.dias,
+      });
+      const streak = currentStreak(days, todayISO());
+      const todayCard = today?.today ?? null;
 
       setData({
         me,
         decision: decisionRes.decision,
         nutrition,
-        today: today?.today ?? null,
+        today: todayCard,
         notifications: notificationsRes.notificaciones,
         streak,
       });
       setError(null);
+
+      try {
+        const nextMeal = pickNextMeal(nutrition?.menus[0]?.meals ?? []);
+        syncWidgetData({
+          racha: streak,
+          mejorRacha: bestStreak(days),
+          hoyGrupo: todayCard?.muscleGroup ?? "Descanso",
+          hoyEjercicios: todayCard?.exerciseCount ?? null,
+          hoyEsquema: todayCard?.schemeLabel ?? null,
+          hoyHecho: todayCard?.completed ?? false,
+          comidaLabel: nextMeal?.label ?? null,
+          comidaHora: nextMeal?.timeHint ?? null,
+          comidaItems: nextMeal ? nextMeal.items.slice(0, 3).map(formatMealItem) : null,
+        });
+      } catch {
+        // Sincronizar el widget nunca debe tumbar la pantalla de Hoy.
+      }
     } catch (e) {
       setError(e instanceof ApiError ? e.message : "No se pudo cargar tu información");
     }

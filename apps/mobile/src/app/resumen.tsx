@@ -28,6 +28,7 @@ import {
 } from "@/lib/api";
 import { activeDays, bestStreak, currentStreak, streakMessage, todayISO } from "@/lib/streak";
 import { fonts, radius, spacing, withAlpha, type Palette } from "@/lib/theme";
+import { syncWidgetData } from "@/lib/widget";
 
 /**
  * "Tu resumen" — pantalla empujada (fuera de tabs), gancho diario de
@@ -131,6 +132,26 @@ export default function ResumenScreen() {
   useEffect(() => {
     void load();
   }, [load]);
+
+  // Sync parcial del widget: /resumen solo trae racha/mejor racha (no
+  // entrenamiento ni comida), así que deja esos otros campos tal cual los
+  // haya dejado Hoy — ver el contrato undefined/null en `src/lib/widget.ts`.
+  useEffect(() => {
+    if (!data) return;
+    try {
+      const widgetDays = activeDays({
+        sessions: data.sessions ?? undefined,
+        checkIns: data.checkIns ?? undefined,
+        healthDays: data.healthDays ?? undefined,
+      });
+      syncWidgetData({
+        racha: currentStreak(widgetDays, todayISO()),
+        mejorRacha: bestStreak(widgetDays),
+      });
+    } catch {
+      // Sincronizar el widget nunca debe tumbar la pantalla de resumen.
+    }
+  }, [data]);
 
   async function onRefresh() {
     setRefreshing(true);

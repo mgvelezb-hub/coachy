@@ -10,7 +10,10 @@
     "ios": {
       "bundleIdentifier": "com.holygains.app",
       "supportsTablet": false,
-      "appleTeamId": "Y2AN8V2K8H"
+      "appleTeamId": "Y2AN8V2K8H",
+      "entitlements": {
+        "com.apple.security.application-groups": ["group.com.holygains.app"]
+      }
     },
     "android": {
       "adaptiveIcon": {
@@ -51,7 +54,8 @@
           "NSHealthUpdateUsageDescription": false,
           "background": false
         }
-      ]
+      ],
+      "@bacons/apple-targets"
     ],
     "experiments": {
       "typedRoutes": true,
