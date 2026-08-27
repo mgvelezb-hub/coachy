@@ -20,7 +20,8 @@ export function Stepper({
   value,
   onChangeText,
   unit,
-  placeholder = "0.0",
+  // "—" y no "0.0": un cero placeholder se lee como valor capturado.
+  placeholder = "—",
   required = false,
   error,
   keyboardType = "decimal-pad",

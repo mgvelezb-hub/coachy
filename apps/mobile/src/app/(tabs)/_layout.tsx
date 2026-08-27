@@ -1,6 +1,7 @@
 import { Tabs } from "expo-router";
 import { useEffect } from "react";
 import { Text, type ColorValue } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { colors, fonts } from "@/lib/theme";
 import { startNetworkSync, syncAndNotify } from "@/lib/training-sync";
@@ -30,6 +31,7 @@ function tabLabel(title: string) {
 
 /** 4 tabs: Hoy, Gym, Check-in, Historial. Tab bar obsidiana, borde sutil. */
 export default function TabsLayout() {
+  const insets = useSafeAreaInsets();
   // Trigger 1 de la cola del modo gimnasio (apps/mobile/src/lib/training-sync.ts):
   // al montar la app ya con sesión, se intenta vaciar lo que haya quedado
   // pendiente de la última vez, y arranca el listener que reintenta solo al
@@ -46,8 +48,9 @@ export default function TabsLayout() {
       screenOptions={{
         headerShown: false,
         // Igual que el Stack raíz: sin esto cada tab pinta el fondo claro
-        // del sistema encima de la obsidiana.
-        sceneStyle: { backgroundColor: colors.obsidiana },
+        // del sistema encima de la obsidiana. El paddingTop respeta el notch
+        // para las cuatro pantallas de una sola vez.
+        sceneStyle: { backgroundColor: colors.obsidiana, paddingTop: insets.top },
         tabBarActiveTintColor: colors.guindaLight,
         tabBarInactiveTintColor: colors.paloRosa,
         tabBarStyle: {

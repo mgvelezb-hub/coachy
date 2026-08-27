@@ -124,7 +124,12 @@ export async function signedExerciseVideoUrls(
   const wanted = [...new Set(paths.filter((value): value is string => Boolean(value)))];
   if (wanted.length === 0) return {};
 
-  const supabase = await createSupabaseServerClient();
+  // Con service role, no con la sesión: a esta función se llega desde la web
+  // (cookies) Y desde /api/v1 (Bearer, sin cookies — ahí el cliente de sesión
+  // firma como anónimo y devuelve vacío). La biblioteca de videos es la misma
+  // para todas las atletas y quien llama ya pasó por auth, así que firmar con
+  // admin no expone nada nuevo.
+  const supabase = createSupabaseAdminClient();
   const { data, error } = await supabase.storage
     .from(EXERCISE_VIDEO_BUCKET)
     .createSignedUrls(

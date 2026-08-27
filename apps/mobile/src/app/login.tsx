@@ -89,6 +89,26 @@ export default function LoginScreen() {
             {error && <Text style={styles.error}>{error}</Text>}
 
             <PrimaryButton label="Entrar" onPress={handleLogin} loading={loading} />
+
+            {/* Solo en desarrollo: entra con la cuenta QA de .env (EXPO_PUBLIC_QA_*).
+                __DEV__ es false en cualquier build de producción y las vars no
+                existen fuera de la máquina de dev, así que esto nunca llega a
+                una atleta. Existe porque la inyección de teclado del Simulador
+                corrompe el "@" y hace imposible teclear un correo en QA. */}
+            {__DEV__ && process.env.EXPO_PUBLIC_QA_EMAIL ? (
+              <PrimaryButton
+                label="Entrar como QA (dev)"
+                loading={loading}
+                onPress={() => {
+                  setEmail(process.env.EXPO_PUBLIC_QA_EMAIL ?? "");
+                  setPassword(process.env.EXPO_PUBLIC_QA_PASSWORD ?? "");
+                  void supabase.auth.signInWithPassword({
+                    email: process.env.EXPO_PUBLIC_QA_EMAIL ?? "",
+                    password: process.env.EXPO_PUBLIC_QA_PASSWORD ?? "",
+                  });
+                }}
+              />
+            ) : null}
           </Card>
         </View>
       </SafeAreaView>
