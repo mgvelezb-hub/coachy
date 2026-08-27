@@ -177,6 +177,119 @@ export type CheckInPoint = {
 
 export type HistoryMeasurementsResponse = { points: CheckInPoint[] };
 
+// ---------------------------------------------------------------------------
+// Modo gimnasio (Fase N4) — contrato EXACTO de
+// apps/web/src/lib/training/view.ts y apps/web/src/lib/validation/training.ts.
+// Si esos shapes cambian allá, cambian aquí.
+// ---------------------------------------------------------------------------
+
+export type SchemeId =
+  | "PIRAMIDAL"
+  | "FUERZA"
+  | "METABOLICO"
+  | "RANGO_MEDIO"
+  | "VOLUMEN_9"
+  | "REHAB";
+
+/** Una serie objetivo: reps y el peso sugerido. `weightKg: null` = campo vacío. */
+export type TargetSet = {
+  reps: number;
+  weightKg: number | null;
+  warmup: boolean;
+};
+
+/** A qué se puede cambiar un ejercicio si la máquina está ocupada. */
+export type ExerciseAlternative = {
+  exerciseId: string;
+  name: string;
+  declared: boolean;
+  videoPath: string | null;
+};
+
+export type SessionExerciseView = {
+  exerciseId: string | null;
+  name: string;
+  muscleGroup: string;
+  poolRole: string;
+  scheme: SchemeId;
+  schemeLabel: string;
+  restSeconds: number;
+  videoPath: string | null;
+  tracker: boolean;
+  note: string | null;
+  sets: TargetSet[];
+  /** URL firmada del video. Caduca; sin red la pantalla se pinta igual. */
+  videoUrl: string | null;
+  lastWeightKg: number | null;
+  bestWeightKg: number | null;
+  record: PersonalRecord | null;
+  alternatives: ExerciseAlternative[];
+};
+
+export type SessionView = {
+  workoutId: string;
+  date: string;
+  muscleGroup: string;
+  scheme: SchemeId;
+  schemeLabel: string;
+  cardioMinutes: number | null;
+  completedAt: string | null;
+  cycleNote: string | null;
+  readinessNote: string | null;
+  exercises: SessionExerciseView[];
+};
+
+export type WeekView = {
+  weekStart: string;
+  today: string;
+  sessions: SessionView[];
+};
+
+/**
+ * Una serie capturada, lista para subir. Shape exacto de `workoutSetSchema`
+ * en apps/web/src/lib/validation/training.ts.
+ *
+ * `clientId` sigue la convención de la web (apps/web/src/app/app/entrenamiento
+ * /training-session.tsx): `${workoutId}:${exerciseIndex}:${setIndex}`. Es
+ * contrato con el servidor — el borrado selectivo al sustituir ejercicio hace
+ * `deleteMany` por prefijo `${workoutId}:${exerciseIndex}:`.
+ */
+export type WorkoutSetInput = {
+  clientId: string;
+  exerciseId: string | null;
+  exerciseName: string;
+  setIndex: number;
+  targetReps: number;
+  reps: number;
+  weightKg: number | null;
+  rpe: number | null;
+  warmup: boolean;
+  performedAt: string;
+};
+
+export type SubstitutionInput = { exerciseIndex: number; exerciseId: string };
+
+/** Una sesión pendiente de subir. Shape exacto de `sessionSyncSchema`. */
+export type SessionSyncInput = {
+  workoutId: string;
+  completedAt: string | null;
+  notes: string | null;
+  sets: WorkoutSetInput[];
+  substitutions: SubstitutionInput[];
+};
+
+export type SyncSessionResult =
+  | {
+      workoutId: string;
+      ok: true;
+      prs: Array<{ exerciseName: string; weightKg: number; previousKg: number | null }>;
+      volumeKg: number;
+      cambios: unknown;
+    }
+  | { workoutId: string; ok: false; error: string };
+
+export type SyncResponse = { resultados: SyncSessionResult[] };
+
 export type TrainingHistoryRow = {
   workoutId: string;
   date: string;
@@ -301,6 +414,17 @@ export function getNutrition(): Promise<NutritionResponse> {
 
 export function getTrainingToday(): Promise<TrainingTodayResponse> {
   return apiFetch<TrainingTodayResponse>("/api/v1/training/today");
+}
+
+/** `GET /api/v1/training/week` — la semana entera para el modo gimnasio offline. */
+export function getTrainingWeek(date?: string): Promise<WeekView> {
+  const query = date ? `?date=${date}` : "";
+  return apiFetch<WeekView>(`/api/v1/training/week${query}`);
+}
+
+/** `POST /api/v1/training/sync` — vacía la cola local: hasta 20 sesiones de golpe. */
+export function postTrainingSync(sessions: SessionSyncInput[]): Promise<SyncResponse> {
+  return apiFetch<SyncResponse>("/api/v1/training/sync", { method: "POST", body: { sessions } });
 }
 
 export function getHistoryMeasurements(): Promise<HistoryMeasurementsResponse> {

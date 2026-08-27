@@ -1,7 +1,9 @@
 import { Tabs } from "expo-router";
+import { useEffect } from "react";
 import { Text, type ColorValue } from "react-native";
 
 import { colors, fonts } from "@/lib/theme";
+import { startNetworkSync, syncAndNotify } from "@/lib/training-sync";
 
 type TabIconProps = { symbol: string; color: ColorValue };
 
@@ -26,8 +28,19 @@ function tabLabel(title: string) {
   };
 }
 
-/** 3 tabs: Hoy, Check-in, Historial. Tab bar obsidiana, borde sutil. */
+/** 4 tabs: Hoy, Gym, Check-in, Historial. Tab bar obsidiana, borde sutil. */
 export default function TabsLayout() {
+  // Trigger 1 de la cola del modo gimnasio (apps/mobile/src/lib/training-sync.ts):
+  // al montar la app ya con sesión, se intenta vaciar lo que haya quedado
+  // pendiente de la última vez, y arranca el listener que reintenta solo al
+  // recuperar señal (trigger 2). El trigger 3 — después de cada captura — vive
+  // en la pantalla de Gym.
+  useEffect(() => {
+    const stopNetworkSync = startNetworkSync();
+    void syncAndNotify();
+    return stopNetworkSync;
+  }, []);
+
   return (
     <Tabs
       screenOptions={{
@@ -49,6 +62,13 @@ export default function TabsLayout() {
         options={{
           tabBarLabel: tabLabel("Hoy"),
           tabBarIcon: ({ color }) => <TabIcon symbol="☀" color={color} />,
+        }}
+      />
+      <Tabs.Screen
+        name="gym"
+        options={{
+          tabBarLabel: tabLabel("Gym"),
+          tabBarIcon: ({ color }) => <TabIcon symbol="⚔" color={color} />,
         }}
       />
       <Tabs.Screen

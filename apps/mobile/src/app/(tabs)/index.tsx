@@ -1,5 +1,6 @@
+import { useRouter } from "expo-router";
 import { useCallback, useEffect, useState } from "react";
-import { RefreshControl, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from "react-native";
 
 import {
   ApiError,
@@ -36,6 +37,7 @@ function isOnboardingIncomplete(error: unknown): boolean {
 }
 
 export default function HoyScreen() {
+  const router = useRouter();
   const [data, setData] = useState<HomeData | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
@@ -119,7 +121,7 @@ export default function HoyScreen() {
 
       <NutritionCard nutrition={nutrition} />
 
-      <TodayTrainingCard today={today} />
+      <TodayTrainingCard today={today} onPress={() => router.push("/gym")} />
     </ScrollView>
   );
 }
@@ -232,26 +234,28 @@ function NutritionCard({ nutrition }: { nutrition: NutritionResponse | null }) {
   );
 }
 
-function TodayTrainingCard({ today }: { today: TodayCard | null }) {
+function TodayTrainingCard({ today, onPress }: { today: TodayCard | null; onPress: () => void }) {
   return (
-    <Card>
-      <View style={styles.trainingHeader}>
-        <SectionLabel>Hoy toca</SectionLabel>
-        {today?.completed && <Chip label="Hecho" tone="champan" selected />}
-      </View>
-
-      {today ? (
-        <View style={styles.trainingBody}>
-          <Text style={styles.trainingGroup}>{today.muscleGroup}</Text>
-          <Text style={styles.trainingMeta}>
-            {today.exerciseCount} ejercicios · {today.schemeLabel}
-            {today.cardioMinutes ? ` · ${today.cardioMinutes} min cardio` : ""}
-          </Text>
+    <Pressable onPress={onPress}>
+      <Card>
+        <View style={styles.trainingHeader}>
+          <SectionLabel>Hoy toca</SectionLabel>
+          {today?.completed && <Chip label="Hecho" tone="champan" selected />}
         </View>
-      ) : (
-        <EmptyState message="Hoy toca descanso. Aprovecha para recuperar." />
-      )}
-    </Card>
+
+        {today ? (
+          <View style={styles.trainingBody}>
+            <Text style={styles.trainingGroup}>{today.muscleGroup}</Text>
+            <Text style={styles.trainingMeta}>
+              {today.exerciseCount} ejercicios · {today.schemeLabel}
+              {today.cardioMinutes ? ` · ${today.cardioMinutes} min cardio` : ""}
+            </Text>
+          </View>
+        ) : (
+          <EmptyState message="Hoy toca descanso. Aprovecha para recuperar." />
+        )}
+      </Card>
+    </Pressable>
   );
 }
 
