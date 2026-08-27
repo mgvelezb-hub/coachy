@@ -1,16 +1,11 @@
 import { Tabs } from "expo-router";
+import { CalendarCheck, Dumbbell, LibraryBig, LineChart, Sun } from "lucide-react-native";
 import { useEffect } from "react";
 import { Text, type ColorValue } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { colors, fonts } from "@/lib/theme";
 import { startNetworkSync, syncAndNotify } from "@/lib/training-sync";
-
-type TabIconProps = { symbol: string; color: ColorValue };
-
-function TabIcon({ symbol, color }: TabIconProps) {
-  return <Text style={{ fontSize: 18, color }}>{symbol}</Text>;
-}
 
 function tabLabel(title: string) {
   return function Label({ color }: { color: ColorValue }) {
@@ -64,28 +59,28 @@ export default function TabsLayout() {
         name="index"
         options={{
           tabBarLabel: tabLabel("Hoy"),
-          tabBarIcon: ({ color }) => <TabIcon symbol="☀" color={color} />,
+          tabBarIcon: ({ color }) => <Sun size={20} color={color} strokeWidth={1.75} />,
         }}
       />
       <Tabs.Screen
         name="gym"
         options={{
           tabBarLabel: tabLabel("Gym"),
-          tabBarIcon: ({ color }) => <TabIcon symbol="⚔" color={color} />,
+          tabBarIcon: ({ color }) => <Dumbbell size={20} color={color} strokeWidth={1.75} />,
         }}
       />
       <Tabs.Screen
         name="checkin"
         options={{
           tabBarLabel: tabLabel("Check-in"),
-          tabBarIcon: ({ color }) => <TabIcon symbol="✎" color={color} />,
+          tabBarIcon: ({ color }) => <CalendarCheck size={20} color={color} strokeWidth={1.75} />,
         }}
       />
       <Tabs.Screen
         name="historial"
         options={{
           tabBarLabel: tabLabel("Historial"),
-          tabBarIcon: ({ color }) => <TabIcon symbol="◈" color={color} />,
+          tabBarIcon: ({ color }) => <LineChart size={20} color={color} strokeWidth={1.75} />,
         }}
       />
       <Tabs.Screen
@@ -94,7 +89,7 @@ export default function TabsLayout() {
           // "Videos" y no "Biblioteca": con 5 tabs el label largo se parte en
           // dos líneas.
           tabBarLabel: tabLabel("Videos"),
-          tabBarIcon: ({ color }) => <TabIcon symbol="◎" color={color} />,
+          tabBarIcon: ({ color }) => <LibraryBig size={20} color={color} strokeWidth={1.75} />,
         }}
       />
     </Tabs>
