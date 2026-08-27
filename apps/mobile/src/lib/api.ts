@@ -445,3 +445,55 @@ export function markNotificationsRead(ids: string[]): Promise<MarkNotificationsR
     body: { ids },
   });
 }
+
+// ---------------------------------------------------------------------------
+// Objetivo — "Rumbo a tu objetivo" (contrato EXACTO de
+// apps/web/src/lib/coachy/goal.ts y apps/web/src/app/api/v1/goal/**).
+// ---------------------------------------------------------------------------
+
+export const GOAL_VIEWS = ["FRENTE", "PERFIL", "ESPALDA"] as const;
+export type GoalView = (typeof GOAL_VIEWS)[number];
+
+export const GOAL_VIEW_LABEL: Record<GoalView, string> = {
+  FRENTE: "Frente",
+  PERFIL: "Perfil",
+  ESPALDA: "Espalda",
+};
+
+/** `goalPhotoPath` en apps/web/src/lib/coachy/goal.ts: la vista va en minúsculas
+ * en el nombre del archivo, aunque el enum viaje en mayúsculas por la API. */
+export function goalPhotoPath(userId: string, view: GoalView): string {
+  return `${userId}/goal/${view.toLowerCase()}.jpg`;
+}
+
+/** El mismo `GoalStatus` de apps/web/src/lib/coachy/goal.ts — el texto de
+ * "listo" ya llega renderizado en `lines`, no hay que armar frases aquí. */
+export type GoalStatus =
+  | { state: "sin_referencia" }
+  | { state: "sin_fotos"; references: number }
+  | { state: "en_espera"; references: number }
+  | { state: "listo"; references: number; lines: string[]; analyzedAt: string };
+
+export type GoalReferenceUrl = { view: GoalView; url: string };
+
+export type GoalResponse = { status: GoalStatus; references: GoalReferenceUrl[] };
+
+export function getGoal(): Promise<GoalResponse> {
+  return apiFetch<GoalResponse>("/api/v1/goal");
+}
+
+/** Confirma que la foto de `view` ya está en Storage (subida directa desde el
+ * teléfono). 422 si Storage no la tiene todavía. */
+export function postGoalReference(view: GoalView): Promise<{ view: GoalView; path: string }> {
+  return apiFetch<{ view: GoalView; path: string }>("/api/v1/goal/references", {
+    method: "POST",
+    body: { view },
+  });
+}
+
+export function deleteGoalReference(view: GoalView): Promise<{ view: GoalView; eliminada: boolean }> {
+  return apiFetch<{ view: GoalView; eliminada: boolean }>(
+    `/api/v1/goal/references?view=${view}`,
+    { method: "DELETE" },
+  );
+}

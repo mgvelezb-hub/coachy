@@ -29,7 +29,7 @@ function tabLabel(title: string) {
   };
 }
 
-/** 4 tabs: Hoy, Gym, Check-in, Historial. Tab bar obsidiana, borde sutil. */
+/** 5 tabs: Hoy, Gym, Check-in, Historial, Biblioteca. Tab bar obsidiana, borde sutil. */
 export default function TabsLayout() {
   const insets = useSafeAreaInsets();
   // Trigger 1 de la cola del modo gimnasio (apps/mobile/src/lib/training-sync.ts):
@@ -86,6 +86,13 @@ export default function TabsLayout() {
         options={{
           tabBarLabel: tabLabel("Historial"),
           tabBarIcon: ({ color }) => <TabIcon symbol="◈" color={color} />,
+        }}
+      />
+      <Tabs.Screen
+        name="biblioteca"
+        options={{
+          tabBarLabel: tabLabel("Biblioteca"),
+          tabBarIcon: ({ color }) => <TabIcon symbol="◎" color={color} />,
         }}
       />
     </Tabs>

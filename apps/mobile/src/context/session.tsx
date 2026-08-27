@@ -3,6 +3,7 @@ import { createContext, useContext, useEffect, useState, type ReactNode } from "
 
 import { supabase } from "@/lib/supabase";
 import { purgeTrainingData } from "@/lib/training-db";
+import { purgeVideoDownloads } from "@/lib/video-downloads";
 
 type SessionContextValue = {
   session: Session | null;
@@ -33,9 +34,12 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       // Cubre tanto el botón de "cerrar sesión" como el signOut forzado por un
       // 401 en `apiFetch` (apps/mobile/src/lib/api.ts): ambos pasan por
       // `supabase.auth.signOut()`, que dispara este mismo evento. Lo del
-      // gimnasio de una atleta no puede seguir en el teléfono para la
-      // siguiente sesión que abra.
-      if (event === "SIGNED_OUT") void purgeTrainingData();
+      // gimnasio y los videos descargados de una atleta no pueden seguir en
+      // el teléfono para la siguiente sesión que abra.
+      if (event === "SIGNED_OUT") {
+        void purgeTrainingData();
+        purgeVideoDownloads();
+      }
     });
 
     return () => subscription.subscription.unsubscribe();

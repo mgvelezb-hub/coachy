@@ -1,5 +1,6 @@
+import { useRouter } from "expo-router";
 import { useCallback, useEffect, useState } from "react";
-import { RefreshControl, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from "react-native";
 
 import { Card } from "@/components/Card";
 import { EmptyState, ErrorState, LoadingState } from "@/components/States";
@@ -22,6 +23,7 @@ type HistorialData = {
 const CHART_POINTS = 12;
 
 export default function HistorialScreen() {
+  const router = useRouter();
   const [data, setData] = useState<HistorialData | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
@@ -110,6 +112,10 @@ export default function HistorialScreen() {
           </View>
         )}
       </Card>
+
+      <Pressable onPress={() => router.push("/objetivo")} style={styles.goalLink} hitSlop={8}>
+        <Text style={styles.goalLinkText}>Rumbo a tu objetivo →</Text>
+      </Pressable>
     </ScrollView>
   );
 }
@@ -225,5 +231,14 @@ const styles = StyleSheet.create({
     fontFamily: fonts.display,
     fontSize: 13,
     color: colors.champan,
+  },
+  goalLink: {
+    alignItems: "center",
+    paddingVertical: spacing.md,
+  },
+  goalLinkText: {
+    fontFamily: fonts.serifItalic,
+    fontSize: 15,
+    color: colors.paloRosaLight,
   },
 });

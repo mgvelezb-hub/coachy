@@ -8,7 +8,7 @@ import { photoContentBlocks } from "@/lib/coachy/vision";
 import { PHOTO_BUCKET, visionEnabled } from "@/lib/env";
 import { prisma } from "@/lib/prisma";
 import { signedPhotoUrls } from "@/lib/storage";
-import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { createSupabaseAdminClient } from "@/lib/supabase/server";
 
 /**
  * "Rumbo a tu objetivo" — la comparación contra la referencia (Fase 6).
@@ -77,12 +77,15 @@ export interface GoalReference {
 /**
  * Las referencias que hoy existen en el bucket, en orden de vista.
  *
- * Se listan con la sesión de la propia atleta, así que la RLS de Storage sigue
- * aplicando. Si el listado falla, la página se dibuja vacía en lugar de romperse.
+ * Si el listado falla, la página se dibuja vacía en lugar de romperse.
  */
 export async function listGoalReferences(userId: string): Promise<GoalReference[]> {
   try {
-    const supabase = await createSupabaseServerClient();
+    // Admin y no la sesión: a esta función también se llega desde /api/v1
+    // (Bearer, sin cookies), donde el cliente de sesión lista como anónimo y
+    // devuelve vacío. El prefijo SIEMPRE es el userId que ya autenticó el
+    // caller, así que no se expone la carpeta de nadie más.
+    const supabase = createSupabaseAdminClient();
     const { data, error } = await supabase.storage
       .from(PHOTO_BUCKET)
       .list(`${userId}/${GOAL_PREFIX}`, { limit: 20 });
@@ -571,7 +574,11 @@ export async function goalReferenceUrls(
   const references = await listGoalReferences(userId);
   if (references.length === 0) return [];
 
-  const signed = await signedPhotoUrls(references.map((reference) => reference.storagePath));
+  // asAdmin por la misma razón que el listado: sin cookies no hay quien firme.
+  const signed = await signedPhotoUrls(
+    references.map((reference) => reference.storagePath),
+    { asAdmin: true },
+  );
 
   return references
     .map((reference) => ({ ...reference, url: signed[reference.storagePath] ?? "" }))

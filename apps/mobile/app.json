@@ -35,7 +35,14 @@
           "imageWidth": 160
         }
       ],
-      "expo-sqlite"
+      "expo-sqlite",
+      "expo-video",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Holy Gains necesita acceso a tus fotos para subir tus fotos de referencia del objetivo."
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true,

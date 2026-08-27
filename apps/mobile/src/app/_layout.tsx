@@ -35,6 +35,7 @@ function RootNavigator() {
       </Stack.Protected>
       <Stack.Protected guard={Boolean(session)}>
         <Stack.Screen name="(tabs)" />
+        <Stack.Screen name="objetivo" />
       </Stack.Protected>
     </Stack>
   );
