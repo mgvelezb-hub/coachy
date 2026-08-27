@@ -40,6 +40,7 @@ function RootNavigator() {
         <Stack.Screen name="(tabs)" />
         <Stack.Screen name="objetivo" />
         <Stack.Screen name="ajustes" />
+        <Stack.Screen name="resumen" />
       </Stack.Protected>
     </Stack>
   );

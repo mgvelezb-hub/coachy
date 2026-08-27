@@ -1,11 +1,14 @@
 import { useRouter } from "expo-router";
-import { Settings } from "lucide-react-native";
+import { Flame, Settings } from "lucide-react-native";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from "react-native";
 
 import {
   ApiError,
+  getCheckins,
   getDecision,
+  getHealthDays,
+  getHistoryTraining,
   getMe,
   getNotifications,
   getNutrition,
@@ -23,6 +26,7 @@ import { Collapsible } from "@/components/Collapsible";
 import { EmptyState, ErrorState, LoadingState } from "@/components/States";
 import { SectionLabel } from "@/components/SectionLabel";
 import { useTheme } from "@/context/theme";
+import { activeDays, currentStreak, todayISO } from "@/lib/streak";
 import { fonts, radius, spacing, type Palette } from "@/lib/theme";
 
 type HomeData = {
@@ -31,6 +35,8 @@ type HomeData = {
   nutrition: NutritionResponse | null;
   today: TodayCard | null;
   notifications: Notification[];
+  /** Racha de engagement — el detalle completo (mejor racha, etc.) vive en /resumen. */
+  streak: number;
 };
 
 /** true si el error de API es "onboarding incompleto" (403): no es una falla real. */
@@ -49,15 +55,31 @@ export default function HoyScreen() {
 
   const load = useCallback(async () => {
     try {
-      const [me, decisionRes, notificationsRes, nutrition, today] = await Promise.all([
-        getMe(),
-        getDecision(),
-        getNotifications(),
-        getNutrition().catch((e) => (isOnboardingIncomplete(e) ? null : Promise.reject(e))),
-        getTrainingToday().catch((e) =>
-          isOnboardingIncomplete(e) ? { today: null } : Promise.reject(e),
-        ),
-      ]);
+      const [me, decisionRes, notificationsRes, nutrition, today, history, checkinsRes, healthRes] =
+        await Promise.all([
+          getMe(),
+          getDecision(),
+          getNotifications(),
+          getNutrition().catch((e) => (isOnboardingIncomplete(e) ? null : Promise.reject(e))),
+          getTrainingToday().catch((e) =>
+            isOnboardingIncomplete(e) ? { today: null } : Promise.reject(e),
+          ),
+          // Las 3 fuentes de la racha (tarjeta-gancho de "Tu resumen") son
+          // tolerantes a fallar por separado: la racha en 0 por un endpoint
+          // caído no debe tumbar la pantalla de Hoy.
+          getHistoryTraining().catch(() => null),
+          getCheckins().catch(() => null),
+          getHealthDays().catch(() => null),
+        ]);
+
+      const streak = currentStreak(
+        activeDays({
+          sessions: history?.sessions,
+          checkIns: checkinsRes?.checkIns,
+          healthDays: healthRes?.dias,
+        }),
+        todayISO(),
+      );
 
       setData({
         me,
@@ -65,6 +87,7 @@ export default function HoyScreen() {
         nutrition,
         today: today?.today ?? null,
         notifications: notificationsRes.notificaciones,
+        streak,
       });
       setError(null);
     } catch (e) {
@@ -96,7 +119,7 @@ export default function HoyScreen() {
   if (!data && error) return <ErrorState message={error} onRetry={load} />;
   if (!data) return null;
 
-  const { me, decision, nutrition, today, notifications } = data;
+  const { me, decision, nutrition, today, notifications, streak } = data;
   const visibleNotifications = notifications.filter((n) => !dismissed.has(n.id));
   const firstName = me.profile?.displayName ?? "atleta";
 
@@ -119,6 +142,8 @@ export default function HoyScreen() {
           </Pressable>
         </View>
       </View>
+
+      <StreakTeaser streak={streak} onPress={() => router.push("/resumen")} />
 
       {visibleNotifications.map((notification) => (
         <NotificationBanner
@@ -156,6 +181,30 @@ function NotificationBanner({
         ✕
       </Text>
     </View>
+  );
+}
+
+/**
+ * Gancho diario de engagement: la racha en grande, siempre arriba de todo y
+ * tocable hacia /resumen. Vive fuera del scroll implícito porque es el
+ * primer elemento después del saludo — debe verse sin hacer scroll.
+ */
+function StreakTeaser({ streak, onPress }: { streak: number; onPress: () => void }) {
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
+  return (
+    <Pressable onPress={onPress}>
+      <Card highlighted>
+        <View style={styles.streakRow}>
+          <Flame size={26} color={colors.pergamino} strokeWidth={1.75} />
+          <View style={styles.streakTextWrap}>
+            <Text style={styles.streakNumber}>{streak}</Text>
+            <Text style={styles.streakLabel}>{streak === 1 ? "día seguido" : "días seguidos"}</Text>
+          </View>
+          <Text style={styles.streakCta}>Ver tu resumen →</Text>
+        </View>
+      </Card>
+    </Pressable>
   );
 }
 
@@ -307,6 +356,29 @@ const makeStyles = (colors: Palette) => StyleSheet.create({
     fontFamily: fonts.display,
     fontSize: 22,
     color: colors.marfil,
+  },
+  streakRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.md,
+  },
+  streakTextWrap: {
+    flex: 1,
+  },
+  streakNumber: {
+    fontFamily: fonts.displaySemiBold,
+    fontSize: 28,
+    color: colors.pergamino,
+  },
+  streakLabel: {
+    fontFamily: fonts.sansMedium,
+    fontSize: 12,
+    color: colors.pergaminoSoft,
+  },
+  streakCta: {
+    fontFamily: fonts.serifItalic,
+    fontSize: 14,
+    color: colors.pergamino,
   },
   banner: {
     flexDirection: "row",
