@@ -1,5 +1,6 @@
-import { useState } from "react";
-import { Linking, Modal, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { useVideoPlayer, VideoView } from "expo-video";
+import { useMemo, useState } from "react";
+import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 
 import { Card } from "@/components/Card";
 import { NumberStepper } from "@/components/NumberStepper";
@@ -7,6 +8,7 @@ import { RestTimer } from "@/components/RestTimer";
 import type { ExerciseAlternative, SessionExerciseView, WorkoutSetInput } from "@/lib/api";
 import { colors, fonts, radius, spacing } from "@/lib/theme";
 import { clientIdFor } from "@/lib/training-client-id";
+import { isVideoDownloaded, localVideoFile } from "@/lib/video-downloads";
 
 const WEIGHT_STEP = 2.5;
 
@@ -60,6 +62,14 @@ export function ExerciseCapture({
   isLast: boolean;
 }) {
   const [swapOpen, setSwapOpen] = useState(false);
+  const [videoOpen, setVideoOpen] = useState(false);
+  // El archivo descargado manda sobre la URL firmada: sirve sin señal y no
+  // caduca a media sesión.
+  const videoUri = useMemo(() => {
+    const path = exercise.videoPath;
+    if (path && isVideoDownloaded(path)) return localVideoFile(path).uri;
+    return exercise.videoUrl ?? null;
+  }, [exercise.videoPath, exercise.videoUrl]);
   const [restStartedAt, setRestStartedAt] = useState<number | null>(null);
   const [drafts, setDrafts] = useState<Record<number, { reps: number; weightKg: number }>>(() => {
     const initial: Record<number, { reps: number; weightKg: number }> = {};
@@ -154,17 +164,22 @@ export function ExerciseCapture({
       </View>
 
       {exercise.videoUrl || exercise.videoPath ? (
-        <Pressable
-          onPress={() => {
-            if (exercise.videoUrl) void Linking.openURL(exercise.videoUrl);
-          }}
-          style={styles.videoLink}
-          disabled={!exercise.videoUrl}
-        >
-          <Text style={styles.videoLinkText}>
-            {exercise.videoUrl ? "▶ Ver video" : `▶ ${exercise.videoPath ?? "video"} (sin conexión)`}
-          </Text>
-        </Pressable>
+        <View style={styles.videoBlock}>
+          <Pressable
+            onPress={() => setVideoOpen((open) => !open)}
+            style={styles.videoLink}
+            disabled={!videoUri}
+          >
+            <Text style={styles.videoLinkText}>
+              {videoUri
+                ? videoOpen
+                  ? "▾ Ocultar video"
+                  : "▶ Ver video"
+                : `▶ ${exercise.videoPath ?? "video"} (sin conexión)`}
+            </Text>
+          </Pressable>
+          {videoOpen && videoUri ? <ExerciseVideo uri={videoUri} /> : null}
+        </View>
       ) : (
         <View style={styles.videoMissing}>
           <Text style={styles.videoMissingText}>Este ejercicio todavía no tiene video.</Text>
@@ -308,6 +323,15 @@ function SwapModal({
   );
 }
 
+/** Reproductor dentro de la app: el video nunca sale a Safari. */
+function ExerciseVideo({ uri }: { uri: string }) {
+  const player = useVideoPlayer(uri, (instance) => {
+    instance.play();
+  });
+
+  return <VideoView style={styles.videoView} player={player} nativeControls contentFit="contain" />;
+}
+
 const styles = StyleSheet.create({
   container: { gap: spacing.md },
   backRow: { flexDirection: "row", alignItems: "center" },
@@ -335,6 +359,13 @@ const styles = StyleSheet.create({
   recordText: { fontFamily: fonts.sans, fontSize: 13, color: colors.marfil },
   recordStrong: { fontFamily: fonts.sansSemiBold },
   recordEmpty: { fontFamily: fonts.sans, fontSize: 13, color: colors.paloRosaLight },
+  videoBlock: { gap: spacing.sm },
+  videoView: {
+    width: "100%",
+    aspectRatio: 16 / 9,
+    borderRadius: radius.md,
+    backgroundColor: "#000",
+  },
   videoLink: {
     borderWidth: 1,
     borderColor: colors.cardBorder,
