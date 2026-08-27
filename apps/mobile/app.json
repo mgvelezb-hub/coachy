@@ -9,7 +9,8 @@
     "userInterfaceStyle": "automatic",
     "ios": {
       "bundleIdentifier": "com.holygains.app",
-      "supportsTablet": false
+      "supportsTablet": false,
+      "appleTeamId": "Y2AN8V2K8H"
     },
     "android": {
       "adaptiveIcon": {
