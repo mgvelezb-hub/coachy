@@ -1,8 +1,7 @@
 import { NextResponse } from "next/server";
 
 import { getSessionUser } from "@/lib/auth";
-import { persistSession } from "@/lib/training/session-write";
-import { syncBatchSchema } from "@/lib/validation/training";
+import { runSyncBatch } from "@/lib/training/sync-handler";
 
 /**
  * Cola de sincronización del modo gimnasio.
@@ -10,6 +9,10 @@ import { syncBatchSchema } from "@/lib/validation/training";
  * El teléfono escribe primero en IndexedDB y sube aquí lo que tenga pendiente
  * cuando hay red. Es idempotente por `(workoutId, clientId)`, así que la cola
  * puede reintentar sin duplicar una sola serie.
+ *
+ * La validación y persistencia viven en `runSyncBatch` (`@/lib/training/sync-handler`),
+ * compartida con `POST /api/v1/training/sync` — ese route es igual a este salvo
+ * por la auth, que ahí llega por Bearer en vez de por cookie.
  */
 
 export const dynamic = "force-dynamic";
@@ -25,29 +28,6 @@ export async function POST(request: Request): Promise<NextResponse> {
     return NextResponse.json({ error: "cuerpo inválido" }, { status: 400 });
   }
 
-  const parsed = syncBatchSchema.safeParse(body);
-  if (!parsed.success) {
-    return NextResponse.json(
-      { error: "datos fuera de rango", detalles: parsed.error.issues.slice(0, 5) },
-      { status: 422 },
-    );
-  }
-
-  const results = [];
-  for (const session of parsed.data.sessions) {
-    const saved = await persistSession(user.id, session);
-    results.push(
-      saved
-        ? {
-            workoutId: session.workoutId,
-            ok: true,
-            prs: saved.prs,
-            volumeKg: saved.volumeKg,
-            cambios: saved.substitutions,
-          }
-        : { workoutId: session.workoutId, ok: false, error: "sesión no encontrada" },
-    );
-  }
-
-  return NextResponse.json({ resultados: results });
+  const outcome = await runSyncBatch(user.id, body);
+  return NextResponse.json(outcome.body, { status: outcome.status });
 }

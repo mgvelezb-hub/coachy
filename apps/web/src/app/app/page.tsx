@@ -4,18 +4,14 @@ import { ArrowRight, Bell, Dumbbell, UtensilsCrossed } from "lucide-react";
 
 import { CoachyQuestions } from "@/app/app/coachy-questions";
 import { HealthCard } from "@/app/app/health-card";
-import {
-  MealPlanView,
-  type GroceryItemView,
-  type MenuMealView,
-  type MenuView,
-} from "@/app/app/meal-plan-view";
+import { MealPlanView } from "@/app/app/meal-plan-view";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { requireOnboardedUser } from "@/lib/auth";
 import { replyToText } from "@/lib/coachy/compose";
 import { currentMealPlan } from "@/lib/coachy/menu";
+import { toGroceries, toMenuView } from "@/lib/coachy/menu-view";
 import { unreadNotifications } from "@/lib/coachy/notifications";
 import type { CoachyReply } from "@/lib/coachy/types";
 import { decimalToNumber, formatCm, formatLongDate, phaseLabel, sundayOf } from "@/lib/format";
@@ -28,58 +24,6 @@ export const metadata = { title: "Hoy" };
 function replyFrom(value: Prisma.JsonValue | null): CoachyReply | null {
   if (value === null || typeof value !== "object" || Array.isArray(value)) return null;
   return value as unknown as CoachyReply;
-}
-
-/** El JSON del motor, aplanado a lo que necesita la vista. */
-function toMenuView(menuNumber: number, mealsJson: Prisma.JsonValue): MenuView {
-  const meals = Array.isArray(mealsJson) ? mealsJson : [];
-
-  return {
-    menuNumber,
-    meals: meals.map((raw) => {
-      const meal = raw as Record<string, unknown>;
-      const items = Array.isArray(meal.items) ? meal.items : [];
-      const equivalences = Array.isArray(meal.equivalences) ? meal.equivalences : [];
-
-      return {
-        slot: String(meal.slot ?? ""),
-        label: String(meal.label ?? ""),
-        timeHint: String(meal.timeHint ?? ""),
-        allowDenseCarb: meal.allowDenseCarb !== false,
-        items: items.map((item) => {
-          const row = item as Record<string, unknown>;
-          return {
-            name: String(row.name ?? ""),
-            grams: Number(row.grams ?? 0),
-            free: row.free === true,
-          };
-        }),
-        equivalences: equivalences.map((equivalence) => {
-          const row = equivalence as Record<string, unknown>;
-          const options = Array.isArray(row.options) ? row.options : [];
-          return {
-            forName: String(row.forName ?? ""),
-            options: options.map((option) => {
-              const item = option as Record<string, unknown>;
-              return { name: String(item.name ?? ""), grams: Number(item.grams ?? 0) };
-            }),
-          };
-        }),
-      } satisfies MenuMealView;
-    }),
-  };
-}
-
-function toGroceries(json: Prisma.JsonValue): GroceryItemView[] {
-  if (!Array.isArray(json)) return [];
-  return json.map((raw) => {
-    const item = raw as Record<string, unknown>;
-    return {
-      name: String(item.name ?? ""),
-      grams: Number(item.grams ?? 0),
-      unit: String(item.unit ?? ""),
-    };
-  });
 }
 
 export default async function AppHomePage(): Promise<React.JSX.Element> {

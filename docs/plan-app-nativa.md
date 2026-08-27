@@ -27,8 +27,8 @@ pero con JWT de sesión en lugar de token estático.
 | Fase | Entregable |
 |---|---|
 | **N1** | Scaffold `apps/mobile` (Expo + TypeScript + expo-router) en el monorepo; base de API v1: helper de auth Bearer + `GET /api/v1/me` + `GET /api/v1/checkins` |
-| N2 | Endpoints restantes de atleta: check-in (crear/corregir + fotos), decisión vigente, alimentación, rutina del día + registro de series, historial/medidas, objetivo, notificaciones |
-| N3 | Pantallas nativas núcleo: login, hoy, check-in, historial (brand kit Holy Gains) |
+| N2 | Endpoints restantes de atleta: check-in (crear/corregir; las fotos suben directo a Storage con el JWT y un endpoint registra la fila), decisión vigente + respuestas, alimentación, rutina de la semana/día + sync de series por Bearer, historial/medidas, notificaciones (con "marcar leídas", que hoy no existe) |
+| N3 | Pantallas nativas núcleo: login, hoy, check-in, historial (brand kit Holy Gains) + endpoints de objetivo (fotos de referencia viven en Storage sin tabla; se resuelve junto con su pantalla) |
 | N4 | Modo gym nativo: SQLite/SwiftData local + cola de sync (reemplaza IndexedDB/Background Sync), videos offline |
 | N5 | HealthKit directo (mata el Atajo de iOS) + Health Connect en Android |
 | N6 | Widgets (WidgetKit vía config plugin + App Group; Glance en Android) — premium |

@@ -106,3 +106,24 @@ export async function unreadNotifications(userId: string): Promise<Notification[
     take: 5,
   });
 }
+
+/**
+ * Marca como leídos los avisos de `ids` que sean de `userId` y sigan sin leer.
+ * Usada por `POST /api/v1/notifications/read` (la app nativa) para que la
+ * atleta pueda descartar sus avisos.
+ *
+ * OJO — cambia el comportamiento del home web: hasta hoy nada escribía
+ * `readAt` para la atleta, así que `unreadNotifications` siempre devolvía lo
+ * mismo hasta que expiraba por antigüedad fuera del `take: 5`. A partir de
+ * este endpoint, un aviso marcado leído desde la app nativa deja de aparecer
+ * también en la web — no se vuelve a pintar hasta que haya uno nuevo. Es el
+ * comportamiento buscado (un solo estado de lectura, no uno por cliente), no
+ * un bug si el home "se siente" distinto.
+ */
+export async function markNotificationsRead(userId: string, ids: string[]): Promise<number> {
+  const { count } = await prisma.notification.updateMany({
+    where: { userId, id: { in: ids }, readAt: null },
+    data: { readAt: new Date() },
+  });
+  return count;
+}
