@@ -14,6 +14,7 @@ import type { ThemePreference } from "@/context/theme";
 import { ApiError, getActivities, getMe, type MeResponse } from "@/lib/api";
 import {
   connectHealth,
+  ensureCurrentPermissions,
   getHealthSummary,
   isHealthConnected,
   syncHealth,
@@ -176,6 +177,7 @@ export default function AjustesScreen() {
     setSyncingHealth(true);
     setHealthMessage(null);
     try {
+      await ensureCurrentPermissions();
       const [healthResult, workoutsResult] = await Promise.all([syncHealth(7), syncWorkouts(7)]);
       await refreshHealthSummaryAndCount();
       const parts: string[] = [];

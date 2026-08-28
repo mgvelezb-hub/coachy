@@ -61,6 +61,18 @@ export const HEALTH_TYPES = [
 ] as const satisfies readonly ObjectTypeIdentifier[];
 
 const CONNECTED_KEY = "holygains:health:connected";
+/**
+ * Qué versión del set de permisos ya se le pidió a esta instalación.
+ *
+ * Existe porque `HEALTH_TYPES` crece: los entrenamientos se agregaron después
+ * de que la gente ya había conectado Apple Salud. iOS solo pregunta por los
+ * tipos que nunca se le han preguntado, así que sin esta versión la app se
+ * quedaba creyendo "ya pedí todo" y jamás pedía los nuevos — leía vacío para
+ * siempre. Subir este número obliga a volver a pedir; el diálogo del sistema
+ * solo muestra lo que falte.
+ */
+const PERMISSIONS_VERSION = 2;
+const PERMISSIONS_VERSION_KEY = "holygains:health:permissionsVersion";
 const LAST_SYNC_KEY = "holygains:health:lastSync";
 
 /** `true` si esta instalación de la app ya pasó por `connectHealth()` una vez.
@@ -100,8 +112,27 @@ export async function connectHealth(): Promise<boolean> {
   const granted = await requestHealthPermissions();
   if (granted) {
     await AsyncStorage.setItem(CONNECTED_KEY, "1").catch(() => {});
+    await AsyncStorage.setItem(PERMISSIONS_VERSION_KEY, String(PERMISSIONS_VERSION)).catch(() => {});
   }
   return granted;
+}
+
+/**
+ * Vuelve a pedir permiso si `HEALTH_TYPES` creció desde la última vez.
+ *
+ * Es lo que evita el agujero: quien conectó Salud antes de que existieran los
+ * entrenamientos tenía la bandera de "conectado" en true y nunca se le
+ * preguntaba por los tipos nuevos. Consultar un tipo jamás autorizado además
+ * puede tirar la app, así que esto corre ANTES de cualquier query.
+ */
+export async function ensureCurrentPermissions(): Promise<void> {
+  const raw = await AsyncStorage.getItem(PERMISSIONS_VERSION_KEY).catch(() => null);
+  if (Number(raw) >= PERMISSIONS_VERSION) return;
+
+  const granted = await requestHealthPermissions();
+  if (granted) {
+    await AsyncStorage.setItem(PERMISSIONS_VERSION_KEY, String(PERMISSIONS_VERSION)).catch(() => {});
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -482,6 +513,9 @@ const MIN_AUTO_SYNC_INTERVAL_MS = 6 * 60 * 60 * 1000;
 export async function autoSyncHealth(): Promise<{ dias: number; entrenamientos: number } | null> {
   if (Platform.OS !== "ios") return null;
   if (!(await isHealthConnected())) return null;
+
+  // Si el set de permisos creció, se pide lo que falte antes de consultar.
+  await ensureCurrentPermissions();
 
   const lastSyncRaw = await AsyncStorage.getItem(LAST_SYNC_KEY).catch(() => null);
   const lastSync = lastSyncRaw ? Number(lastSyncRaw) : null;
