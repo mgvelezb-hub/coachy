@@ -1,6 +1,11 @@
 import { Cinzel_500Medium, Cinzel_600SemiBold } from "@expo-google-fonts/cinzel";
 import { CormorantGaramond_500Medium_Italic } from "@expo-google-fonts/cormorant-garamond";
-import { Inter_400Regular, Inter_500Medium, Inter_600SemiBold } from "@expo-google-fonts/inter";
+import {
+  Inter_400Regular,
+  Inter_500Medium,
+  Inter_600SemiBold,
+  Inter_700Bold,
+} from "@expo-google-fonts/inter";
 import { useFonts } from "expo-font";
 import { Stack } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
@@ -41,6 +46,7 @@ function RootNavigator() {
         <Stack.Screen name="objetivo" />
         <Stack.Screen name="ajustes" />
         <Stack.Screen name="resumen" />
+        <Stack.Screen name="actividad" options={{ presentation: "modal" }} />
       </Stack.Protected>
     </Stack>
   );
@@ -70,6 +76,7 @@ export default function RootLayout() {
     Inter_400Regular,
     Inter_500Medium,
     Inter_600SemiBold,
+    Inter_700Bold,
   });
 
   const ready = fontsLoaded || Boolean(fontsError);

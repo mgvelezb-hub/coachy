@@ -29,8 +29,15 @@ import {
   type TrainingHistoryRow,
   type WeekView,
 } from "@/lib/api";
-import { activeDays, bestStreak, currentStreak, streakMessage, todayISO } from "@/lib/streak";
-import { fonts, radius, spacing, withAlpha, type Palette } from "@/lib/theme";
+import {
+  activeDays,
+  bestStreak,
+  currentStreak,
+  streakMessage,
+  todayISO,
+  trainingDays,
+} from "@/lib/streak";
+import { fonts, radius, spacing, withAlpha, type Palette, type as typeScale } from "@/lib/theme";
 import { syncWidgetData } from "@/lib/widget";
 
 /**
@@ -146,10 +153,11 @@ export default function ResumenScreen() {
   useEffect(() => {
     if (!data) return;
     try {
-      const widgetDays = activeDays({
+      // El widget enseña la MISMA racha que Hoy: la de entrenamiento. Si aquí
+      // se mandara la de constancia, el widget diría un número y la pantalla
+      // otro.
+      const widgetDays = trainingDays({
         sessions: data.sessions ?? undefined,
-        checkIns: data.checkIns ?? undefined,
-        healthDays: data.healthDays ?? undefined,
         activities: data.activities ?? undefined,
       });
       syncWidgetData({
@@ -171,14 +179,25 @@ export default function ResumenScreen() {
   if (!data && error) return <ErrorState message={error} onRetry={load} />;
   if (!data) return null;
 
-  const days = activeDays({
+  // Dos rachas, y se dicen las dos: la de ENTRENAMIENTO manda (es la que
+  // aparece en Hoy y en el widget), y la de constancia con la app va debajo
+  // como contexto. Antes solo existía la segunda, y como cuenta los días con
+  // datos del reloj marcaba una racha larga a quien había entrenado dos veces.
+  const training = trainingDays({
     sessions: data.sessions ?? undefined,
-    checkIns: data.checkIns ?? undefined,
-    healthDays: data.healthDays ?? undefined,
     activities: data.activities ?? undefined,
   });
-  const streak = currentStreak(days, todayISO());
-  const best = bestStreak(days);
+  const streak = currentStreak(training, todayISO());
+  const best = bestStreak(training);
+  const engagement = currentStreak(
+    activeDays({
+      sessions: data.sessions ?? undefined,
+      checkIns: data.checkIns ?? undefined,
+      healthDays: data.healthDays ?? undefined,
+      activities: data.activities ?? undefined,
+    }),
+    todayISO(),
+  );
 
   return (
     <SafeAreaView style={styles.screen} edges={["top"]}>
@@ -192,7 +211,7 @@ export default function ResumenScreen() {
 
         <Text style={styles.title}>Tu resumen</Text>
 
-        <StreakCard streak={streak} best={best} />
+        <StreakCard streak={streak} best={best} engagement={engagement} />
         <ClockSection healthDays={data.healthDays} />
         <TrainingSection week={data.week} records={data.records} activities={data.activities} />
         <ProgressSection checkIns={data.checkIns} points={data.measurementPoints} />
@@ -203,20 +222,34 @@ export default function ResumenScreen() {
   );
 }
 
-function StreakCard({ streak, best }: { streak: number; best: number }) {
+function StreakCard({
+  streak,
+  best,
+  engagement,
+}: {
+  streak: number;
+  best: number;
+  engagement: number;
+}) {
   const { colors } = useTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
   return (
     <Card highlighted>
       <View style={styles.streakHeader}>
         <Flame size={22} color={colors.pergamino} strokeWidth={1.75} />
-        <SectionLabel color={colors.pergaminoSoft}>Tu racha</SectionLabel>
+        <SectionLabel color={colors.pergaminoSoft}>Tu racha entrenando</SectionLabel>
       </View>
 
       <Text style={styles.streakBig}>{streak}</Text>
       <Text style={styles.streakBigLabel}>{streak === 1 ? "día seguido" : "días seguidos"}</Text>
 
       {best > streak && <Text style={styles.streakBest}>Tu mejor racha: {best} días</Text>}
+
+      {engagement > streak && (
+        <Text style={styles.streakBest}>
+          {engagement} días seguidos sin soltar la app (check-in o datos del reloj)
+        </Text>
+      )}
 
       <Text style={styles.streakMessage}>{streakMessage(streak)}</Text>
     </Card>
@@ -551,10 +584,10 @@ const makeStyles = (colors: Palette) => StyleSheet.create({
     paddingBottom: spacing.huge,
   },
   backRow: { flexDirection: "row", alignItems: "center" },
-  backText: { fontFamily: fonts.sans, fontSize: 13, color: colors.paloRosaLight },
+  backText: { fontFamily: fonts.sans, ...typeScale.bodySm, color: colors.paloRosaLight },
   title: {
     fontFamily: fonts.display,
-    fontSize: 22,
+    ...typeScale.title,
     color: colors.marfil,
   },
   streakHeader: {
@@ -563,27 +596,28 @@ const makeStyles = (colors: Palette) => StyleSheet.create({
     gap: spacing.sm,
   },
   streakBig: {
-    fontFamily: fonts.displaySemiBold,
-    fontSize: 56,
+    // Inter, no Cinzel: en un número de 56 px los remates de Cinzel se ven
+    // afilados y el dato pierde peso en vez de ganarlo.
+    fontFamily: fonts.sansBold,
+    ...typeScale.hero,
     color: colors.pergamino,
     marginTop: spacing.md,
   },
   streakBigLabel: {
     fontFamily: fonts.sansMedium,
-    fontSize: 14,
+    ...typeScale.body,
     color: colors.pergaminoSoft,
     marginTop: -spacing.xs,
   },
   streakBest: {
     fontFamily: fonts.sans,
-    fontSize: 12,
+    ...typeScale.label,
     color: colors.pergaminoSoft,
     marginTop: spacing.sm,
   },
   streakMessage: {
     fontFamily: fonts.serifItalic,
-    fontSize: 16,
-    lineHeight: 22,
+    ...typeScale.subheading,
     color: colors.pergamino,
     marginTop: spacing.lg,
   },
@@ -592,7 +626,7 @@ const makeStyles = (colors: Palette) => StyleSheet.create({
   },
   inlineLinkText: {
     fontFamily: fonts.serifItalic,
-    fontSize: 14,
+    ...typeScale.body,
     color: colors.paloRosaLight,
   },
   clockRow: {
@@ -605,18 +639,18 @@ const makeStyles = (colors: Palette) => StyleSheet.create({
   },
   clockStatValue: {
     fontFamily: fonts.display,
-    fontSize: 20,
+    ...typeScale.heading,
     color: colors.marfil,
   },
   clockCaption: {
     fontFamily: fonts.sans,
-    fontSize: 11,
+    ...typeScale.label,
     color: colors.paloRosaLight,
     marginTop: spacing.md,
   },
   trainingWeekLine: {
     fontFamily: fonts.sans,
-    fontSize: 14,
+    ...typeScale.body,
     color: colors.marfil,
     marginTop: spacing.md,
   },
@@ -631,12 +665,12 @@ const makeStyles = (colors: Palette) => StyleSheet.create({
   },
   prName: {
     fontFamily: fonts.sans,
-    fontSize: 13,
+    ...typeScale.bodySm,
     color: colors.marfil,
   },
   prValue: {
-    fontFamily: fonts.display,
-    fontSize: 13,
+    fontFamily: fonts.sansSemiBold,
+    ...typeScale.bodySm,
     color: colors.champan,
   },
   progressHeader: {
@@ -644,13 +678,13 @@ const makeStyles = (colors: Palette) => StyleSheet.create({
     gap: 2,
   },
   waistValue: {
-    fontFamily: fonts.displaySemiBold,
-    fontSize: 34,
+    fontFamily: fonts.sansBold,
+    ...typeScale.display,
     color: colors.champan,
   },
   waistCaption: {
     fontFamily: fonts.sans,
-    fontSize: 12,
+    ...typeScale.label,
     color: colors.paloRosaLight,
   },
   deltaRow: {
@@ -669,7 +703,7 @@ const makeStyles = (colors: Palette) => StyleSheet.create({
   },
   weightValue: {
     fontFamily: fonts.display,
-    fontSize: 16,
+    ...typeScale.subheading,
     color: colors.marfil,
   },
   deltaStat: {
@@ -677,11 +711,11 @@ const makeStyles = (colors: Palette) => StyleSheet.create({
   },
   deltaStatLabel: {
     fontFamily: fonts.sans,
-    fontSize: 11,
+    ...typeScale.label,
     color: colors.paloRosaLight,
   },
   deltaStatLabelCompact: {
-    fontSize: 10,
+    ...typeScale.label,
   },
   deltaBadge: {
     alignSelf: "flex-start",
@@ -698,7 +732,7 @@ const makeStyles = (colors: Palette) => StyleSheet.create({
   },
   deltaText: {
     fontFamily: fonts.sans,
-    fontSize: 11,
+    ...typeScale.label,
     color: colors.marfil,
   },
   chartScroll: {
@@ -710,13 +744,12 @@ const makeStyles = (colors: Palette) => StyleSheet.create({
   },
   goalLine: {
     fontFamily: fonts.sans,
-    fontSize: 13,
-    lineHeight: 19,
+    ...typeScale.bodySm,
     color: colors.marfil,
   },
   planKcal: {
     fontFamily: fonts.displaySemiBold,
-    fontSize: 24,
+    ...typeScale.title,
     color: colors.pergamino,
     marginTop: spacing.md,
   },

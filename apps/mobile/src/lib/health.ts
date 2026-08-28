@@ -119,20 +119,28 @@ export async function connectHealth(): Promise<boolean> {
 
 /**
  * Vuelve a pedir permiso si `HEALTH_TYPES` creció desde la última vez.
+ * Regresa `true` cuando ACABA de pedir permisos nuevos (y se pudieron pedir).
  *
  * Es lo que evita el agujero: quien conectó Salud antes de que existieran los
  * entrenamientos tenía la bandera de "conectado" en true y nunca se le
  * preguntaba por los tipos nuevos. Consultar un tipo jamás autorizado además
  * puede tirar la app, así que esto corre ANTES de cualquier query.
+ *
+ * Ese `true` importa: quien acaba de autorizar un tipo nuevo tiene datos que
+ * nunca se han leído, y el throttle de 6 h de `autoSyncHealth` los dejaba
+ * esperando hasta la siguiente ventana — la app pedía permiso para
+ * entrenamientos y aun así no aparecía ninguno. Con permisos nuevos se
+ * sincroniza en el momento y con la ventana larga.
  */
-export async function ensureCurrentPermissions(): Promise<void> {
+export async function ensureCurrentPermissions(): Promise<boolean> {
   const raw = await AsyncStorage.getItem(PERMISSIONS_VERSION_KEY).catch(() => null);
-  if (Number(raw) >= PERMISSIONS_VERSION) return;
+  if (Number(raw) >= PERMISSIONS_VERSION) return false;
 
   const granted = await requestHealthPermissions();
   if (granted) {
     await AsyncStorage.setItem(PERMISSIONS_VERSION_KEY, String(PERMISSIONS_VERSION)).catch(() => {});
   }
+  return granted;
 }
 
 // ---------------------------------------------------------------------------
@@ -515,14 +523,18 @@ export async function autoSyncHealth(): Promise<{ dias: number; entrenamientos: 
   if (!(await isHealthConnected())) return null;
 
   // Si el set de permisos creció, se pide lo que falte antes de consultar.
-  await ensureCurrentPermissions();
+  const permissionsJustGranted = await ensureCurrentPermissions();
 
   const lastSyncRaw = await AsyncStorage.getItem(LAST_SYNC_KEY).catch(() => null);
   const lastSync = lastSyncRaw ? Number(lastSyncRaw) : null;
   const now = Date.now();
-  if (lastSync !== null && now - lastSync < MIN_AUTO_SYNC_INTERVAL_MS) return null;
+  // El throttle no aplica a permisos recién dados: eso es dato nuevo, no una
+  // repetición del anterior.
+  if (!permissionsJustGranted && lastSync !== null && now - lastSync < MIN_AUTO_SYNC_INTERVAL_MS) {
+    return null;
+  }
 
-  const days = lastSync === null ? FIRST_SYNC_DAYS : ROUTINE_SYNC_DAYS;
+  const days = lastSync === null || permissionsJustGranted ? FIRST_SYNC_DAYS : ROUTINE_SYNC_DAYS;
   const [healthResult, workoutsResult] = await Promise.all([syncHealth(days), syncWorkouts(days)]);
   if (healthResult !== null || workoutsResult !== null) {
     await AsyncStorage.setItem(LAST_SYNC_KEY, String(now)).catch(() => {});
