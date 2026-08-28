@@ -1,5 +1,5 @@
 import { useRouter } from "expo-router";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { ScrollView, StyleSheet, Switch, Text, TextInput, View } from "react-native";
 
 import { Card } from "@/components/Card";
@@ -12,6 +12,7 @@ import { Stepper } from "@/components/Stepper";
 import { useTheme } from "@/context/theme";
 import {
   ApiError,
+  getMe,
   postCheckin,
   SYMPTOMS,
   SYMPTOM_LABELS,
@@ -67,6 +68,24 @@ export default function CheckinScreen() {
   const [symptoms, setSymptoms] = useState<Set<Symptom>>(new Set());
   const [comment, setComment] = useState("");
   const [periodStarted, setPeriodStarted] = useState(false);
+
+  // El ciclo no se le pregunta a quien no le aplica. Si el perfil no cargó,
+  // se asume que NO aplica: preguntar de más es peor que preguntar de menos.
+  const [sex, setSex] = useState<"FEMALE" | "MALE" | "OTHER" | null>(null);
+  useEffect(() => {
+    let vivo = true;
+    getMe()
+      .then((me) => {
+        if (vivo) setSex(me.profile?.sex ?? null);
+      })
+      .catch(() => {
+        // Sin perfil el formulario sigue siendo usable; solo no muestra ciclo.
+      });
+    return () => {
+      vivo = false;
+    };
+  }, []);
+  const preguntaCiclo = sex === "FEMALE" || sex === "OTHER";
 
   function toggleSymptom(symptom: Symptom) {
     setSymptoms((prev) => {
@@ -216,13 +235,18 @@ export default function CheckinScreen() {
           <ScaleField label="Saciedad" value={satiety} onChange={setSatiety} error={fieldErrors.satiety} />
           <ScaleField label="Sueño" value={sleep} onChange={setSleep} error={fieldErrors.sleep} />
           <Stepper
-            label="RPE de fuerza"
+            label="Qué tan pesado se sintió"
             unit="/ 10"
             keyboardType="number-pad"
             value={strengthRpe}
             onChangeText={setStrengthRpe}
             error={fieldErrors.strengthRpe}
           />
+          <Text style={styles.rpeHint}>
+            Del 1 al 10, qué tan exigente sentiste tu entrenamiento esta semana: 1 es
+            &quot;me sobró&quot; y 10 es &quot;no podía con una más&quot;. Si no estás
+            seguro, déjalo vacío.
+          </Text>
         </View>
       </Card>
 
@@ -262,6 +286,7 @@ export default function CheckinScreen() {
           </Text>
         </View>
 
+        {preguntaCiclo && (
         <View style={styles.periodRow}>
           <Text style={styles.periodLabel}>Esta semana empezó mi periodo</Text>
           <Switch
@@ -271,6 +296,7 @@ export default function CheckinScreen() {
             thumbColor={colors.marfil}
           />
         </View>
+        )}
       </Card>
 
       {generalError && <Text style={styles.generalError}>{generalError}</Text>}
@@ -374,6 +400,12 @@ const makeStyles = (colors: Palette) => StyleSheet.create({
     fontFamily: fonts.serifItalic,
     fontSize: 12,
     color: colors.paloRosaLight,
+  },
+  rpeHint: {
+    fontFamily: fonts.serifItalic,
+    fontSize: 14,
+    color: colors.paloRosaLight,
+    marginTop: spacing.xs,
   },
   periodRow: {
     marginTop: spacing.lg,

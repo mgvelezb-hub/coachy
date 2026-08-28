@@ -25,6 +25,8 @@ export async function GET(request: Request): Promise<NextResponse> {
     profile: profile
       ? {
           displayName: profile.displayName,
+          // La app lo usa para no preguntarle del ciclo a quien no aplica.
+          sex: profile.sex,
           heightCm: decimalToNumber(profile.heightCm),
           currentPhase: profile.currentPhase,
           goal: profile.goal,

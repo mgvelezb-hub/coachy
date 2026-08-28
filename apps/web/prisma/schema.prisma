@@ -118,6 +118,29 @@ enum NotificationKind {
   ESCALAMIENTO
 }
 
+/// Disciplina de una `ActivitySession`. `PESAS` puede aparecer aquí (p. ej.
+/// una pesas sincronizada desde HealthKit), pero el registro serie a serie
+/// del modo gimnasio sigue viviendo en `Workout`/`WorkoutSet` — este modelo
+/// no lo reemplaza, cubre lo que ese par no sabe registrar: natación, box,
+/// squash, CrossFit, funcional.
+enum Discipline {
+  PESAS
+  FUNCIONAL
+  CROSSFIT
+  NATACION
+  BOX
+  SQUASH
+  CARDIO
+  OTRO
+}
+
+/// De dónde entró la sesión: capturada a mano en la app, o sincronizada desde
+/// HealthKit (Apple Watch / Salud).
+enum ActivitySource {
+  APP
+  HEALTHKIT
+}
+
 // ---------------------------------------------------------------------------
 // Identidad
 // ---------------------------------------------------------------------------
@@ -135,6 +158,7 @@ model User {
   decisions          Decision[]
   workouts           Workout[]
   healthDays         HealthDay[]
+  activitySessions   ActivitySession[]
   conversations      Conversation[]
   notifications      Notification[]
   trainingExamples   TrainingExample[] @relation("TrainingExampleAthlete")
@@ -444,6 +468,51 @@ model HealthDay {
   @@unique([userId, date])
   @@index([userId, date])
   @@map("health_days")
+}
+
+/// Registro (no prescripción) de una sesión de cualquier disciplina que no
+/// sea el modo gimnasio de pesas: natación, box, squash, CrossFit, funcional,
+/// cardio. El objetivo es que la sesión exista, se vea y cuente para la
+/// racha — no generar la rutina de esa disciplina.
+///
+/// Idempotencia: `(user_id, source, external_id)` es único. Para
+/// `HEALTHKIT`, `external_id` es el UUID del workout que da HealthKit —
+/// reenviar la misma sesión (p. ej. HealthKit todavía la está cerrando y
+/// llegan varios POST) corrige la fila existente en vez de duplicarla. Para
+/// `APP` (capturada a mano, sin UUID externo) `external_id` se deja `NULL`;
+/// Postgres trata cada `NULL` de un índice único como distinto de los demás,
+/// así que dos sesiones manuales nunca "colisionan" entre sí — no hay nada
+/// natural con qué des-duplicarlas, y cada POST debe crear una fila nueva.
+model ActivitySession {
+  id     String @id @default(uuid()) @db.Uuid
+  userId String @map("user_id") @db.Uuid
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  discipline Discipline
+  source     ActivitySource
+
+  /// UUID del workout de HealthKit. `null` cuando `source = APP`.
+  externalId String? @map("external_id")
+
+  startedAt DateTime  @map("started_at")
+  endedAt   DateTime? @map("ended_at")
+  /// Día local de la sesión, para agrupar igual que `CheckIn`/`HealthDay`.
+  date      DateTime  @db.Date
+
+  durationMin Int  @map("duration_min")
+  activeKcal  Int? @map("active_kcal")
+  avgHr       Int? @map("avg_hr")
+  maxHr       Int? @map("max_hr")
+  distanceM   Int? @map("distance_m")
+
+  notes String?
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@unique([userId, source, externalId])
+  @@index([userId, startedAt])
+  @@map("activity_sessions")
 }
 
 /// Catálogo genérico de ejercicios (seed público, sin datos personales).

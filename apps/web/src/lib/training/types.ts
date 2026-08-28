@@ -39,6 +39,14 @@ export type SchemeId =
   | "VOLUMEN_9"
   | "REHAB";
 
+/**
+ * Cuánto volumen mete el generador en la sesión. Concepto propio del
+ * entrenamiento — no una fase de dieta (`Phase` en `prisma/schema.prisma`
+ * es del motor de nutrición y este módulo no lo conoce). `db.ts` es el único
+ * lugar que traduce la fase de la atleta a este valor; ver el comentario ahí.
+ */
+export type VolumeBias = "normal" | "reducido";
+
 export type Scheme = {
   id: SchemeId;
   /** Etiqueta que ve la atleta, con el vocabulario del coach. */
@@ -117,8 +125,8 @@ export type TrainingProfile = {
   trainingSchedule: Record<string, string> | null;
   /** Etiquetas libres del perfil: `lesion_activa`, `lesion_rodilla`, ... */
   conditions: string[];
-  /** Fase de la dieta: en déficit fuerte se recorta volumen. */
-  phase: string;
+  /** "reducido" recorta un ejercicio por sesión. Ver `VolumeBias`. */
+  volumeBias: VolumeBias;
   /** Minutos por sesión. 45 ⇒ 4-5 ejercicios; 60+ ⇒ 6-8. */
   sessionMinutes: number;
   cardioMinWk: number;

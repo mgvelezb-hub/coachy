@@ -1,6 +1,6 @@
 import "server-only";
 
-import type { Prisma, Profile, Workout } from "@prisma/client";
+import type { Phase, Prisma, Profile, Workout } from "@prisma/client";
 
 import { fromISODate, isoFromDateColumn } from "@/lib/format";
 import { prisma } from "@/lib/prisma";
@@ -13,7 +13,26 @@ import type {
   PlannedExercise,
   TargetSet,
   TrainingProfile,
+  VolumeBias,
 } from "@/lib/training/types";
+
+/**
+ * Traduce la fase de la dieta (`Phase`, del motor de nutrición) al único dato
+ * que el generador de rutinas necesita de ella: cuánto volumen meter.
+ *
+ * Esta función es **la única frontera** entre nutrición y entrenamiento — el
+ * resto de `training/` no importa `Phase` ni conoce sus 7 valores (ver
+ * `VolumeBias` en `types.ts`). Si mañana aparece un segundo método de
+ * nutrición (con otras fases, o sin fases), aquí es el único lugar que se
+ * toca: se agrega el `if`/`switch` que corresponda y todo lo demás sigue
+ * igual.
+ *
+ * Hoy la única regla real es la de siempre: en corte agresivo se recorta un
+ * ejercicio por sesión.
+ */
+export function volumeBiasForPhase(phase: Phase): VolumeBias {
+  return phase === "CUT_AGRESIVO" ? "reducido" : "normal";
+}
 
 /** El perfil de Prisma, aplanado a lo que el generador necesita. */
 export function toTrainingProfile(profile: Profile): TrainingProfile {
@@ -28,7 +47,7 @@ export function toTrainingProfile(profile: Profile): TrainingProfile {
     liftingDays: profile.liftingDays,
     trainingSchedule: schedule,
     conditions: profile.conditions,
-    phase: profile.currentPhase,
+    volumeBias: volumeBiasForPhase(profile.currentPhase),
     sessionMinutes: profile.sessionMinutes,
     cardioMinWk: profile.cardioMinWk,
   };

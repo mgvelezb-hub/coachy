@@ -25,7 +25,7 @@ function profile(overrides: Partial<TrainingProfile> = {}): TrainingProfile {
     liftingDays: 5,
     trainingSchedule: null,
     conditions: [],
-    phase: "BASE",
+    volumeBias: "normal",
     sessionMinutes: 60,
     cardioMinWk: 0,
     ...overrides,
@@ -196,9 +196,9 @@ describe("tiempo disponible", () => {
     }
   });
 
-  it("en déficit fuerte recorta un ejercicio", () => {
-    const normal = generate(profile({ sessionMinutes: 60, phase: "BASE" }));
-    const cut = generate(profile({ sessionMinutes: 60, phase: "CUT_AGRESIVO" }));
+  it("con volumen reducido recorta un ejercicio", () => {
+    const normal = generate(profile({ sessionMinutes: 60, volumeBias: "normal" }));
+    const cut = generate(profile({ sessionMinutes: 60, volumeBias: "reducido" }));
     expect(cut.workouts[0]?.exercises.length).toBe(
       (normal.workouts[0]?.exercises.length ?? 0) - 1,
     );

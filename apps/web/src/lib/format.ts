@@ -1,11 +1,51 @@
 import type { Prisma } from "@prisma/client";
 
-/** Fecha ISO (YYYY-MM-DD) en hora local, sin arrastrar zona horaria. */
+/**
+ * La zona de la atleta, no la del servidor.
+ *
+ * Vercel corre en UTC: a las 6 de la tarde en CDMX el servidor ya cree que es
+ * mañana, y el gimnasio abría la sesión del día siguiente. Ninguna fecha del
+ * sistema puede depender de dónde corra el proceso, así que todo el cálculo
+ * de "qué día es hoy" pasa por aquí.
+ *
+ * Es una constante y no una preferencia por atleta a propósito: hoy todas
+ * entrenan en México. El día que haya una fuera, este es el único lugar que
+ * hay que volver dinámico (leerlo del perfil), y por eso vive solo.
+ */
+export const APP_TIMEZONE = "America/Mexico_City";
+
+/** `YYYY-MM-DD` de un instante, leído en la zona de la atleta. */
+const ISO_DATE_IN_TZ = new Intl.DateTimeFormat("en-CA", {
+  timeZone: APP_TIMEZONE,
+  year: "numeric",
+  month: "2-digit",
+  day: "2-digit",
+});
+
+/** Fecha ISO (YYYY-MM-DD) del día que es en México en ese instante. */
 export function toISODate(date: Date): string {
-  const y = date.getFullYear();
-  const m = String(date.getMonth() + 1).padStart(2, "0");
-  const d = String(date.getDate()).padStart(2, "0");
-  return `${y}-${m}-${d}`;
+  // en-CA formatea justo como YYYY-MM-DD.
+  return ISO_DATE_IN_TZ.format(date);
+}
+
+const WEEKDAY_IN_TZ = new Intl.DateTimeFormat("en-US", {
+  timeZone: APP_TIMEZONE,
+  weekday: "short",
+});
+
+const WEEKDAY_INDEX: Record<string, number> = {
+  Sun: 0,
+  Mon: 1,
+  Tue: 2,
+  Wed: 3,
+  Thu: 4,
+  Fri: 5,
+  Sat: 6,
+};
+
+/** Día de la semana (0=domingo) en la zona de la atleta, no en la del servidor. */
+export function weekdayIn(date: Date): number {
+  return WEEKDAY_INDEX[WEEKDAY_IN_TZ.format(date)] ?? date.getUTCDay();
 }
 
 /** Parsea YYYY-MM-DD como fecha local a mediodía UTC (evita saltos de día). */
@@ -28,10 +68,16 @@ export function isoFromDateColumn(date: Date): string {
 
 /** El domingo de la semana de `date` (el check-in es dominical). */
 export function sundayOf(date: Date): Date {
-  const copy = new Date(date);
-  copy.setDate(copy.getDate() - copy.getDay());
-  copy.setHours(12, 0, 0, 0);
-  return copy;
+  // El día de la semana se lee en México, no en el servidor: si no, un jueves
+  // por la noche en CDMX (viernes en UTC) devolvería el domingo equivocado.
+  return fromISODate(shiftISODate(toISODate(date), -weekdayIn(date)));
+}
+
+/** Suma (o resta) días a un `YYYY-MM-DD` sin que la zona horaria meta ruido. */
+export function shiftISODate(iso: string, days: number): string {
+  const base = new Date(`${iso}T12:00:00.000Z`);
+  base.setUTCDate(base.getUTCDate() + days);
+  return base.toISOString().slice(0, 10);
 }
 
 const LONG_DATE = new Intl.DateTimeFormat("es-MX", {

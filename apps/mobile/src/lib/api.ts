@@ -21,6 +21,7 @@ export type MeResponse = {
   onboarded: boolean;
   profile: {
     displayName: string;
+    sex: "FEMALE" | "MALE" | "OTHER";
     heightCm: number | null;
     currentPhase: string;
     goal: string;

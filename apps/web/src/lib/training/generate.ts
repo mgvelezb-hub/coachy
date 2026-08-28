@@ -1,4 +1,4 @@
-import { toISODate } from "@/lib/format";
+import { fromISODate, shiftISODate, toISODate, weekdayIn } from "@/lib/format";
 import {
   buildTargetSets,
   lastPerformance,
@@ -151,7 +151,7 @@ export function generateWeek(
       .flatMap((workout) => workout.exerciseNames),
   );
 
-  const exerciseCount = exerciseCountFor(profile.sessionMinutes, profile.phase);
+  const exerciseCount = exerciseCountFor(profile.sessionMinutes, profile.volumeBias);
   const workouts: PlannedWorkout[] = [];
 
   kinds.forEach((kind, index) => {
@@ -244,18 +244,16 @@ export { DAY_GROUPS, DAY_LABELS };
 
 /** Lunes de la semana ISO de `date`. */
 export function mondayOf(date: Date): Date {
-  const copy = new Date(date);
-  const day = copy.getDay() || 7;
-  copy.setDate(copy.getDate() - (day - 1));
-  copy.setHours(12, 0, 0, 0);
-  return copy;
+  // El día de la semana se lee en la zona de la atleta, no en la del servidor:
+  // en Vercel (UTC) un jueves por la noche en CDMX ya es viernes, y la semana
+  // entera se recorría un día.
+  const day = weekdayIn(date) || 7;
+  return fromISODate(shiftISODate(toISODate(date), -(day - 1)));
 }
 
 /** Domingo (fin) de la semana ISO de `date`. */
 export function sundayEndOf(date: Date): Date {
-  const monday = mondayOf(date);
-  monday.setDate(monday.getDate() + 6);
-  return monday;
+  return fromISODate(shiftISODate(toISODate(mondayOf(date)), 6));
 }
 
 export type { HistoryWorkout };

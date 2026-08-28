@@ -1,4 +1,4 @@
-import type { DayKind, MuscleGroup } from "@/lib/training/types";
+import type { DayKind, MuscleGroup, VolumeBias } from "@/lib/training/types";
 
 /**
  * Recetas por tipo de día: qué huecos se llenan y en qué orden.
@@ -105,10 +105,11 @@ export function recipeFor(kind: DayKind): Slot[] {
  * Cuántos ejercicios caben.
  *
  * 45 min ⇒ 4-5 ejercicios ("rápido y efectivo", formato desde 05/06/26);
- * 60+ ⇒ 6-8. En déficit fuerte se recorta uno: menos volumen, mismos básicos.
+ * 60+ ⇒ 6-8. Con `volumeBias: "reducido"` se recorta uno: menos volumen,
+ * mismos básicos. Este módulo no sabe nada de fases de dieta — quien decide
+ * cuándo toca "reducido" es `volumeBiasForPhase` en `db.ts`.
  */
-export function exerciseCountFor(sessionMinutes: number, phase: string): number {
+export function exerciseCountFor(sessionMinutes: number, volumeBias: VolumeBias): number {
   const base = sessionMinutes < 55 ? 5 : sessionMinutes < 75 ? 6 : sessionMinutes < 90 ? 7 : 8;
-  const deficit = phase === "CUT_AGRESIVO";
-  return Math.max(4, deficit ? base - 1 : base);
+  return Math.max(4, volumeBias === "reducido" ? base - 1 : base);
 }
