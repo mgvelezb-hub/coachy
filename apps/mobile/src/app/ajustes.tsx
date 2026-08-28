@@ -2,7 +2,7 @@ import Constants from "expo-constants";
 import { useRouter } from "expo-router";
 import { Check } from "lucide-react-native";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Alert, Platform, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Alert, Platform, Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import { Card } from "@/components/Card";
@@ -32,6 +32,16 @@ import {
   type as typeScale,
 } from "@/lib/theme";
 import { countPendingSessions } from "@/lib/training-db";
+import {
+  MAX_PIN_LENGTH,
+  MIN_PIN_LENGTH,
+  biometricsAvailable,
+  biometricsEnabled,
+  clearPin,
+  hasPin,
+  setBiometricsEnabled,
+  setPin,
+} from "@/lib/vault";
 import { subscribePendingCount, syncAndNotify, type SyncResult } from "@/lib/training-sync";
 import { countDownloadedVideos, purgeVideoDownloads } from "@/lib/video-downloads";
 import { supabase } from "@/lib/supabase";
@@ -114,6 +124,50 @@ export default function AjustesScreen() {
   useEffect(() => {
     refreshVideoCount();
   }, [refreshVideoCount]);
+
+  // Bóveda de fotos: clave propia del teléfono + biometría opcional.
+  const [tieneClave, setTieneClave] = useState(false);
+  const [biometria, setBiometria] = useState<"facial" | "huella" | null>(null);
+  const [biometriaOn, setBiometriaOn] = useState(false);
+  const [claveNueva, setClaveNueva] = useState("");
+  const [claveMsg, setClaveMsg] = useState<string | null>(null);
+
+  const loadVault = useCallback(async () => {
+    setTieneClave(await hasPin());
+    setBiometria(await biometricsAvailable());
+    setBiometriaOn(await biometricsEnabled());
+  }, []);
+
+  useEffect(() => {
+    void loadVault();
+  }, [loadVault]);
+
+  async function guardarClave() {
+    try {
+      await setPin(claveNueva);
+      setClaveNueva("");
+      setClaveMsg("Clave guardada. Tus fotos ya están detrás de ella.");
+      await loadVault();
+    } catch (error) {
+      setClaveMsg(error instanceof Error ? error.message : "No se pudo guardar tu clave");
+    }
+  }
+
+  async function quitarClave() {
+    await clearPin();
+    setClaveMsg("Clave quitada: tus fotos quedan sin candado.");
+    await loadVault();
+  }
+
+  async function alternarBiometria(valor: boolean) {
+    try {
+      await setBiometricsEnabled(valor);
+      setBiometriaOn(valor);
+      setClaveMsg(null);
+    } catch (error) {
+      setClaveMsg(error instanceof Error ? error.message : "No se pudo cambiar Face ID");
+    }
+  }
 
   const loadHealth = useCallback(async () => {
     if (Platform.OS !== "ios") return;
@@ -395,6 +449,61 @@ export default function AjustesScreen() {
         )}
 
         <Card>
+          <SectionLabel>Tus fotos</SectionLabel>
+          <Text style={styles.vaultIntro}>
+            Tus fotos de progreso no se ven en ninguna otra pantalla. Aquí defines la clave que las
+            abre — distinta a la de tu teléfono a propósito: quien ya lo desbloqueó no debería
+            poder verlas.
+          </Text>
+
+          <View style={styles.vaultRow}>
+            <TextInput
+              value={claveNueva}
+              onChangeText={(value) => setClaveNueva(value.replace(/\D/g, "").slice(0, MAX_PIN_LENGTH))}
+              placeholder={tieneClave ? "Nueva clave" : `${MIN_PIN_LENGTH} a ${MAX_PIN_LENGTH} dígitos`}
+              placeholderTextColor={colors.paloRosaLight}
+              keyboardType="number-pad"
+              secureTextEntry
+              style={styles.vaultInput}
+            />
+            <Pressable
+              onPress={guardarClave}
+              disabled={claveNueva.length < MIN_PIN_LENGTH}
+              style={[styles.vaultButton, claveNueva.length < MIN_PIN_LENGTH && styles.vaultButtonOff]}
+            >
+              <Text style={styles.vaultButtonText}>{tieneClave ? "Cambiar" : "Crear"}</Text>
+            </Pressable>
+          </View>
+
+          {biometria && (
+            <View style={styles.vaultToggle}>
+              <Text style={styles.vaultToggleLabel}>
+                {biometria === "facial" ? "Abrir con Face ID" : "Abrir con Touch ID"}
+              </Text>
+              <Switch
+                value={biometriaOn}
+                onValueChange={alternarBiometria}
+                trackColor={{ true: colors.guinda, false: colors.cardBorder }}
+                thumbColor={colors.marfil}
+              />
+            </View>
+          )}
+
+          {claveMsg && <Text style={styles.vaultMsg}>{claveMsg}</Text>}
+
+          <View style={styles.vaultLinks}>
+            <Pressable onPress={() => router.push("/fotos")} hitSlop={8}>
+              <Text style={styles.vaultLink}>Ver mis fotos →</Text>
+            </Pressable>
+            {tieneClave && (
+              <Pressable onPress={quitarClave} hitSlop={8}>
+                <Text style={styles.vaultLinkSoft}>Quitar clave</Text>
+              </Pressable>
+            )}
+          </View>
+        </Card>
+
+        <Card>
           <SectionLabel>Sesión</SectionLabel>
           <View style={styles.sessionBlock}>
             <Text style={styles.versionText}>Holy Gains v{appVersion}</Text>
@@ -458,6 +567,54 @@ const swatchStyles = StyleSheet.create({
 });
 
 const makeStyles = (colors: Palette) => StyleSheet.create({
+  vaultIntro: {
+    fontFamily: fonts.sans,
+    ...typeScale.bodySm,
+    color: colors.paloRosaLight,
+    marginTop: spacing.sm,
+    marginBottom: spacing.lg,
+  },
+  vaultRow: { flexDirection: "row", gap: spacing.sm, alignItems: "center" },
+  vaultInput: {
+    flex: 1,
+    borderRadius: radius.xl,
+    borderWidth: 1,
+    borderColor: colors.cardBorder,
+    backgroundColor: colors.cardBg,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.md,
+    fontFamily: fonts.sansMedium,
+    ...typeScale.body,
+    color: colors.marfil,
+  },
+  vaultButton: {
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.md,
+    borderRadius: radius.full,
+    backgroundColor: colors.guinda,
+  },
+  vaultButtonOff: { opacity: 0.5 },
+  vaultButtonText: { fontFamily: fonts.sansSemiBold, ...typeScale.bodySm, color: colors.pergamino },
+  vaultToggle: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginTop: spacing.lg,
+  },
+  vaultToggleLabel: { fontFamily: fonts.sansMedium, ...typeScale.body, color: colors.marfil },
+  vaultMsg: {
+    fontFamily: fonts.sans,
+    ...typeScale.bodySm,
+    color: colors.champan,
+    marginTop: spacing.md,
+  },
+  vaultLinks: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    marginTop: spacing.lg,
+  },
+  vaultLink: { fontFamily: fonts.sansSemiBold, ...typeScale.body, color: colors.champan },
+  vaultLinkSoft: { fontFamily: fonts.sansMedium, ...typeScale.body, color: colors.paloRosa },
   screen: {
     flex: 1,
     backgroundColor: colors.obsidiana,

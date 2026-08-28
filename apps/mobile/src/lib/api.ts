@@ -122,6 +122,59 @@ export type CheckInPayload = {
 
 export type CheckInCreatedResponse = { id: string; date: string };
 
+// ---------------------------------------------------------------------------
+// Fotos de progreso
+// ---------------------------------------------------------------------------
+
+/** Las tres vistas del check-in. Mismo enum que `PHOTO_VIEWS` en el servidor. */
+export const PHOTO_VIEWS = ["FRENTE", "PERFIL", "ESPALDA"] as const;
+export type PhotoView = (typeof PHOTO_VIEWS)[number];
+
+export const PHOTO_VIEW_LABEL: Record<PhotoView, string> = {
+  FRENTE: "Frente",
+  PERFIL: "Perfil",
+  ESPALDA: "Espalda",
+};
+
+/** Bucket privado de las fotos. La RLS filtra por primera carpeta = user id. */
+export const PHOTO_BUCKET = "progress-photos";
+
+/**
+ * Ruta canónica de una foto de progreso — la MISMA que reconstruye el
+ * servidor (`photoPath` en apps/web/src/lib/storage.ts). Si las dos fórmulas
+ * se separan, la app sube a un lado y el servidor registra otro.
+ */
+export function progressPhotoPath(userId: string, checkInId: string, view: PhotoView): string {
+  return `${userId}/${checkInId}/${view.toLowerCase()}.jpg`;
+}
+
+/** Confirma al servidor que la foto ya quedó en Storage y crea su fila. */
+export function postCheckinPhoto(
+  checkInId: string,
+  view: PhotoView,
+): Promise<{ id: string; view: PhotoView }> {
+  return apiFetch<{ id: string; view: PhotoView }>(`/api/v1/checkins/${checkInId}/photos`, {
+    method: "POST",
+    body: { view },
+  });
+}
+
+export type ProgressPhoto = {
+  id: string;
+  checkInId: string;
+  /** yyyy-MM-dd del check-in al que pertenece. */
+  date: string;
+  view: PhotoView;
+  /** URL firmada y temporal. `null` si la firma falló. */
+  url: string | null;
+};
+
+/** `GET /api/v1/photos` — para la bóveda. Las URLs caducan. */
+export function getPhotos(limit?: number): Promise<{ fotos: ProgressPhoto[] }> {
+  const query = limit ? `?limit=${limit}` : "";
+  return apiFetch<{ fotos: ProgressPhoto[] }>(`/api/v1/photos${query}`);
+}
+
 export type MenuItem = { name: string; grams: number; free: boolean };
 export type MenuMeal = {
   slot: string;

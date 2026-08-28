@@ -1,5 +1,6 @@
+import * as ImagePicker from "expo-image-picker";
 import { useRouter } from "expo-router";
-import { ChevronLeft } from "lucide-react-native";
+import { Camera, ChevronLeft } from "lucide-react-native";
 import { useEffect, useMemo, useState } from "react";
 import { Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View } from "react-native";
 
@@ -14,12 +15,20 @@ import { useTheme } from "@/context/theme";
 import {
   ApiError,
   getMe,
+  PHOTO_BUCKET,
+  PHOTO_VIEWS,
+  PHOTO_VIEW_LABEL,
   postCheckin,
+  postCheckinPhoto,
+  progressPhotoPath,
   SYMPTOMS,
   SYMPTOM_LABELS,
+  type PhotoView,
   type Symptom,
 } from "@/lib/api";
-import { fonts, spacing, type Palette, type as typeScale } from "@/lib/theme";
+import { useSession } from "@/context/session";
+import { supabase } from "@/lib/supabase";
+import { fonts, radius, spacing, type Palette, type as typeScale } from "@/lib/theme";
 
 /** yyyy-MM-dd de hoy, en hora local (no UTC: evita cruzar de día cerca de medianoche). */
 function todayISO(): string {
@@ -40,9 +49,17 @@ function parseDecimal(text: string): number | null {
 
 export default function CheckinScreen() {
   const router = useRouter();
+  const { session } = useSession();
   const { colors } = useTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
   const [submitted, setSubmitted] = useState(false);
+  /**
+   * Fotos opcionales, una por vista. Se eligen antes de enviar y se suben
+   * DESPUÉS, cuando el check-in ya existe: la ruta en Storage lleva su id, así
+   * que antes de crearlo no hay dónde ponerlas.
+   */
+  const [fotos, setFotos] = useState<Partial<Record<PhotoView, string>>>({});
+  const [fotosError, setFotosError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [generalError, setGeneralError] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
@@ -97,6 +114,52 @@ export default function CheckinScreen() {
     });
   }
 
+  async function elegirFoto(view: PhotoView) {
+    const permiso = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!permiso.granted) {
+      setFotosError("Necesitas dar acceso a tus fotos para adjuntarlas.");
+      return;
+    }
+
+    const elegida = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ["images"],
+      quality: 0.8,
+      allowsEditing: false,
+    });
+    if (elegida.canceled || elegida.assets.length === 0) return;
+
+    setFotosError(null);
+    setFotos((actuales) => ({ ...actuales, [view]: elegida.assets[0]!.uri }));
+  }
+
+  /**
+   * Sube al bucket con la sesión del propio atleta —la RLS filtra por primera
+   * carpeta = su id— y después le avisa al servidor para que cree la fila. Una
+   * foto que falle no tumba el check-in: ya quedó guardado, y las fotos son
+   * opcionales.
+   */
+  async function subirFotos(checkInId: string, userId: string) {
+    for (const view of PHOTO_VIEWS) {
+      const uri = fotos[view];
+      if (!uri) continue;
+
+      try {
+        const archivo = await fetch(uri).then((response) => response.arrayBuffer());
+        const { error } = await supabase.storage
+          .from(PHOTO_BUCKET)
+          .upload(progressPhotoPath(userId, checkInId, view), archivo, {
+            upsert: true,
+            contentType: "image/jpeg",
+          });
+        if (error) throw error;
+
+        await postCheckinPhoto(checkInId, view);
+      } catch {
+        setFotosError("Alguna foto no se pudo subir. Tu check-in sí quedó guardado.");
+      }
+    }
+  }
+
   async function handleSubmit() {
     setGeneralError(null);
     setFieldErrors({});
@@ -112,7 +175,7 @@ export default function CheckinScreen() {
 
     setSubmitting(true);
     try {
-      await postCheckin({
+      const creado = await postCheckin({
         date: todayISO(),
         waistCm: parseDecimal(waistCm) ?? 0,
         weightKg: parseDecimal(weightKg),
@@ -132,6 +195,10 @@ export default function CheckinScreen() {
         comment: comment.trim() || undefined,
         periodStarted,
       });
+
+      const userId = session?.user.id ?? null;
+      if (userId) await subirFotos(creado.id, userId);
+
       setSubmitted(true);
     } catch (error) {
       if (error instanceof ApiError && error.status === 422 && error.detalles) {
@@ -307,6 +374,40 @@ export default function CheckinScreen() {
 
       {generalError && <Text style={styles.generalError}>{generalError}</Text>}
 
+      <Card>
+        <SectionLabel>Fotos (opcional)</SectionLabel>
+        <Text style={styles.fotosNota}>
+          Son las que se comparan contra tu objetivo. Con una basta para empezar, y no hace falta
+          cada semana: una vez al mes dice lo mismo y cuesta la cuarta parte. Solo se ven en tu
+          bóveda, detrás de tu clave.
+        </Text>
+
+        <View style={styles.fotosRow}>
+          {PHOTO_VIEWS.map((view) => {
+            const puesta = Boolean(fotos[view]);
+            return (
+              <Pressable
+                key={view}
+                onPress={() => elegirFoto(view)}
+                style={[styles.fotoSlot, puesta && styles.fotoSlotLista]}
+              >
+                <Camera
+                  size={20}
+                  color={puesta ? colors.pergamino : colors.paloRosa}
+                  strokeWidth={2}
+                />
+                <Text style={[styles.fotoSlotText, puesta && styles.fotoSlotTextLista]}>
+                  {PHOTO_VIEW_LABEL[view]}
+                </Text>
+                {puesta && <Text style={styles.fotoSlotOk}>lista</Text>}
+              </Pressable>
+            );
+          })}
+        </View>
+
+        {fotosError && <Text style={styles.fotosError}>{fotosError}</Text>}
+      </Card>
+
       <PrimaryButton label="Enviar check-in" onPress={handleSubmit} loading={submitting} />
     </ScrollView>
   );
@@ -335,6 +436,34 @@ function ScaleField({
 }
 
 const makeStyles = (colors: Palette) => StyleSheet.create({
+  fotosNota: {
+    fontFamily: fonts.sans,
+    ...typeScale.bodySm,
+    color: colors.paloRosaLight,
+    marginTop: spacing.sm,
+    marginBottom: spacing.lg,
+  },
+  fotosRow: { flexDirection: "row", gap: spacing.md },
+  fotoSlot: {
+    flex: 1,
+    alignItems: "center",
+    gap: spacing.xs,
+    paddingVertical: spacing.lg,
+    borderRadius: radius.xl,
+    borderWidth: 1,
+    borderColor: colors.cardBorder,
+    backgroundColor: colors.cardBg,
+  },
+  fotoSlotLista: { backgroundColor: colors.guinda, borderColor: colors.guindaLight },
+  fotoSlotText: { fontFamily: fonts.sansSemiBold, ...typeScale.bodySm, color: colors.marfil },
+  fotoSlotTextLista: { color: colors.pergamino },
+  fotoSlotOk: { fontFamily: fonts.sans, ...typeScale.label, color: colors.pergaminoSoft },
+  fotosError: {
+    fontFamily: fonts.sansMedium,
+    ...typeScale.bodySm,
+    color: colors.error,
+    marginTop: spacing.md,
+  },
   backRow: {
     flexDirection: "row",
     alignItems: "center",
