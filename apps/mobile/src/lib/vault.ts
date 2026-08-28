@@ -116,11 +116,32 @@ export async function setBiometricsEnabled(enabled: boolean): Promise<void> {
   await SecureStore.setItemAsync(BIOMETRICS_KEY, enabled ? "1" : "0");
 }
 
+export type BiometricResult =
+  | { ok: true }
+  /** Canceló, o la cara no coincidió: se cae a la clave sin decir más. */
+  | { ok: false; motivo: null }
+  /** Algo impide siquiera intentarlo, y eso sí hay que decirlo. */
+  | { ok: false; motivo: string };
+
 /**
- * Pide la cara o la huella. `false` cuando no se pudo o la persona canceló —
- * ahí la pantalla cae a la clave, que siempre existe.
+ * Pide la cara o la huella.
+ *
+ * Distingue "no se pudo" de "no quiso", porque no se atienden igual: cancelar
+ * es normal y no merece mensaje, pero que el teléfono no tenga biometría
+ * configurada —o que la app no tenga permiso de Face ID— es algo que el
+ * usuario necesita saber para poder resolverlo. Antes todo caía en un `false`
+ * mudo y el botón parecía roto.
  */
-export async function promptBiometrics(): Promise<boolean> {
+export async function promptBiometrics(): Promise<BiometricResult> {
+  const disponible = await biometricsAvailable();
+  if (!disponible) {
+    return {
+      ok: false,
+      motivo:
+        "Este teléfono no tiene Face ID ni huella configurados. Actívalos en Ajustes de iOS y vuelve.",
+    };
+  }
+
   try {
     const result = await LocalAuthentication.authenticateAsync({
       promptMessage: "Desbloquea tus fotos",
@@ -129,8 +150,19 @@ export async function promptBiometrics(): Promise<boolean> {
       // la llave que NO queremos aceptar aquí.
       disableDeviceFallback: true,
     });
-    return result.success;
+
+    if (result.success) return { ok: true };
+
+    // `user_cancel` y compañía son decisiones, no fallas.
+    const error = "error" in result ? String(result.error) : "";
+    if (error.includes("cancel") || error.includes("user_fallback")) {
+      return { ok: false, motivo: null };
+    }
+    return {
+      ok: false,
+      motivo: "Face ID no pudo confirmarte. Escribe tu clave.",
+    };
   } catch {
-    return false;
+    return { ok: false, motivo: "Face ID no está disponible ahora. Escribe tu clave." };
   }
 }

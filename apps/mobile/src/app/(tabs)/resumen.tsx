@@ -65,6 +65,7 @@ import {
   type Goal,
 } from "@/lib/insights";
 import { brechasDeObjetivo, enfasisDeObjetivo, perfilDeEjes } from "@/lib/perfil";
+import { brechasDelMes, metasDelMes } from "@/lib/metas";
 import { fonts, radius, spacing, type as typeScale, withAlpha, type Palette } from "@/lib/theme";
 import { syncWidgetData } from "@/lib/widget";
 
@@ -235,6 +236,11 @@ export default function ResumenScreen() {
         ? enfasisDeObjetivo(data.goal.status.emphasis)
         : [];
 
+  // Las metas del mes: la rampa, no la cima. Comparar tu cintura de hoy contra
+  // la referencia da una brecha enorme que no dice qué hacer esta semana; el
+  // escalón del mes sí.
+  const metas = metasDelMes(data.points ?? [], data.me?.profile?.goal ?? "SALUD", todayISO());
+
   const ejes = perfilDeEjes({
     healthDays: dias,
     week: data.week,
@@ -359,6 +365,20 @@ export default function ResumenScreen() {
               <RadarChart ejes={ejes} size={anchoPanel} />
             </ChartBoundary>
           </View>
+
+          {metas.medidas.length > 0 && (
+            <View style={[styles.perfil, styles.mitad]}>
+              <Text style={styles.heroTitle}>Tu mes</Text>
+              <Text style={styles.heroCaption}>
+                Tus medidas contra la meta de este mes, desde tu check-in del {metas.desde}
+              </Text>
+              <View style={{ marginTop: spacing.md }}>
+                <ChartBoundary label="Las metas del mes no se pudieron dibujar.">
+                  <GapChart brechas={brechasDelMes(metas.medidas)} />
+                </ChartBoundary>
+              </View>
+            </View>
+          )}
 
           {brechas.length > 0 && (
             <View style={[styles.perfil, styles.mitad]}>

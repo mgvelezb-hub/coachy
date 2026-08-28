@@ -55,7 +55,13 @@
           "background": false
         }
       ],
-      "@bacons/apple-targets"
+      "@bacons/apple-targets",
+      [
+        "expo-local-authentication",
+        {
+          "faceIDPermission": "Holy Gains usa Face ID para abrir tus fotos de progreso, que están guardadas detrás de tu clave."
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true,
