@@ -471,7 +471,12 @@ export function goalPhotoPath(userId: string, view: GoalView): string {
  * "listo" ya llega renderizado en `lines`, no hay que armar frases aquí. */
 export type GoalStatus =
   | { state: "sin_referencia" }
-  | { state: "sin_fotos"; references: number }
+  /**
+   * Hay referencia pero todavía no fotos propias con qué comparar. `lines`
+   * trae la lectura de la referencia sola: dónde poner el énfasis. Puede
+   * llegar vacío si la visión está apagada.
+   */
+  | { state: "sin_fotos"; references: number; lines: string[] }
   | { state: "en_espera"; references: number }
   | { state: "listo"; references: number; lines: string[]; analyzedAt: string };
 

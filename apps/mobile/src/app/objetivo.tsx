@@ -264,7 +264,26 @@ function StatusCard({ status }: { status: GoalResponse["status"] }) {
     return (
       <Card>
         <SectionLabel>Tu rumbo</SectionLabel>
-        <EmptyState message="Ya tienes tu referencia guardada. En cuanto tu historial tenga fotos de progreso, aquí aparece la comparación." />
+        {status.lines.length === 0 ? (
+          <EmptyState message="Ya tienes tu referencia guardada. En cuanto tu historial tenga fotos de progreso, aquí aparece la comparación." />
+        ) : (
+          <>
+            {/* Sin fotos propias no se puede decir qué tan lejos estás —eso
+                sería inventar—, pero sí qué implica la referencia en
+                entrenamiento, que es accionable desde hoy. */}
+            <Text style={styles.statusIntro}>
+              Esto es lo que implica tu referencia. Cuando subas fotos tuyas en un check-in, aquí
+              va a aparecer además qué tan lejos estás de cada zona.
+            </Text>
+            <View style={styles.statusLines}>
+              {status.lines.map((line) => (
+                <Text key={line} style={styles.statusLine}>
+                  {line}
+                </Text>
+              ))}
+            </View>
+          </>
+        )}
       </Card>
     );
   }
@@ -296,6 +315,13 @@ function StatusCard({ status }: { status: GoalResponse["status"] }) {
 }
 
 const makeStyles = (colors: Palette) => StyleSheet.create({
+  statusIntro: {
+    fontFamily: fonts.sans,
+    ...typeScale.body,
+    color: colors.paloRosaLight,
+    marginTop: spacing.sm,
+    marginBottom: spacing.md,
+  },
   screen: {
     flex: 1,
     backgroundColor: colors.obsidiana,

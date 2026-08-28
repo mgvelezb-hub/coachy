@@ -91,22 +91,36 @@ export const paletteLight: Palette = {
   cardBorder: "#DECEC1",
 } as const;
 
-/** Champán — derivado de `.executive` en globals.css: negro casi puro + acentos oro. */
+/**
+ * Champán — negro casi puro + acentos oro, derivado de `.executive` en
+ * globals.css.
+ *
+ * El oro bajó de intensidad respecto a la primera versión (#DDB049 → #C0994F)
+ * y el fondo dejó de ser negro absoluto (#020203 → #0C0C0E). Las dos cosas
+ * atacan el mismo problema: un acento muy saturado contra negro puro produce
+ * halación —el ojo ve el borde "vibrar"— y a los pocos minutos cansa. Con
+ * menos croma en el oro y un fondo apenas levantado, el contraste sigue por
+ * arriba de 7:1 para el texto y la pantalla se puede mirar un rato largo.
+ *
+ * El texto secundario también salió del oro: era oro sobre negro para leer
+ * párrafos, que es justo donde más pesa. Ahora es un gris cálido, y el oro se
+ * queda para lo que de verdad acentúa.
+ */
 export const paletteChampan: Palette = {
-  guinda: "#DDB049",
-  guindaDark: "#B3880F",
-  guindaLight: "#ECC980",
-  paloRosa: "#ECC980",
+  guinda: "#C0994F",
+  guindaDark: "#8E7130",
+  guindaLight: "#D2B378",
+  paloRosa: "#A79B88",
   paloRosaLight: "#8B9095",
-  marfil: "#ECEFF2",
-  pergamino: "#110D04",
-  pergaminoSoft: "#4A3A0C",
-  obsidiana: "#020203",
-  champan: "#DDB049",
-  champanSoft: "#E9CA89",
-  error: "#DE3E2D",
-  cardBg: "#060709",
-  cardBorder: "rgba(255,255,255,0.12)",
+  marfil: "#E9ECEF",
+  pergamino: "#120E05",
+  pergaminoSoft: "#3F3209",
+  obsidiana: "#0C0C0E",
+  champan: "#C0994F",
+  champanSoft: "#D2B378",
+  error: "#D4503F",
+  cardBg: "#141417",
+  cardBorder: "rgba(255,255,255,0.10)",
 } as const;
 
 /** Retrocompatible: el tema oscuro tal cual estaba antes del sistema de temas. */
