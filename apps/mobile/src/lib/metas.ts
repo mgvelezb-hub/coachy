@@ -90,7 +90,14 @@ export type MetasDelMes = {
  * saber dónde estás. Con uno solo no hay rampa que medir y regresa vacío —
  * inventar una meta sobre un solo dato sería adivinar el punto de partida.
  */
-export function metasDelMes(points: CheckInPoint[] | undefined, goal: string, hoy: string): MetasDelMes {
+export function metasDelMes(
+  points: CheckInPoint[] | undefined,
+  goal: string,
+  hoy: string,
+  /** El corte de cintura de este mes, cuando hay glidepath: manda sobre el
+   * ritmo genérico porque está anclado al destino real. */
+  metaCinturaCm?: number | null,
+): MetasDelMes {
   const lista = [...(points ?? [])].sort((a, b) => a.date.localeCompare(b.date));
   if (lista.length < 2) return { medidas: [], desde: null };
 
@@ -122,7 +129,15 @@ export function metasDelMes(points: CheckInPoint[] | undefined, goal: string, ho
     });
   }
 
-  agrega("Cintura", inicio.waistCm, actual.waistCm, ritmo.cinturaCm, "cm");
+  // La cintura se mide contra el escalón del glidepath cuando existe: ese sale
+  // del destino real (la mitad de tu estatura) y no de un ritmo de catálogo.
+  agrega(
+    "Cintura",
+    inicio.waistCm,
+    actual.waistCm,
+    metaCinturaCm != null && inicio.waistCm != null ? metaCinturaCm - inicio.waistCm : ritmo.cinturaCm,
+    "cm",
+  );
   agrega(
     "Peso",
     inicio.weightKg,

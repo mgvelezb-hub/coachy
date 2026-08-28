@@ -66,6 +66,7 @@ import {
 } from "@/lib/insights";
 import { brechasDeObjetivo, enfasisDeObjetivo, perfilDeEjes } from "@/lib/perfil";
 import { brechasDelMes, metasDelMes } from "@/lib/metas";
+import { glidepathDeCintura, textoDeGlidepath } from "@/lib/glidepath";
 import { fonts, radius, spacing, type as typeScale, withAlpha, type Palette } from "@/lib/theme";
 import { syncWidgetData } from "@/lib/widget";
 
@@ -239,7 +240,13 @@ export default function ResumenScreen() {
   // Las metas del mes: la rampa, no la cima. Comparar tu cintura de hoy contra
   // la referencia da una brecha enorme que no dice qué hacer esta semana; el
   // escalón del mes sí.
-  const metas = metasDelMes(data.points ?? [], data.me?.profile?.goal ?? "SALUD", todayISO());
+  const plan = glidepathDeCintura(data.points ?? [], data.me?.profile?.heightCm ?? null);
+  const metas = metasDelMes(
+    data.points ?? [],
+    data.me?.profile?.goal ?? "SALUD",
+    todayISO(),
+    plan?.meta ?? null,
+  );
 
   const ejes = perfilDeEjes({
     healthDays: dias,
@@ -370,8 +377,9 @@ export default function ResumenScreen() {
             <View style={[styles.perfil, styles.mitad]}>
               <Text style={styles.heroTitle}>Tu mes</Text>
               <Text style={styles.heroCaption}>
-                Tus medidas contra la meta de este mes, desde tu check-in del {metas.desde}
+                Tus medidas contra el corte de este mes, desde tu check-in del {metas.desde}
               </Text>
+              {plan && <Text style={styles.glidepath}>{textoDeGlidepath(plan)}</Text>}
               <View style={{ marginTop: spacing.md }}>
                 <ChartBoundary label="Las metas del mes no se pudieron dibujar.">
                   <GapChart brechas={brechasDelMes(metas.medidas)} />
@@ -603,6 +611,12 @@ const makeStyles = (colors: Palette) => StyleSheet.create({
   },
   comparativaAncha: {
     flexDirection: "row",
+  },
+  glidepath: {
+    fontFamily: fonts.sansMedium,
+    ...typeScale.bodySm,
+    color: colors.champan,
+    marginTop: spacing.sm,
   },
   mitad: {
     flex: 1,

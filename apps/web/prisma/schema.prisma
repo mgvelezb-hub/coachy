@@ -221,6 +221,13 @@ model Profile {
   /// Duración típica del ciclo en días (21-45).
   cycleAvgLength       Int       @default(28) @map("cycle_avg_length")
 
+  // -- Cierre de semana -----------------------------------------------------
+  /// Día en que esta persona cierra su semana y hace check-in (0 = domingo).
+  /// `null` = todavía no lo eligió; la app asume domingo.
+  checkinWeekday Int? @map("checkin_weekday")
+  /// Hora local del recordatorio, 0-23. `null` = sin recordatorio.
+  checkinHour    Int? @map("checkin_hour")
+
   // -- Salud / wearables (Fase 8) -------------------------------------------
   /// Token del Atajo de iOS que sube pasos y sueño a `/api/health/ingest`.
   /// Es una credencial: se genera a la primera visita y se puede regenerar.

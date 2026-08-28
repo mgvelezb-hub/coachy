@@ -74,7 +74,15 @@ export const sensationsStepSchema = z.object({
   energy: scale1to5,
   hunger: scale1to5,
   satiety: scale1to5,
-  sleep: scale1to5,
+  /**
+   * Descanso 1-5.
+   *
+   * Opcional desde que el reloj sube los minutos exactos de cada noche: la app
+   * nativa ya no lo pregunta y el servidor lo deriva de `health_days` (ver
+   * `sleepScoreFor` en lib/health/db.ts). El formulario web todavía lo manda,
+   * y quien no traiga reloj puede seguir escribiéndolo.
+   */
+  sleep: scale1to5.optional(),
   strengthRpe: z.number().int().min(1).max(10).nullable().optional(),
   strengthTrend: z.enum(STRENGTH_TRENDS).nullable().optional(),
 });

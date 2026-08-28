@@ -33,6 +33,10 @@ export async function GET(request: Request): Promise<NextResponse> {
           // No hay campo `trainingDaysPerWeek` en el schema; `liftingDays` es
           // su equivalente (días de pesas por semana, spec 03 §5).
           trainingDaysPerWeek: profile.liftingDays,
+          // Cuándo cierra su semana. La app programa el recordatorio local
+          // con esto; `null` = todavía no lo eligió.
+          checkinWeekday: profile.checkinWeekday,
+          checkinHour: profile.checkinHour,
         }
       : null,
   });
