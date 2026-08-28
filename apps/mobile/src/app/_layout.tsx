@@ -10,10 +10,11 @@ import { useFonts } from "expo-font";
 import { Stack } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import { StatusBar } from "expo-status-bar";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { StyleSheet, View } from "react-native";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 
+import { OpeningSequence } from "@/components/OpeningSequence";
 import { SessionProvider, useSession } from "@/context/session";
 import { ThemeProvider, useTheme } from "@/context/theme";
 import { paletteLight } from "@/lib/theme";
@@ -79,6 +80,8 @@ export default function RootLayout() {
     Inter_700Bold,
   });
 
+  const [opened, setOpened] = useState(false);
+
   const ready = fontsLoaded || Boolean(fontsError);
 
   useEffect(() => {
@@ -96,6 +99,10 @@ export default function RootLayout() {
           <AppShell />
         </SessionProvider>
       </ThemeProvider>
+      {/* Encima de todo y en el nivel más alto: la app se monta y hace su
+          primer fetch detrás de la apertura, así que cuando el guinda se va la
+          pantalla de Hoy ya está lista en vez de aparecer vacía. */}
+      {!opened && <OpeningSequence onDone={() => setOpened(true)} />}
     </SafeAreaProvider>
   );
 }
