@@ -30,6 +30,8 @@
     ".next/types/**/*.ts"
   ],
   "exclude": [
+    // Se corren con tsx (importan `.ts` directo), no los compila Next.
+    "scripts",
     "node_modules"
   ]
 }

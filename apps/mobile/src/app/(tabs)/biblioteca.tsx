@@ -1,13 +1,25 @@
 import NetInfo from "@react-native-community/netinfo";
+import {
+  Dumbbell,
+  Flame,
+  Footprints,
+  Hand,
+  Home,
+  Layers,
+  Target,
+  Waves,
+} from "lucide-react-native";
 import { useVideoPlayer, VideoView } from "expo-video";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 
 import { Collapsible } from "@/components/Collapsible";
+import { ScoreCard } from "@/components/ScoreCard";
 import { EmptyState, ErrorState, LoadingState } from "@/components/States";
 import { useTheme } from "@/context/theme";
+import { useScrollTop } from "@/lib/scroll-top";
 import { ApiError, getTrainingWeek, type SessionExerciseView, type WeekView } from "@/lib/api";
-import { fonts, radius, spacing, type Palette } from "@/lib/theme";
+import { fonts, radius, spacing, type Palette, type as typeScale } from "@/lib/theme";
 import { getCachedWeek, saveWeek } from "@/lib/training-db";
 import {
   downloadVideo,
@@ -17,7 +29,15 @@ import {
 } from "@/lib/video-downloads";
 
 /**
- * Biblioteca (Fase N5) — v1 nativa: "los videos de tu semana".
+ * Biblioteca — una tarjeta por disciplina.
+ *
+ * Hoy solo Gym tiene contenido: son los videos de tu semana, agrupados por
+ * zona. Las demás disciplinas aparecen anunciadas y vacías a propósito, no por
+ * descuido — cada una entra con su propia investigación (niveles, estructura
+ * de sesión, progresión), y natación es la primera de la fila. Enseñar el
+ * lugar vacío es más honesto que esconder que existe el plan.
+ *
+ * De dónde salen los videos de Gym:
  *
  * No hay endpoint Bearer para el catálogo completo de ejercicios (la web lo
  * arma con cookies vía `apps/web/src/lib/exercise-library.ts`, que corre
@@ -31,6 +51,21 @@ import {
  * resuelven el mismo problema para las series, aquí es el mismo patrón
  * aplicado a los archivos de video.
  */
+
+/**
+ * Las disciplinas que ya tienen lugar en la app pero todavía no contenido.
+ * `orden` es la fila real de trabajo: natación primero por ser la que menos
+ * interfiere con la planeación de fuerza.
+ */
+const DISCIPLINAS = [
+  { label: "Natación", icon: Waves, nota: "Técnica, series y progresión por nivel", orden: 1 },
+  { label: "Squash", icon: Target, nota: "Movimiento en cancha y acondicionamiento", orden: 2 },
+  { label: "Box", icon: Hand, nota: "Fundamentos, combinaciones y trabajo de saco", orden: 3 },
+  { label: "Funcional", icon: Layers, nota: "Circuitos de cuerpo completo", orden: 4 },
+  { label: "Running", icon: Footprints, nota: "Rodajes, series y ritmo", orden: 5 },
+  { label: "CrossFit", icon: Flame, nota: "WODs y movimientos olímpicos", orden: 6 },
+  { label: "En casa", icon: Home, nota: "Sin equipo o con lo mínimo", orden: 7 },
+] as const;
 
 const MUSCLE_GROUP_ORDER = ["PIERNA", "HOMBRO", "PECHO", "ESPALDA", "BICEP", "TRICEP", "ABDOMEN"] as const;
 const OTHER_GROUP = "OTROS";
@@ -108,6 +143,9 @@ function mondayISO(): string {
 export default function BibliotecaScreen() {
   const { colors } = useTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
+  // Tocar esta pestaña estando en ella regresa el scroll hasta arriba.
+  const scrollRef = useScrollTop();
+
   const [week, setWeek] = useState<WeekView | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [online, setOnline] = useState(true);
@@ -183,7 +221,7 @@ export default function BibliotecaScreen() {
   const totalVideos = groups.reduce((sum, g) => sum + g.videos.length, 0);
 
   return (
-    <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
+    <ScrollView ref={scrollRef} style={styles.screen} contentContainerStyle={styles.content}>
       <Text style={styles.title}>Biblioteca</Text>
       <Text style={styles.subtitle}>
         Los videos de tu semana, agrupados por zona. Descárgalos con señal y quedan en tu teléfono
@@ -196,36 +234,59 @@ export default function BibliotecaScreen() {
         </View>
       )}
 
-      {totalVideos === 0 ? (
-        <EmptyState message="Tu semana todavía no tiene ejercicios con video." />
-      ) : (
-        <View style={styles.groups}>
-          {groups.map((group) => {
-            const groupDownloaded = group.videos.filter((v) => downloaded[v.videoPath]).length;
-            return (
-              <Collapsible
-                key={group.key}
-                title={group.label}
-                subtitle={`${group.videos.length} ejercicios · ${groupDownloaded}/${group.videos.length} descargados`}
-              >
-                {group.videos.map((video) => (
-                  <VideoRow
-                    key={video.key}
-                    video={video}
-                    online={online}
-                    isDownloaded={Boolean(downloaded[video.videoPath])}
-                    isBusy={Boolean(busy[video.videoPath])}
-                    isOpen={openVideo === video.key}
-                    onToggleOpen={() => setOpenVideo(openVideo === video.key ? null : video.key)}
-                    onDownload={() => handleDownload(video)}
-                    onRemove={() => handleRemove(video)}
-                  />
-                ))}
-              </Collapsible>
-            );
-          })}
-        </View>
-      )}
+      <ScoreCard
+        icon={Dumbbell}
+        tint={colors.champan}
+        title="Gym"
+        summary={
+          totalVideos === 0
+            ? "Tu semana todavía no tiene videos"
+            : `${totalVideos} ${totalVideos === 1 ? "video" : "videos"} · ${groups.length} ${groups.length === 1 ? "zona" : "zonas"}`
+        }
+      >
+        {totalVideos === 0 ? (
+          <EmptyState message="Tu semana todavía no tiene ejercicios con video." />
+        ) : (
+          <View style={styles.groups}>
+            {groups.map((group) => {
+              const groupDownloaded = group.videos.filter((v) => downloaded[v.videoPath]).length;
+              return (
+                <Collapsible
+                  key={group.key}
+                  title={group.label}
+                  subtitle={`${group.videos.length} ejercicios · ${groupDownloaded}/${group.videos.length} descargados`}
+                >
+                  {group.videos.map((video) => (
+                    <VideoRow
+                      key={video.key}
+                      video={video}
+                      online={online}
+                      isDownloaded={Boolean(downloaded[video.videoPath])}
+                      isBusy={Boolean(busy[video.videoPath])}
+                      isOpen={openVideo === video.key}
+                      onToggleOpen={() => setOpenVideo(openVideo === video.key ? null : video.key)}
+                      onDownload={() => handleDownload(video)}
+                      onRemove={() => handleRemove(video)}
+                    />
+                  ))}
+                </Collapsible>
+              );
+            })}
+          </View>
+        )}
+      </ScoreCard>
+
+      {DISCIPLINAS.map((disciplina) => (
+        <ScoreCard
+          key={disciplina.label}
+          icon={disciplina.icon}
+          tint={colors.paloRosa}
+          title={disciplina.label}
+          summary={disciplina.nota}
+          status={{ label: disciplina.orden === 1 ? "La que sigue" : "Próximamente", tone: "neutral" }}
+        />
+      ))}
+
     </ScrollView>
   );
 }
@@ -310,8 +371,8 @@ function VideoPlayer({ uri }: { uri: string }) {
 const makeStyles = (colors: Palette) => StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.obsidiana },
   content: { padding: spacing.lg, gap: spacing.lg, paddingBottom: spacing.huge },
-  title: { fontFamily: fonts.display, fontSize: 22, color: colors.marfil },
-  subtitle: { fontFamily: fonts.sans, fontSize: 13, color: colors.paloRosaLight },
+  title: { fontFamily: fonts.display, ...typeScale.title, color: colors.marfil },
+  subtitle: { fontFamily: fonts.sans, ...typeScale.bodySm, color: colors.paloRosaLight },
   offlineBadge: {
     borderWidth: 1,
     borderColor: colors.cardBorder,
@@ -319,7 +380,7 @@ const makeStyles = (colors: Palette) => StyleSheet.create({
     borderRadius: radius.md,
     padding: spacing.md,
   },
-  offlineBadgeText: { fontFamily: fonts.sans, fontSize: 12, color: colors.paloRosaLight },
+  offlineBadgeText: { fontFamily: fonts.sans, ...typeScale.label, color: colors.paloRosaLight },
   groups: {
     borderWidth: 1,
     borderColor: colors.cardBorder,
@@ -338,12 +399,12 @@ const makeStyles = (colors: Palette) => StyleSheet.create({
     gap: spacing.sm,
   },
   rowInfo: { flex: 1, gap: 2 },
-  rowName: { fontFamily: fonts.sansMedium, fontSize: 13, color: colors.marfil },
+  rowName: { fontFamily: fonts.sansMedium, ...typeScale.bodySm, color: colors.marfil },
   rowNameDisabled: { color: colors.paloRosaLight },
-  rowMeta: { fontFamily: fonts.sans, fontSize: 11, color: colors.paloRosaLight },
-  rowPlay: { fontFamily: fonts.display, fontSize: 14, color: colors.champan },
+  rowMeta: { fontFamily: fonts.sans, ...typeScale.label, color: colors.paloRosaLight },
+  rowPlay: { fontFamily: fonts.sansSemiBold, ...typeScale.body, color: colors.champan },
   rowActions: { flexDirection: "row", justifyContent: "flex-end" },
-  rowActionText: { fontFamily: fonts.display, fontSize: 9, letterSpacing: 1.5, color: colors.paloRosa },
+  rowActionText: { fontFamily: fonts.sansSemiBold, ...typeScale.label, letterSpacing: 1.5, color: colors.paloRosa },
   rowActionDisabled: { color: colors.paloRosaLight, opacity: 0.6 },
   videoView: {
     width: "100%",

@@ -1,4 +1,5 @@
 import { useRouter } from "expo-router";
+import { ChevronLeft } from "lucide-react-native";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from "react-native";
 
@@ -14,7 +15,7 @@ import {
   type CheckInPoint,
   type PersonalRecord,
 } from "@/lib/api";
-import { fonts, radius, spacing, withAlpha, type Palette } from "@/lib/theme";
+import { fonts, radius, spacing, withAlpha, type Palette, type as typeScale } from "@/lib/theme";
 
 type HistorialData = {
   points: CheckInPoint[];
@@ -69,6 +70,11 @@ export default function HistorialScreen() {
       contentContainerStyle={styles.content}
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.paloRosa} />}
     >
+      <Pressable onPress={() => router.back()} hitSlop={10} style={styles.backRow}>
+        <ChevronLeft size={22} color={colors.paloRosa} strokeWidth={2} />
+        <Text style={styles.backText}>Atrás</Text>
+      </Pressable>
+
       <Text style={styles.title}>Tu historial</Text>
 
       <Card>
@@ -154,6 +160,18 @@ function CheckInRow({ point, delta }: { point: CheckInPoint; delta: number | nul
 }
 
 const makeStyles = (colors: Palette) => StyleSheet.create({
+  backRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 2,
+    paddingVertical: spacing.sm,
+    alignSelf: "flex-start",
+  },
+  backText: {
+    fontFamily: fonts.sansMedium,
+    ...typeScale.body,
+    color: colors.paloRosa,
+  },
   screen: {
     flex: 1,
     backgroundColor: colors.obsidiana,
@@ -165,7 +183,7 @@ const makeStyles = (colors: Palette) => StyleSheet.create({
   },
   title: {
     fontFamily: fonts.display,
-    fontSize: 20,
+    ...typeScale.heading,
     color: colors.marfil,
   },
   list: {
@@ -185,12 +203,12 @@ const makeStyles = (colors: Palette) => StyleSheet.create({
   },
   checkinDate: {
     fontFamily: fonts.sansMedium,
-    fontSize: 13,
+    ...typeScale.bodySm,
     color: colors.marfil,
   },
   checkinPhase: {
     fontFamily: fonts.sans,
-    fontSize: 11,
+    ...typeScale.label,
     color: colors.paloRosaLight,
   },
   checkinMeasure: {
@@ -200,7 +218,7 @@ const makeStyles = (colors: Palette) => StyleSheet.create({
   },
   checkinWaist: {
     fontFamily: fonts.display,
-    fontSize: 15,
+    ...typeScale.subheading,
     color: colors.champan,
   },
   deltaBadge: {
@@ -217,7 +235,7 @@ const makeStyles = (colors: Palette) => StyleSheet.create({
   },
   deltaText: {
     fontFamily: fonts.sans,
-    fontSize: 11,
+    ...typeScale.label,
     color: colors.marfil,
   },
   prRow: {
@@ -229,12 +247,12 @@ const makeStyles = (colors: Palette) => StyleSheet.create({
   },
   prName: {
     fontFamily: fonts.sans,
-    fontSize: 13,
+    ...typeScale.bodySm,
     color: colors.marfil,
   },
   prValue: {
-    fontFamily: fonts.display,
-    fontSize: 13,
+    fontFamily: fonts.sansSemiBold,
+    ...typeScale.bodySm,
     color: colors.champan,
   },
   goalLink: {
@@ -243,7 +261,7 @@ const makeStyles = (colors: Palette) => StyleSheet.create({
   },
   goalLinkText: {
     fontFamily: fonts.serifItalic,
-    fontSize: 15,
+    ...typeScale.subheading,
     color: colors.paloRosaLight,
   },
 });

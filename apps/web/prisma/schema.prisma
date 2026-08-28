@@ -180,16 +180,18 @@ model Profile {
   weightKg    Decimal?  @map("weight_kg") @db.Decimal(5, 1)
   leanMassKg  Decimal?  @map("lean_mass_kg") @db.Decimal(5, 1)
 
-  liftingDays  Int          @default(4) @map("lifting_days")
-  cardioMinWk  Int          @default(0) @map("cardio_min_wk")
+  liftingDays      Int          @default(4) @map("lifting_days")
+  cardioMinWk      Int          @default(0) @map("cardio_min_wk")
   /// Minutos por sesión. 45 ⇒ 4-5 ejercicios; 60+ ⇒ 6-8 (metodología §3).
-  sessionMinutes Int        @default(60) @map("session_minutes")
-  work         WorkSchedule @default(SEDENTARIO)
-  trainingTime TrainingTime @default(MANANA) @map("training_time")
-  /** Horario por día {LUN..DOM: MANANA|MEDIODIA|TARDE|NOCHE|DESCANSO}; null = mismo horario todos los días. */
-  trainingSchedule Json? @map("training_schedule")
-  mealsPerDay  Int          @default(4) @map("meals_per_day")
-  budget       Budget       @default(MEDIO)
+  sessionMinutes   Int          @default(60) @map("session_minutes")
+  work             WorkSchedule @default(SEDENTARIO)
+  trainingTime     TrainingTime @default(MANANA) @map("training_time")
+  /**
+   * Horario por día {LUN..DOM: MANANA|MEDIODIA|TARDE|NOCHE|DESCANSO}; null = mismo horario todos los días.
+   */
+  trainingSchedule Json?        @map("training_schedule")
+  mealsPerDay      Int          @default(4) @map("meals_per_day")
+  budget           Budget       @default(MEDIO)
 
   favoriteFoods String[] @map("favorite_foods")
   excludedFoods String[] @map("excluded_foods")
@@ -418,13 +420,13 @@ model WorkoutSet {
   /// Nombre tal como se planeó: sobrevive aunque el catálogo cambie.
   exerciseName String @map("exercise_name")
 
-  setIndex   Int  @map("set_index")
-  targetReps Int  @map("target_reps")
+  setIndex   Int      @map("set_index")
+  targetReps Int      @map("target_reps")
   reps       Int
   weightKg   Decimal? @map("weight_kg") @db.Decimal(6, 2)
   rpe        Int?
   /// Serie de calentamiento: no cuenta para volumen, PRs ni progresión.
-  warmup     Boolean @default(false)
+  warmup     Boolean  @default(false)
 
   /// Llave de idempotencia generada en el dispositivo.
   clientId String @map("client_id")
@@ -458,6 +460,21 @@ model HealthDay {
   /// Minutos dormidos esa noche (la que termina esa mañana).
   sleepMin    Int? @map("sleep_min")
   restingHr   Int? @map("resting_hr")
+
+  // --- Indicadores de recuperación y capacidad (Fase 2 de tracking) ---
+  /// Variabilidad de la frecuencia cardiaca (SDNN, ms). El proxy de
+  /// recuperación más usado: baja sostenida = fatiga acumulada o estrés.
+  hrvMs           Int?     @map("hrv_ms")
+  /// VO₂ máx estimado por el reloj (mL/kg/min). Cambia de mes en mes, no de
+  /// día en día — por eso se guarda el último valor conocido de cada día.
+  vo2max          Decimal? @map("vo2max") @db.Decimal(4, 1)
+  /// Frecuencia respiratoria en reposo (respiraciones por minuto).
+  respiratoryRate Decimal? @map("respiratory_rate") @db.Decimal(4, 1)
+  /// Saturación de oxígeno (%). Solo se guarda y se grafica: la app NUNCA la
+  /// interpreta clínicamente.
+  spo2            Decimal? @map("spo2") @db.Decimal(4, 1)
+  /// Horas del día en que hubo al menos un minuto de pie (anillo de Apple).
+  standHours      Int?     @map("stand_hours")
 
   /// De dónde vino: `atajo-ios` por default. Sirve para saber qué confiar.
   source String @default("atajo-ios")

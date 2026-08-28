@@ -1,10 +1,20 @@
 import { useRouter } from "expo-router";
-import { Flame, Settings } from "lucide-react-native";
+import {
+  Bike,
+  Dumbbell,
+  Footprints,
+  Moon,
+  Plus,
+  Ruler,
+  Settings,
+  UtensilsCrossed,
+} from "lucide-react-native";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from "react-native";
 
 import {
   ApiError,
+  DISCIPLINE_LABELS,
   getActivities,
   getCheckins,
   getDecision,
@@ -15,21 +25,45 @@ import {
   getNutrition,
   getTrainingToday,
   markNotificationsRead,
+  type Activity,
+  type CheckInRow,
   type Decision,
+  type HealthDayPayload,
   type MeResponse,
   type Notification,
   type NutritionResponse,
   type TodayCard,
 } from "@/lib/api";
 import { Card } from "@/components/Card";
-import { Chip } from "@/components/Chip";
 import { Collapsible } from "@/components/Collapsible";
+import { HeroCard } from "@/components/HeroCard";
+import { ScoreCard } from "@/components/ScoreCard";
+import { StatRow } from "@/components/StatRow";
 import { EmptyState, ErrorState, LoadingState } from "@/components/States";
 import { SectionLabel } from "@/components/SectionLabel";
 import { useTheme } from "@/context/theme";
-import { activeDays, bestStreak, currentStreak, todayISO } from "@/lib/streak";
-import { fonts, radius, spacing, type Palette } from "@/lib/theme";
+import { useScrollTop } from "@/lib/scroll-top";
+import { bestStreak, currentStreak, todayISO, trainingDays } from "@/lib/streak";
+import {
+  fonts,
+  radius,
+  shadow,
+  spacing,
+  type as typeScale,
+  withAlpha,
+  type Palette,
+} from "@/lib/theme";
 import { formatMealItem, pickNextMeal, syncWidgetData } from "@/lib/widget";
+
+/**
+ * "Hoy" — la pantalla de lo que se hace en las próximas horas.
+ *
+ * La frontera con Resumen es dura: aquí solo entra lo que cambia lo que haces
+ * HOY. Por eso no vive aquí la racha (no mueve nada de hoy), ni la lista de
+ * súper, ni los menús completos de la semana, ni nada del check-in — todo eso
+ * se resuelve en Nutrición o en Resumen. Lo que sí: la sesión de hoy, los
+ * datos del reloj del día, la comida de hoy y lo que Coachy te diría ahorita.
+ */
 
 type HomeData = {
   me: MeResponse;
@@ -37,8 +71,16 @@ type HomeData = {
   nutrition: NutritionResponse | null;
   today: TodayCard | null;
   notifications: Notification[];
-  /** Racha de engagement — el detalle completo (mejor racha, etc.) vive en /resumen. */
+  /**
+   * Racha de entrenamiento. No se pinta en Hoy —vive en Resumen y en el
+   * widget—, pero se calcula aquí porque Hoy es la pantalla que siempre se
+   * abre, y el widget se quedaría sin actualizar si dependiera de que alguien
+   * entre a Resumen.
+   */
   streak: number;
+  healthDays: HealthDayPayload[];
+  checkIns: CheckInRow[];
+  activities: Activity[];
 };
 
 /** true si el error de API es "onboarding incompleto" (403): no es una falla real. */
@@ -46,10 +88,33 @@ function isOnboardingIncomplete(error: unknown): boolean {
   return error instanceof ApiError && error.status === 403;
 }
 
+/** Minutos → "7 h 20 min". Sin dato → null. */
+function formatSleep(minutes: number | null | undefined): string | null {
+  if (minutes === null || minutes === undefined) return null;
+  const hours = Math.floor(minutes / 60);
+  const rest = minutes % 60;
+  return rest === 0 ? `${hours} h` : `${hours} h ${rest}`;
+}
+
+/** El día del reloj más reciente que traiga ese campo (un día puede venir a medias). */
+function latestWith(
+  days: HealthDayPayload[],
+  field: "steps" | "sleepMin",
+): number | null {
+  const sorted = [...days].sort((a, b) => b.date.localeCompare(a.date));
+  for (const day of sorted) {
+    const value = day[field];
+    if (value !== null && value !== undefined) return value;
+  }
+  return null;
+}
+
 export default function HoyScreen() {
   const router = useRouter();
   const { colors } = useTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
+  // Tocar esta pestaña estando en ella regresa el scroll hasta arriba.
+  const scrollRef = useScrollTop();
   const [data, setData] = useState<HomeData | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
@@ -66,21 +131,19 @@ export default function HoyScreen() {
           getTrainingToday().catch((e) =>
             isOnboardingIncomplete(e) ? { today: null } : Promise.reject(e),
           ),
-          // Las 4 fuentes de la racha (tarjeta-gancho de "Tu resumen") son
-          // tolerantes a fallar por separado: la racha en 0 por un endpoint
-          // caído no debe tumbar la pantalla de Hoy.
+          // Las fuentes de la racha son tolerantes a fallar por separado: un
+          // endpoint caído no debe tumbar la pantalla de Hoy.
           getHistoryTraining().catch(() => null),
           getCheckins().catch(() => null),
           getHealthDays().catch(() => null),
           getActivities().catch(() => null),
         ]);
 
-      const days = activeDays({
+      const sources = {
         sessions: history?.sessions,
-        checkIns: checkinsRes?.checkIns,
-        healthDays: healthRes?.dias,
         activities: activitiesRes?.actividades,
-      });
+      };
+      const days = trainingDays(sources);
       const streak = currentStreak(days, todayISO());
       const todayCard = today?.today ?? null;
 
@@ -91,6 +154,9 @@ export default function HoyScreen() {
         today: todayCard,
         notifications: notificationsRes.notificaciones,
         streak,
+        healthDays: healthRes?.dias ?? [],
+        checkIns: checkinsRes?.checkIns ?? [],
+        activities: activitiesRes?.actividades ?? [],
       });
       setError(null);
 
@@ -139,31 +205,31 @@ export default function HoyScreen() {
   if (!data && error) return <ErrorState message={error} onRetry={load} />;
   if (!data) return null;
 
-  const { me, decision, nutrition, today, notifications, streak } = data;
+  const { me, decision, nutrition, today, notifications } = data;
   const visibleNotifications = notifications.filter((n) => !dismissed.has(n.id));
   const firstName = me.profile?.displayName ?? "atleta";
+  const steps = latestWith(data.healthDays, "steps");
+  const sleep = formatSleep(latestWith(data.healthDays, "sleepMin"));
+  const lastCheckIn = [...data.checkIns].sort((a, b) => b.date.localeCompare(a.date))[0] ?? null;
 
   return (
     <ScrollView
+      ref={scrollRef}
       style={styles.screen}
       contentContainerStyle={styles.content}
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.paloRosa} />}
     >
-      <View style={styles.header}>
-        <View style={styles.headerRow}>
-          <View style={styles.headerText}>
-            <Text style={styles.greeting}>Hola, {firstName}</Text>
-            {me.profile?.currentPhase && (
-              <SectionLabel color={colors.champan}>{me.profile.currentPhase}</SectionLabel>
-            )}
-          </View>
-          <Pressable onPress={() => router.push("/ajustes")} hitSlop={8} style={styles.settingsButton}>
-            <Settings size={22} color={colors.paloRosa} strokeWidth={1.75} />
-          </Pressable>
+      <View style={styles.headerRow}>
+        <View style={styles.headerText}>
+          <Text style={styles.greeting}>Hola, {firstName}</Text>
+          {me.profile?.currentPhase && (
+            <Text style={styles.phase}>{me.profile.currentPhase.replace(/_/g, " ")}</Text>
+          )}
         </View>
+        <Pressable onPress={() => router.push("/ajustes")} hitSlop={8} style={styles.settingsButton}>
+          <Settings size={24} color={colors.paloRosa} strokeWidth={2} />
+        </Pressable>
       </View>
-
-      <StreakTeaser streak={streak} onPress={() => router.push("/resumen")} />
 
       {visibleNotifications.map((notification) => (
         <NotificationBanner
@@ -173,11 +239,43 @@ export default function HoyScreen() {
         />
       ))}
 
+      <TodayTrainingCard today={today} onPress={() => router.push("/rutinas")} />
+
+      <View style={styles.stats}>
+        <StatRow
+          icon={Footprints}
+          label="Actividad"
+          value={steps === null ? "—" : steps.toLocaleString("es-MX")}
+          unit={steps === null ? null : "pasos"}
+          tint={colors.champan}
+          onPress={() => router.push("/salud/pasos")}
+        />
+        <StatRow
+          icon={Moon}
+          label="Descanso"
+          value={sleep ?? "—"}
+          unit={null}
+          tint={colors.paloRosa}
+          onPress={() => router.push("/salud/descanso")}
+        />
+        <StatRow
+          icon={Ruler}
+          label="Cintura"
+          value={lastCheckIn?.waistCm != null ? `${lastCheckIn.waistCm}` : "—"}
+          unit={lastCheckIn?.waistCm != null ? "cm" : null}
+          tint={colors.guindaLight}
+          onPress={() => router.push("/salud/medidas")}
+        />
+      </View>
+
+      <ComidaDeHoy nutrition={nutrition} />
+
+      <ActivitiesCard
+        activities={data.activities}
+        onAdd={() => router.push("/actividad")}
+      />
+
       <DecisionCard decision={decision} />
-
-      <NutritionCard nutrition={nutrition} />
-
-      <TodayTrainingCard today={today} onPress={() => router.push("/gym")} />
     </ScrollView>
   );
 }
@@ -204,27 +302,82 @@ function NotificationBanner({
   );
 }
 
+function TodayTrainingCard({ today, onPress }: { today: TodayCard | null; onPress: () => void }) {
+  const { colors } = useTheme();
+
+  if (!today) {
+    return (
+      <HeroCard
+        eyebrow="Hoy"
+        title="Descanso"
+        subtitle="Sin sesión programada. Si te moviste por tu cuenta, regístralo abajo."
+        colorsOverride={[colors.guindaDark, colors.obsidiana]}
+      />
+    );
+  }
+
+  return (
+    <HeroCard
+      eyebrow={today.completed ? "Hoy · hecho" : "Hoy toca"}
+      title={today.muscleGroup}
+      subtitle={`${today.exerciseCount} ejercicios · ${today.schemeLabel}${
+        today.cardioMinutes ? ` · ${today.cardioMinutes} min cardio` : ""
+      }`}
+      onPress={onPress}
+    />
+  );
+}
+
 /**
- * Gancho diario de engagement: la racha en grande, siempre arriba de todo y
- * tocable hacia /resumen. Vive fuera del scroll implícito porque es el
- * primer elemento después del saludo — debe verse sin hacer scroll.
+ * Lo que se entrenó fuera del gym. Es el único lugar donde una sesión de bici,
+ * box o alberca existe: el modo gimnasio solo sabe de pesas serie a serie.
  */
-function StreakTeaser({ streak, onPress }: { streak: number; onPress: () => void }) {
+function ActivitiesCard({
+  activities,
+  onAdd,
+}: {
+  activities: Activity[];
+  onAdd: () => void;
+}) {
   const { colors } = useTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
+  const recent = activities.slice(0, 4);
+
   return (
-    <Pressable onPress={onPress}>
-      <Card highlighted>
-        <View style={styles.streakRow}>
-          <Flame size={26} color={colors.pergamino} strokeWidth={1.75} />
-          <View style={styles.streakTextWrap}>
-            <Text style={styles.streakNumber}>{streak}</Text>
-            <Text style={styles.streakLabel}>{streak === 1 ? "día seguido" : "días seguidos"}</Text>
-          </View>
-          <Text style={styles.streakCta}>Ver tu resumen →</Text>
+    <Card>
+      <View style={styles.cardHeader}>
+        <SectionLabel>Otras disciplinas</SectionLabel>
+        <Pressable onPress={onAdd} hitSlop={8} style={styles.addButton}>
+          <Plus size={18} color={colors.pergamino} strokeWidth={2.5} />
+          <Text style={styles.addLabel}>Registrar</Text>
+        </Pressable>
+      </View>
+
+      {recent.length === 0 ? (
+        <EmptyState message="Bici, box, alberca, funcional: lo que hagas fuera del gym se registra aquí y cuenta para tu racha." />
+      ) : (
+        <View style={styles.activityList}>
+          {recent.map((activity) => (
+            <View key={activity.id} style={styles.activityRow}>
+              <View style={styles.activityIcon}>
+                {activity.discipline === "PESAS" ? (
+                  <Dumbbell size={20} color={colors.champan} strokeWidth={2} />
+                ) : (
+                  <Bike size={20} color={colors.champan} strokeWidth={2} />
+                )}
+              </View>
+              <View style={styles.activityText}>
+                <Text style={styles.activityName}>{DISCIPLINE_LABELS[activity.discipline]}</Text>
+                <Text style={styles.activityMeta}>
+                  {activity.date} · {activity.durationMin} min
+                  {activity.source === "HEALTHKIT" ? " · del reloj" : ""}
+                </Text>
+              </View>
+            </View>
+          ))}
         </View>
-      </Card>
-    </Pressable>
+      )}
+    </Card>
   );
 }
 
@@ -243,19 +396,21 @@ function DecisionCard({ decision }: { decision: Decision | null }) {
   const longText = (decision.texto?.length ?? 0) > 220;
 
   return (
-    <Card highlighted>
-      <SectionLabel color={colors.pergaminoSoft}>{decision.phase}</SectionLabel>
-
+    <HeroCard eyebrow={decision.phase.replace(/_/g, " ")} title={`${decision.kcal} kcal`} subtitle={decision.meta}>
       <View style={styles.macroRow}>
-        <Chip label={`${decision.kcal} kcal`} selected />
-        <Chip label={`P ${decision.proteinG}g`} />
-        <Chip label={`C ${decision.carbsG}g`} />
-        <Chip label={`G ${decision.fatG}g`} />
+        <View style={styles.macro}>
+          <Text style={styles.macroValue}>{decision.proteinG}g</Text>
+          <Text style={styles.macroLabel}>Proteína</Text>
+        </View>
+        <View style={styles.macro}>
+          <Text style={styles.macroValue}>{decision.carbsG}g</Text>
+          <Text style={styles.macroLabel}>Carbos</Text>
+        </View>
+        <View style={styles.macro}>
+          <Text style={styles.macroValue}>{decision.fatG}g</Text>
+          <Text style={styles.macroLabel}>Grasas</Text>
+        </View>
       </View>
-
-      {decision.meta && (
-        <Text style={styles.decisionMeta}>{decision.meta}</Text>
-      )}
 
       {decision.texto &&
         (longText ? (
@@ -265,85 +420,57 @@ function DecisionCard({ decision }: { decision: Decision | null }) {
         ) : (
           <Text style={styles.decisionText}>{decision.texto}</Text>
         ))}
-    </Card>
+    </HeroCard>
   );
 }
 
-function NutritionCard({ nutrition }: { nutrition: NutritionResponse | null }) {
+/**
+ * La comida de hoy. Un solo menú —el primero—, cerrado, con la siguiente
+ * comida a la vista sin abrir.
+ *
+ * Los menús completos y la lista de súper se fueron a Nutrición: son
+ * decisiones de semana, se miran al planear o al ir al mercado, no entre
+ * series.
+ */
+function ComidaDeHoy({ nutrition }: { nutrition: NutritionResponse | null }) {
   const { colors } = useTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
-  if (!nutrition || nutrition.menus.length === 0) {
+  const menu = nutrition?.menus[0] ?? null;
+
+  if (!menu) {
     return (
       <Card>
-        <SectionLabel>Tu alimentación</SectionLabel>
+        <SectionLabel>Tu comida de hoy</SectionLabel>
         <EmptyState message="Tu menú se sirve en cuanto tu coach publique tu decisión." />
       </Card>
     );
   }
 
+  const siguiente = pickNextMeal(menu.meals);
+  const resumen = siguiente
+    ? `Sigue ${siguiente.label.toLowerCase()} · ${siguiente.timeHint}`
+    : `${menu.meals.length} comidas hoy`;
+
   return (
-    <Card>
-      <SectionLabel>Tu alimentación</SectionLabel>
-      <View style={{ marginTop: spacing.sm }}>
-        {nutrition.menus.map((menu, index) => (
-          <Collapsible
-            key={menu.menuNumber}
-            title={`Menú ${menu.menuNumber}`}
-            defaultOpen={index === 0}
-          >
-            {menu.meals.map((meal) => (
-              <View key={meal.slot} style={styles.meal}>
-                <Text style={styles.mealLabel}>
-                  {meal.label} · {meal.timeHint}
-                </Text>
-                {meal.items.map((item) => (
-                  <Text key={item.name} style={styles.mealItem}>
-                    · {item.name} {item.free ? "(libre)" : `— ${item.grams} g`}
-                  </Text>
-                ))}
-              </View>
-            ))}
-          </Collapsible>
-        ))}
-
-        {nutrition.groceries.length > 0 && (
-          <Collapsible title="Lista de súper" subtitle={`${nutrition.groceries.length} artículos`}>
-            {nutrition.groceries.map((item) => (
-              <Text key={item.name} style={styles.mealItem}>
-                · {item.name} — {item.grams} {item.unit}
-              </Text>
-            ))}
-          </Collapsible>
-        )}
-      </View>
-    </Card>
-  );
-}
-
-function TodayTrainingCard({ today, onPress }: { today: TodayCard | null; onPress: () => void }) {
-  const { colors } = useTheme();
-  const styles = useMemo(() => makeStyles(colors), [colors]);
-  return (
-    <Pressable onPress={onPress}>
-      <Card>
-        <View style={styles.trainingHeader}>
-          <SectionLabel>Hoy toca</SectionLabel>
-          {today?.completed && <Chip label="Hecho" tone="champan" selected />}
-        </View>
-
-        {today ? (
-          <View style={styles.trainingBody}>
-            <Text style={styles.trainingGroup}>{today.muscleGroup}</Text>
-            <Text style={styles.trainingMeta}>
-              {today.exerciseCount} ejercicios · {today.schemeLabel}
-              {today.cardioMinutes ? ` · ${today.cardioMinutes} min cardio` : ""}
+    <ScoreCard
+      icon={UtensilsCrossed}
+      tint={colors.guindaLight}
+      title="Tu comida de hoy"
+      summary={resumen}
+    >
+      {menu.meals.map((meal) => (
+        <View key={meal.slot} style={styles.meal}>
+          <Text style={styles.mealLabel}>
+            {meal.label} · {meal.timeHint}
+          </Text>
+          {meal.items.map((item) => (
+            <Text key={item.name} style={styles.mealItem}>
+              · {item.name} {item.free ? "(libre)" : `— ${item.grams} g`}
             </Text>
-          </View>
-        ) : (
-          <EmptyState message="Hoy toca descanso. Aprovecha para recuperar." />
-        )}
-      </Card>
-    </Pressable>
+          ))}
+        </View>
+      ))}
+    </ScoreCard>
   );
 }
 
@@ -354,51 +481,36 @@ const makeStyles = (colors: Palette) => StyleSheet.create({
   },
   content: {
     padding: spacing.lg,
+    paddingBottom: spacing.huge,
     gap: spacing.lg,
-  },
-  header: {
-    marginBottom: spacing.sm,
   },
   headerRow: {
     flexDirection: "row",
-    alignItems: "flex-start",
+    alignItems: "center",
     justifyContent: "space-between",
     gap: spacing.sm,
+    paddingTop: spacing.sm,
   },
   headerText: {
     flex: 1,
-    gap: spacing.xs,
+    gap: 2,
   },
   settingsButton: {
     padding: spacing.xs,
   },
   greeting: {
-    fontFamily: fonts.display,
-    fontSize: 22,
+    fontFamily: fonts.sansBold,
+    ...typeScale.title,
     color: colors.marfil,
   },
-  streakRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: spacing.md,
-  },
-  streakTextWrap: {
-    flex: 1,
-  },
-  streakNumber: {
-    fontFamily: fonts.displaySemiBold,
-    fontSize: 28,
-    color: colors.pergamino,
-  },
-  streakLabel: {
+  phase: {
     fontFamily: fonts.sansMedium,
-    fontSize: 12,
-    color: colors.pergaminoSoft,
+    ...typeScale.bodySm,
+    letterSpacing: 1.2,
+    color: colors.champan,
   },
-  streakCta: {
-    fontFamily: fonts.serifItalic,
-    fontSize: 14,
-    color: colors.pergamino,
+  stats: {
+    gap: spacing.md,
   },
   banner: {
     flexDirection: "row",
@@ -406,9 +518,10 @@ const makeStyles = (colors: Palette) => StyleSheet.create({
     backgroundColor: colors.cardBg,
     borderWidth: 1,
     borderColor: colors.champanSoft,
-    borderRadius: radius.md,
-    padding: spacing.md,
+    borderRadius: radius.xl,
+    padding: spacing.lg,
     gap: spacing.sm,
+    ...shadow.card,
   },
   bannerText: {
     flex: 1,
@@ -416,37 +529,92 @@ const makeStyles = (colors: Palette) => StyleSheet.create({
   },
   bannerTitle: {
     fontFamily: fonts.sansSemiBold,
-    fontSize: 13,
+    ...typeScale.body,
     color: colors.marfil,
   },
   bannerBody: {
     fontFamily: fonts.sans,
-    fontSize: 12,
+    ...typeScale.bodySm,
     color: colors.paloRosaLight,
   },
   bannerClose: {
     fontFamily: fonts.sans,
-    fontSize: 14,
+    ...typeScale.body,
     color: colors.paloRosaLight,
     padding: spacing.xs,
   },
+  cardHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: spacing.sm,
+  },
+  addButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    borderRadius: radius.full,
+    backgroundColor: colors.guinda,
+  },
+  addLabel: {
+    fontFamily: fonts.sansSemiBold,
+    ...typeScale.label,
+    color: colors.pergamino,
+  },
+  activityList: {
+    marginTop: spacing.md,
+    gap: spacing.md,
+  },
+  activityRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.md,
+  },
+  activityIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: radius.full,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: withAlpha(colors.champan, 0.14),
+  },
+  activityText: {
+    flex: 1,
+    gap: 2,
+  },
+  activityName: {
+    fontFamily: fonts.sansSemiBold,
+    ...typeScale.body,
+    color: colors.marfil,
+  },
+  activityMeta: {
+    fontFamily: fonts.sans,
+    ...typeScale.bodySm,
+    color: colors.paloRosa,
+  },
   macroRow: {
     flexDirection: "row",
-    flexWrap: "wrap",
-    gap: spacing.sm,
-    marginTop: spacing.md,
-  },
-  decisionMeta: {
-    fontFamily: fonts.serifItalic,
-    fontSize: 17,
-    // Sobre el acento, no sobre el fondo: en Champán el acento ya es champán.
-    color: colors.pergaminoSoft,
+    gap: spacing.xl,
     marginTop: spacing.lg,
+  },
+  macro: {
+    gap: 2,
+  },
+  macroValue: {
+    fontFamily: fonts.sansBold,
+    ...typeScale.heading,
+    color: colors.pergamino,
+  },
+  macroLabel: {
+    fontFamily: fonts.sansMedium,
+    ...typeScale.label,
+    color: colors.pergaminoSoft,
   },
   decisionText: {
     fontFamily: fonts.sans,
-    fontSize: 14,
-    lineHeight: 20,
+    ...typeScale.body,
     color: colors.pergamino,
     marginTop: spacing.md,
   },
@@ -456,32 +624,13 @@ const makeStyles = (colors: Palette) => StyleSheet.create({
   },
   mealLabel: {
     fontFamily: fonts.sansSemiBold,
-    fontSize: 13,
+    ...typeScale.bodySm,
     color: colors.paloRosa,
     marginBottom: 2,
   },
   mealItem: {
     fontFamily: fonts.sans,
-    fontSize: 13,
+    ...typeScale.body,
     color: colors.marfil,
-  },
-  trainingHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-  },
-  trainingBody: {
-    marginTop: spacing.md,
-    gap: spacing.xs,
-  },
-  trainingGroup: {
-    fontFamily: fonts.display,
-    fontSize: 20,
-    color: colors.marfil,
-  },
-  trainingMeta: {
-    fontFamily: fonts.sans,
-    fontSize: 13,
-    color: colors.paloRosaLight,
   },
 });

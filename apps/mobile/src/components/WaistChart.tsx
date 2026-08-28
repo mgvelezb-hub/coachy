@@ -3,7 +3,7 @@ import { StyleSheet, Text, View } from "react-native";
 import Svg, { Circle, Line as SvgLine, Polyline } from "react-native-svg";
 
 import { useTheme } from "@/context/theme";
-import { fonts, spacing, type Palette } from "@/lib/theme";
+import { fonts, spacing, type Palette, type as typeScale } from "@/lib/theme";
 import type { CheckInPoint } from "@/lib/api";
 
 type WaistChartProps = {
@@ -121,7 +121,7 @@ const makeStyles = (colors: Palette) => StyleSheet.create({
   },
   emptyText: {
     fontFamily: fonts.serifItalic,
-    fontSize: 14,
+    ...typeScale.body,
     color: colors.paloRosaLight,
     textAlign: "center",
   },
@@ -143,7 +143,7 @@ const makeStyles = (colors: Palette) => StyleSheet.create({
   },
   legendLabel: {
     fontFamily: fonts.sans,
-    fontSize: 11,
+    ...typeScale.label,
     color: colors.paloRosaLight,
   },
 });

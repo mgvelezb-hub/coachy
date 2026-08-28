@@ -1,14 +1,20 @@
 import { Cinzel_500Medium, Cinzel_600SemiBold } from "@expo-google-fonts/cinzel";
 import { CormorantGaramond_500Medium_Italic } from "@expo-google-fonts/cormorant-garamond";
-import { Inter_400Regular, Inter_500Medium, Inter_600SemiBold } from "@expo-google-fonts/inter";
+import {
+  Inter_400Regular,
+  Inter_500Medium,
+  Inter_600SemiBold,
+  Inter_700Bold,
+} from "@expo-google-fonts/inter";
 import { useFonts } from "expo-font";
 import { Stack } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import { StatusBar } from "expo-status-bar";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { StyleSheet, View } from "react-native";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 
+import { OpeningSequence } from "@/components/OpeningSequence";
 import { SessionProvider, useSession } from "@/context/session";
 import { ThemeProvider, useTheme } from "@/context/theme";
 import { paletteLight } from "@/lib/theme";
@@ -40,7 +46,10 @@ function RootNavigator() {
         <Stack.Screen name="(tabs)" />
         <Stack.Screen name="objetivo" />
         <Stack.Screen name="ajustes" />
-        <Stack.Screen name="resumen" />
+        <Stack.Screen name="checkin" />
+        <Stack.Screen name="historial" />
+        <Stack.Screen name="actividad" options={{ presentation: "modal" }} />
+        <Stack.Screen name="salud/[metrica]" />
       </Stack.Protected>
     </Stack>
   );
@@ -70,7 +79,10 @@ export default function RootLayout() {
     Inter_400Regular,
     Inter_500Medium,
     Inter_600SemiBold,
+    Inter_700Bold,
   });
+
+  const [opened, setOpened] = useState(false);
 
   const ready = fontsLoaded || Boolean(fontsError);
 
@@ -89,6 +101,10 @@ export default function RootLayout() {
           <AppShell />
         </SessionProvider>
       </ThemeProvider>
+      {/* Encima de todo y en el nivel más alto: la app se monta y hace su
+          primer fetch detrás de la apertura, así que cuando el guinda se va la
+          pantalla de Hoy ya está lista en vez de aparecer vacía. */}
+      {!opened && <OpeningSequence onDone={() => setOpened(true)} />}
     </SafeAreaProvider>
   );
 }

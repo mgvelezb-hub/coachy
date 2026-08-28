@@ -4,7 +4,7 @@ import { StyleSheet, View, type StyleProp, type ViewStyle } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 
 import { useTheme } from "@/context/theme";
-import { radius, spacing, type Palette } from "@/lib/theme";
+import { radius, shadow, spacing, type Palette } from "@/lib/theme";
 
 type CardProps = {
   children: ReactNode;
@@ -35,8 +35,12 @@ export function Card({ children, style, highlighted = false }: CardProps) {
 
 const makeStyles = (colors: Palette) => StyleSheet.create({
   card: {
-    borderRadius: radius.lg,
-    padding: spacing.lg,
+    // Radio grande + sombra: es lo que separa una tarjeta del fondo. Con
+    // radius.lg y sin sombra, tres tarjetas seguidas se leían como una sola
+    // columna de rectángulos.
+    borderRadius: radius.xl,
+    padding: spacing.xl,
+    ...shadow.card,
   },
   plain: {
     backgroundColor: colors.cardBg,

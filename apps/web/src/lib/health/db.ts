@@ -2,7 +2,7 @@ import "server-only";
 
 import { randomUUID } from "node:crypto";
 
-import { fromISODate, isoFromDateColumn } from "@/lib/format";
+import { decimalToNumber, fromISODate, isoFromDateColumn } from "@/lib/format";
 import { prisma } from "@/lib/prisma";
 import {
   ACTIVITY_WINDOW_DAYS,
@@ -86,6 +86,17 @@ export async function upsertHealthDays(
       ...(day.restingHr === null || day.restingHr === undefined
         ? {}
         : { restingHr: day.restingHr }),
+      ...(day.hrvMs === null || day.hrvMs === undefined ? {} : { hrvMs: day.hrvMs }),
+      ...(day.vo2max === null || day.vo2max === undefined
+        ? {}
+        : { vo2max: day.vo2max.toFixed(1) }),
+      ...(day.respiratoryRate === null || day.respiratoryRate === undefined
+        ? {}
+        : { respiratoryRate: day.respiratoryRate.toFixed(1) }),
+      ...(day.spo2 === null || day.spo2 === undefined ? {} : { spo2: day.spo2.toFixed(1) }),
+      ...(day.standHours === null || day.standHours === undefined
+        ? {}
+        : { standHours: day.standHours }),
     };
 
     await prisma.healthDay.upsert({
@@ -114,6 +125,11 @@ export async function recentHealthDays(userId: string, take = 7): Promise<Health
     exerciseMin: row.exerciseMin,
     sleepMin: row.sleepMin,
     restingHr: row.restingHr,
+    hrvMs: row.hrvMs,
+    vo2max: decimalToNumber(row.vo2max),
+    respiratoryRate: decimalToNumber(row.respiratoryRate),
+    spo2: decimalToNumber(row.spo2),
+    standHours: row.standHours,
   }));
 }
 

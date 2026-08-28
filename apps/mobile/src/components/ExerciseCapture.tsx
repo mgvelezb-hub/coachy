@@ -7,7 +7,7 @@ import { NumberStepper } from "@/components/NumberStepper";
 import { RestTimer } from "@/components/RestTimer";
 import { useTheme } from "@/context/theme";
 import type { ExerciseAlternative, SessionExerciseView, WorkoutSetInput } from "@/lib/api";
-import { fonts, radius, spacing, withAlpha, type Palette } from "@/lib/theme";
+import { fonts, radius, spacing, withAlpha, type Palette, type as typeScale } from "@/lib/theme";
 import { clientIdFor } from "@/lib/training-client-id";
 import { isVideoDownloaded, localVideoFile } from "@/lib/video-downloads";
 
@@ -342,12 +342,12 @@ function ExerciseVideo({ uri }: { uri: string }) {
 const makeStyles = (colors: Palette) => StyleSheet.create({
   container: { gap: spacing.md },
   backRow: { flexDirection: "row", alignItems: "center" },
-  backText: { fontFamily: fonts.sans, fontSize: 13, color: colors.paloRosaLight },
+  backText: { fontFamily: fonts.sans, ...typeScale.bodySm, color: colors.paloRosaLight },
   header: { gap: spacing.xs },
   headerRow: { flexDirection: "row", alignItems: "flex-start", justifyContent: "space-between", gap: spacing.sm },
-  title: { flex: 1, fontFamily: fonts.display, fontSize: 19, color: colors.marfil },
-  subtitle: { fontFamily: fonts.sans, fontSize: 13, color: colors.paloRosaLight },
-  note: { fontFamily: fonts.sans, fontSize: 13, color: colors.guindaLight },
+  title: { flex: 1, fontFamily: fonts.display, ...typeScale.heading, color: colors.marfil },
+  subtitle: { fontFamily: fonts.sans, ...typeScale.bodySm, color: colors.paloRosaLight },
+  note: { fontFamily: fonts.sans, ...typeScale.bodySm, color: colors.guindaLight },
   swapButton: {
     borderWidth: 1,
     borderColor: colors.cardBorder,
@@ -355,7 +355,7 @@ const makeStyles = (colors: Palette) => StyleSheet.create({
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm,
   },
-  swapButtonText: { fontFamily: fonts.display, fontSize: 10, letterSpacing: 1.5, color: colors.marfil },
+  swapButtonText: { fontFamily: fonts.sansSemiBold, ...typeScale.label, letterSpacing: 1.5, color: colors.marfil },
   recordRow: {
     borderWidth: 1,
     borderColor: colors.cardBorder,
@@ -363,9 +363,9 @@ const makeStyles = (colors: Palette) => StyleSheet.create({
     borderRadius: radius.md,
     padding: spacing.md,
   },
-  recordText: { fontFamily: fonts.sans, fontSize: 13, color: colors.marfil },
+  recordText: { fontFamily: fonts.sans, ...typeScale.bodySm, color: colors.marfil },
   recordStrong: { fontFamily: fonts.sansSemiBold },
-  recordEmpty: { fontFamily: fonts.sans, fontSize: 13, color: colors.paloRosaLight },
+  recordEmpty: { fontFamily: fonts.sans, ...typeScale.bodySm, color: colors.paloRosaLight },
   videoBlock: { gap: spacing.sm },
   videoView: {
     width: "100%",
@@ -379,7 +379,7 @@ const makeStyles = (colors: Palette) => StyleSheet.create({
     borderRadius: radius.md,
     padding: spacing.md,
   },
-  videoLinkText: { fontFamily: fonts.sansMedium, fontSize: 13, color: colors.champan },
+  videoLinkText: { fontFamily: fonts.sansMedium, ...typeScale.bodySm, color: colors.champan },
   videoMissing: {
     borderWidth: 1,
     borderStyle: "dashed",
@@ -387,7 +387,7 @@ const makeStyles = (colors: Palette) => StyleSheet.create({
     borderRadius: radius.md,
     padding: spacing.md,
   },
-  videoMissingText: { fontFamily: fonts.sans, fontSize: 13, color: colors.paloRosaLight },
+  videoMissingText: { fontFamily: fonts.sans, ...typeScale.bodySm, color: colors.paloRosaLight },
   prBanner: {
     borderWidth: 1,
     borderColor: colors.champan,
@@ -395,12 +395,12 @@ const makeStyles = (colors: Palette) => StyleSheet.create({
     borderRadius: radius.md,
     padding: spacing.md,
   },
-  prBannerText: { fontFamily: fonts.sansSemiBold, fontSize: 13, color: colors.champan },
+  prBannerText: { fontFamily: fonts.sansSemiBold, ...typeScale.bodySm, color: colors.champan },
   sets: { gap: spacing.sm },
   setCardDone: { borderColor: colors.guindaLight, backgroundColor: withAlpha(colors.guindaLight, 0.12) },
   setHeaderRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
-  setLabel: { fontFamily: fonts.sansSemiBold, fontSize: 13, color: colors.marfil, flexShrink: 1 },
-  setTarget: { fontFamily: fonts.display, fontSize: 9, letterSpacing: 1.5, color: colors.paloRosa },
+  setLabel: { fontFamily: fonts.sansSemiBold, ...typeScale.bodySm, color: colors.marfil, flexShrink: 1 },
+  setTarget: { fontFamily: fonts.sansSemiBold, ...typeScale.label, letterSpacing: 1.5, color: colors.paloRosa },
   setControls: { flexDirection: "row", alignItems: "flex-end", gap: spacing.sm, marginTop: spacing.md },
   checkButton: {
     width: 48,
@@ -412,7 +412,7 @@ const makeStyles = (colors: Palette) => StyleSheet.create({
     justifyContent: "center",
   },
   checkButtonDone: { backgroundColor: colors.guinda, borderColor: colors.guinda },
-  checkButtonText: { fontFamily: fonts.display, fontSize: 20, color: colors.marfil },
+  checkButtonText: { fontFamily: fonts.display, ...typeScale.heading, color: colors.marfil },
   // pergamino: rol "texto sobre fondo de acento" — solo aplica cuando el
   // check ya se marcó y el botón pinta su fondo con guinda.
   checkButtonTextDone: { color: colors.pergamino },
@@ -424,7 +424,7 @@ const makeStyles = (colors: Palette) => StyleSheet.create({
   },
   nextButtonDisabled: { opacity: 0.5 },
   // pergamino: rol "texto sobre fondo de acento" (aquí guinda, siempre).
-  nextButtonText: { fontFamily: fonts.display, fontSize: 12, letterSpacing: 3, color: colors.pergamino },
+  nextButtonText: { fontFamily: fonts.sansSemiBold, ...typeScale.label, letterSpacing: 3, color: colors.pergamino },
   modalBackdrop: { flex: 1, backgroundColor: "rgba(0,0,0,0.6)", justifyContent: "flex-end" },
   modalSheet: {
     backgroundColor: colors.obsidiana,
@@ -436,8 +436,8 @@ const makeStyles = (colors: Palette) => StyleSheet.create({
     gap: spacing.md,
     maxHeight: "80%",
   },
-  modalTitle: { fontFamily: fonts.display, fontSize: 18, color: colors.marfil },
-  modalSubtitle: { fontFamily: fonts.sans, fontSize: 13, color: colors.paloRosaLight },
+  modalTitle: { fontFamily: fonts.display, ...typeScale.heading, color: colors.marfil },
+  modalSubtitle: { fontFamily: fonts.sans, ...typeScale.bodySm, color: colors.paloRosaLight },
   modalList: { gap: spacing.sm },
   modalOption: {
     borderWidth: 1,
@@ -446,9 +446,9 @@ const makeStyles = (colors: Palette) => StyleSheet.create({
     padding: spacing.md,
     marginBottom: spacing.sm,
   },
-  modalOptionName: { fontFamily: fonts.sansSemiBold, fontSize: 14, color: colors.marfil },
-  modalOptionMeta: { fontFamily: fonts.sans, fontSize: 12, color: colors.paloRosaLight, marginTop: 2 },
-  modalWarning: { fontFamily: fonts.sans, fontSize: 12, color: colors.paloRosaLight },
+  modalOptionName: { fontFamily: fonts.sansSemiBold, ...typeScale.body, color: colors.marfil },
+  modalOptionMeta: { fontFamily: fonts.sans, ...typeScale.label, color: colors.paloRosaLight, marginTop: 2 },
+  modalWarning: { fontFamily: fonts.sans, ...typeScale.label, color: colors.paloRosaLight },
   modalClose: { alignItems: "center", paddingVertical: spacing.md },
-  modalCloseText: { fontFamily: fonts.display, fontSize: 11, letterSpacing: 2, color: colors.paloRosa },
+  modalCloseText: { fontFamily: fonts.sansSemiBold, ...typeScale.label, letterSpacing: 2, color: colors.paloRosa },
 });

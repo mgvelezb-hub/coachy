@@ -14,7 +14,7 @@ import { PrimaryButton } from "@/components/PrimaryButton";
 import { Wordmark } from "@/components/Wordmark";
 import { useTheme } from "@/context/theme";
 import { supabase } from "@/lib/supabase";
-import { fonts, spacing, type Palette } from "@/lib/theme";
+import { fonts, spacing, type Palette, type as typeScale } from "@/lib/theme";
 
 /**
  * Login con email/contraseña. Sin registro: las cuentas las crea el sistema
@@ -151,8 +151,8 @@ const makeStyles = (colors: Palette) => StyleSheet.create({
     gap: spacing.xs,
   },
   label: {
-    fontFamily: fonts.display,
-    fontSize: 10,
+    fontFamily: fonts.sansSemiBold,
+    ...typeScale.label,
     letterSpacing: 2,
     color: colors.paloRosa,
   },
@@ -164,12 +164,12 @@ const makeStyles = (colors: Palette) => StyleSheet.create({
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.md,
     fontFamily: fonts.sans,
-    fontSize: 16,
+    ...typeScale.subheading,
     color: colors.marfil,
   },
   error: {
     fontFamily: fonts.sans,
-    fontSize: 13,
+    ...typeScale.bodySm,
     color: colors.error,
     textAlign: "center",
   },

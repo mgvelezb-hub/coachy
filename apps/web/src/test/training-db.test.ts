@@ -65,6 +65,58 @@ describe.skipIf(!available)("rutina y sesiones contra la base", () => {
     expect(count).toBe(5);
   });
 
+  it("reconcilia la semana cuando cambian los días de entrenamiento", async () => {
+    // Otro atleta: esta prueba mueve `liftingDays` y no debe ensuciar al de
+    // arriba, que ya tiene su semana materializada con 5 días.
+    const otroId = randomUUID();
+    await prisma.user.create({
+      data: { id: otroId, email: `test-${otroId}@coachy.invalid`, role: "ATHLETE" },
+    });
+    await prisma.profile.create({
+      data: {
+        userId: otroId,
+        displayName: "Atleta que cambia de días",
+        sex: "MALE",
+        heightCm: "180.0",
+        liftingDays: 4,
+        sessionMinutes: 60,
+        mealsPerDay: 4,
+        goal: "RECOMPOSICION",
+        onboardingCompletedAt: new Date(),
+      },
+    });
+
+    try {
+      const conCuatro = await prisma.profile.findUniqueOrThrow({ where: { userId: otroId } });
+      const semanaDe4 = await ensureWeekMaterialized(otroId, conCuatro, reference);
+      expect(semanaDe4).toHaveLength(4);
+
+      // Cambia a 5 días (lunes a viernes): el viernes que faltaba se genera,
+      // y los 4 que ya existían se quedan tal cual — mismos ids.
+      await prisma.profile.update({ where: { userId: otroId }, data: { liftingDays: 5 } });
+      const conCinco = await prisma.profile.findUniqueOrThrow({ where: { userId: otroId } });
+      const semanaDe5 = await ensureWeekMaterialized(otroId, conCinco, reference);
+
+      expect(semanaDe5).toHaveLength(5);
+      expect(semanaDe5.slice(0, 4).map((row) => row.id)).toEqual(semanaDe4.map((row) => row.id));
+
+      const monday = mondayOf(reference);
+      const viernes = new Date(monday);
+      viernes.setDate(viernes.getDate() + 4);
+      expect(semanaDe5.some((row) => row.date.toISOString().slice(0, 10) === viernes.toISOString().slice(0, 10))).toBe(true);
+
+      // Y de regreso a 3: los días que el horario nuevo ya no pide y que
+      // siguen vacíos y en el futuro se retiran. El miércoles (la fecha de
+      // referencia) sigue estando porque el horario de 3 días lo incluye.
+      await prisma.profile.update({ where: { userId: otroId }, data: { liftingDays: 3 } });
+      const conTres = await prisma.profile.findUniqueOrThrow({ where: { userId: otroId } });
+      const semanaDe3 = await ensureWeekMaterialized(otroId, conTres, reference);
+      expect(semanaDe3).toHaveLength(3);
+    } finally {
+      await prisma.user.deleteMany({ where: { id: otroId } });
+    }
+  });
+
   it("guarda la sesión, detecta el PR y no duplica al reintentar", async () => {
     const profile = await prisma.profile.findUniqueOrThrow({ where: { userId } });
     const [workout] = await ensureWeekMaterialized(userId, profile, reference);

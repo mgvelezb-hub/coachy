@@ -2,7 +2,7 @@ import { useMemo } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 
 import { useTheme } from "@/context/theme";
-import { fonts, radius, spacing, type Palette } from "@/lib/theme";
+import { fonts, radius, spacing, type Palette, type as typeScale } from "@/lib/theme";
 
 type PercentStepperProps = {
   label: string;
@@ -41,8 +41,8 @@ const makeStyles = (colors: Palette) => StyleSheet.create({
     gap: spacing.xs,
   },
   label: {
-    fontFamily: fonts.display,
-    fontSize: 10,
+    fontFamily: fonts.sansSemiBold,
+    ...typeScale.label,
     letterSpacing: 2,
     color: colors.paloRosa,
   },
@@ -63,7 +63,7 @@ const makeStyles = (colors: Palette) => StyleSheet.create({
   },
   buttonText: {
     fontFamily: fonts.display,
-    fontSize: 20,
+    ...typeScale.heading,
     color: colors.marfil,
   },
   valueBox: {
@@ -72,7 +72,7 @@ const makeStyles = (colors: Palette) => StyleSheet.create({
   },
   value: {
     fontFamily: fonts.display,
-    fontSize: 22,
+    ...typeScale.title,
     color: colors.marfil,
   },
 });

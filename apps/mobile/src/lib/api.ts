@@ -471,7 +471,12 @@ export function goalPhotoPath(userId: string, view: GoalView): string {
  * "listo" ya llega renderizado en `lines`, no hay que armar frases aquí. */
 export type GoalStatus =
   | { state: "sin_referencia" }
-  | { state: "sin_fotos"; references: number }
+  /**
+   * Hay referencia pero todavía no fotos propias con qué comparar. `lines`
+   * trae la lectura de la referencia sola: dónde poner el énfasis. Puede
+   * llegar vacío si la visión está apagada.
+   */
+  | { state: "sin_fotos"; references: number; lines: string[] }
   | { state: "en_espera"; references: number }
   | { state: "listo"; references: number; lines: string[]; analyzedAt: string };
 
@@ -514,6 +519,16 @@ export type HealthDayPayload = {
   exerciseMin?: number | null;
   sleepMin?: number | null;
   restingHr?: number | null;
+  /** Variabilidad cardiaca (SDNN, ms): el proxy de recuperación. */
+  hrvMs?: number | null;
+  /** VO₂ máx estimado por el reloj (mL/kg/min). */
+  vo2max?: number | null;
+  /** Respiraciones por minuto en reposo. */
+  respiratoryRate?: number | null;
+  /** Saturación de oxígeno (%). Se guarda y grafica; nunca se interpreta. */
+  spo2?: number | null;
+  /** Horas del día con al menos un minuto de pie (anillo azul de Apple). */
+  standHours?: number | null;
 };
 
 export type HealthDaysResponse = { dias: HealthDayPayload[] };
@@ -567,8 +582,14 @@ export type ActivitySource = (typeof ACTIVITY_SOURCES)[number];
 export type ActivityPayload = {
   discipline: Discipline;
   source: ActivitySource;
-  /** uuid del workout en HealthKit (o el que genere la app) — POST es idempotente por este campo. */
-  externalId: string;
+  /**
+   * uuid del workout en HealthKit — POST es idempotente por este campo.
+   *
+   * Va en `null` cuando la sesión se capturó a mano en la app: no hay nada
+   * externo con qué des-duplicarla, y el servidor la trata como fila nueva
+   * (ver `saveActivities` en apps/web/src/lib/activity/db.ts).
+   */
+  externalId: string | null;
   startedAt: string; // ISO
   endedAt: string; // ISO
   /** yyyy-MM-dd en zona LOCAL del teléfono, calculada a partir de `startedAt`. */
@@ -595,4 +616,38 @@ export function getActivities(limit?: number): Promise<ActivitiesResponse> {
 /** `POST /api/v1/activities` — hasta 50 por lote. Idempotente por `externalId`. */
 export function postActivities(activities: ActivityPayload[]): Promise<PostActivitiesResponse> {
   return apiFetch<PostActivitiesResponse>("/api/v1/activities", { method: "POST", body: { activities } });
+}
+
+/** Lo que la pantalla de captura manual le pide a quien entrenó: qué, cuánto y cuándo. */
+export type ManualActivityInput = {
+  discipline: Discipline;
+  durationMin: number;
+  /** yyyy-MM-dd en zona local del teléfono. */
+  date: string;
+  notes?: string | null;
+};
+
+/**
+ * Registra a mano una sesión que el reloj no vio (o que se hizo sin reloj).
+ *
+ * `startedAt` se ancla al mediodía del día elegido: la hora exacta no se
+ * pregunta — pedirla por un dato que nadie consulta es fricción — y el
+ * mediodía evita que la sesión se cruce de día en cualquier zona horaria.
+ */
+export function postManualActivity(input: ManualActivityInput): Promise<PostActivitiesResponse> {
+  const startedAt = new Date(`${input.date}T12:00:00.000Z`);
+  const endedAt = new Date(startedAt.getTime() + input.durationMin * 60_000);
+
+  return postActivities([
+    {
+      discipline: input.discipline,
+      source: "APP",
+      externalId: null,
+      startedAt: startedAt.toISOString(),
+      endedAt: endedAt.toISOString(),
+      date: input.date,
+      durationMin: input.durationMin,
+      notes: input.notes?.trim() ? input.notes.trim() : null,
+    },
+  ]);
 }

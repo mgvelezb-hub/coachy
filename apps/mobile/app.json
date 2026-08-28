@@ -12,7 +12,9 @@
       "supportsTablet": false,
       "appleTeamId": "Y2AN8V2K8H",
       "entitlements": {
-        "com.apple.security.application-groups": ["group.com.holygains.app"]
+        "com.apple.security.application-groups": [
+          "group.com.holygains.app"
+        ]
       }
     },
     "android": {
@@ -34,9 +36,7 @@
       [
         "expo-splash-screen",
         {
-          "backgroundColor": "#1A0F12",
-          "image": "./assets/images/splash-icon.png",
-          "imageWidth": 160
+          "backgroundColor": "#6B1F2E"
         }
       ],
       "expo-sqlite",

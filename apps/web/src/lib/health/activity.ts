@@ -20,6 +20,13 @@ export type HealthDayInput = {
   exerciseMin?: number | null;
   sleepMin: number | null;
   restingHr?: number | null;
+  /** Variabilidad cardiaca (SDNN, ms): proxy de recuperación. */
+  hrvMs?: number | null;
+  /** VO₂ máx estimado (mL/kg/min). */
+  vo2max?: number | null;
+  respiratoryRate?: number | null;
+  spo2?: number | null;
+  standHours?: number | null;
 };
 
 /** Bandas de actividad por pasos diarios promedio. */

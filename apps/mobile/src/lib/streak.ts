@@ -1,8 +1,21 @@
 /**
- * Racha de engagement — lógica PURA (sin llamadas de red ni React) para la
- * pantalla "Tu resumen" (`src/app/resumen.tsx`).
+ * Rachas — lógica PURA (sin llamadas de red ni React) para "Hoy"
+ * (`src/app/(tabs)/index.tsx`) y "Tu resumen" (`src/app/resumen.tsx`).
  *
- * Un "día activo" es cualquier día en que pasó AL MENOS UNA de:
+ * Hay DOS rachas y no significan lo mismo:
+ *
+ * 1. `trainingDays()` — **racha de entrenamiento**, la que se enseña en Hoy.
+ *    Solo cuenta un día si HUBO ENTRENAMIENTO: una sesión de gym completada o
+ *    una actividad registrada (natación, box, bici, funcional...). Tener el
+ *    reloj puesto NO es entrenar: los pasos y el sueño quedan fuera a
+ *    propósito — contarlos convertía "caminé al súper" en un día de racha y la
+ *    cifra dejaba de significar nada para quien sí fue al gimnasio.
+ *
+ * 2. `activeDays()` — **racha de constancia con la app**: además del
+ *    entrenamiento, cuentan el check-in y los días con datos del reloj. Sirve
+ *    para "Tu resumen", donde el punto es no soltar el hábito, no la carga.
+ *
+ * Un "día activo" (`activeDays`) es cualquier día en que pasó AL MENOS UNA de:
  *  - una sesión de gym completada (`getHistoryTraining().sessions`)
  *  - un check-in (`getCheckins()`)
  *  - un día con datos del reloj (`getHealthDays().dias`)
@@ -67,6 +80,39 @@ export function activeDays(input: StreakInput): Set<string> {
   }
 
   return days;
+}
+
+/**
+ * Días con ENTRENAMIENTO real: gym completado o actividad registrada. Nunca
+ * pasos, nunca check-in — ver la nota de arriba.
+ */
+export function trainingDays(input: StreakInput): Set<string> {
+  const days = new Set<string>();
+
+  for (const session of input.sessions ?? []) {
+    if (session.completed && session.date) days.add(toDateKey(session.date));
+  }
+  for (const activity of input.activities ?? []) {
+    if (activity.date) days.add(toDateKey(activity.date));
+  }
+
+  return days;
+}
+
+/** De qué está hecha la racha de entrenamiento, para poder decirlo en la
+ * tarjeta: "3 en el gym · 2 de otra disciplina" en vez de un número pelón. */
+export function trainingBreakdown(input: StreakInput): { gym: number; actividades: number } {
+  const gym = new Set<string>();
+  const actividades = new Set<string>();
+
+  for (const session of input.sessions ?? []) {
+    if (session.completed && session.date) gym.add(toDateKey(session.date));
+  }
+  for (const activity of input.activities ?? []) {
+    if (activity.date && !gym.has(toDateKey(activity.date))) actividades.add(toDateKey(activity.date));
+  }
+
+  return { gym: gym.size, actividades: actividades.size };
 }
 
 /**

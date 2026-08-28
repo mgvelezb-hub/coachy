@@ -58,6 +58,13 @@ export const HEALTH_TYPES = [
   "HKQuantityTypeIdentifierRestingHeartRate",
   "HKWorkoutTypeIdentifier",
   "HKQuantityTypeIdentifierHeartRate",
+  // Recuperación y capacidad. Se leen igual que los demás: se transportan,
+  // no se interpretan clínicamente.
+  "HKQuantityTypeIdentifierHeartRateVariabilitySDNN",
+  "HKQuantityTypeIdentifierVO2Max",
+  "HKQuantityTypeIdentifierRespiratoryRate",
+  "HKQuantityTypeIdentifierOxygenSaturation",
+  "HKCategoryTypeIdentifierAppleStandHour",
 ] as const satisfies readonly ObjectTypeIdentifier[];
 
 const CONNECTED_KEY = "holygains:health:connected";
@@ -71,7 +78,7 @@ const CONNECTED_KEY = "holygains:health:connected";
  * siempre. Subir este número obliga a volver a pedir; el diálogo del sistema
  * solo muestra lo que falte.
  */
-const PERMISSIONS_VERSION = 2;
+const PERMISSIONS_VERSION = 3;
 const PERMISSIONS_VERSION_KEY = "holygains:health:permissionsVersion";
 const LAST_SYNC_KEY = "holygains:health:lastSync";
 
@@ -119,20 +126,28 @@ export async function connectHealth(): Promise<boolean> {
 
 /**
  * Vuelve a pedir permiso si `HEALTH_TYPES` creció desde la última vez.
+ * Regresa `true` cuando ACABA de pedir permisos nuevos (y se pudieron pedir).
  *
  * Es lo que evita el agujero: quien conectó Salud antes de que existieran los
  * entrenamientos tenía la bandera de "conectado" en true y nunca se le
  * preguntaba por los tipos nuevos. Consultar un tipo jamás autorizado además
  * puede tirar la app, así que esto corre ANTES de cualquier query.
+ *
+ * Ese `true` importa: quien acaba de autorizar un tipo nuevo tiene datos que
+ * nunca se han leído, y el throttle de 6 h de `autoSyncHealth` los dejaba
+ * esperando hasta la siguiente ventana — la app pedía permiso para
+ * entrenamientos y aun así no aparecía ninguno. Con permisos nuevos se
+ * sincroniza en el momento y con la ventana larga.
  */
-export async function ensureCurrentPermissions(): Promise<void> {
+export async function ensureCurrentPermissions(): Promise<boolean> {
   const raw = await AsyncStorage.getItem(PERMISSIONS_VERSION_KEY).catch(() => null);
-  if (Number(raw) >= PERMISSIONS_VERSION) return;
+  if (Number(raw) >= PERMISSIONS_VERSION) return false;
 
   const granted = await requestHealthPermissions();
   if (granted) {
     await AsyncStorage.setItem(PERMISSIONS_VERSION_KEY, String(PERMISSIONS_VERSION)).catch(() => {});
   }
+  return granted;
 }
 
 // ---------------------------------------------------------------------------
@@ -175,14 +190,45 @@ function applySum(
 function applyAverage(
   byDate: Map<string, HealthDayPayload>,
   buckets: readonly QueryStatisticsResponse[],
-  field: "restingHr",
+  field: "restingHr" | "hrvMs" | "vo2max" | "respiratoryRate" | "spo2",
+  /** Decimales que conserva. La FC en reposo es entera; el VO₂ máx no. */
+  decimales = 0,
 ): void {
   for (const bucket of buckets) {
     const key = bucketDateKey(bucket);
     const day = key ? byDate.get(key) : undefined;
     const value = bucket.averageQuantity?.quantity;
     if (!day || value === undefined) continue;
-    day[field] = Math.round(value);
+    const factor = 10 ** decimales;
+    day[field] = Math.round(value * factor) / factor;
+  }
+}
+
+/**
+ * Horas de pie del día: el anillo azul de Apple.
+ *
+ * HealthKit no da un total, da una muestra por hora con "estuvo de pie" o "no
+ * se movió"; el anillo es el conteo de las primeras. `stood` es el valor 0 del
+ * enum, así que se cuenta eso y no la duración: una hora en la que te
+ * levantaste un minuto cuenta igual que una en la que caminaste veinte, que
+ * es exactamente lo que mide el anillo.
+ */
+function applyStandHours(
+  byDate: Map<string, HealthDayPayload>,
+  samples: readonly CategorySampleTyped<"HKCategoryTypeIdentifierAppleStandHour">[],
+): void {
+  const conteo = new Map<string, number>();
+
+  for (const sample of samples) {
+    if (sample.value !== 0) continue;
+    const key = localDateKey(sample.startDate);
+    if (!byDate.has(key)) continue;
+    conteo.set(key, (conteo.get(key) ?? 0) + 1);
+  }
+
+  for (const [key, horas] of conteo) {
+    const day = byDate.get(key);
+    if (day) day.standHours = horas;
   }
 }
 
@@ -245,7 +291,18 @@ export async function readDailyMetrics(days: number): Promise<HealthDayPayload[]
   const filter = { date: { startDate: rangeStart, endDate: rangeEnd } };
   const interval = { day: 1 };
 
-  const [stepsBuckets, kcalBuckets, exerciseBuckets, hrBuckets, sleepSamples] = await Promise.all([
+  const [
+    stepsBuckets,
+    kcalBuckets,
+    exerciseBuckets,
+    hrBuckets,
+    sleepSamples,
+    hrvBuckets,
+    vo2Buckets,
+    respiratoryBuckets,
+    spo2Buckets,
+    standSamples,
+  ] = await Promise.all([
     queryStatisticsCollectionForQuantity(
       "HKQuantityTypeIdentifierStepCount",
       ["cumulativeSum"],
@@ -275,13 +332,55 @@ export async function readDailyMetrics(days: number): Promise<HealthDayPayload[]
       { unit: "count/min", filter },
     ),
     queryCategorySamples("HKCategoryTypeIdentifierSleepAnalysis", { limit: 0, filter }),
+    queryStatisticsCollectionForQuantity(
+      "HKQuantityTypeIdentifierHeartRateVariabilitySDNN",
+      ["discreteAverage"],
+      rangeStart,
+      interval,
+      { unit: "ms", filter },
+    ),
+    queryStatisticsCollectionForQuantity(
+      "HKQuantityTypeIdentifierVO2Max",
+      ["discreteAverage"],
+      rangeStart,
+      interval,
+      { unit: "ml/(kg*min)", filter },
+    ),
+    queryStatisticsCollectionForQuantity(
+      "HKQuantityTypeIdentifierRespiratoryRate",
+      ["discreteAverage"],
+      rangeStart,
+      interval,
+      { unit: "count/min", filter },
+    ),
+    queryStatisticsCollectionForQuantity(
+      "HKQuantityTypeIdentifierOxygenSaturation",
+      ["discreteAverage"],
+      rangeStart,
+      interval,
+      { unit: "%", filter },
+    ),
+    queryCategorySamples("HKCategoryTypeIdentifierAppleStandHour", { limit: 0, filter }),
   ]);
 
   applySum(byDate, stepsBuckets, "steps");
   applySum(byDate, kcalBuckets, "activeKcal");
   applySum(byDate, exerciseBuckets, "exerciseMin");
   applyAverage(byDate, hrBuckets, "restingHr");
+  applyAverage(byDate, hrvBuckets, "hrvMs");
+  applyAverage(byDate, vo2Buckets, "vo2max", 1);
+  applyAverage(byDate, respiratoryBuckets, "respiratoryRate", 1);
+  applyAverage(byDate, spo2Buckets, "spo2", 1);
   applySleep(byDate, sleepSamples);
+  applyStandHours(byDate, standSamples);
+
+  // HealthKit entrega la saturación como fracción (0.98) con unos builds y
+  // como porcentaje (98) con otros, según cómo resuelva la unidad "%". Se
+  // normaliza a porcentaje aquí: sin esto, un 0.98 guardado se grafica como
+  // si el oxígeno hubiera caído a 1 %.
+  for (const day of byDate.values()) {
+    if (day.spo2 != null && day.spo2 <= 1) day.spo2 = Math.round(day.spo2 * 1000) / 10;
+  }
 
   return Array.from(byDate.values()).sort((a, b) => a.date.localeCompare(b.date));
 }
@@ -292,7 +391,12 @@ function hasAnyMetric(day: HealthDayPayload): boolean {
     day.activeKcal != null ||
     day.exerciseMin != null ||
     day.sleepMin != null ||
-    day.restingHr != null
+    day.restingHr != null ||
+    day.hrvMs != null ||
+    day.vo2max != null ||
+    day.respiratoryRate != null ||
+    day.spo2 != null ||
+    day.standHours != null
   );
 }
 
@@ -515,14 +619,18 @@ export async function autoSyncHealth(): Promise<{ dias: number; entrenamientos: 
   if (!(await isHealthConnected())) return null;
 
   // Si el set de permisos creció, se pide lo que falte antes de consultar.
-  await ensureCurrentPermissions();
+  const permissionsJustGranted = await ensureCurrentPermissions();
 
   const lastSyncRaw = await AsyncStorage.getItem(LAST_SYNC_KEY).catch(() => null);
   const lastSync = lastSyncRaw ? Number(lastSyncRaw) : null;
   const now = Date.now();
-  if (lastSync !== null && now - lastSync < MIN_AUTO_SYNC_INTERVAL_MS) return null;
+  // El throttle no aplica a permisos recién dados: eso es dato nuevo, no una
+  // repetición del anterior.
+  if (!permissionsJustGranted && lastSync !== null && now - lastSync < MIN_AUTO_SYNC_INTERVAL_MS) {
+    return null;
+  }
 
-  const days = lastSync === null ? FIRST_SYNC_DAYS : ROUTINE_SYNC_DAYS;
+  const days = lastSync === null || permissionsJustGranted ? FIRST_SYNC_DAYS : ROUTINE_SYNC_DAYS;
   const [healthResult, workoutsResult] = await Promise.all([syncHealth(days), syncWorkouts(days)]);
   if (healthResult !== null || workoutsResult !== null) {
     await AsyncStorage.setItem(LAST_SYNC_KEY, String(now)).catch(() => {});

@@ -29,6 +29,7 @@ import {
   radius,
   spacing,
   type Palette,
+  type as typeScale,
 } from "@/lib/theme";
 import { countPendingSessions } from "@/lib/training-db";
 import { subscribePendingCount, syncAndNotify, type SyncResult } from "@/lib/training-sync";
@@ -467,10 +468,10 @@ const makeStyles = (colors: Palette) => StyleSheet.create({
     paddingBottom: spacing.huge,
   },
   backRow: { flexDirection: "row", alignItems: "center" },
-  backText: { fontFamily: fonts.sans, fontSize: 13, color: colors.paloRosaLight },
+  backText: { fontFamily: fonts.sans, ...typeScale.bodySm, color: colors.paloRosaLight },
   title: {
     fontFamily: fonts.display,
-    fontSize: 22,
+    ...typeScale.title,
     color: colors.marfil,
   },
   themeList: {
@@ -492,7 +493,7 @@ const makeStyles = (colors: Palette) => StyleSheet.create({
   themeLabel: {
     flex: 1,
     fontFamily: fonts.sansMedium,
-    fontSize: 14,
+    ...typeScale.body,
     color: colors.marfil,
   },
   profileList: {
@@ -503,20 +504,19 @@ const makeStyles = (colors: Palette) => StyleSheet.create({
     gap: 2,
   },
   infoLabel: {
-    fontFamily: fonts.display,
-    fontSize: 10,
+    fontFamily: fonts.sansSemiBold,
+    ...typeScale.label,
     letterSpacing: 2,
     color: colors.paloRosa,
   },
   infoValue: {
     fontFamily: fonts.sans,
-    fontSize: 15,
+    ...typeScale.subheading,
     color: colors.marfil,
   },
   profileNote: {
     fontFamily: fonts.serifItalic,
-    fontSize: 14,
-    lineHeight: 20,
+    ...typeScale.body,
     color: colors.paloRosaLight,
     marginTop: spacing.xs,
   },
@@ -537,12 +537,12 @@ const makeStyles = (colors: Palette) => StyleSheet.create({
   phoneInfo: { gap: 2 },
   phoneLabel: {
     fontFamily: fonts.sansMedium,
-    fontSize: 13,
+    ...typeScale.bodySm,
     color: colors.marfil,
   },
   phoneValue: {
     fontFamily: fonts.sans,
-    fontSize: 12,
+    ...typeScale.label,
     color: colors.paloRosaLight,
   },
   phoneDivider: {
@@ -554,15 +554,15 @@ const makeStyles = (colors: Palette) => StyleSheet.create({
     paddingVertical: spacing.xs,
   },
   actionButtonText: {
-    fontFamily: fonts.display,
-    fontSize: 10,
+    fontFamily: fonts.sansSemiBold,
+    ...typeScale.label,
     letterSpacing: 1.5,
     color: colors.champan,
     textAlign: "right",
   },
   actionButtonTextDestructive: {
-    fontFamily: fonts.display,
-    fontSize: 10,
+    fontFamily: fonts.sansSemiBold,
+    ...typeScale.label,
     letterSpacing: 1.5,
     color: colors.error,
     textAlign: "right",
@@ -572,7 +572,7 @@ const makeStyles = (colors: Palette) => StyleSheet.create({
   },
   syncMessage: {
     fontFamily: fonts.sans,
-    fontSize: 12,
+    ...typeScale.label,
     color: colors.paloRosaLight,
   },
   sessionBlock: {
@@ -581,7 +581,7 @@ const makeStyles = (colors: Palette) => StyleSheet.create({
   },
   versionText: {
     fontFamily: fonts.sans,
-    fontSize: 12,
+    ...typeScale.label,
     color: colors.paloRosaLight,
     textAlign: "center",
   },

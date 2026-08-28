@@ -192,6 +192,71 @@ export const GOAL_FRAMING = [
   "Tu estructura ósea y tu distribución de grasa son tuyas y no se negocian. Dos cuerpos con el mismo entrenamiento y la misma comida llegan a siluetas distintas, y las dos están bien.",
 ] as const;
 
+export const GOAL_EMPHASIS = ["alto", "medio", "bajo"] as const;
+export type GoalEmphasis = (typeof GOAL_EMPHASIS)[number];
+
+/**
+ * Qué implica, en entrenamiento, la silueta que el atleta eligió como
+ * dirección. Es lo único que se puede leer cuando todavía no hay fotos
+ * propias con qué comparar.
+ */
+export interface GoalDirectionReading {
+  zona: GoalZone;
+  enfasis: GoalEmphasis;
+}
+
+/** El texto que ve el atleta. El modelo escoge la llave, no redacta. */
+export const EMPHASIS_TEXT: Record<GoalZone, Record<GoalEmphasis, string>> = {
+  cintura: {
+    alto: "Cintura: la referencia es de cintura marcada, así que aquí manda el déficit sostenido y el descanso, no más abdominales.",
+    medio: "Cintura: importa, pero no es lo que define esa silueta.",
+    bajo: "Cintura: no es la palanca de este objetivo.",
+  },
+  cadera_gluteo: {
+    alto: "Glúteo y cadera: es de las zonas que más definen esa silueta. Trabájalo dos veces por semana, no una.",
+    medio: "Glúteo y cadera: sostén el trabajo que ya trae tu rutina.",
+    bajo: "Glúteo y cadera: con lo que ya haces alcanza para este objetivo.",
+  },
+  pierna: {
+    alto: "Pierna: la referencia carga volumen abajo. Tu día pesado de pierna es el que no se salta.",
+    medio: "Pierna: mantén el volumen que ya traes.",
+    bajo: "Pierna: no necesitas subirle para acercarte a esa silueta.",
+  },
+  brazo: {
+    alto: "Brazo: la referencia trae brazo trabajado. Cierra tus días de torso con trabajo directo de bíceps y tríceps.",
+    medio: "Brazo: el trabajo que ya cae en tus días de torso es suficiente.",
+    bajo: "Brazo: no es lo que mueve esta silueta.",
+  },
+  espalda: {
+    alto: "Espalda: es lo que más mueve esa silueta —la V sale de la espalda alta, no de la cintura—. Ábrele la semana.",
+    medio: "Espalda: sostén jalón y remo como ya los traes.",
+    bajo: "Espalda: con el volumen actual basta para este objetivo.",
+  },
+};
+
+export function directionLines(readings: readonly GoalDirectionReading[]): string[] {
+  const orden: Record<GoalEmphasis, number> = { alto: 0, medio: 1, bajo: 2 };
+  return [...readings]
+    .sort((a, b) => orden[a.enfasis] - orden[b.enfasis])
+    .map((reading) => EMPHASIS_TEXT[reading.zona][reading.enfasis]);
+}
+
+export function parseDirectionReadings(value: unknown): GoalDirectionReading[] {
+  if (!Array.isArray(value)) return [];
+
+  const byZone = new Map<GoalZone, GoalDirectionReading>();
+  for (const row of value) {
+    if (row === null || typeof row !== "object") continue;
+    const raw = row as Record<string, unknown>;
+    const zona = matchEnum(GOAL_ZONES, raw.zona);
+    const enfasis = matchEnum(GOAL_EMPHASIS, raw.enfasis);
+    if (zona && enfasis && !byZone.has(zona)) byZone.set(zona, { zona, enfasis });
+  }
+  return GOAL_ZONES.map((zone) => byZone.get(zone)).filter(
+    (reading): reading is GoalDirectionReading => reading !== undefined,
+  );
+}
+
 export interface GoalZoneReading {
   zona: GoalZone;
   brecha: GoalGap;
@@ -405,11 +470,138 @@ export async function analyzeGoal(
 }
 
 // ---------------------------------------------------------------------------
+// Lectura de la referencia sola
+// ---------------------------------------------------------------------------
+
+const DIRECTION_TOOL_NAME = "registrar_enfasis_objetivo";
+
+const DIRECTION_TOOL: Anthropic.Tool = {
+  name: DIRECTION_TOOL_NAME,
+  description:
+    "Registra, por zona, qué tanto énfasis de entrenamiento implica la silueta de referencia.",
+  strict: true,
+  input_schema: {
+    type: "object",
+    additionalProperties: false,
+    properties: {
+      zonas: {
+        type: "array",
+        description: "Una fila por zona visible en la referencia. Omite la que no se vea.",
+        items: {
+          type: "object",
+          additionalProperties: false,
+          properties: {
+            zona: { type: "string", enum: [...GOAL_ZONES] },
+            enfasis: { type: "string", enum: [...GOAL_EMPHASIS] },
+          },
+          required: ["zona", "enfasis"],
+        },
+      },
+    },
+    required: ["zonas"],
+  },
+};
+
+const DIRECTION_SYSTEM = `Ves una serie de fotos de REFERENCIA que un atleta eligió como dirección
+de su entrenamiento. NO hay fotos del atleta: no estás comparando a nadie con nadie.
+
+Tu única tarea es decir, por zona (cintura, cadera_gluteo, pierna, brazo, espalda), cuánto énfasis
+de entrenamiento implica esa silueta: qué zonas la definen y cuáles no.
+
+PROHIBIDO ABSOLUTAMENTE:
+- cualquier comentario sobre la apariencia, el atractivo o el cuerpo de las personas de las fotos;
+- identificar, nombrar o describir a quien aparece, su rostro, su ropa o el entorno;
+- estimar porcentaje de grasa, peso, medidas, tallas o edad;
+- prometer resultados o plazos;
+- cualquier consejo médico, de salud o de suplementación.
+
+Si una zona no se ve, no la reportes. Omitir es mejor que adivinar. No escribas nada fuera de la
+herramienta.`;
+
+export interface GoalDirectionAnalysis {
+  readings: GoalDirectionReading[];
+  model: string;
+  analyzedAt: string;
+}
+
+/**
+ * Lee la referencia por sí sola: qué implica esa silueta en términos de
+ * entrenamiento.
+ *
+ * Existe porque el análisis normal necesita fotos del atleta para comparar, y
+ * quien apenas subió su referencia se quedaba con una pantalla vacía y sin
+ * nada que hacer. Esto no sustituye la comparación —no dice qué tan lejos
+ * estás, porque sin fotos tuyas eso sería inventar— pero sí convierte la
+ * referencia en algo accionable desde el primer día: dónde poner el énfasis.
+ */
+export async function analyzeGoalDirection(
+  input: { profile: Profile; references: GoalReference[] },
+  options: AnalyzeGoalOptions = {},
+): Promise<GoalDirectionAnalysis | null> {
+  if (!visionEnabled()) return null;
+  if (!input.profile.photoConsentAt) return null;
+  if (options.client === undefined && !hasAnthropicKey()) return null;
+  if (input.references.length === 0) return null;
+
+  const content: Anthropic.ContentBlockParam[] = [
+    {
+      type: "text",
+      text:
+        "Di, zona por zona, cuánto énfasis de entrenamiento implica esta silueta de referencia. " +
+        "Contesta llamando a la herramienta, sin texto fuera de ella.",
+    },
+    ...(await photoContentBlocks(
+      input.references.map((reference) => ({
+        storagePath: reference.storagePath,
+        view: reference.view,
+      })),
+      "REFERENCIA",
+    )),
+  ];
+
+  try {
+    const client = options.client ?? anthropicClient();
+    const response = await client.messages.create({
+      model: VISION_MODEL,
+      max_tokens: 1000,
+      thinking: { type: "disabled" },
+      system: DIRECTION_SYSTEM,
+      tools: [DIRECTION_TOOL],
+      tool_choice: { type: "tool", name: DIRECTION_TOOL_NAME },
+      messages: [{ role: "user", content }],
+    });
+
+    if (response.stop_reason === "refusal") return null;
+
+    const toolUse = response.content.find(
+      (block): block is Anthropic.ToolUseBlock =>
+        block.type === "tool_use" && block.name === DIRECTION_TOOL_NAME,
+    );
+    if (!toolUse) return null;
+
+    const raw = (
+      typeof toolUse.input === "string" ? JSON.parse(toolUse.input) : toolUse.input
+    ) as Record<string, unknown>;
+
+    const readings = parseDirectionReadings(raw.zonas);
+    if (readings.length === 0) return null;
+
+    return { readings, model: VISION_MODEL, analyzedAt: new Date().toISOString() };
+  } catch (error) {
+    console.error("[coachy] no se pudo leer la referencia del objetivo", error);
+    return null;
+  }
+}
+
+// ---------------------------------------------------------------------------
 // Cadencia y caché
 // ---------------------------------------------------------------------------
 
 /** Marca del contexto que distingue estas filas del resto de la conversación. */
 export const GOAL_KIND = "rumbo_objetivo";
+
+/** El caché de la lectura de la referencia sola, que es otra pregunta. */
+export const DIRECTION_KIND = "enfasis_objetivo";
 
 const BIWEEKLY_DAYS = 14;
 
@@ -471,7 +663,12 @@ function cachedGoal(contextJson: Prisma.JsonValue | null): CachedGoal | null {
  */
 export type GoalStatus =
   | { state: "sin_referencia" }
-  | { state: "sin_fotos"; references: number }
+  /**
+   * Hay referencia pero todavía no fotos propias con qué comparar. `lines`
+   * trae la lectura de la referencia sola —dónde poner el énfasis—, que sí se
+   * puede decir sin fotos del atleta.
+   */
+  | { state: "sin_fotos"; references: number; lines: string[] }
   | { state: "en_espera"; references: number }
   | { state: "listo"; references: number; lines: string[]; analyzedAt: string };
 
@@ -511,7 +708,13 @@ export async function goalStatusFor(
   if (references.length === 0) return { state: "sin_referencia" };
 
   const { current, earlier } = await recentPhotoSeries(userId);
-  if (current.length === 0) return { state: "sin_fotos", references: references.length };
+  if (current.length === 0) {
+    return {
+      state: "sin_fotos",
+      references: references.length,
+      lines: await directionFor(userId, profile, references),
+    };
+  }
 
   const fingerprint = goalFingerprint(references, current);
 
@@ -565,6 +768,63 @@ export async function goalStatusFor(
     lines: goalLines(analysis.readings),
     analyzedAt: analysis.analyzedAt,
   };
+}
+
+/**
+ * La lectura de la referencia sola, cacheada por huella de las referencias.
+ *
+ * Se recalcula solo cuando cambian las fotos de referencia: la dirección no se
+ * mueve sola, y cada corrida cuesta una llamada de visión. Si el análisis no
+ * aplica (visión apagada, sin consentimiento, sin llave) regresa vacío, y la
+ * pantalla enseña su estado normal sin lectura.
+ */
+async function directionFor(
+  userId: string,
+  profile: Profile,
+  references: GoalReference[],
+): Promise<string[]> {
+  const fingerprint = goalFingerprint(references, []);
+
+  const stored = await prisma.conversation
+    .findMany({
+      where: { userId, role: "COACHY" },
+      orderBy: { date: "desc" },
+      take: 20,
+      select: { contextJson: true },
+    })
+    .catch(() => []);
+
+  for (const row of stored) {
+    const raw = row.contextJson as Record<string, unknown> | null;
+    if (!raw || raw.kind !== DIRECTION_KIND) continue;
+    if (raw.fingerprint !== fingerprint) continue;
+    return directionLines(parseDirectionReadings(raw.readings));
+  }
+
+  const analysis = await analyzeGoalDirection({ profile, references });
+  if (!analysis) return [];
+
+  await prisma.conversation
+    .create({
+      data: {
+        userId,
+        role: "COACHY",
+        text: directionLines(analysis.readings).join("\n\n"),
+        contextJson: {
+          kind: DIRECTION_KIND,
+          fingerprint,
+          readings: analysis.readings,
+          analyzedAt: analysis.analyzedAt,
+          model: analysis.model,
+        } as unknown as Prisma.InputJsonValue,
+      },
+    })
+    .catch((error) => {
+      console.error("[coachy] no se pudo cachear el énfasis del objetivo", error);
+      return null;
+    });
+
+  return directionLines(analysis.readings);
 }
 
 /** Las referencias con URL firmada, listas para pintar en `/app/objetivo`. */
