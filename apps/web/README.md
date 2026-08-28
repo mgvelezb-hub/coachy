@@ -10,6 +10,22 @@ Prisma 6 · Supabase (Auth + Postgres + Storage) · Recharts · vitest.
 
 ---
 
+## Migraciones y deploy
+
+El build de Vercel corre `prisma migrate deploy` antes de compilar, así que
+cada deploy aplica lo que falte a la base de producción.
+
+Dos consecuencias que conviene tener presentes:
+
+- **El deploy falla si una migración falla.** Es lo que se quiere: es
+  preferible no publicar a publicar código que consulta una columna que no
+  existe (eso ya pasó una vez: `trimmed_minutes` quedó aplicada en local y no
+  en producción, y tres rutas de entrenamiento respondieron 500 hasta que se
+  aplicó a mano).
+- **Necesita `DIRECT_URL` en las variables de entorno de Vercel.** Prisma usa
+  la conexión directa para migrar, no el pooler: sin esa variable el build se
+  cae en el primer paso.
+
 ## 1. Setup local (sin Supabase)
 
 Requisitos: Node 22, pnpm 11 (`corepack enable`), PostgreSQL 17 en local.
