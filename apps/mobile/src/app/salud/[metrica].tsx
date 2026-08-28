@@ -1,5 +1,5 @@
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { ChevronLeft, Footprints, Moon, Ruler } from "lucide-react-native";
+import { ChevronLeft, Footprints, Moon, Ruler, Timer } from "lucide-react-native";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -17,7 +17,12 @@ import {
   type HealthDayPayload,
   type MeResponse,
 } from "@/lib/api";
+import { LineChart, type Punto } from "@/components/LineChart";
 import {
+  EJERCICIO_META_MIN,
+  PASOS_META,
+  SUENO_META_MIN,
+  exerciseInsight,
   formatSleep,
   measuresInsight,
   sleepInsight,
@@ -45,7 +50,7 @@ import {
  * `lib/insights.ts`, aparte y pura.
  */
 
-const METRICAS = ["pasos", "descanso", "medidas"] as const;
+const METRICAS = ["pasos", "ejercicio", "descanso", "medidas"] as const;
 type Metrica = (typeof METRICAS)[number];
 
 function esMetrica(value: string | undefined): value is Metrica {
@@ -118,6 +123,7 @@ export default function DetalleMetricaScreen() {
         </Pressable>
 
         {metrica === "pasos" && <Pasos days={data.days} goal={goal} />}
+        {metrica === "ejercicio" && <Ejercicio days={data.days} goal={goal} />}
         {metrica === "descanso" && <Descanso days={data.days} goal={goal} />}
         {metrica === "medidas" && <Medidas checkIns={data.checkIns} goal={goal} />}
       </ScrollView>
@@ -164,14 +170,69 @@ function Pasos({ days, goal }: { days: HealthDayPayload[]; goal: string }) {
         </View>
       </Card>
 
-      <Serie
+      <Tendencia
         titulo="Últimos días"
+        puntos={serieDe(ordenados, "steps")}
+        color={colors.champan}
+        meta={PASOS_META}
+        format={(v) => Math.round(v).toLocaleString("es-MX")}
         filas={ordenados.map((day) => ({
           date: day.date,
           valor: day.steps ?? null,
-          etiqueta: day.steps === null || day.steps === undefined ? "—" : day.steps.toLocaleString("es-MX"),
+          etiqueta: day.steps == null ? "—" : day.steps.toLocaleString("es-MX"),
         }))}
-        tint={colors.champan}
+      />
+    </>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Minutos de ejercicio
+// ---------------------------------------------------------------------------
+
+function Ejercicio({ days, goal }: { days: HealthDayPayload[]; goal: string }) {
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
+  const insight = exerciseInsight(days, goal);
+
+  const ordenados = [...days].sort((a, b) => b.date.localeCompare(a.date)).slice(0, DIAS_VISIBLES);
+  const conDato = ordenados.filter((day) => day.exerciseMin != null);
+  const ultimo = conDato[0]?.exerciseMin ?? null;
+  const kcal = promedioDe(ordenados.map((day) => day.activeKcal));
+  const cumplidos = conDato.filter((day) => (day.exerciseMin ?? 0) >= EJERCICIO_META_MIN).length;
+
+  return (
+    <>
+      <Encabezado
+        icon={<Timer size={26} color={colors.guindaLight} strokeWidth={2} />}
+        titulo="Ejercicio"
+        valor={ultimo === null ? "—" : `${ultimo} min`}
+        unidad="el último día con dato"
+        tint={colors.guindaLight}
+      />
+
+      <InsightCard insight={insight} />
+
+      <Card>
+        <SectionLabel>Tu esfuerzo</SectionLabel>
+        <View style={styles.resumenRow}>
+          <Dato label={`Días de ${EJERCICIO_META_MIN}+`} valor={`${cumplidos}`} />
+          <Dato label="Kcal activas" valor={kcal === null ? "—" : `${Math.round(kcal)}`} />
+          <Dato label="Días con dato" valor={`${conDato.length}`} />
+        </View>
+      </Card>
+
+      <Tendencia
+        titulo="Últimos días"
+        puntos={serieDe(ordenados, "exerciseMin")}
+        color={colors.guindaLight}
+        meta={EJERCICIO_META_MIN}
+        format={(v) => `${Math.round(v)} min`}
+        filas={ordenados.map((day) => ({
+          date: day.date,
+          valor: day.exerciseMin ?? null,
+          etiqueta: day.exerciseMin == null ? "—" : `${day.exerciseMin} min`,
+        }))}
       />
     </>
   );
@@ -214,14 +275,17 @@ function Descanso({ days, goal }: { days: HealthDayPayload[]; goal: string }) {
         </View>
       </Card>
 
-      <Serie
+      <Tendencia
         titulo="Últimas noches"
+        puntos={serieDe(ordenados, "sleepMin")}
+        color={colors.paloRosa}
+        meta={SUENO_META_MIN}
+        format={formatSleep}
         filas={ordenados.map((day) => ({
           date: day.date,
           valor: day.sleepMin ?? null,
           etiqueta: day.sleepMin == null ? "—" : formatSleep(day.sleepMin),
         }))}
-        tint={colors.paloRosa}
       />
     </>
   );
@@ -344,15 +408,44 @@ function InsightCard({ insight }: { insight: Insight }) {
 
 type Fila = { date: string; valor: number | null; etiqueta: string };
 
-/** Historial con barra proporcional al máximo de la ventana. */
-function Serie({ titulo, filas, tint }: { titulo: string; filas: Fila[]; tint: string }) {
+/** Los días en orden cronológico —del más viejo al más reciente— que es como
+ * se lee una línea de tendencia. La lista de abajo va al revés, porque ahí lo
+ * que se busca es "¿qué hice ayer?". */
+function serieDe(
+  days: HealthDayPayload[],
+  field: "steps" | "sleepMin" | "exerciseMin",
+): Punto[] {
+  return [...days]
+    .sort((a, b) => a.date.localeCompare(b.date))
+    .map((day) => ({ date: day.date, value: day[field] ?? null }));
+}
+
+/** Tendencia: la línea con su meta punteada, y debajo el día por día. */
+function Tendencia({
+  titulo,
+  puntos,
+  color,
+  meta,
+  format,
+  filas,
+}: {
+  titulo: string;
+  puntos: Punto[];
+  color: string;
+  meta: number | null;
+  format: (value: number) => string;
+  filas: Fila[];
+}) {
   const { colors } = useTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
-  const max = Math.max(1, ...filas.map((fila) => fila.valor ?? 0));
 
   return (
     <Card>
       <SectionLabel>{titulo}</SectionLabel>
+      <View style={{ marginTop: spacing.md }}>
+        <LineChart points={puntos} color={color} goal={meta} format={format} />
+      </View>
+
       <View style={styles.serie}>
         {filas.length === 0 ? (
           <Text style={styles.vacio}>El reloj todavía no manda días.</Text>
@@ -365,8 +458,8 @@ function Serie({ titulo, filas, tint }: { titulo: string; filas: Fila[]; tint: s
                   style={[
                     styles.serieBar,
                     {
-                      backgroundColor: withAlpha(tint, 0.55),
-                      width: `${Math.round(((fila.valor ?? 0) / max) * 100)}%`,
+                      backgroundColor: withAlpha(color, 0.55),
+                      width: `${Math.round(((fila.valor ?? 0) / Math.max(1, ...filas.map((f) => f.valor ?? 0))) * 100)}%`,
                     },
                   ]}
                 />

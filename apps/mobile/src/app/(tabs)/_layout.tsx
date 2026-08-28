@@ -1,7 +1,7 @@
 import { Tabs } from "expo-router";
 import { Dumbbell, LayoutGrid, LibraryBig, Salad, Sun } from "lucide-react-native";
 import { useEffect } from "react";
-import { AppState, Text, type ColorValue } from "react-native";
+import { AppState, Text, useWindowDimensions, type ColorValue } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { useTheme } from "@/context/theme";
@@ -9,16 +9,30 @@ import { autoSyncHealth } from "@/lib/health";
 import { fonts } from "@/lib/theme";
 import { startNetworkSync, syncAndNotify } from "@/lib/training-sync";
 
+/**
+ * Etiqueta de pestaña.
+ *
+ * Con cinco pestañas, "Biblioteca" y "Nutrición" son las que no perdonan: a
+ * 11 px en un iPhone chico se cortan a media palabra. Por eso el tamaño se
+ * mide contra el ancho real de la pantalla y baja un punto en los equipos
+ * angostos, el tracking es casi cero, y `allowFontScaling` va apagado — con
+ * el texto del sistema en grande, una etiqueta de tab no debe crecer hasta
+ * partirse; para leer mejor está el contenido, no la barra.
+ */
 function tabLabel(title: string) {
   return function Label({ color }: { color: ColorValue }) {
+    const { width } = useWindowDimensions();
+
     return (
       <Text
+        numberOfLines={1}
+        allowFontScaling={false}
         style={{
-          // La etiqueta más chica de la app: 11 px es el piso, y en Inter
-          // porque Cinzel a este tamaño pierde los remates y se vuelve ruido.
+          // 11 px es el piso cómodo; abajo de 390 pt de ancho (iPhone 13 mini,
+          // SE) se baja a 10 para que "Biblioteca" quepa completa.
           fontFamily: fonts.sansSemiBold,
-          fontSize: 11,
-          letterSpacing: 0.4,
+          fontSize: width < 390 ? 10 : 11,
+          letterSpacing: 0.2,
           color,
         }}
       >
@@ -86,6 +100,10 @@ export default function TabsLayout() {
           borderTopColor: colors.cardBorder,
           borderTopWidth: 1,
         },
+        // Sin esto cada pestaña reserva su padding por default y las cinco
+        // etiquetas se quedan sin ancho para el texto.
+        tabBarItemStyle: { paddingHorizontal: 2 },
+        tabBarIconStyle: { marginBottom: -2 },
       }}
     >
       <Tabs.Screen

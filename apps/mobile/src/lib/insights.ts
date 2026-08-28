@@ -165,12 +165,92 @@ export function stepsInsight(days: HealthDayPayload[], goal: string): Insight {
 }
 
 // ---------------------------------------------------------------------------
+// Minutos de ejercicio
+// ---------------------------------------------------------------------------
+
+/**
+ * Minutos de ejercicio del reloj — los que iOS cuenta cuando el esfuerzo se
+ * sostiene, no los que dura la sesión de reloj puesto.
+ *
+ * Ojo con leerlos como "cuánto entrené": un día de pesas con descansos largos
+ * suma pocos minutos aunque la sesión haya durado una hora, porque entre serie
+ * y serie el pulso baja. Por eso esto NO evalúa tu entrenamiento —para eso
+ * está la racha, que lee sesiones cerradas— sino cuánto esfuerzo sostenido
+ * hubo en el día.
+ */
+export function exerciseInsight(days: HealthDayPayload[], goal: string): Insight {
+  const semana = ventana(days, "exerciseMin", 0, 7);
+  const previa = ventana(days, "exerciseMin", 7, 14);
+
+  if (semana.length < MIN_DIAS) {
+    return {
+      trend: "sin_datos",
+      headline: "Faltan días para leer la semana",
+      detail: `El reloj trae ${semana.length} ${semana.length === 1 ? "día" : "días"} con minutos de ejercicio.`,
+      recomendacion: "Trae el reloj en tus entrenamientos: sin eso, el esfuerzo del día no queda registrado en ningún lado.",
+    };
+  }
+
+  const actual = Math.round(promedio(semana)!);
+  const anterior = promedio(previa);
+  const delta = anterior === null ? null : actual - Math.round(anterior);
+
+  const trend: Trend =
+    actual >= EJERCICIO_META_MIN ? "buena" : delta !== null && delta <= -5 ? "atencion" : "estable";
+
+  const comparacion =
+    delta === null
+      ? "Primera semana con dato."
+      : delta >= 5
+        ? `${delta} minutos más al día que la semana pasada.`
+        : delta <= -5
+          ? `${Math.abs(delta)} minutos menos al día que la semana pasada.`
+          : "Casi igual que la semana pasada.";
+
+  const headline =
+    trend === "buena"
+      ? "Le estás dando los minutos"
+      : trend === "atencion"
+        ? "Bajaron tus minutos de esfuerzo"
+        : "Te falta poco para la meta diaria";
+
+  const faltan = Math.max(0, EJERCICIO_META_MIN - actual);
+  const recomendacion =
+    trend === "buena"
+      ? "Sostenlo. A partir de aquí lo que suma es la calidad de la sesión, no más minutos."
+      : buscaBajarGrasa(goal)
+        ? `Te faltan ${faltan} minutos diarios para los ${EJERCICIO_META_MIN}. La forma más barata de cerrarlos no es entrenar más fuerte: es caminar rápido después de comer.`
+        : `Te faltan ${faltan} minutos diarios para los ${EJERCICIO_META_MIN}. Súbelos con calentamiento y trabajo continuo, no acortando descansos entre series pesadas.`;
+
+  return {
+    trend,
+    headline,
+    detail: `Promedio de ${actual} min al día en ${semana.length} ${semana.length === 1 ? "día" : "días"}. ${comparacion}`,
+    recomendacion,
+  };
+}
+
+// ---------------------------------------------------------------------------
 // Descanso
 // ---------------------------------------------------------------------------
 
 /** Debajo de esto la semana se marca; arriba de 7 h se considera buena. */
 const SUENO_MINIMO_MIN = 6 * 60;
 const SUENO_BUENO_MIN = 7 * 60;
+
+/**
+ * Metas de los anillos de "Estadísticos".
+ *
+ * `PASOS_META` es el corte de la banda "activo" (el mismo que ya usa el motor
+ * para ajustar el gasto), no un número redondo elegido al gusto.
+ * `EJERCICIO_META_MIN` son 30 minutos diarios: 210 a la semana, dentro de la
+ * franja de 150-300 min de actividad moderada que recomiendan las guías de
+ * actividad física para personas adultas. `SUENO_META_MIN` son las 7 horas
+ * con las que ya se evalúa el descanso aquí mismo.
+ */
+export const PASOS_META = 8_000;
+export const EJERCICIO_META_MIN = 30;
+export const SUENO_META_MIN = SUENO_BUENO_MIN;
 
 export function sleepInsight(days: HealthDayPayload[], goal: string): Insight {
   const semana = ventana(days, "sleepMin", 0, 7);
