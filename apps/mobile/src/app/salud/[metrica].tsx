@@ -17,6 +17,7 @@ import {
   type HealthDayPayload,
   type MeResponse,
 } from "@/lib/api";
+import { ChartBoundary } from "@/components/ChartBoundary";
 import { LineChart, type Punto } from "@/components/LineChart";
 import {
   EJERCICIO_META_MIN,
@@ -565,7 +566,9 @@ function Tendencia({
     <Card>
       <SectionLabel>{titulo}</SectionLabel>
       <View style={{ marginTop: spacing.md }}>
-        <LineChart points={puntos} color={color} goal={meta} format={format} />
+        <ChartBoundary label="La línea no se pudo dibujar con estos días.">
+          <LineChart points={puntos} color={color} goal={meta} format={format} />
+        </ChartBoundary>
       </View>
 
       <View style={styles.serie}>

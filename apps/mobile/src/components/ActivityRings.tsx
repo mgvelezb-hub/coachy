@@ -65,7 +65,7 @@ export function ActivityRings({ rings, size = 132 }: { rings: Ring[]; size?: num
                     stroke={ring.color}
                     strokeWidth={stroke}
                     strokeLinecap="round"
-                    strokeDasharray={`${circunferencia * avance} ${circunferencia}`}
+                    strokeDasharray={[circunferencia * avance, circunferencia]}
                     fill="none"
                   />
                 )}

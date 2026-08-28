@@ -27,6 +27,7 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import { ActivityRings, type Ring } from "@/components/ActivityRings";
+import { ChartBoundary } from "@/components/ChartBoundary";
 import { GapChart } from "@/components/GapChart";
 import { RadarChart } from "@/components/RadarChart";
 import { ScoreTile } from "@/components/ScoreTile";
@@ -293,7 +294,9 @@ export default function ResumenScreen() {
           </Text>
 
           <View style={styles.heroBody}>
-            <ActivityRings rings={rings} />
+            <ChartBoundary label="Los anillos no se pudieron dibujar.">
+              <ActivityRings rings={rings} />
+            </ChartBoundary>
 
             <View style={styles.leyendas}>
               <Leyenda
@@ -352,7 +355,9 @@ export default function ResumenScreen() {
               Cada eje contra lo sugerido para tu objetivo
               {objetivoLabel ? ` de ${objetivoLabel}` : ""}: 100 % es la meta, no un máximo.
             </Text>
-            <RadarChart ejes={ejes} size={anchoPanel} />
+            <ChartBoundary label="La telaraña no se pudo dibujar.">
+              <RadarChart ejes={ejes} size={anchoPanel} />
+            </ChartBoundary>
           </View>
 
           {brechas.length > 0 && (
@@ -364,7 +369,9 @@ export default function ResumenScreen() {
                   : "Todavía sin fotos tuyas: esto es el énfasis que pide tu referencia, no tu brecha"}
               </Text>
               <View style={{ marginTop: spacing.md }}>
-                <GapChart brechas={brechas} />
+                <ChartBoundary label="La brecha no se pudo dibujar.">
+                  <GapChart brechas={brechas} />
+                </ChartBoundary>
               </View>
             </View>
           )}

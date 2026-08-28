@@ -1,4 +1,4 @@
-import React, { useMemo } from "react";
+import { useMemo } from "react";
 import { StyleSheet, Text, View } from "react-native";
 import Svg, { Circle, Line, Polygon, Text as SvgText } from "react-native-svg";
 
@@ -72,30 +72,39 @@ export function RadarChart({ ejes, size = 240 }: { ejes: Eje[]; size?: number })
           />
         ))}
 
+        {/* Radios y etiquetas van en dos pasadas y NO dentro de un Fragment:
+            react-native-svg recorre los hijos esperando elementos SVG, y un
+            Fragment en medio lo tira en el lado nativo — sin traza de JS, la
+            pantalla entera se cae. */}
         {ejes.map((eje, index) => {
           const fin = punto(index, 1);
+          return (
+            <Line
+              key={`eje-${eje.label}`}
+              x1={center}
+              y1={center}
+              x2={fin.x}
+              y2={fin.y}
+              stroke={withAlpha(colors.paloRosa, 0.2)}
+              strokeWidth={1}
+            />
+          );
+        })}
+
+        {ejes.map((eje, index) => {
           const etiqueta = punto(index, 1.32);
           return (
-            <React.Fragment key={eje.label}>
-              <Line
-                x1={center}
-                y1={center}
-                x2={fin.x}
-                y2={fin.y}
-                stroke={withAlpha(colors.paloRosa, 0.2)}
-                strokeWidth={1}
-              />
-              <SvgText
-                x={etiqueta.x}
-                y={etiqueta.y + 4}
-                fill={colors.paloRosa}
-                fontSize={11}
-                fontFamily={fonts.sansSemiBold}
-                textAnchor="middle"
-              >
-                {eje.label}
-              </SvgText>
-            </React.Fragment>
+            <SvgText
+              key={`label-${eje.label}`}
+              x={etiqueta.x}
+              y={etiqueta.y + 4}
+              fill={colors.paloRosa}
+              fontSize={11}
+              fontFamily={fonts.sansSemiBold}
+              textAnchor="middle"
+            >
+              {eje.label}
+            </SvgText>
           );
         })}
 
