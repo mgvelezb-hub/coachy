@@ -1,10 +1,20 @@
 import { useRouter } from "expo-router";
-import { Flame } from "lucide-react-native";
+import {
+  // El tipo `Activity` de la API ya ocupa ese nombre en este archivo.
+  Activity as ActivityIcon,
+  CalendarCheck,
+  Dumbbell,
+  Flame,
+  Settings,
+  Target,
+  TrendingUp,
+} from "lucide-react-native";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import { Card } from "@/components/Card";
+import { ScoreCard } from "@/components/ScoreCard";
 import { EmptyState, ErrorState, LoadingState } from "@/components/States";
 import { SectionLabel } from "@/components/SectionLabel";
 import { WaistChart } from "@/components/WaistChart";
@@ -41,7 +51,15 @@ import { fonts, radius, spacing, withAlpha, type Palette, type as typeScale } fr
 import { syncWidgetData } from "@/lib/widget";
 
 /**
- * "Tu resumen" — pantalla empujada (fuera de tabs), gancho diario de
+ * "Resumen" — la pestaña de la trayectoria: de dónde salí, cómo voy y hacia
+ * dónde tengo que llegar.
+ *
+ * Contesta "¿voy bien?"; Hoy contesta "¿qué hago ahora?". Todo lo que aquí se
+ * pinta llega COLAPSADO: la tarjeta cerrada trae su dato y su estado, y abrir
+ * es para el detalle. El check-in vive aquí como tarjeta —ya no es pestaña—
+ * porque es el cierre de la semana, no una tarea de todos los días.
+ *
+ * Gancho diario de
  * engagement. Todo lo que pinta ya sale de endpoints que existen para otras
  * pantallas (cero contratos nuevos): la racha se calcula en el cliente
  * (`src/lib/streak.ts`, puro), todo lo demás solo se transporta tal cual lo
@@ -199,24 +217,108 @@ export default function ResumenScreen() {
     todayISO(),
   );
 
+  // Resúmenes de las tarjetas cerradas. Cada uno tiene que contestar sin abrir:
+  // si aquí no hay un número, la tarjeta cerrada no sirve.
+  const dias = data.healthDays ?? [];
+  const pasos = dias.map((d) => d.steps).filter((v): v is number => v != null);
+  const suenos = dias.map((d) => d.sleepMin).filter((v): v is number => v != null);
+  const relojResumen =
+    dias.length === 0
+      ? "Conecta Apple Salud para verlo"
+      : [
+          pasos.length > 0 ? `${Math.round(average(pasos)).toLocaleString("es-MX")} pasos/día` : null,
+          suenos.length > 0 ? `${formatDuration(Math.round(average(suenos)))} de sueño` : null,
+        ]
+          .filter(Boolean)
+          .join(" · ") || "Sin datos del reloj todavía";
+
+  const sesionesTotal = data.week?.sessions.length ?? 0;
+  const sesionesHechas = data.week?.sessions.filter((s) => s.completedAt !== null).length ?? 0;
+  const entrenoResumen =
+    sesionesTotal === 0
+      ? "Sin semana generada"
+      : `${sesionesHechas} de ${sesionesTotal} sesiones · ${(data.records ?? []).length} PRs`;
+
+  const ultimoCheckIn = data.checkIns?.[0] ?? null;
+  const avanceResumen = ultimoCheckIn
+    ? `Cintura ${ultimoCheckIn.waistCm ?? "—"} cm · ${data.checkIns?.length ?? 0} check-ins`
+    : "Tu primer check-in arranca el historial";
+
+  // Pendiente cuando el último check-in tiene 7 días o más: es la cadencia
+  // semanal, no una fecha fija — el día de cierre lo elige la atleta.
+  const diasDesdeCheckIn =
+    ultimoCheckIn === null
+      ? null
+      : Math.round(
+          (Date.parse(`${todayISO()}T12:00:00.000Z`) - Date.parse(`${ultimoCheckIn.date}T12:00:00.000Z`)) /
+            86_400_000,
+        );
+  const checkInPendiente = diasDesdeCheckIn === null || diasDesdeCheckIn >= 7;
+  const checkInResumen =
+    diasDesdeCheckIn === null
+      ? "Nunca has hecho uno"
+      : diasDesdeCheckIn === 0
+        ? "Lo hiciste hoy"
+        : `Último hace ${diasDesdeCheckIn} ${diasDesdeCheckIn === 1 ? "día" : "días"}`;
+
+  const objetivoResumen =
+    data.goal === null
+      ? "Completa tu perfil"
+      : data.goal.status.state === "listo"
+        ? `${data.goal.status.references} referencias · analizado`
+        : data.goal.status.state === "sin_referencia"
+          ? "Sin fotos de referencia"
+          : data.goal.status.state === "sin_fotos"
+            ? `${data.goal.status.references} referencias`
+            : "En análisis";
+
+  const planResumen = data.decision
+    ? `${data.decision.kcal} kcal · ${data.decision.phase.replace(/_/g, " ").toLowerCase()}`
+    : "Sin decisión publicada";
+
   return (
     <SafeAreaView style={styles.screen} edges={["top"]}>
       <ScrollView
         contentContainerStyle={styles.content}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.paloRosa} />}
       >
-        <Pressable onPress={() => router.back()} style={styles.backRow} hitSlop={8}>
-          <Text style={styles.backText}>← Atrás</Text>
-        </Pressable>
-
-        <Text style={styles.title}>Tu resumen</Text>
+        <View style={styles.header}>
+          <Text style={styles.title}>Resumen</Text>
+          <Pressable onPress={() => router.push("/ajustes")} hitSlop={8} style={styles.settings}>
+            <Settings size={24} color={colors.paloRosa} strokeWidth={2} />
+          </Pressable>
+        </View>
 
         <StreakCard streak={streak} best={best} engagement={engagement} />
-        <ClockSection healthDays={data.healthDays} />
-        <TrainingSection week={data.week} records={data.records} activities={data.activities} />
-        <ProgressSection checkIns={data.checkIns} points={data.measurementPoints} />
-        <GoalSection goal={data.goal} />
-        <PlanCard decision={data.decision} />
+
+        <ScoreCard
+          icon={CalendarCheck}
+          tint={colors.guindaLight}
+          title="Check-in"
+          summary={checkInResumen}
+          status={{ label: checkInPendiente ? "Toca" : "Al día", tone: checkInPendiente ? "warn" : "ok" }}
+          onPress={() => router.push("/checkin")}
+        />
+
+        <ScoreCard icon={ActivityIcon} tint={colors.champan} title="Tu reloj" summary={relojResumen}>
+          <ClockSection healthDays={data.healthDays} />
+        </ScoreCard>
+
+        <ScoreCard icon={Dumbbell} tint={colors.paloRosa} title="Entrenamiento" summary={entrenoResumen}>
+          <TrainingSection week={data.week} records={data.records} activities={data.activities} />
+        </ScoreCard>
+
+        <ScoreCard icon={TrendingUp} tint={colors.champan} title="Tu avance" summary={avanceResumen}>
+          <ProgressSection checkIns={data.checkIns} points={data.measurementPoints} />
+        </ScoreCard>
+
+        <ScoreCard icon={Target} tint={colors.guindaLight} title="Rumbo a tu objetivo" summary={objetivoResumen}>
+          <GoalSection goal={data.goal} />
+        </ScoreCard>
+
+        <ScoreCard icon={Flame} tint={colors.champan} title="Tu plan" summary={planResumen}>
+          <PlanCard decision={data.decision} />
+        </ScoreCard>
       </ScrollView>
     </SafeAreaView>
   );
@@ -265,13 +367,12 @@ function ClockSection({ healthDays }: { healthDays: HealthDayPayload[] | null })
 
   if (days.length === 0) {
     return (
-      <Card>
-        <SectionLabel>Tu reloj</SectionLabel>
+      <View style={styles.seccion}>
         <EmptyState message="Conecta tu Apple Salud para ver tus pasos y tu sueño aquí." />
         <Pressable onPress={() => router.push("/ajustes")} style={styles.inlineLink} hitSlop={8}>
           <Text style={styles.inlineLinkText}>Conectar en Ajustes →</Text>
         </Pressable>
-      </Card>
+      </View>
     );
   }
 
@@ -287,14 +388,13 @@ function ClockSection({ healthDays }: { healthDays: HealthDayPayload[] | null })
   const lastDay = days[0]!;
 
   return (
-    <Card>
-      <SectionLabel>Tu reloj</SectionLabel>
+    <View style={styles.seccion}>
       <View style={styles.clockRow}>
         <ClockStat label="Pasos / día" value={avgSteps !== null ? avgSteps.toLocaleString("es-MX") : "—"} />
         <ClockStat label="Sueño / noche" value={avgSleep !== null ? formatDuration(avgSleep) : "—"} />
       </View>
       <Text style={styles.clockCaption}>Último dato: {formatDateEs(lastDay.date)}</Text>
-    </Card>
+    </View>
   );
 }
 
@@ -334,9 +434,7 @@ function TrainingSection({
   const recentWatchActivities = (activities ?? []).filter((activity) => activity.discipline !== "PESAS").slice(0, 3);
 
   return (
-    <Card>
-      <SectionLabel>Entrenamiento</SectionLabel>
-
+    <View style={styles.seccion}>
       {week ? (
         <Text style={styles.trainingWeekLine}>
           {completedSessions} de {totalSessions}{" "}
@@ -374,7 +472,7 @@ function TrainingSection({
           ))}
         </View>
       )}
-    </Card>
+    </View>
   );
 }
 
@@ -396,16 +494,16 @@ function ProgressSection({
   checkIns: CheckInRow[] | null;
   points: CheckInPoint[] | null;
 }) {
+  const router = useRouter();
   const { colors } = useTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
 
   const list = checkIns ?? [];
   if (list.length === 0) {
     return (
-      <Card>
-        <SectionLabel color={colors.champan}>Tu avance</SectionLabel>
+      <View style={styles.seccion}>
         <EmptyState message="Aún no tienes check-ins. El primero arranca tu historial." />
-      </Card>
+      </View>
     );
   }
 
@@ -424,9 +522,7 @@ function ProgressSection({
   const chartPoints = (points ?? []).slice(-CHART_POINTS);
 
   return (
-    <Card>
-      <SectionLabel color={colors.champan}>Tu avance</SectionLabel>
-
+    <View style={styles.seccion}>
       <View style={styles.progressHeader}>
         <Text style={styles.waistValue}>{latest.waistCm !== null ? `${latest.waistCm} cm` : "—"}</Text>
         <Text style={styles.waistCaption}>Cintura · {formatDateEs(latest.date)}</Text>
@@ -448,7 +544,10 @@ function ProgressSection({
       <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.chartScroll}>
         <WaistChart points={chartPoints} />
       </ScrollView>
-    </Card>
+      <Pressable onPress={() => router.push("/historial")} style={styles.inlineLink} hitSlop={8}>
+        <Text style={styles.inlineLinkText}>Ver historial completo →</Text>
+      </Pressable>
+    </View>
   );
 }
 
@@ -484,11 +583,10 @@ function GoalSection({ goal }: { goal: GoalResponse | null }) {
 
   if (!goal) {
     return (
-      <Card>
-        <SectionLabel>Rumbo a tu objetivo</SectionLabel>
+      <View style={styles.seccion}>
         <EmptyState message="Tu objetivo aparece aquí en cuanto completes tu perfil." />
         <GoalLink />
-      </Card>
+      </View>
     );
   }
 
@@ -496,39 +594,35 @@ function GoalSection({ goal }: { goal: GoalResponse | null }) {
 
   if (status.state === "sin_referencia") {
     return (
-      <Card>
-        <SectionLabel>Rumbo a tu objetivo</SectionLabel>
+      <View style={styles.seccion}>
         <EmptyState message="Sube tus 3 fotos de referencia para empezar a comparar tu rumbo." />
         <GoalLink label="Subir referencia →" />
-      </Card>
+      </View>
     );
   }
 
   if (status.state === "sin_fotos") {
     return (
-      <Card>
-        <SectionLabel>Rumbo a tu objetivo</SectionLabel>
+      <View style={styles.seccion}>
         <EmptyState message="Ya tienes tu referencia. En cuanto tengas fotos de progreso, aquí aparece la comparación." />
         <GoalLink />
-      </Card>
+      </View>
     );
   }
 
   if (status.state === "en_espera") {
     return (
-      <Card>
-        <SectionLabel>Rumbo a tu objetivo</SectionLabel>
+      <View style={styles.seccion}>
         <EmptyState message="El análisis se hace cada 2 semanas. Todavía no hay uno disponible — vuelve en unos días." />
         <GoalLink />
-      </Card>
+      </View>
     );
   }
 
   // "listo": las líneas ya vienen redactadas por el backend — se pintan
   // tal cual, sin reinterpretarlas.
   return (
-    <Card>
-      <SectionLabel color={colors.champan}>Rumbo a tu objetivo</SectionLabel>
+    <View style={styles.seccion}>
       <View style={styles.goalLines}>
         {status.lines.map((line) => (
           <Text key={line} style={styles.goalLine}>
@@ -537,7 +631,7 @@ function GoalSection({ goal }: { goal: GoalResponse | null }) {
         ))}
       </View>
       <GoalLink label="Ver detalle →" />
-    </Card>
+    </View>
   );
 }
 
@@ -558,18 +652,16 @@ function PlanCard({ decision }: { decision: Decision | null }) {
 
   if (!decision) {
     return (
-      <Card>
-        <SectionLabel>Tu plan de hoy</SectionLabel>
+      <View style={styles.seccion}>
         <EmptyState message="Tu coach todavía está armando tu siguiente decisión." />
-      </Card>
+      </View>
     );
   }
 
   return (
-    <Card highlighted>
-      <SectionLabel color={colors.pergaminoSoft}>{decision.phase}</SectionLabel>
+    <View style={styles.seccion}>
       <Text style={styles.planKcal}>{decision.kcal} kcal</Text>
-    </Card>
+    </View>
   );
 }
 
@@ -580,16 +672,24 @@ const makeStyles = (colors: Palette) => StyleSheet.create({
   },
   content: {
     padding: spacing.lg,
-    gap: spacing.lg,
+    gap: spacing.md,
     paddingBottom: spacing.huge,
   },
-  backRow: { flexDirection: "row", alignItems: "center" },
-  backText: { fontFamily: fonts.sans, ...typeScale.bodySm, color: colors.paloRosaLight },
+  header: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: spacing.sm,
+  },
+  settings: { padding: spacing.xs },
   title: {
-    fontFamily: fonts.display,
+    fontFamily: fonts.sansBold,
     ...typeScale.title,
     color: colors.marfil,
   },
+  /** Contenido de una sección ya dentro de su ScoreCard: sin fondo ni borde
+   * propios — la tarjeta ya los puso, y anidarlos se ve como caja en caja. */
+  seccion: { gap: spacing.md },
   streakHeader: {
     flexDirection: "row",
     alignItems: "center",

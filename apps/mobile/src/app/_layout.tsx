@@ -46,7 +46,8 @@ function RootNavigator() {
         <Stack.Screen name="(tabs)" />
         <Stack.Screen name="objetivo" />
         <Stack.Screen name="ajustes" />
-        <Stack.Screen name="resumen" />
+        <Stack.Screen name="checkin" />
+        <Stack.Screen name="historial" />
         <Stack.Screen name="actividad" options={{ presentation: "modal" }} />
         <Stack.Screen name="salud/[metrica]" />
       </Stack.Protected>

@@ -1,6 +1,7 @@
 import { useRouter } from "expo-router";
+import { ChevronLeft } from "lucide-react-native";
 import { useEffect, useMemo, useState } from "react";
-import { ScrollView, StyleSheet, Switch, Text, TextInput, View } from "react-native";
+import { Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View } from "react-native";
 
 import { Card } from "@/components/Card";
 import { Chip } from "@/components/Chip";
@@ -163,6 +164,11 @@ export default function CheckinScreen() {
 
   return (
     <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
+      <Pressable onPress={() => router.back()} hitSlop={10} style={styles.backRow}>
+        <ChevronLeft size={22} color={colors.paloRosa} strokeWidth={2} />
+        <Text style={styles.backText}>Atrás</Text>
+      </Pressable>
+
       <Text style={styles.title}>Check-in semanal</Text>
 
       <Card>
@@ -329,6 +335,18 @@ function ScaleField({
 }
 
 const makeStyles = (colors: Palette) => StyleSheet.create({
+  backRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 2,
+    paddingVertical: spacing.sm,
+    alignSelf: "flex-start",
+  },
+  backText: {
+    fontFamily: fonts.sansMedium,
+    ...typeScale.body,
+    color: colors.paloRosa,
+  },
   screen: {
     flex: 1,
     backgroundColor: colors.obsidiana,

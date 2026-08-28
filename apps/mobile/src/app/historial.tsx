@@ -1,4 +1,5 @@
 import { useRouter } from "expo-router";
+import { ChevronLeft } from "lucide-react-native";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from "react-native";
 
@@ -69,6 +70,11 @@ export default function HistorialScreen() {
       contentContainerStyle={styles.content}
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.paloRosa} />}
     >
+      <Pressable onPress={() => router.back()} hitSlop={10} style={styles.backRow}>
+        <ChevronLeft size={22} color={colors.paloRosa} strokeWidth={2} />
+        <Text style={styles.backText}>Atrás</Text>
+      </Pressable>
+
       <Text style={styles.title}>Tu historial</Text>
 
       <Card>
@@ -154,6 +160,18 @@ function CheckInRow({ point, delta }: { point: CheckInPoint; delta: number | nul
 }
 
 const makeStyles = (colors: Palette) => StyleSheet.create({
+  backRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 2,
+    paddingVertical: spacing.sm,
+    alignSelf: "flex-start",
+  },
+  backText: {
+    fontFamily: fonts.sansMedium,
+    ...typeScale.body,
+    color: colors.paloRosa,
+  },
   screen: {
     flex: 1,
     backgroundColor: colors.obsidiana,

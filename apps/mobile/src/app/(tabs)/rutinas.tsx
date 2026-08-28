@@ -530,7 +530,7 @@ function WeekOverview({
   );
 
   return (
-    <Collapsible title="Tu semana" subtitle="Cómo se reparten tus grupos musculares" defaultOpen>
+    <Collapsible title="Tu semana" subtitle="Cómo se reparten tus grupos musculares">
       <View style={styles.weekList}>
         {days.map((date) => {
           const daySession = week.sessions.find((entry) => entry.date === date) ?? null;
