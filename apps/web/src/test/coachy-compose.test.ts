@@ -45,6 +45,7 @@ function input(overrides: Partial<ComposeInput> = {}): ComposeInput {
       comentario: null,
       semanasEnFase: 2,
       semanasSinProgreso: 0,
+      entrenamiento: { planeadas: 5, completadas: 4, recortadas: 1 },
     },
     vision: null,
     questions: [

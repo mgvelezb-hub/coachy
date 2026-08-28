@@ -31,6 +31,7 @@ function signals(overrides: Partial<WeekSignals> = {}): WeekSignals {
     comentario: null,
     semanasEnFase: 2,
     semanasSinProgreso: 0,
+    entrenamiento: { planeadas: 5, completadas: 4, recortadas: 1 },
     ...overrides,
   };
 }
@@ -59,6 +60,7 @@ describe("banco de preguntas", () => {
           cumplimientoDieta: 40,
           cumplimientoEntreno: 20,
           semanasSinProgreso: 4,
+          entrenamiento: { planeadas: 5, completadas: 4, recortadas: 1 },
         }),
         recomposition: true,
         photosDisagreeWithFeeling: true,

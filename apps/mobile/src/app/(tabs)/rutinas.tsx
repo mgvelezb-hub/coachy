@@ -3,7 +3,9 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 
 import { Chip } from "@/components/Chip";
+import { CalendarRange, Timer } from "lucide-react-native";
 import { Collapsible } from "@/components/Collapsible";
+import { ScoreCard } from "@/components/ScoreCard";
 import { ExerciseCapture } from "@/components/ExerciseCapture";
 import { EmptyState, ErrorState, LoadingState } from "@/components/States";
 import { useTheme } from "@/context/theme";
@@ -16,6 +18,7 @@ import {
   type SessionView,
   type WeekView,
   type WorkoutSetInput,
+  trimSession,
 } from "@/lib/api";
 import { fonts, radius, spacing, withAlpha, type Palette, type as typeScale } from "@/lib/theme";
 import {
@@ -190,6 +193,10 @@ export default function GymScreen() {
     setSelectedDate(today);
   }, [today]);
 
+  // "Hoy tengo menos tiempo": minutos elegidos y la llamada en vuelo.
+  const [trimming, setTrimming] = useState(false);
+  const [trimError, setTrimError] = useState<string | null>(null);
+
   const load = useCallback(async () => {
     setPhase("loading");
     setLoadError(null);
@@ -358,6 +365,29 @@ export default function GymScreen() {
       ).length
     : 0;
 
+  /**
+   * Recorta (o restaura) la sesión de hoy y recarga la semana.
+   *
+   * Se recarga en vez de parchar el estado local porque el plan nuevo trae
+   * ejercicios, esquemas y pesos sugeridos distintos: reconstruirlo aquí sería
+   * duplicar en el cliente lo que el generador ya decidió.
+   */
+  async function recortarSesion(minutes: number | null) {
+    if (!session || trimming) return;
+    setTrimming(true);
+    setTrimError(null);
+    try {
+      await trimSession(session.workoutId, minutes);
+      await load();
+    } catch (error) {
+      setTrimError(
+        error instanceof ApiError ? error.message : "No se pudo ajustar tu sesión",
+      );
+    } finally {
+      setTrimming(false);
+    }
+  }
+
   return (
     <ScrollView ref={scrollRef} style={styles.screen} contentContainerStyle={styles.content}>
       <ConnectionBadge online={online} pendingCount={pendingCount} onRetry={() => void syncAndNotify()} />
@@ -368,6 +398,15 @@ export default function GymScreen() {
           today={today}
           selectedDate={selectedDate}
           onSelectDate={setSelectedDate}
+        />
+      )}
+
+      {isViewingToday && session && session.completedAt === null && (
+        <TiempoDeHoy
+          session={session}
+          working={trimming}
+          error={trimError}
+          onTrim={recortarSesion}
         />
       )}
 
@@ -515,6 +554,88 @@ function ConnectionBadge({
  * abajo es el terreno. Tocar una fila con sesión cambia `selectedDate`, y
  * la lista de ejercicios de abajo se redibuja para ese día.
  */
+/** Las duraciones que cubren casi todo, para no obligar a teclear. */
+const MINUTOS_RAPIDOS = [20, 30, 45] as const;
+
+/**
+ * "Hoy tengo menos tiempo".
+ *
+ * La sesión se vuelve a armar para los minutos que de verdad hay: se queda lo
+ * compuesto y se suelta el accesorio, que es el orden que cualquiera seguiría
+ * con prisa. La sesión queda marcada como recortada, no como incompleta —
+ * cerrar bien 25 minutos es un día entrenado.
+ */
+function TiempoDeHoy({
+  session,
+  working,
+  error,
+  onTrim,
+}: {
+  session: SessionView;
+  working: boolean;
+  error: string | null;
+  onTrim: (minutes: number | null) => void;
+}) {
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
+  const recortada = session.trimmedMinutes !== null;
+
+  return (
+    <ScoreCard
+      icon={Timer}
+      tint={colors.champan}
+      title={recortada ? "Sesión recortada" : "¿Cuánto tiempo tienes?"}
+      summary={
+        recortada
+          ? `Armada para ${session.trimmedMinutes} min · ${session.exercises.length} ejercicios`
+          : `${session.exercises.length} ejercicios · si hoy no te da el tiempo, se reacomoda`
+      }
+      status={recortada ? { label: "Recortada", tone: "warn" } : null}
+    >
+      <View style={styles.trimRow}>
+        {MINUTOS_RAPIDOS.map((minutos) => (
+          <Pressable
+            key={minutos}
+            disabled={working}
+            onPress={() => onTrim(minutos)}
+            style={[
+              styles.trimChip,
+              session.trimmedMinutes === minutos && styles.trimChipSelected,
+              working && styles.trimChipDisabled,
+            ]}
+          >
+            <Text
+              style={[
+                styles.trimChipText,
+                session.trimmedMinutes === minutos && styles.trimChipTextSelected,
+              ]}
+            >
+              {minutos} min
+            </Text>
+          </Pressable>
+        ))}
+
+        {recortada && (
+          <Pressable
+            disabled={working}
+            onPress={() => onTrim(null)}
+            style={[styles.trimChip, working && styles.trimChipDisabled]}
+          >
+            <Text style={styles.trimChipText}>Completa</Text>
+          </Pressable>
+        )}
+      </View>
+
+      <Text style={styles.trimNota}>
+        Se queda lo compuesto y se suelta el accesorio. Queda marcada como recortada, no como
+        incompleta: cerrar bien 25 minutos es un día entrenado.
+      </Text>
+
+      {error && <Text style={styles.trimError}>{error}</Text>}
+    </ScoreCard>
+  );
+}
+
 function WeekOverview({
   week,
   today,
@@ -533,8 +654,28 @@ function WeekOverview({
     [week.weekStart],
   );
 
+  const hechas = week.sessions.filter((entry) => entry.completedAt !== null).length;
+  const hoy = week.sessions.find((entry) => entry.date === today) ?? null;
+  const resumen = [
+    `${week.sessions.length} ${week.sessions.length === 1 ? "día" : "días"}`,
+    `${hechas} ${hechas === 1 ? "hecho" : "hechos"}`,
+    hoy ? `hoy: ${hoy.muscleGroup.toLowerCase()}` : "hoy: descanso",
+  ].join(" · ");
+
   return (
-    <Collapsible title="Tu semana" subtitle="Cómo se reparten tus grupos musculares">
+    <ScoreCard
+      icon={CalendarRange}
+      tint={colors.paloRosa}
+      title="Planeación semanal"
+      summary={resumen}
+      status={
+        hechas === week.sessions.length && week.sessions.length > 0
+          ? { label: "Completa", tone: "ok" }
+          : hechas > 0
+            ? { label: "En curso", tone: "warn" }
+            : null
+      }
+    >
       <View style={styles.weekList}>
         {days.map((date) => {
           const daySession = week.sessions.find((entry) => entry.date === date) ?? null;
@@ -564,6 +705,7 @@ function WeekOverview({
                     <Text style={styles.weekMeta}>
                       {daySession.exercises.length} ejercicios · {daySession.schemeLabel}
                       {daySession.cardioMinutes ? ` · ${daySession.cardioMinutes} min cardio` : ""}
+                      {daySession.trimmedMinutes ? ` · recortada a ${daySession.trimmedMinutes} min` : ""}
                     </Text>
                   </>
                 ) : (
@@ -579,7 +721,7 @@ function WeekOverview({
           );
         })}
       </View>
-    </Collapsible>
+    </ScoreCard>
   );
 }
 
@@ -700,6 +842,21 @@ const makeStyles = (colors: Palette) => StyleSheet.create({
   },
   badgeText: { flex: 1, fontFamily: fonts.sans, ...typeScale.label, color: colors.paloRosaLight },
   badgeRetry: { fontFamily: fonts.sansSemiBold, ...typeScale.label, letterSpacing: 1.5, color: colors.champan },
+  trimRow: { flexDirection: "row", flexWrap: "wrap", gap: spacing.sm },
+  trimChip: {
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.md,
+    borderRadius: radius.full,
+    borderWidth: 1,
+    borderColor: colors.cardBorder,
+    backgroundColor: colors.cardBg,
+  },
+  trimChipSelected: { backgroundColor: colors.guinda, borderColor: colors.guindaLight },
+  trimChipDisabled: { opacity: 0.5 },
+  trimChipText: { fontFamily: fonts.sansMedium, ...typeScale.bodySm, color: colors.marfil },
+  trimChipTextSelected: { color: colors.pergamino },
+  trimNota: { fontFamily: fonts.sans, ...typeScale.bodySm, color: colors.paloRosaLight },
+  trimError: { fontFamily: fonts.sansMedium, ...typeScale.bodySm, color: colors.error },
   weekList: { gap: spacing.sm },
   weekRow: {
     flexDirection: "row",

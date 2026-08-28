@@ -157,9 +157,37 @@ export type TodayCard = {
   exerciseCount: number;
   cardioMinutes: number | null;
   completed: boolean;
+  /** Minutos a los que se recortó la sesión, o `null` si está completa. */
+  trimmedMinutes: number | null;
 };
 
 export type TrainingTodayResponse = { today: TodayCard | null };
+
+/** Lo que regresa `POST /api/v1/training/trim`. */
+export type TrimResponse = {
+  sesion: {
+    workoutId: string;
+    date: string;
+    muscleGroup: string;
+    minutes: number;
+    exercises: number;
+    removed: number;
+  };
+};
+
+/**
+ * "Hoy tengo menos tiempo": vuelve a armar la sesión para los minutos que hay.
+ *
+ * `minutes: null` deshace el recorte y la deja como estaba. El servidor
+ * rechaza con 409 una sesión que ya tiene series capturadas — recortarla
+ * dejaría esas series apuntando a un plan que ya no existe.
+ */
+export function trimSession(workoutId: string, minutes: number | null): Promise<TrimResponse> {
+  return apiFetch<TrimResponse>("/api/v1/training/trim", {
+    method: "POST",
+    body: { workoutId, minutes },
+  });
+}
 
 export type CheckInPoint = {
   id: string;
@@ -235,6 +263,8 @@ export type SessionView = {
   schemeLabel: string;
   cardioMinutes: number | null;
   completedAt: string | null;
+  /** Minutos a los que se recortó la sesión, o `null` si está completa. */
+  trimmedMinutes: number | null;
   cycleNote: string | null;
   readinessNote: string | null;
   exercises: SessionExerciseView[];

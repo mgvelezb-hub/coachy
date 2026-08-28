@@ -3,6 +3,7 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import { prisma } from "@/lib/prisma";
 import { ensureWeekMaterialized, parseStoredPlan } from "@/lib/training/db";
+import { SessionAlreadyStartedError, restoreSession, trimSession } from "@/lib/training/trim";
 import { mondayOf } from "@/lib/training/generate";
 import { persistSession } from "@/lib/training/session-write";
 import { sessionSyncSchema } from "@/lib/validation/training";
@@ -172,6 +173,42 @@ describe.skipIf(!available)("rutina y sesiones contra la base", () => {
     const loads = stored.loadsJson as Record<string, unknown>;
     expect(loads.volumeKg).toBe(400);
     expect(loads.notes).toBe("Se sintió bien");
+  });
+
+  it("recorta la sesión a los minutos que hay, y la deja marcada", async () => {
+    const perfil = await prisma.profile.findUniqueOrThrow({ where: { userId } });
+    const semana = await ensureWeekMaterialized(userId, perfil, reference);
+    // La primera sesión de la semana ya tiene series de la prueba anterior, así
+    // que se recorta la última, que sigue intacta.
+    const objetivo = semana[semana.length - 1]!;
+    const antes = parseStoredPlan(objetivo.exercisesJson).exercises.length;
+
+    const recorte = await trimSession(userId, perfil, objetivo.id, 20);
+
+    expect(recorte.exercises).toBeLessThan(antes);
+    expect(recorte.removed).toBe(antes - recorte.exercises);
+
+    const guardado = await prisma.workout.findUniqueOrThrow({ where: { id: objetivo.id } });
+    expect(guardado.trimmedMinutes).toBe(20);
+    expect(parseStoredPlan(guardado.exercisesJson).exercises).toHaveLength(recorte.exercises);
+    // Recortar el tiempo no cambia qué toca entrenar ese día.
+    expect(guardado.muscleGroup).toBe(objetivo.muscleGroup);
+
+    const restaurada = await restoreSession(userId, perfil, objetivo.id);
+    expect(restaurada.exercises).toBe(antes);
+    const vuelta = await prisma.workout.findUniqueOrThrow({ where: { id: objetivo.id } });
+    expect(vuelta.trimmedMinutes).toBeNull();
+  });
+
+  it("no recorta una sesión que ya empezó", async () => {
+    const perfil = await prisma.profile.findUniqueOrThrow({ where: { userId } });
+    const semana = await ensureWeekMaterialized(userId, perfil, reference);
+    // La primera sí tiene series capturadas: sus filas apuntan a este plan.
+    const conSeries = semana[0]!;
+
+    await expect(trimSession(userId, perfil, conSeries.id, 20)).rejects.toBeInstanceOf(
+      SessionAlreadyStartedError,
+    );
   });
 
   it("no escribe en la sesión de alguien más", async () => {

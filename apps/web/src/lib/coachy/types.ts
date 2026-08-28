@@ -78,6 +78,20 @@ export interface WeekSignals {
   comentario: string | null;
   semanasEnFase: number;
   semanasSinProgreso: number;
+  /**
+   * La semana de entrenamiento tal como quedó: planeadas, cerradas y de esas
+   * cuántas se recortaron por falta de tiempo.
+   *
+   * Existe para que la retro distinga "entrené menos" de "no entrené". Tres
+   * semanas recortando los mismos días no es falta de disciplina: es que el
+   * horario declarado no es el horario real, y la respuesta correcta es mover
+   * el día, no pedir más ganas.
+   */
+  entrenamiento: {
+    planeadas: number;
+    completadas: number;
+    recortadas: number;
+  };
 }
 
 export interface ComposeInput {

@@ -56,11 +56,34 @@ export interface AnalysisResult {
   latestWeightKg: number | null;
 }
 
+/** Cómo quedó la semana de entrenamiento que cierra este check-in. */
+async function trainingWeekSummary(
+  userId: string,
+  checkInDate: Date,
+): Promise<WeekSignals["entrenamiento"]> {
+  const desde = new Date(checkInDate);
+  desde.setDate(desde.getDate() - 6);
+
+  const workouts = await prisma.workout.findMany({
+    where: { userId, date: { gte: desde, lte: checkInDate } },
+    select: { completedAt: true, trimmedMinutes: true },
+  });
+
+  return {
+    planeadas: workouts.length,
+    completadas: workouts.filter((workout) => workout.completedAt !== null).length,
+    recortadas: workouts.filter(
+      (workout) => workout.trimmedMinutes !== null && workout.completedAt !== null,
+    ).length,
+  };
+}
+
 function buildSignals(
   checkIn: CheckIn,
   previous: CheckIn | null,
   first: CheckIn | null,
   engineDecision: EngineDecision,
+  entrenamiento: WeekSignals["entrenamiento"],
 ): WeekSignals {
   const waist = decimalToNumber(checkIn.waistCm);
   const previousWaist = previous ? decimalToNumber(previous.waistCm) : null;
@@ -93,6 +116,7 @@ function buildSignals(
     comentario: checkIn.comment,
     semanasEnFase: engineDecision.weeksInPhase,
     semanasSinProgreso: engineDecision.stallWeeks,
+    entrenamiento,
   };
 }
 
@@ -188,6 +212,8 @@ export async function runCheckinAnalysis(checkInId: string): Promise<AnalysisRes
     });
   }
 
+  const entrenamiento = await trainingWeekSummary(user.id, checkIn.date);
+
   return {
     checkIn,
     user,
@@ -195,7 +221,7 @@ export async function runCheckinAnalysis(checkInId: string): Promise<AnalysisRes
     decision,
     engineDecision,
     vision,
-    signals: buildSignals(checkIn, previous, first, engineDecision),
+    signals: buildSignals(checkIn, previous, first, engineDecision, entrenamiento),
     askedLastWeek: previousDecision?.questionIds ?? [],
     phaseChanged: previousDecision ? previousDecision.phase !== engineDecision.phase : true,
     menuSeedChanged: previousDecision?.menuSeed !== engineDecision.menuSeed,

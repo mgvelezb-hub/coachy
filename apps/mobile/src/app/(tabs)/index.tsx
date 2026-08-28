@@ -322,7 +322,7 @@ function TodayTrainingCard({ today, onPress }: { today: TodayCard | null; onPres
       title={today.muscleGroup}
       subtitle={`${today.exerciseCount} ejercicios · ${today.schemeLabel}${
         today.cardioMinutes ? ` · ${today.cardioMinutes} min cardio` : ""
-      }`}
+      }${today.trimmedMinutes ? ` · recortada a ${today.trimmedMinutes} min` : ""}`}
       onPress={onPress}
     />
   );

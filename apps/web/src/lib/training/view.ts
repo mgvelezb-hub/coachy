@@ -52,6 +52,8 @@ export type SessionView = {
   schemeLabel: string;
   cardioMinutes: number | null;
   completedAt: string | null;
+  /** Minutos a los que se recortó la sesión, o `null` si está completa. */
+  trimmedMinutes: number | null;
   cycleNote: string | null;
   /**
    * Nota de readiness (Fase 8): si el reloj registró menos de 6 h de sueño
@@ -113,6 +115,7 @@ export async function weekView(
       schemeLabel: plan.schemeLabel,
       cardioMinutes: plan.cardioMinutes,
       completedAt: workout.completedAt ? workout.completedAt.toISOString() : null,
+      trimmedMinutes: workout.trimmedMinutes,
       cycleNote: cycleNoteForProfile(profile, date),
       // El sueño de anoche solo habla de la sesión de hoy.
       readinessNote: date === today ? readinessNote(sleepMin) : null,
@@ -156,6 +159,8 @@ export type TodayCard = {
   exerciseCount: number;
   cardioMinutes: number | null;
   completed: boolean;
+  /** Minutos a los que se recortó la sesión, o `null` si está completa. */
+  trimmedMinutes: number | null;
 };
 
 /**
@@ -180,6 +185,7 @@ export async function todayCard(
     exerciseCount: plan.exercises.length,
     cardioMinutes: plan.cardioMinutes,
     completed: workout.completedAt !== null,
+    trimmedMinutes: workout.trimmedMinutes,
   };
 }
 

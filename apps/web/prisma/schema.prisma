@@ -397,6 +397,12 @@ model Workout {
   /// Momento en que la atleta cerró la sesión. Null = planeada, no entrenada.
   completedAt DateTime? @map("completed_at")
 
+  /// Minutos a los que se recortó la sesión cuando la atleta dijo que tenía
+  /// menos tiempo. `null` = sesión completa. Se guarda para que la retro del
+  /// check-in distinga "entrené menos" de "no entrené": no son lo mismo, y sin
+  /// esta marca tres semanas de prisa se leerían como falta de disciplina.
+  trimmedMinutes Int? @map("trimmed_minutes")
+
   createdAt DateTime @default(now()) @map("created_at")
 
   sets WorkoutSet[]
