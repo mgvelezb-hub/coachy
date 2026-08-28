@@ -529,3 +529,70 @@ export function getHealthDays(): Promise<HealthDaysResponse> {
 export function postHealthDays(days: HealthDayPayload[]): Promise<PostHealthDaysResponse> {
   return apiFetch<PostHealthDaysResponse>("/api/v1/health", { method: "POST", body: { days } });
 }
+
+// ---------------------------------------------------------------------------
+// Actividades del reloj (Fase N6) — contrato EXACTO de `POST/GET
+// /api/v1/activities`. Topes del validador (para descartar en el cliente
+// ANTES de mandar, así un workout fuera de rango no tumba el lote entero):
+// durationMin 1–1200, activeKcal 0–5000, avgHr/maxHr 30–240, distanceM
+// 0–100000, notes ≤1000 caracteres. Máx 50 actividades por lote.
+// ---------------------------------------------------------------------------
+
+export const DISCIPLINES = [
+  "PESAS",
+  "FUNCIONAL",
+  "CROSSFIT",
+  "NATACION",
+  "BOX",
+  "SQUASH",
+  "CARDIO",
+  "OTRO",
+] as const;
+export type Discipline = (typeof DISCIPLINES)[number];
+
+export const DISCIPLINE_LABELS: Record<Discipline, string> = {
+  PESAS: "Pesas",
+  FUNCIONAL: "Funcional",
+  CROSSFIT: "Crossfit",
+  NATACION: "Natación",
+  BOX: "Box",
+  SQUASH: "Squash",
+  CARDIO: "Cardio",
+  OTRO: "Otro",
+};
+
+export const ACTIVITY_SOURCES = ["APP", "HEALTHKIT"] as const;
+export type ActivitySource = (typeof ACTIVITY_SOURCES)[number];
+
+export type ActivityPayload = {
+  discipline: Discipline;
+  source: ActivitySource;
+  /** uuid del workout en HealthKit (o el que genere la app) — POST es idempotente por este campo. */
+  externalId: string;
+  startedAt: string; // ISO
+  endedAt: string; // ISO
+  /** yyyy-MM-dd en zona LOCAL del teléfono, calculada a partir de `startedAt`. */
+  date: string;
+  durationMin: number;
+  activeKcal?: number | null;
+  avgHr?: number | null;
+  maxHr?: number | null;
+  distanceM?: number | null;
+  notes?: string | null;
+};
+
+export type Activity = ActivityPayload & { id: string };
+
+export type ActivitiesResponse = { actividades: Activity[] };
+export type PostActivitiesResponse = { ok: true; guardadas: number };
+
+/** `GET /api/v1/activities?limit=` — orden `startedAt` desc. */
+export function getActivities(limit?: number): Promise<ActivitiesResponse> {
+  const query = limit ? `?limit=${limit}` : "";
+  return apiFetch<ActivitiesResponse>(`/api/v1/activities${query}`);
+}
+
+/** `POST /api/v1/activities` — hasta 50 por lote. Idempotente por `externalId`. */
+export function postActivities(activities: ActivityPayload[]): Promise<PostActivitiesResponse> {
+  return apiFetch<PostActivitiesResponse>("/api/v1/activities", { method: "POST", body: { activities } });
+}

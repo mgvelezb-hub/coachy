@@ -5,13 +5,23 @@ import {
   isHealthDataAvailable,
   queryCategorySamples,
   queryStatisticsCollectionForQuantity,
+  queryWorkoutSamples,
   requestAuthorization,
+  WorkoutActivityType,
   type CategorySampleTyped,
   type ObjectTypeIdentifier,
   type QueryStatisticsResponse,
+  type WorkoutProxyTyped,
 } from "@kingstinct/react-native-healthkit";
 
-import { getHealthDays as fetchHealthDays, postHealthDays, type HealthDayPayload } from "@/lib/api";
+import {
+  getHealthDays as fetchHealthDays,
+  postActivities,
+  postHealthDays,
+  type ActivityPayload,
+  type Discipline,
+  type HealthDayPayload,
+} from "@/lib/api";
 
 /**
  * Fase N5 — HealthKit directo, adiós al Atajo de iOS.
@@ -34,13 +44,20 @@ import { getHealthDays as fetchHealthDays, postHealthDays, type HealthDayPayload
 // Tipos y permisos
 // ---------------------------------------------------------------------------
 
-/** Los 5 tipos que la app lee. Nada de peso, nutrición ni nada clínico. */
+/** Los 7 tipos que la app lee. Nada de peso, nutrición ni nada clínico.
+ * `HKWorkoutTypeIdentifier` habilita `queryWorkoutSamples` (entrenamientos) y
+ * `HKQuantityTypeIdentifierHeartRate` habilita `workout.getStatistic(...)`
+ * para el promedio/máximo de FC de cada entrenamiento — ambos se piden aquí
+ * junto con los demás para no disparar el crash de "tipo nunca autorizado"
+ * documentado abajo. */
 export const HEALTH_TYPES = [
   "HKQuantityTypeIdentifierStepCount",
   "HKQuantityTypeIdentifierActiveEnergyBurned",
   "HKQuantityTypeIdentifierAppleExerciseTime",
   "HKCategoryTypeIdentifierSleepAnalysis",
   "HKQuantityTypeIdentifierRestingHeartRate",
+  "HKWorkoutTypeIdentifier",
+  "HKQuantityTypeIdentifierHeartRate",
 ] as const satisfies readonly ObjectTypeIdentifier[];
 
 const CONNECTED_KEY = "holygains:health:connected";
@@ -249,6 +266,186 @@ function hasAnyMetric(day: HealthDayPayload): boolean {
 }
 
 // ---------------------------------------------------------------------------
+// Entrenamientos (workouts) — Fase N6
+// ---------------------------------------------------------------------------
+
+/**
+ * Mapeo HealthKit → disciplina de la app. ÚNICO lugar a tocar cuando se
+ * agreguen disciplinas o se afine algún tipo de actividad — el resto del
+ * flujo de sync no sabe nada de `WorkoutActivityType`.
+ *
+ * Decisiones de mapeo:
+ * - `swimming` → NATACION.
+ * - `boxing`/`kickboxing` → BOX.
+ * - `squash` → SQUASH (HealthKit ya trae el tipo exacto, no hace falta
+ *   caer a "racquet sports" genérico).
+ * - `traditionalStrengthTraining` → PESAS.
+ * - `functionalStrengthTraining`/metabólico mixto/core → FUNCIONAL;
+ *   `crossTraining`/HIIT → CROSSFIT (HealthKit no distingue "crossfit" como
+ *   tal — es la lectura más cercana de sus dos tipos de entrenamiento mixto).
+ * - Cardio "de toda la vida" (correr, bici, caminar, elíptica, remo, escaleras,
+ *   handbike, triatlón, cuerda) → CARDIO.
+ * - Cualquier tipo no listado (yoga, baile, deportes de equipo/raqueta
+ *   distintos de squash, etc.) → OTRO.
+ */
+export function disciplineFor(activityType: WorkoutActivityType): Discipline {
+  switch (activityType) {
+    case WorkoutActivityType.swimming:
+      return "NATACION";
+
+    case WorkoutActivityType.boxing:
+    case WorkoutActivityType.kickboxing:
+      return "BOX";
+
+    case WorkoutActivityType.squash:
+      return "SQUASH";
+
+    case WorkoutActivityType.traditionalStrengthTraining:
+      return "PESAS";
+
+    case WorkoutActivityType.functionalStrengthTraining:
+    case WorkoutActivityType.mixedMetabolicCardioTraining:
+    case WorkoutActivityType.mixedCardio:
+    case WorkoutActivityType.coreTraining:
+      return "FUNCIONAL";
+
+    case WorkoutActivityType.crossTraining:
+    case WorkoutActivityType.highIntensityIntervalTraining:
+      return "CROSSFIT";
+
+    case WorkoutActivityType.running:
+    case WorkoutActivityType.cycling:
+    case WorkoutActivityType.walking:
+    case WorkoutActivityType.elliptical:
+    case WorkoutActivityType.rowing:
+    case WorkoutActivityType.hiking:
+    case WorkoutActivityType.stairs:
+    case WorkoutActivityType.stairClimbing:
+    case WorkoutActivityType.stepTraining:
+    case WorkoutActivityType.jumpRope:
+    case WorkoutActivityType.handCycling:
+    case WorkoutActivityType.swimBikeRun:
+    case WorkoutActivityType.wheelchairWalkPace:
+    case WorkoutActivityType.wheelchairRunPace:
+      return "CARDIO";
+
+    default:
+      return "OTRO";
+  }
+}
+
+/** Topes EXACTOS de `apps/web/src/lib/health/schema.ts` (validador de
+ * `/api/v1/activities`). Un workout que se sale de rango se DESCARTA aquí en
+ * vez de mandarse y tumbar el lote entero en el servidor. */
+function withinActivityRanges(activity: ActivityPayload): boolean {
+  if (activity.durationMin < 1 || activity.durationMin > 1200) return false;
+  if (activity.activeKcal != null && (activity.activeKcal < 0 || activity.activeKcal > 5000)) return false;
+  if (activity.avgHr != null && (activity.avgHr < 30 || activity.avgHr > 240)) return false;
+  if (activity.maxHr != null && (activity.maxHr < 30 || activity.maxHr > 240)) return false;
+  if (activity.distanceM != null && (activity.distanceM < 0 || activity.distanceM > 100000)) return false;
+  if (activity.notes != null && activity.notes.length > 1000) return false;
+  return true;
+}
+
+/** FC promedio/máxima del workout. HealthKit puede no traer ninguna (reloj no
+ * puesto, tipo de entrenamiento sin sensor, etc.) — "sin dato" es legítimo,
+ * nunca se interpreta como error ni tumba el resto del workout. */
+async function readWorkoutHeartRate(
+  workout: WorkoutProxyTyped,
+): Promise<{ avgHr: number | null; maxHr: number | null }> {
+  try {
+    const stats = await workout.getStatistic("HKQuantityTypeIdentifierHeartRate", "count/min");
+    return {
+      avgHr: stats?.averageQuantity ? Math.round(stats.averageQuantity.quantity) : null,
+      maxHr: stats?.maximumQuantity ? Math.round(stats.maximumQuantity.quantity) : null,
+    };
+  } catch {
+    return { avgHr: null, maxHr: null };
+  }
+}
+
+/** Arma el payload de `/api/v1/activities` a partir de un workout de
+ * HealthKit, o `null` si algún campo se sale de rango (se descarta, no se
+ * manda a medias). */
+async function buildActivityPayload(workout: WorkoutProxyTyped): Promise<ActivityPayload | null> {
+  const durationMin = Math.round(workout.duration.quantity / 60);
+  const activeKcal = workout.totalEnergyBurned ? Math.round(workout.totalEnergyBurned.quantity) : null;
+  const distanceM = workout.totalDistance ? Math.round(workout.totalDistance.quantity) : null;
+  const { avgHr, maxHr } = await readWorkoutHeartRate(workout);
+
+  const activity: ActivityPayload = {
+    discipline: disciplineFor(workout.workoutActivityType),
+    source: "HEALTHKIT",
+    externalId: workout.uuid,
+    startedAt: workout.startDate.toISOString(),
+    endedAt: workout.endDate.toISOString(),
+    date: localDateKey(workout.startDate),
+    durationMin,
+    activeKcal,
+    avgHr,
+    maxHr,
+    distanceM,
+    notes: null,
+  };
+
+  return withinActivityRanges(activity) ? activity : null;
+}
+
+/**
+ * Todos los entrenamientos de los últimos `days` días (incluye hoy: a
+ * diferencia de las métricas diarias, un workout ya cerrado no tiene "día
+ * incompleto" que esperar). Asume que `connectHealth()` ya corrió — mismo
+ * contrato que `readDailyMetrics`.
+ */
+export async function readWorkouts(days: number): Promise<ActivityPayload[]> {
+  if (Platform.OS !== "ios" || days <= 0) return [];
+
+  const rangeEnd = new Date();
+  const rangeStart = new Date(rangeEnd);
+  rangeStart.setDate(rangeStart.getDate() - days);
+
+  const workouts = await queryWorkoutSamples({
+    filter: { date: { startDate: rangeStart, endDate: rangeEnd } },
+    limit: 0, // 0 = todos los que haya en el rango, sin tope.
+    ascending: false,
+  });
+
+  const activities: ActivityPayload[] = [];
+  for (const workout of workouts) {
+    try {
+      const activity = await buildActivityPayload(workout);
+      if (activity) activities.push(activity);
+    } catch {
+      // Un workout mal formado no debe tumbar el resto del lote.
+    }
+  }
+  return activities;
+}
+
+const ACTIVITIES_BATCH_SIZE = 50; // tope de /api/v1/activities.
+
+/** Lee `days` días de workouts y los manda en tandas de
+ * `ACTIVITIES_BATCH_SIZE`. Nunca lanza al UI. */
+export async function syncWorkouts(days = 30): Promise<{ enviados: number } | null> {
+  if (Platform.OS !== "ios") return null;
+
+  try {
+    const activities = await readWorkouts(days);
+    if (activities.length === 0) return { enviados: 0 };
+
+    let enviados = 0;
+    for (let i = 0; i < activities.length; i += ACTIVITIES_BATCH_SIZE) {
+      const batch = activities.slice(i, i + ACTIVITIES_BATCH_SIZE);
+      const result = await postActivities(batch);
+      enviados += result.guardadas;
+    }
+    return { enviados };
+  } catch {
+    return null;
+  }
+}
+
+// ---------------------------------------------------------------------------
 // Sync
 // ---------------------------------------------------------------------------
 
@@ -277,9 +474,12 @@ const MIN_AUTO_SYNC_INTERVAL_MS = 6 * 60 * 60 * 1000;
 /**
  * Sync automático (montaje de la app / vuelta a primer plano). No hace nada
  * si: no es iOS, esta instalación nunca conectó Salud (evita el crash de
- * consultar sin permiso pedido), o ya sincronizó hace menos de 6 h.
+ * consultar sin permiso pedido), o ya sincronizó hace menos de 6 h. Sube
+ * métricas diarias Y entrenamientos, con la misma ventana (30 días la primera
+ * vez, 7 después) y el mismo throttle — son dos fuentes independientes así
+ * que una puede fallar sin tumbar la otra.
  */
-export async function autoSyncHealth(): Promise<{ enviados: number } | null> {
+export async function autoSyncHealth(): Promise<{ dias: number; entrenamientos: number } | null> {
   if (Platform.OS !== "ios") return null;
   if (!(await isHealthConnected())) return null;
 
@@ -289,11 +489,11 @@ export async function autoSyncHealth(): Promise<{ enviados: number } | null> {
   if (lastSync !== null && now - lastSync < MIN_AUTO_SYNC_INTERVAL_MS) return null;
 
   const days = lastSync === null ? FIRST_SYNC_DAYS : ROUTINE_SYNC_DAYS;
-  const result = await syncHealth(days);
-  if (result !== null) {
+  const [healthResult, workoutsResult] = await Promise.all([syncHealth(days), syncWorkouts(days)]);
+  if (healthResult !== null || workoutsResult !== null) {
     await AsyncStorage.setItem(LAST_SYNC_KEY, String(now)).catch(() => {});
   }
-  return result;
+  return { dias: healthResult?.enviados ?? 0, entrenamientos: workoutsResult?.enviados ?? 0 };
 }
 
 // ---------------------------------------------------------------------------

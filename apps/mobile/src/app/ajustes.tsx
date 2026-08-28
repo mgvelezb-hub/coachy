@@ -11,12 +11,13 @@ import { PrimaryButton } from "@/components/PrimaryButton";
 import { SectionLabel } from "@/components/SectionLabel";
 import { useTheme } from "@/context/theme";
 import type { ThemePreference } from "@/context/theme";
-import { ApiError, getMe, type MeResponse } from "@/lib/api";
+import { ApiError, getActivities, getMe, type MeResponse } from "@/lib/api";
 import {
   connectHealth,
   getHealthSummary,
   isHealthConnected,
   syncHealth,
+  syncWorkouts,
   type HealthSummary,
 } from "@/lib/health";
 import {
@@ -79,6 +80,7 @@ export default function AjustesScreen() {
   // Fase N5 — "Tu reloj" (solo iOS: Android no tiene HealthKit, ver Fase Health Connect pendiente).
   const [healthConnected, setHealthConnected] = useState(false);
   const [healthSummary, setHealthSummary] = useState<HealthSummary | null>(null);
+  const [activityCount, setActivityCount] = useState<number | null>(null);
   const [connectingHealth, setConnectingHealth] = useState(false);
   const [syncingHealth, setSyncingHealth] = useState(false);
   const [healthMessage, setHealthMessage] = useState<string | null>(null);
@@ -121,12 +123,28 @@ export default function AjustesScreen() {
       } catch {
         // Sin red o el servidor no respondió: se queda con lo que ya tenía en pantalla.
       }
+      try {
+        const { actividades } = await getActivities();
+        setActivityCount(actividades.length);
+      } catch {
+        // Igual: se queda con el conteo previo si lo había.
+      }
     }
   }, []);
 
   useEffect(() => {
     void loadHealth();
   }, [loadHealth]);
+
+  async function refreshHealthSummaryAndCount() {
+    setHealthSummary(await getHealthSummary());
+    try {
+      const { actividades } = await getActivities();
+      setActivityCount(actividades.length);
+    } catch {
+      // Se queda con el conteo previo si la llamada falla.
+    }
+  }
 
   async function handleConnectHealth() {
     if (connectingHealth) return;
@@ -140,11 +158,12 @@ export default function AjustesScreen() {
       }
       setHealthConnected(true);
       // Primera conexión: backfill grande para que el PAL tenga sus 14+ días de una vez.
-      const result = await syncHealth(30);
-      setHealthSummary(await getHealthSummary());
+      const [healthResult, workoutsResult] = await Promise.all([syncHealth(30), syncWorkouts(30)]);
+      await refreshHealthSummaryAndCount();
+      const enviados = (healthResult?.enviados ?? 0) + (workoutsResult?.enviados ?? 0);
       setHealthMessage(
-        result && result.enviados > 0
-          ? `Listo: ${result.enviados} ${result.enviados === 1 ? "día enviado" : "días enviados"}.`
+        enviados > 0
+          ? `Listo: ${enviados} ${enviados === 1 ? "dato enviado" : "datos enviados"}.`
           : "Conectado. Cuando el reloj traiga datos, se sincronizan solos.",
       );
     } finally {
@@ -157,13 +176,18 @@ export default function AjustesScreen() {
     setSyncingHealth(true);
     setHealthMessage(null);
     try {
-      const result = await syncHealth(7);
-      setHealthSummary(await getHealthSummary());
-      setHealthMessage(
-        result && result.enviados > 0
-          ? `${result.enviados} ${result.enviados === 1 ? "día enviado" : "días enviados"}.`
-          : "Sin datos nuevos del reloj.",
-      );
+      const [healthResult, workoutsResult] = await Promise.all([syncHealth(7), syncWorkouts(7)]);
+      await refreshHealthSummaryAndCount();
+      const parts: string[] = [];
+      if (healthResult && healthResult.enviados > 0) {
+        parts.push(`${healthResult.enviados} ${healthResult.enviados === 1 ? "día" : "días"}`);
+      }
+      if (workoutsResult && workoutsResult.enviados > 0) {
+        parts.push(
+          `${workoutsResult.enviados} ${workoutsResult.enviados === 1 ? "entrenamiento" : "entrenamientos"}`,
+        );
+      }
+      setHealthMessage(parts.length > 0 ? `${parts.join(" · ")} enviados.` : "Sin datos nuevos del reloj.");
     } finally {
       setSyncingHealth(false);
     }
@@ -354,6 +378,11 @@ export default function AjustesScreen() {
                 <InfoRow
                   label="Promedio de pasos"
                   value={healthSummary?.avgSteps != null ? `${healthSummary.avgSteps.toLocaleString("es-MX")}` : "—"}
+                  styles={styles}
+                />
+                <InfoRow
+                  label="Entrenamientos registrados"
+                  value={activityCount != null ? `${activityCount}` : "—"}
                   styles={styles}
                 />
               </View>

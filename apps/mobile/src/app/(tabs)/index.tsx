@@ -5,6 +5,7 @@ import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from "r
 
 import {
   ApiError,
+  getActivities,
   getCheckins,
   getDecision,
   getHealthDays,
@@ -56,7 +57,7 @@ export default function HoyScreen() {
 
   const load = useCallback(async () => {
     try {
-      const [me, decisionRes, notificationsRes, nutrition, today, history, checkinsRes, healthRes] =
+      const [me, decisionRes, notificationsRes, nutrition, today, history, checkinsRes, healthRes, activitiesRes] =
         await Promise.all([
           getMe(),
           getDecision(),
@@ -65,18 +66,20 @@ export default function HoyScreen() {
           getTrainingToday().catch((e) =>
             isOnboardingIncomplete(e) ? { today: null } : Promise.reject(e),
           ),
-          // Las 3 fuentes de la racha (tarjeta-gancho de "Tu resumen") son
+          // Las 4 fuentes de la racha (tarjeta-gancho de "Tu resumen") son
           // tolerantes a fallar por separado: la racha en 0 por un endpoint
           // caído no debe tumbar la pantalla de Hoy.
           getHistoryTraining().catch(() => null),
           getCheckins().catch(() => null),
           getHealthDays().catch(() => null),
+          getActivities().catch(() => null),
         ]);
 
       const days = activeDays({
         sessions: history?.sessions,
         checkIns: checkinsRes?.checkIns,
         healthDays: healthRes?.dias,
+        activities: activitiesRes?.actividades,
       });
       const streak = currentStreak(days, todayISO());
       const todayCard = today?.today ?? null;

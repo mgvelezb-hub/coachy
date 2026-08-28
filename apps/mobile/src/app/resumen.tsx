@@ -10,6 +10,8 @@ import { SectionLabel } from "@/components/SectionLabel";
 import { WaistChart } from "@/components/WaistChart";
 import { useTheme } from "@/context/theme";
 import {
+  DISCIPLINE_LABELS,
+  getActivities,
   getCheckins,
   getDecision,
   getGoal,
@@ -17,6 +19,7 @@ import {
   getHistoryMeasurements,
   getHistoryTraining,
   getTrainingWeek,
+  type Activity,
   type CheckInPoint,
   type CheckInRow,
   type Decision,
@@ -45,6 +48,7 @@ type ResumenData = {
   records: PersonalRecord[] | null;
   checkIns: CheckInRow[] | null;
   healthDays: HealthDayPayload[] | null;
+  activities: Activity[] | null;
   measurementPoints: CheckInPoint[] | null;
   week: WeekView | null;
   goal: GoalResponse | null;
@@ -95,21 +99,24 @@ export default function ResumenScreen() {
   const [refreshing, setRefreshing] = useState(false);
 
   const load = useCallback(async () => {
-    const [historyRes, checkinsRes, healthRes, measurementsRes, week, goal, decisionRes] = await Promise.all([
-      safeFetch(getHistoryTraining()),
-      safeFetch(getCheckins()),
-      safeFetch(getHealthDays()),
-      safeFetch(getHistoryMeasurements()),
-      safeFetch(getTrainingWeek()),
-      safeFetch(getGoal()),
-      safeFetch(getDecision()),
-    ]);
+    const [historyRes, checkinsRes, healthRes, activitiesRes, measurementsRes, week, goal, decisionRes] =
+      await Promise.all([
+        safeFetch(getHistoryTraining()),
+        safeFetch(getCheckins()),
+        safeFetch(getHealthDays()),
+        safeFetch(getActivities()),
+        safeFetch(getHistoryMeasurements()),
+        safeFetch(getTrainingWeek()),
+        safeFetch(getGoal()),
+        safeFetch(getDecision()),
+      ]);
 
     const next: ResumenData = {
       sessions: historyRes?.sessions ?? null,
       records: historyRes?.records ?? null,
       checkIns: checkinsRes?.checkIns ?? null,
       healthDays: healthRes?.dias ?? null,
+      activities: activitiesRes?.actividades ?? null,
       measurementPoints: measurementsRes?.points ?? null,
       week,
       goal,
@@ -143,6 +150,7 @@ export default function ResumenScreen() {
         sessions: data.sessions ?? undefined,
         checkIns: data.checkIns ?? undefined,
         healthDays: data.healthDays ?? undefined,
+        activities: data.activities ?? undefined,
       });
       syncWidgetData({
         racha: currentStreak(widgetDays, todayISO()),
@@ -167,6 +175,7 @@ export default function ResumenScreen() {
     sessions: data.sessions ?? undefined,
     checkIns: data.checkIns ?? undefined,
     healthDays: data.healthDays ?? undefined,
+    activities: data.activities ?? undefined,
   });
   const streak = currentStreak(days, todayISO());
   const best = bestStreak(days);
@@ -185,7 +194,7 @@ export default function ResumenScreen() {
 
         <StreakCard streak={streak} best={best} />
         <ClockSection healthDays={data.healthDays} />
-        <TrainingSection week={data.week} records={data.records} />
+        <TrainingSection week={data.week} records={data.records} activities={data.activities} />
         <ProgressSection checkIns={data.checkIns} points={data.measurementPoints} />
         <GoalSection goal={data.goal} />
         <PlanCard decision={data.decision} />
@@ -267,7 +276,15 @@ function ClockStat({ label, value }: { label: string; value: string }) {
   );
 }
 
-function TrainingSection({ week, records }: { week: WeekView | null; records: PersonalRecord[] | null }) {
+function TrainingSection({
+  week,
+  records,
+  activities,
+}: {
+  week: WeekView | null;
+  records: PersonalRecord[] | null;
+  activities: Activity[] | null;
+}) {
   const { colors } = useTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
 
@@ -278,6 +295,10 @@ function TrainingSection({ week, records }: { week: WeekView | null; records: Pe
   // por peso, no por fecha — se reordena aquí por `date` desc para "los 3
   // PRs MÁS RECIENTES" que pide la pantalla.
   const recentPRs = [...(records ?? [])].sort((a, b) => b.date.localeCompare(a.date)).slice(0, 3);
+
+  // `getActivities()` ya llega ordenado por `startedAt` desc. PESAS no entra
+  // aquí porque ya tiene su propio bloque (sesiones de la semana + PRs).
+  const recentWatchActivities = (activities ?? []).filter((activity) => activity.discipline !== "PESAS").slice(0, 3);
 
   return (
     <Card>
@@ -305,8 +326,34 @@ function TrainingSection({ week, records }: { week: WeekView | null; records: Pe
           ))}
         </View>
       )}
+
+      {recentWatchActivities.length > 0 && (
+        <View style={styles.prList}>
+          <SectionLabel color={colors.paloRosa}>Desde tu reloj</SectionLabel>
+          {recentWatchActivities.map((activity) => (
+            <View key={activity.id} style={styles.prRow}>
+              <Text style={styles.prName}>{DISCIPLINE_LABELS[activity.discipline]}</Text>
+              <Text style={styles.prValue}>
+                {formatDuration(activity.durationMin)}
+                {formatActivityExtra(activity) ? ` · ${formatActivityExtra(activity)}` : ""}
+              </Text>
+            </View>
+          ))}
+        </View>
+      )}
     </Card>
   );
+}
+
+/** Distancia si hay (en km si es >= 1000 m), si no kcal si hay, si no nada. */
+function formatActivityExtra(activity: Activity): string | null {
+  if (activity.distanceM != null) {
+    return activity.distanceM >= 1000
+      ? `${(activity.distanceM / 1000).toFixed(1)} km`
+      : `${activity.distanceM} m`;
+  }
+  if (activity.activeKcal != null) return `${activity.activeKcal} kcal`;
+  return null;
 }
 
 function ProgressSection({

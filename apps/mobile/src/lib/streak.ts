@@ -6,6 +6,7 @@
  *  - una sesión de gym completada (`getHistoryTraining().sessions`)
  *  - un check-in (`getCheckins()`)
  *  - un día con datos del reloj (`getHealthDays().dias`)
+ *  - una actividad del reloj registrada (`getActivities().actividades`)
  *
  * Nota de contrato: `TrainingHistoryRow` (el shape real de
  * `getHistoryTraining().sessions` en `src/lib/api.ts`) trae `completed:
@@ -14,12 +15,13 @@
  * una sesión cuenta cuando `completed` es `true`.
  */
 
-import type { CheckInRow, HealthDayPayload, TrainingHistoryRow } from "@/lib/api";
+import type { Activity, CheckInRow, HealthDayPayload, TrainingHistoryRow } from "@/lib/api";
 
 export type StreakInput = {
   sessions?: TrainingHistoryRow[];
   checkIns?: CheckInRow[];
   healthDays?: HealthDayPayload[];
+  activities?: Activity[];
 };
 
 /** yyyy-MM-dd — recorta cualquier componente de hora que venga pegado a la fecha. */
@@ -59,6 +61,9 @@ export function activeDays(input: StreakInput): Set<string> {
   }
   for (const day of input.healthDays ?? []) {
     if (day.date) days.add(toDateKey(day.date));
+  }
+  for (const activity of input.activities ?? []) {
+    if (activity.date) days.add(toDateKey(activity.date));
   }
 
   return days;
