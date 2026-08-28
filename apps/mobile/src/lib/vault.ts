@@ -21,9 +21,18 @@ import * as SecureStore from "expo-secure-store";
  * secreto compartido: es tu cara, y el sistema la verifica sin revelarla.
  */
 
-const PIN_HASH_KEY = "holygains:vault:pinHash";
-const PIN_SALT_KEY = "holygains:vault:pinSalt";
-const BIOMETRICS_KEY = "holygains:vault:biometrics";
+/**
+ * Llaves de SecureStore.
+ *
+ * Con puntos y no con dos puntos: SecureStore solo acepta llaves de
+ * `[A-Za-z0-9._-]`, y una llave con `:` —como las de AsyncStorage en el resto
+ * de la app— hace que `setItemAsync` lance. Eso era lo que impedía crear la
+ * clave: el formulario se veía bien, el guardado tronaba en silencio y sin
+ * clave tampoco se podía prender Face ID.
+ */
+const PIN_HASH_KEY = "holygains.vault.pinHash";
+const PIN_SALT_KEY = "holygains.vault.pinSalt";
+const BIOMETRICS_KEY = "holygains.vault.biometrics";
 
 /** Cuatro dígitos como piso: menos que eso no es una clave. */
 export const MIN_PIN_LENGTH = 4;

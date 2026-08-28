@@ -26,13 +26,14 @@ export type Eje = {
  * pero se marca en la leyenda: hundido por falta de dato y hundido de verdad
  * no son lo mismo, y confundirlos haría mentir al dibujo.
  */
-export function RadarChart({ ejes, size = 240 }: { ejes: Eje[]; size?: number }) {
+export function RadarChart({ ejes, size = 240 }: { ejes: Eje[] | undefined; size?: number }) {
   const { colors } = useTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
 
   const center = size / 2;
   const radio = center * 0.62;
-  const total = ejes.length;
+  const lista = ejes ?? [];
+  const total = lista.length;
 
   if (total < 3) return null;
 
@@ -47,7 +48,7 @@ export function RadarChart({ ejes, size = 240 }: { ejes: Eje[]; size?: number })
 
   const anillos = [0.25, 0.5, 0.75, 1];
 
-  const poligono = ejes
+  const poligono = lista
     .map((eje, index) => {
       // Un eje sin dato no se estira: se queda pegado al centro y la leyenda
       // lo dice. Rellenarlo con el promedio sería inventar.
@@ -76,7 +77,7 @@ export function RadarChart({ ejes, size = 240 }: { ejes: Eje[]; size?: number })
             react-native-svg recorre los hijos esperando elementos SVG, y un
             Fragment en medio lo tira en el lado nativo — sin traza de JS, la
             pantalla entera se cae. */}
-        {ejes.map((eje, index) => {
+        {lista.map((eje, index) => {
           const fin = punto(index, 1);
           return (
             <Line
@@ -91,7 +92,7 @@ export function RadarChart({ ejes, size = 240 }: { ejes: Eje[]; size?: number })
           );
         })}
 
-        {ejes.map((eje, index) => {
+        {lista.map((eje, index) => {
           const etiqueta = punto(index, 1.32);
           return (
             <SvgText
@@ -115,7 +116,7 @@ export function RadarChart({ ejes, size = 240 }: { ejes: Eje[]; size?: number })
           strokeWidth={2}
         />
 
-        {ejes.map((eje, index) => {
+        {lista.map((eje, index) => {
           const { x, y } = punto(index, Math.max(0, Math.min(1, eje.value ?? 0)));
           return (
             <Circle
@@ -129,9 +130,9 @@ export function RadarChart({ ejes, size = 240 }: { ejes: Eje[]; size?: number })
         })}
       </Svg>
 
-      {ejes.some((eje) => eje.value === null) && (
+      {lista.some((eje) => eje.value === null) && (
         <Text style={styles.nota}>
-          Los ejes sin dato ({ejes.filter((e) => e.value === null).map((e) => e.label).join(", ")})
+          Los ejes sin dato ({lista.filter((e) => e.value === null).map((e) => e.label).join(", ")})
           se dibujan en el centro: falta medirlos, no es que estén en cero.
         </Text>
       )}

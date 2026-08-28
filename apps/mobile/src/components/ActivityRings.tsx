@@ -27,21 +27,22 @@ export type Ring = {
  * Es puro dibujo: no decide metas ni interpreta números, solo pinta lo que le
  * pasan.
  */
-export function ActivityRings({ rings, size = 132 }: { rings: Ring[]; size?: number }) {
+export function ActivityRings({ rings, size = 132 }: { rings: Ring[] | undefined; size?: number }) {
   const { colors } = useTheme();
   const styles = useMemo(() => makeStyles(size), [size]);
 
   const stroke = size * 0.093;
   const center = size / 2;
   // De afuera hacia adentro, con un carril de aire entre anillos.
-  const radios = rings.map((_, index) => center - stroke / 2 - index * (stroke + size * 0.023));
+  const lista = rings ?? [];
+  const radios = lista.map((_, index) => center - stroke / 2 - index * (stroke + size * 0.023));
 
   return (
     <View style={styles.wrap}>
       <Svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
         {/* Se gira todo el grupo para que los anillos arranquen arriba y no a las 3. */}
         <G rotation={-90} origin={`${center}, ${center}`}>
-          {rings.map((ring, index) => {
+          {lista.map((ring, index) => {
             const radius = radios[index]!;
             const circunferencia = 2 * Math.PI * radius;
             const avance =

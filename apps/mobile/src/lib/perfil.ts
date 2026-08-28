@@ -61,13 +61,13 @@ function fraccion(valor: number | null, meta: number): number | null {
 }
 
 export type PerfilInput = {
-  healthDays: HealthDayPayload[];
+  healthDays: HealthDayPayload[] | undefined;
   week: WeekView | null;
   /**
    * Los puntos de `GET /api/v1/history/measurements`, no los de
    * `/checkins`: el apego a la dieta viaja en ese contrato y no en el otro.
    */
-  points: CheckInPoint[];
+  points: CheckInPoint[] | undefined;
 };
 
 /**
@@ -79,16 +79,17 @@ export type PerfilInput = {
  * perfil donde todo viene del reloj describe al reloj, no a la persona.
  */
 export function perfilDeEjes(input: PerfilInput): Eje[] {
-  const dias = input.healthDays;
+  const dias = input.healthDays ?? [];
 
   const pasos = promedio(ventana(dias, "steps", DIAS_RECIENTES));
   const ejercicio = promedio(ventana(dias, "exerciseMin", DIAS_RECIENTES));
   const sueno = promedio(ventana(dias, "sleepMin", DIAS_RECIENTES));
 
-  const sesionesTotal = input.week?.sessions.length ?? 0;
-  const sesionesHechas = input.week?.sessions.filter((s) => s.completedAt !== null).length ?? 0;
+  const sesionesTotal = input.week?.sessions?.length ?? 0;
+  const sesionesHechas =
+    input.week?.sessions?.filter((session) => session.completedAt !== null).length ?? 0;
 
-  const ultimoPunto = recientesPrimero(input.points)[0] ?? null;
+  const ultimoPunto = recientesPrimero(input.points ?? [])[0] ?? null;
 
   return [
     { label: "Movimiento", value: fraccion(pasos, PASOS_META) },
@@ -151,8 +152,11 @@ const NOTA_POR_TENDENCIA: Record<GoalTrend, string> = {
 };
 
 /** Las brechas del análisis, listas para `GapChart`. */
-export function brechasDeObjetivo(readings: GoalZoneReading[]): Brecha[] {
-  return readings.map((reading) => ({
+export function brechasDeObjetivo(readings: GoalZoneReading[] | undefined): Brecha[] {
+  // `?? []` no es paranoia: la app se actualiza en el teléfono y la API en
+  // Vercel, y entre un deploy y otro la app pide campos que el servidor
+  // todavía no manda. Un `.map` sobre `undefined` tira la pantalla entera.
+  return (readings ?? []).map((reading) => ({
     label: GOAL_ZONE_LABEL[reading.zona],
     avance: AVANCE_POR_BRECHA[reading.brecha],
     nota: NOTA_POR_TENDENCIA[reading.tendencia],
@@ -166,8 +170,8 @@ export function brechasDeObjetivo(readings: GoalZoneReading[]): Brecha[] {
  */
 const AVANCE_POR_ENFASIS: Record<GoalEmphasis, number> = { alto: 1, medio: 0.6, bajo: 0.3 };
 
-export function enfasisDeObjetivo(readings: GoalDirectionReading[]): Brecha[] {
-  return readings.map((reading) => ({
+export function enfasisDeObjetivo(readings: GoalDirectionReading[] | undefined): Brecha[] {
+  return (readings ?? []).map((reading) => ({
     label: GOAL_ZONE_LABEL[reading.zona],
     avance: AVANCE_POR_ENFASIS[reading.enfasis],
     nota: `énfasis ${reading.enfasis}`,
