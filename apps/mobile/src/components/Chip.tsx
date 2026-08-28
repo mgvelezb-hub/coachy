@@ -2,7 +2,7 @@ import { useMemo } from "react";
 import { Pressable, StyleSheet, Text } from "react-native";
 
 import { useTheme } from "@/context/theme";
-import { fonts, radius, spacing, type Palette } from "@/lib/theme";
+import { fonts, radius, spacing, type as typeScale, type Palette } from "@/lib/theme";
 
 type ChipProps = {
   label: string;
@@ -11,7 +11,7 @@ type ChipProps = {
   tone?: "default" | "champan";
 };
 
-/** Pill/badge: Cinzel 9-10px, letter-spacing 2-3, color paloRosa (o champan). */
+/** Pill/badge: Inter semibold 12, letter-spacing 1.2, color paloRosa (o champan). */
 export function Chip({ label, selected = false, onPress, tone = "default" }: ChipProps) {
   const { colors } = useTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
@@ -47,8 +47,8 @@ const makeStyles = (colors: Palette) => StyleSheet.create({
     backgroundColor: colors.cardBg,
   },
   label: {
-    fontFamily: fonts.display,
-    fontSize: 9,
-    letterSpacing: 2,
+    fontFamily: fonts.sansSemiBold,
+    ...typeScale.label,
+    letterSpacing: 1.2,
   },
 });

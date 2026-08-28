@@ -2,7 +2,7 @@ import { useMemo } from "react";
 import { StyleSheet, Text, TextInput, View } from "react-native";
 
 import { useTheme } from "@/context/theme";
-import { fonts, radius, spacing, type Palette } from "@/lib/theme";
+import { fonts, radius, spacing, type Palette, type as typeScale } from "@/lib/theme";
 
 type StepperProps = {
   label: string;
@@ -57,8 +57,8 @@ const makeStyles = (colors: Palette) => StyleSheet.create({
     gap: spacing.xs,
   },
   label: {
-    fontFamily: fonts.display,
-    fontSize: 10,
+    fontFamily: fonts.sansSemiBold,
+    ...typeScale.label,
     letterSpacing: 2,
     color: colors.paloRosa,
   },
@@ -77,19 +77,19 @@ const makeStyles = (colors: Palette) => StyleSheet.create({
   input: {
     flex: 1,
     fontFamily: fonts.sans,
-    fontSize: 18,
+    ...typeScale.heading,
     color: colors.marfil,
     paddingVertical: spacing.md,
   },
   unit: {
     fontFamily: fonts.sans,
-    fontSize: 13,
+    ...typeScale.bodySm,
     color: colors.paloRosaLight,
     marginLeft: spacing.sm,
   },
   error: {
     fontFamily: fonts.sans,
-    fontSize: 12,
+    ...typeScale.label,
     color: colors.error,
   },
 });

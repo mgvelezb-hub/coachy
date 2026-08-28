@@ -143,7 +143,62 @@ export const radius = {
   md: 12,
   lg: 16,
   xl: 20,
+  xxl: 28,
   full: 999,
+} as const;
+
+/**
+ * Escala tipográfica. Existe para que ninguna pantalla vuelva a escribir
+ * `fontSize: 12` a mano.
+ *
+ * Los tamaños subieron de golpe respecto a la primera versión de la app: el
+ * cuerpo estaba en 13-14 px y en un teléfono, a la distancia real a la que se
+ * lee esto (con el celular en la mano, en el gimnasio, a veces sudado), 13 px
+ * de Inter obliga a acercarse. El mínimo de cuerpo aquí es 15, y el número
+ * grande de una tarjeta es 34-40: un dato se lee de un vistazo o no sirve.
+ *
+ * `lineHeight` viaja pegado al tamaño a propósito — el interlineado suelto es
+ * la mitad de la legibilidad, y separarlos garantiza que alguien lo olvide.
+ */
+export const type = {
+  /** El número que ES la pantalla (la racha de "Tu resumen"). Uno por vista. */
+  hero: { fontSize: 56, lineHeight: 60 },
+  /** Número protagonista de una tarjeta (racha, pasos, peso). */
+  display: { fontSize: 40, lineHeight: 44 },
+  /** Título de pantalla / dato grande secundario. */
+  title: { fontSize: 28, lineHeight: 34 },
+  /** Encabezado de tarjeta ("Hoy toca", "Pierna · cuádriceps"). */
+  heading: { fontSize: 21, lineHeight: 27 },
+  /** Subtítulo de tarjeta. */
+  subheading: { fontSize: 17, lineHeight: 23 },
+  /** Cuerpo por defecto. Nada de texto largo por debajo de esto. */
+  body: { fontSize: 16, lineHeight: 24 },
+  /** Cuerpo secundario (metadatos de una tarjeta). */
+  bodySm: { fontSize: 14, lineHeight: 20 },
+  /** Etiqueta de sección / chip. */
+  label: { fontSize: 12, lineHeight: 16 },
+} as const;
+
+/**
+ * Sombras. En iOS levantan la tarjeta del fondo; en Android `elevation` hace
+ * el mismo trabajo. Es lo que evita que la pantalla se vea como una lista de
+ * rectángulos planos del mismo tono.
+ */
+export const shadow = {
+  card: {
+    shadowColor: "#000",
+    shadowOpacity: 0.18,
+    shadowRadius: 16,
+    shadowOffset: { width: 0, height: 8 },
+    elevation: 4,
+  },
+  hero: {
+    shadowColor: "#000",
+    shadowOpacity: 0.3,
+    shadowRadius: 24,
+    shadowOffset: { width: 0, height: 12 },
+    elevation: 8,
+  },
 } as const;
 
 /**
@@ -152,12 +207,23 @@ export const radius = {
  * cargan en `src/app/_layout.tsx`.
  */
 export const fonts = {
+  /**
+   * Cinzel — la voz de la MARCA, no la de la interfaz.
+   *
+   * Es una romana de capitales, con remates finos y contraste alto: preciosa
+   * en el wordmark y en un título corto, ilegible en un dato que se consulta
+   * de reojo. Se quedó con el logo, los títulos de pantalla y poco más; todo
+   * lo que se lee (números, etiquetas, cuerpo) pasó a Inter, que es de trazo
+   * uniforme y no "pica" a 12 px.
+   */
   display: "Cinzel_500Medium",
   displaySemiBold: "Cinzel_600SemiBold",
   serifItalic: "CormorantGaramond_500Medium_Italic",
   sans: "Inter_400Regular",
   sansMedium: "Inter_500Medium",
   sansSemiBold: "Inter_600SemiBold",
+  /** Números protagonistas y encabezados de tarjeta. */
+  sansBold: "Inter_700Bold",
 } as const;
 
-export const theme = { colors, spacing, radius, fonts } as const;
+export const theme = { colors, spacing, radius, type, shadow, fonts } as const;

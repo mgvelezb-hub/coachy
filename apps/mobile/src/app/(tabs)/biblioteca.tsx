@@ -7,7 +7,7 @@ import { Collapsible } from "@/components/Collapsible";
 import { EmptyState, ErrorState, LoadingState } from "@/components/States";
 import { useTheme } from "@/context/theme";
 import { ApiError, getTrainingWeek, type SessionExerciseView, type WeekView } from "@/lib/api";
-import { fonts, radius, spacing, type Palette } from "@/lib/theme";
+import { fonts, radius, spacing, type Palette, type as typeScale } from "@/lib/theme";
 import { getCachedWeek, saveWeek } from "@/lib/training-db";
 import {
   downloadVideo,
@@ -310,8 +310,8 @@ function VideoPlayer({ uri }: { uri: string }) {
 const makeStyles = (colors: Palette) => StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.obsidiana },
   content: { padding: spacing.lg, gap: spacing.lg, paddingBottom: spacing.huge },
-  title: { fontFamily: fonts.display, fontSize: 22, color: colors.marfil },
-  subtitle: { fontFamily: fonts.sans, fontSize: 13, color: colors.paloRosaLight },
+  title: { fontFamily: fonts.display, ...typeScale.title, color: colors.marfil },
+  subtitle: { fontFamily: fonts.sans, ...typeScale.bodySm, color: colors.paloRosaLight },
   offlineBadge: {
     borderWidth: 1,
     borderColor: colors.cardBorder,
@@ -319,7 +319,7 @@ const makeStyles = (colors: Palette) => StyleSheet.create({
     borderRadius: radius.md,
     padding: spacing.md,
   },
-  offlineBadgeText: { fontFamily: fonts.sans, fontSize: 12, color: colors.paloRosaLight },
+  offlineBadgeText: { fontFamily: fonts.sans, ...typeScale.label, color: colors.paloRosaLight },
   groups: {
     borderWidth: 1,
     borderColor: colors.cardBorder,
@@ -338,12 +338,12 @@ const makeStyles = (colors: Palette) => StyleSheet.create({
     gap: spacing.sm,
   },
   rowInfo: { flex: 1, gap: 2 },
-  rowName: { fontFamily: fonts.sansMedium, fontSize: 13, color: colors.marfil },
+  rowName: { fontFamily: fonts.sansMedium, ...typeScale.bodySm, color: colors.marfil },
   rowNameDisabled: { color: colors.paloRosaLight },
-  rowMeta: { fontFamily: fonts.sans, fontSize: 11, color: colors.paloRosaLight },
-  rowPlay: { fontFamily: fonts.display, fontSize: 14, color: colors.champan },
+  rowMeta: { fontFamily: fonts.sans, ...typeScale.label, color: colors.paloRosaLight },
+  rowPlay: { fontFamily: fonts.sansSemiBold, ...typeScale.body, color: colors.champan },
   rowActions: { flexDirection: "row", justifyContent: "flex-end" },
-  rowActionText: { fontFamily: fonts.display, fontSize: 9, letterSpacing: 1.5, color: colors.paloRosa },
+  rowActionText: { fontFamily: fonts.sansSemiBold, ...typeScale.label, letterSpacing: 1.5, color: colors.paloRosa },
   rowActionDisabled: { color: colors.paloRosaLight, opacity: 0.6 },
   videoView: {
     width: "100%",

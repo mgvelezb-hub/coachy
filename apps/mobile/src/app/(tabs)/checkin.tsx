@@ -18,7 +18,7 @@ import {
   SYMPTOM_LABELS,
   type Symptom,
 } from "@/lib/api";
-import { fonts, spacing, type Palette } from "@/lib/theme";
+import { fonts, spacing, type Palette, type as typeScale } from "@/lib/theme";
 
 /** yyyy-MM-dd de hoy, en hora local (no UTC: evita cruzar de día cerca de medianoche). */
 function todayISO(): string {
@@ -340,7 +340,7 @@ const makeStyles = (colors: Palette) => StyleSheet.create({
   },
   title: {
     fontFamily: fonts.display,
-    fontSize: 20,
+    ...typeScale.heading,
     color: colors.marfil,
   },
   fieldGroup: {
@@ -358,14 +358,14 @@ const makeStyles = (colors: Palette) => StyleSheet.create({
     gap: spacing.xs,
   },
   scaleLabel: {
-    fontFamily: fonts.display,
-    fontSize: 10,
+    fontFamily: fonts.sansSemiBold,
+    ...typeScale.label,
     letterSpacing: 2,
     color: colors.paloRosa,
   },
   scaleError: {
     fontFamily: fonts.sans,
-    fontSize: 12,
+    ...typeScale.label,
     color: colors.error,
   },
   chipsRow: {
@@ -379,8 +379,8 @@ const makeStyles = (colors: Palette) => StyleSheet.create({
     gap: spacing.xs,
   },
   commentLabel: {
-    fontFamily: fonts.display,
-    fontSize: 10,
+    fontFamily: fonts.sansSemiBold,
+    ...typeScale.label,
     letterSpacing: 2,
     color: colors.paloRosa,
   },
@@ -392,18 +392,18 @@ const makeStyles = (colors: Palette) => StyleSheet.create({
     padding: spacing.md,
     minHeight: 80,
     fontFamily: fonts.sans,
-    fontSize: 14,
+    ...typeScale.body,
     color: colors.marfil,
     textAlignVertical: "top",
   },
   commentHint: {
     fontFamily: fonts.serifItalic,
-    fontSize: 12,
+    ...typeScale.label,
     color: colors.paloRosaLight,
   },
   rpeHint: {
     fontFamily: fonts.serifItalic,
-    fontSize: 14,
+    ...typeScale.body,
     color: colors.paloRosaLight,
     marginTop: spacing.xs,
   },
@@ -415,14 +415,14 @@ const makeStyles = (colors: Palette) => StyleSheet.create({
   },
   periodLabel: {
     fontFamily: fonts.sans,
-    fontSize: 14,
+    ...typeScale.body,
     color: colors.marfil,
     flex: 1,
     marginRight: spacing.md,
   },
   generalError: {
     fontFamily: fonts.sans,
-    fontSize: 13,
+    ...typeScale.bodySm,
     color: colors.error,
     textAlign: "center",
   },
@@ -436,13 +436,13 @@ const makeStyles = (colors: Palette) => StyleSheet.create({
   },
   confirmTitle: {
     fontFamily: fonts.display,
-    fontSize: 22,
+    ...typeScale.title,
     color: colors.champan,
     textAlign: "center",
   },
   confirmMessage: {
     fontFamily: fonts.serifItalic,
-    fontSize: 17,
+    ...typeScale.subheading,
     color: colors.marfil,
     textAlign: "center",
     lineHeight: 24,

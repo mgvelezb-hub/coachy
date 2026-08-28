@@ -2,7 +2,7 @@ import { useMemo, useState, type ReactNode } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 
 import { useTheme } from "@/context/theme";
-import { fonts, spacing, type Palette } from "@/lib/theme";
+import { fonts, spacing, type Palette, type as typeScale } from "@/lib/theme";
 
 type CollapsibleProps = {
   title: string;
@@ -53,17 +53,17 @@ const makeStyles = (colors: Palette) => StyleSheet.create({
   },
   title: {
     fontFamily: fonts.sansMedium,
-    fontSize: 14,
+    ...typeScale.body,
     color: colors.marfil,
   },
   subtitle: {
     fontFamily: fonts.sans,
-    fontSize: 12,
+    ...typeScale.label,
     color: colors.paloRosaLight,
   },
   chevron: {
     fontFamily: fonts.display,
-    fontSize: 18,
+    ...typeScale.heading,
     color: colors.paloRosa,
     marginLeft: spacing.md,
   },

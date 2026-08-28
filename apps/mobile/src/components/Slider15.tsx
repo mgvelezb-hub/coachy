@@ -2,7 +2,7 @@ import { useMemo } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 
 import { useTheme } from "@/context/theme";
-import { fonts, radius, spacing, type Palette } from "@/lib/theme";
+import { fonts, radius, spacing, type Palette, type as typeScale } from "@/lib/theme";
 
 type Slider15Props = {
   value: number | null;
@@ -71,7 +71,7 @@ const makeStyles = (colors: Palette) => StyleSheet.create({
   },
   buttonText: {
     fontFamily: fonts.display,
-    fontSize: 18,
+    ...typeScale.heading,
     color: colors.paloRosa,
   },
   buttonTextSelected: {
@@ -85,7 +85,7 @@ const makeStyles = (colors: Palette) => StyleSheet.create({
   },
   hint: {
     fontFamily: fonts.sans,
-    fontSize: 11,
+    ...typeScale.label,
     color: colors.paloRosaLight,
   },
 });

@@ -14,7 +14,7 @@ import {
   type CheckInPoint,
   type PersonalRecord,
 } from "@/lib/api";
-import { fonts, radius, spacing, withAlpha, type Palette } from "@/lib/theme";
+import { fonts, radius, spacing, withAlpha, type Palette, type as typeScale } from "@/lib/theme";
 
 type HistorialData = {
   points: CheckInPoint[];
@@ -165,7 +165,7 @@ const makeStyles = (colors: Palette) => StyleSheet.create({
   },
   title: {
     fontFamily: fonts.display,
-    fontSize: 20,
+    ...typeScale.heading,
     color: colors.marfil,
   },
   list: {
@@ -185,12 +185,12 @@ const makeStyles = (colors: Palette) => StyleSheet.create({
   },
   checkinDate: {
     fontFamily: fonts.sansMedium,
-    fontSize: 13,
+    ...typeScale.bodySm,
     color: colors.marfil,
   },
   checkinPhase: {
     fontFamily: fonts.sans,
-    fontSize: 11,
+    ...typeScale.label,
     color: colors.paloRosaLight,
   },
   checkinMeasure: {
@@ -200,7 +200,7 @@ const makeStyles = (colors: Palette) => StyleSheet.create({
   },
   checkinWaist: {
     fontFamily: fonts.display,
-    fontSize: 15,
+    ...typeScale.subheading,
     color: colors.champan,
   },
   deltaBadge: {
@@ -217,7 +217,7 @@ const makeStyles = (colors: Palette) => StyleSheet.create({
   },
   deltaText: {
     fontFamily: fonts.sans,
-    fontSize: 11,
+    ...typeScale.label,
     color: colors.marfil,
   },
   prRow: {
@@ -229,12 +229,12 @@ const makeStyles = (colors: Palette) => StyleSheet.create({
   },
   prName: {
     fontFamily: fonts.sans,
-    fontSize: 13,
+    ...typeScale.bodySm,
     color: colors.marfil,
   },
   prValue: {
-    fontFamily: fonts.display,
-    fontSize: 13,
+    fontFamily: fonts.sansSemiBold,
+    ...typeScale.bodySm,
     color: colors.champan,
   },
   goalLink: {
@@ -243,7 +243,7 @@ const makeStyles = (colors: Palette) => StyleSheet.create({
   },
   goalLinkText: {
     fontFamily: fonts.serifItalic,
-    fontSize: 15,
+    ...typeScale.subheading,
     color: colors.paloRosaLight,
   },
 });

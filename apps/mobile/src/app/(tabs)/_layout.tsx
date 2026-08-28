@@ -14,9 +14,11 @@ function tabLabel(title: string) {
     return (
       <Text
         style={{
-          fontFamily: fonts.display,
-          fontSize: 10,
-          letterSpacing: 1.5,
+          // La etiqueta más chica de la app: 11 px es el piso, y en Inter
+          // porque Cinzel a este tamaño pierde los remates y se vuelve ruido.
+          fontFamily: fonts.sansSemiBold,
+          fontSize: 11,
+          letterSpacing: 0.8,
           color,
         }}
       >

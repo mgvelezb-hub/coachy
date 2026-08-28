@@ -16,7 +16,7 @@ import {
   type WeekView,
   type WorkoutSetInput,
 } from "@/lib/api";
-import { fonts, radius, spacing, withAlpha, type Palette } from "@/lib/theme";
+import { fonts, radius, spacing, withAlpha, type Palette, type as typeScale } from "@/lib/theme";
 import {
   getCachedWeek,
   getPendingSession,
@@ -694,8 +694,8 @@ const makeStyles = (colors: Palette) => StyleSheet.create({
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm,
   },
-  badgeText: { flex: 1, fontFamily: fonts.sans, fontSize: 12, color: colors.paloRosaLight },
-  badgeRetry: { fontFamily: fonts.display, fontSize: 10, letterSpacing: 1.5, color: colors.champan },
+  badgeText: { flex: 1, fontFamily: fonts.sans, ...typeScale.label, color: colors.paloRosaLight },
+  badgeRetry: { fontFamily: fonts.sansSemiBold, ...typeScale.label, letterSpacing: 1.5, color: colors.champan },
   weekList: { gap: spacing.sm },
   weekRow: {
     flexDirection: "row",
@@ -709,18 +709,18 @@ const makeStyles = (colors: Palette) => StyleSheet.create({
   weekRowSelected: { backgroundColor: withAlpha(colors.paloRosa, 0.08) },
   weekRowToday: { borderColor: colors.guinda, backgroundColor: withAlpha(colors.guinda, 0.14) },
   weekDateCol: { width: 46, alignItems: "flex-start" },
-  weekDayAbbr: { fontFamily: fonts.display, fontSize: 11, letterSpacing: 1.5, color: colors.paloRosa },
+  weekDayAbbr: { fontFamily: fonts.sansSemiBold, ...typeScale.label, letterSpacing: 1.5, color: colors.paloRosa },
   weekDateShort: {
-    fontFamily: fonts.display,
-    fontSize: 9,
+    fontFamily: fonts.sansSemiBold,
+    ...typeScale.label,
     letterSpacing: 1,
     color: colors.paloRosaLight,
     marginTop: 2,
   },
   weekInfo: { flex: 1, gap: 2 },
-  weekMuscle: { fontFamily: fonts.sansSemiBold, fontSize: 14, color: colors.marfil },
-  weekMeta: { fontFamily: fonts.sans, fontSize: 12, color: colors.paloRosaLight },
-  weekRest: { fontFamily: fonts.serifItalic, fontSize: 15, color: colors.paloRosaLight },
+  weekMuscle: { fontFamily: fonts.sansSemiBold, ...typeScale.body, color: colors.marfil },
+  weekMeta: { fontFamily: fonts.sans, ...typeScale.label, color: colors.paloRosaLight },
+  weekRest: { fontFamily: fonts.serifItalic, ...typeScale.subheading, color: colors.paloRosaLight },
   weekStatus: { flexDirection: "row", gap: spacing.xs },
   viewingNotice: {
     borderWidth: 1,
@@ -729,13 +729,13 @@ const makeStyles = (colors: Palette) => StyleSheet.create({
     borderRadius: radius.md,
     padding: spacing.sm,
   },
-  viewingNoticeText: { fontFamily: fonts.sans, fontSize: 12, color: colors.paloRosaLight },
+  viewingNoticeText: { fontFamily: fonts.sans, ...typeScale.label, color: colors.paloRosaLight },
   header: { gap: spacing.xs },
-  title: { fontFamily: fonts.display, fontSize: 22, color: colors.marfil },
-  meta: { fontFamily: fonts.sans, fontSize: 13, color: colors.paloRosaLight },
+  title: { fontFamily: fonts.sansSemiBold, ...typeScale.title, color: colors.marfil },
+  meta: { fontFamily: fonts.sans, ...typeScale.bodySm, color: colors.paloRosaLight },
   note: {
     fontFamily: fonts.sans,
-    fontSize: 12,
+    ...typeScale.label,
     color: colors.paloRosaLight,
     borderWidth: 1,
     borderStyle: "dashed",
@@ -763,14 +763,14 @@ const makeStyles = (colors: Palette) => StyleSheet.create({
     justifyContent: "center",
   },
   exerciseDotDone: { backgroundColor: colors.guinda },
-  exerciseDotText: { fontFamily: fonts.display, fontSize: 14, color: colors.marfil },
+  exerciseDotText: { fontFamily: fonts.sansSemiBold, ...typeScale.body, color: colors.marfil },
   // pergamino: rol "texto sobre fondo de acento" — solo cuando el punto ya
   // pintó su fondo con guinda (ejercicio completo).
   exerciseDotTextDone: { color: colors.pergamino },
   exerciseInfo: { flex: 1, gap: 2 },
-  exerciseName: { fontFamily: fonts.sansSemiBold, fontSize: 14, color: colors.marfil },
-  exerciseMeta: { fontFamily: fonts.sans, fontSize: 12, color: colors.paloRosaLight },
-  chevron: { fontFamily: fonts.sans, fontSize: 20, color: colors.paloRosaLight },
+  exerciseName: { fontFamily: fonts.sansSemiBold, ...typeScale.body, color: colors.marfil },
+  exerciseMeta: { fontFamily: fonts.sans, ...typeScale.label, color: colors.paloRosaLight },
+  chevron: { fontFamily: fonts.sans, ...typeScale.heading, color: colors.paloRosaLight },
   finishButton: {
     backgroundColor: colors.guinda,
     borderRadius: radius.lg,
@@ -779,9 +779,9 @@ const makeStyles = (colors: Palette) => StyleSheet.create({
   },
   finishButtonDisabled: { opacity: 0.5 },
   // pergamino: rol "texto sobre fondo de acento" (aquí guinda, siempre).
-  finishButtonText: { fontFamily: fonts.display, fontSize: 12, letterSpacing: 3, color: colors.pergamino },
+  finishButtonText: { fontFamily: fonts.sansSemiBold, ...typeScale.label, letterSpacing: 3, color: colors.pergamino },
   restDay: { gap: spacing.lg, alignItems: "flex-start" },
-  restMessage: { fontFamily: fonts.serifItalic, fontSize: 16, color: colors.paloRosaLight },
+  restMessage: { fontFamily: fonts.serifItalic, ...typeScale.subheading, color: colors.paloRosaLight },
   nextCard: {
     width: "100%",
     borderWidth: 1,
@@ -791,8 +791,8 @@ const makeStyles = (colors: Palette) => StyleSheet.create({
     padding: spacing.lg,
     gap: spacing.sm,
   },
-  nextLabel: { fontFamily: fonts.display, fontSize: 10, letterSpacing: 2, color: colors.paloRosa },
-  nextGroup: { fontFamily: fonts.display, fontSize: 16, color: colors.marfil },
+  nextLabel: { fontFamily: fonts.sansSemiBold, ...typeScale.label, letterSpacing: 2, color: colors.paloRosa },
+  nextGroup: { fontFamily: fonts.display, ...typeScale.subheading, color: colors.marfil },
   nextChips: { flexDirection: "row", flexWrap: "wrap", gap: spacing.sm },
   nextChip: {
     borderWidth: 1,
@@ -801,7 +801,7 @@ const makeStyles = (colors: Palette) => StyleSheet.create({
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.xs,
   },
-  nextChipText: { fontFamily: fonts.sans, fontSize: 12, color: colors.paloRosaLight },
+  nextChipText: { fontFamily: fonts.sans, ...typeScale.label, color: colors.paloRosaLight },
   modalBackdrop: { flex: 1, backgroundColor: "rgba(0,0,0,0.6)", alignItems: "center", justifyContent: "center", padding: spacing.lg },
   modalSheet: {
     width: "100%",
@@ -812,12 +812,12 @@ const makeStyles = (colors: Palette) => StyleSheet.create({
     padding: spacing.lg,
     gap: spacing.md,
   },
-  modalTitle: { fontFamily: fonts.display, fontSize: 18, color: colors.marfil },
-  modalSubtitle: { fontFamily: fonts.sans, fontSize: 13, color: colors.paloRosaLight },
+  modalTitle: { fontFamily: fonts.display, ...typeScale.heading, color: colors.marfil },
+  modalSubtitle: { fontFamily: fonts.sans, ...typeScale.bodySm, color: colors.paloRosaLight },
   statsRow: { flexDirection: "row", gap: spacing.md },
   statBox: { flex: 1, backgroundColor: colors.cardBg, borderRadius: radius.md, padding: spacing.md },
-  statLabel: { fontFamily: fonts.display, fontSize: 10, letterSpacing: 1.5, color: colors.paloRosa },
-  statValue: { fontFamily: fonts.display, fontSize: 18, color: colors.marfil, marginTop: 4 },
+  statLabel: { fontFamily: fonts.sansSemiBold, ...typeScale.label, letterSpacing: 1.5, color: colors.paloRosa },
+  statValue: { fontFamily: fonts.display, ...typeScale.heading, color: colors.marfil, marginTop: 4 },
   prSummary: {
     borderWidth: 1,
     borderColor: colors.champan,
@@ -826,8 +826,8 @@ const makeStyles = (colors: Palette) => StyleSheet.create({
     padding: spacing.md,
     gap: 4,
   },
-  prSummaryTitle: { fontFamily: fonts.sansSemiBold, fontSize: 14, color: colors.champan },
-  prSummaryText: { fontFamily: fonts.sans, fontSize: 13, color: colors.marfil },
+  prSummaryTitle: { fontFamily: fonts.sansSemiBold, ...typeScale.body, color: colors.champan },
+  prSummaryText: { fontFamily: fonts.sans, ...typeScale.bodySm, color: colors.marfil },
   confirmButton: {
     backgroundColor: colors.guinda,
     borderRadius: radius.lg,
@@ -835,7 +835,7 @@ const makeStyles = (colors: Palette) => StyleSheet.create({
     alignItems: "center",
   },
   // pergamino: rol "texto sobre fondo de acento" (aquí guinda, siempre).
-  confirmButtonText: { fontFamily: fonts.display, fontSize: 12, letterSpacing: 3, color: colors.pergamino },
+  confirmButtonText: { fontFamily: fonts.sansSemiBold, ...typeScale.label, letterSpacing: 3, color: colors.pergamino },
   modalClose: { alignItems: "center", paddingVertical: spacing.sm },
-  modalCloseText: { fontFamily: fonts.display, fontSize: 11, letterSpacing: 2, color: colors.paloRosa },
+  modalCloseText: { fontFamily: fonts.sansSemiBold, ...typeScale.label, letterSpacing: 2, color: colors.paloRosa },
 });

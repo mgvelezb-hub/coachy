@@ -2,7 +2,7 @@ import { useMemo } from "react";
 import { ActivityIndicator, Pressable, StyleSheet, Text } from "react-native";
 
 import { useTheme } from "@/context/theme";
-import { fonts, radius, spacing, type Palette } from "@/lib/theme";
+import { fonts, radius, spacing, type Palette, type as typeScale } from "@/lib/theme";
 
 type PrimaryButtonProps = {
   label: string;
@@ -55,9 +55,9 @@ const makeStyles = (colors: Palette) => StyleSheet.create({
     opacity: 0.5,
   },
   label: {
-    fontFamily: fonts.display,
+    fontFamily: fonts.sansSemiBold,
     color: colors.pergamino,
-    fontSize: 13,
+    ...typeScale.bodySm,
     letterSpacing: 4,
   },
 });

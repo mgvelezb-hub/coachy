@@ -21,7 +21,7 @@ import {
   type GoalView,
 } from "@/lib/api";
 import { supabase } from "@/lib/supabase";
-import { fonts, radius, spacing, type Palette } from "@/lib/theme";
+import { fonts, radius, spacing, type Palette, type as typeScale } from "@/lib/theme";
 import { useSession } from "@/context/session";
 import { useTheme } from "@/context/theme";
 
@@ -306,15 +306,15 @@ const makeStyles = (colors: Palette) => StyleSheet.create({
     paddingBottom: spacing.huge,
   },
   backRow: { flexDirection: "row", alignItems: "center" },
-  backText: { fontFamily: fonts.sans, fontSize: 13, color: colors.paloRosaLight },
+  backText: { fontFamily: fonts.sans, ...typeScale.bodySm, color: colors.paloRosaLight },
   title: {
     fontFamily: fonts.display,
-    fontSize: 22,
+    ...typeScale.title,
     color: colors.marfil,
   },
   subtitle: {
     fontFamily: fonts.sans,
-    fontSize: 13,
+    ...typeScale.bodySm,
     color: colors.paloRosaLight,
     marginTop: -spacing.sm,
   },
@@ -324,8 +324,7 @@ const makeStyles = (colors: Palette) => StyleSheet.create({
   },
   framingLine: {
     fontFamily: fonts.serifItalic,
-    fontSize: 15,
-    lineHeight: 21,
+    ...typeScale.subheading,
     color: colors.paloRosaLight,
   },
   slots: {
@@ -339,7 +338,7 @@ const makeStyles = (colors: Palette) => StyleSheet.create({
   },
   slotLabel: {
     fontFamily: fonts.sansMedium,
-    fontSize: 12,
+    ...typeScale.label,
     color: colors.marfil,
   },
   slotBox: {
@@ -363,13 +362,13 @@ const makeStyles = (colors: Palette) => StyleSheet.create({
   },
   slotEmptyText: {
     fontFamily: fonts.sans,
-    fontSize: 11,
+    ...typeScale.label,
     color: colors.paloRosaLight,
     textAlign: "center",
   },
   slotDelete: {
-    fontFamily: fonts.display,
-    fontSize: 9,
+    fontFamily: fonts.sansSemiBold,
+    ...typeScale.label,
     letterSpacing: 1.5,
     color: colors.paloRosa,
   },
@@ -378,7 +377,7 @@ const makeStyles = (colors: Palette) => StyleSheet.create({
   },
   statusDate: {
     fontFamily: fonts.sans,
-    fontSize: 11,
+    ...typeScale.label,
     color: colors.paloRosaLight,
   },
   statusLines: {
@@ -387,8 +386,7 @@ const makeStyles = (colors: Palette) => StyleSheet.create({
   },
   statusLine: {
     fontFamily: fonts.sans,
-    fontSize: 13,
-    lineHeight: 19,
+    ...typeScale.bodySm,
     color: colors.marfil,
   },
 });

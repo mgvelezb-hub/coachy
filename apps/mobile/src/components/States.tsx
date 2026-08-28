@@ -2,7 +2,7 @@ import { useMemo } from "react";
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from "react-native";
 
 import { useTheme } from "@/context/theme";
-import { fonts, radius, spacing, type Palette } from "@/lib/theme";
+import { fonts, radius, spacing, type Palette, type as typeScale } from "@/lib/theme";
 
 /** Loading de pantalla completa: ActivityIndicator paloRosa sobre el fondo del tema. */
 export function LoadingState({ label }: { label?: string }) {
@@ -53,18 +53,18 @@ const makeStyles = (colors: Palette) => StyleSheet.create({
   loadingLabel: {
     fontFamily: fonts.sans,
     color: colors.paloRosaLight,
-    fontSize: 13,
+    ...typeScale.bodySm,
   },
   errorTitle: {
     fontFamily: fonts.display,
     color: colors.marfil,
-    fontSize: 16,
+    ...typeScale.subheading,
     letterSpacing: 1,
   },
   errorMessage: {
     fontFamily: fonts.sans,
     color: colors.paloRosaLight,
-    fontSize: 13,
+    ...typeScale.bodySm,
     textAlign: "center",
   },
   retryButton: {
@@ -75,10 +75,10 @@ const makeStyles = (colors: Palette) => StyleSheet.create({
     backgroundColor: colors.guinda,
   },
   retryLabel: {
-    fontFamily: fonts.display,
+    fontFamily: fonts.sansSemiBold,
     // pergamino: rol "texto sobre fondo de acento" (aquí guinda).
     color: colors.pergamino,
-    fontSize: 11,
+    ...typeScale.label,
     letterSpacing: 2,
   },
   emptyContainer: {
@@ -88,7 +88,7 @@ const makeStyles = (colors: Palette) => StyleSheet.create({
   emptyMessage: {
     fontFamily: fonts.serifItalic,
     color: colors.paloRosaLight,
-    fontSize: 16,
+    ...typeScale.subheading,
     textAlign: "center",
   },
 });

@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 
 import { useTheme } from "@/context/theme";
-import { fonts, radius, spacing, withAlpha, type Palette } from "@/lib/theme";
+import { fonts, radius, spacing, withAlpha, type Palette, type as typeScale } from "@/lib/theme";
 
 const PRESETS = [60, 90, 120];
 
@@ -88,12 +88,12 @@ const makeStyles = (colors: Palette) => StyleSheet.create({
   },
   timer: {
     fontFamily: fonts.display,
-    fontSize: 20,
+    ...typeScale.heading,
     color: colors.marfil,
   },
   close: {
     fontFamily: fonts.sans,
-    fontSize: 15,
+    ...typeScale.subheading,
     color: colors.paloRosaLight,
     padding: spacing.xs,
   },
@@ -113,8 +113,8 @@ const makeStyles = (colors: Palette) => StyleSheet.create({
     borderColor: colors.guindaLight,
   },
   presetText: {
-    fontFamily: fonts.display,
-    fontSize: 11,
+    fontFamily: fonts.sansSemiBold,
+    ...typeScale.label,
     letterSpacing: 1,
     color: colors.paloRosa,
   },
