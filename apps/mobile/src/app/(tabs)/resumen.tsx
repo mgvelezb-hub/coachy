@@ -1,9 +1,12 @@
 import { useRouter } from "expo-router";
 import {
+  // El tipo `Activity` de la API ya ocupa ese nombre en este archivo.
+  Activity as ActivityIcon,
   CalendarCheck,
   Dumbbell,
   Flame,
   Footprints,
+  HeartPulse,
   Moon,
   Settings,
   Target,
@@ -16,19 +19,23 @@ import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from "r
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import { ActivityRings, type Ring } from "@/components/ActivityRings";
+import { RadarChart } from "@/components/RadarChart";
 import { ScoreTile } from "@/components/ScoreTile";
 import { ErrorState, LoadingState } from "@/components/States";
 import { useTheme } from "@/context/theme";
+import { useScrollTop } from "@/lib/scroll-top";
 import {
   getActivities,
   getCheckins,
   getDecision,
   getGoal,
   getHealthDays,
+  getHistoryMeasurements,
   getHistoryTraining,
   getTrainingWeek,
   type Activity,
   type CheckInRow,
+  type CheckInPoint,
   type Decision,
   type GoalResponse,
   type HealthDayPayload,
@@ -38,6 +45,7 @@ import {
 } from "@/lib/api";
 import { bestStreak, currentStreak, todayISO, trainingDays } from "@/lib/streak";
 import { EJERCICIO_META_MIN, PASOS_META, SUENO_META_MIN, formatSleep } from "@/lib/insights";
+import { perfilDeEjes } from "@/lib/perfil";
 import { fonts, radius, spacing, type as typeScale, withAlpha, type Palette } from "@/lib/theme";
 import { syncWidgetData } from "@/lib/widget";
 
@@ -67,6 +75,7 @@ type ResumenData = {
   week: WeekView | null;
   goal: GoalResponse | null;
   decision: Decision | null;
+  points: CheckInPoint[] | null;
 };
 
 /** Cada fuente se tolera por separado: que una falle no tumba la pantalla entera. */
@@ -81,7 +90,7 @@ async function safeFetch<T>(promise: Promise<T>): Promise<T | null> {
 /** El día más reciente que traiga ese campo. Un día puede llegar a medias. */
 function ultimoConDato(
   days: HealthDayPayload[],
-  field: "steps" | "sleepMin" | "exerciseMin",
+  field: "steps" | "sleepMin" | "exerciseMin" | "hrvMs" | "vo2max",
 ): { value: number; date: string } | null {
   const ordenados = [...days].sort((a, b) => b.date.localeCompare(a.date));
   for (const day of ordenados) {
@@ -109,12 +118,14 @@ export default function ResumenScreen() {
   const router = useRouter();
   const { colors } = useTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
+  // Tocar esta pestaña estando en ella regresa el scroll hasta arriba.
+  const scrollRef = useScrollTop();
   const [data, setData] = useState<ResumenData | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
 
   const load = useCallback(async () => {
-    const [historyRes, checkinsRes, healthRes, activitiesRes, week, goal, decisionRes] =
+    const [historyRes, checkinsRes, healthRes, activitiesRes, week, goal, decisionRes, measurementsRes] =
       await Promise.all([
         safeFetch(getHistoryTraining()),
         safeFetch(getCheckins()),
@@ -123,6 +134,7 @@ export default function ResumenScreen() {
         safeFetch(getTrainingWeek()),
         safeFetch(getGoal()),
         safeFetch(getDecision()),
+        safeFetch(getHistoryMeasurements()),
       ]);
 
     const next: ResumenData = {
@@ -134,6 +146,7 @@ export default function ResumenScreen() {
       week,
       goal,
       decision: decisionRes?.decision ?? null,
+      points: measurementsRes?.points ?? null,
     };
 
     if (Object.values(next).every((value) => value === null)) {
@@ -184,6 +197,15 @@ export default function ResumenScreen() {
   const sueno = ultimoConDato(dias, "sleepMin");
   const fecha = pasos?.date ?? ejercicio?.date ?? sueno?.date ?? null;
 
+  const hrv = ultimoConDato(dias, "hrvMs");
+  const vo2 = ultimoConDato(dias, "vo2max");
+
+  const ejes = perfilDeEjes({
+    healthDays: dias,
+    week: data.week,
+    points: data.points ?? [],
+  });
+
   const rings: Ring[] = [
     { label: "Pasos", value: pasos?.value ?? null, goal: PASOS_META, color: colors.champan },
     { label: "Ejercicio", value: ejercicio?.value ?? null, goal: EJERCICIO_META_MIN, color: colors.guindaLight },
@@ -212,6 +234,7 @@ export default function ResumenScreen() {
   return (
     <SafeAreaView style={styles.screen} edges={["top"]}>
       <ScrollView
+        ref={scrollRef}
         contentContainerStyle={styles.content}
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.paloRosa} />
@@ -225,7 +248,7 @@ export default function ResumenScreen() {
         </View>
 
         <View style={styles.hero}>
-          <Text style={styles.heroTitle}>Estadísticos</Text>
+          <Text style={styles.heroTitle}>Tracking</Text>
           <Text style={styles.heroCaption}>
             {fecha ? formatDateEs(fecha) : "Conecta Apple Salud para verlos"}
           </Text>
@@ -260,6 +283,33 @@ export default function ResumenScreen() {
               />
             </View>
           </View>
+
+          {/* Recuperación y condición van fuera de los anillos a propósito: no
+              son metas diarias que se llenen, son tendencias que se siguen. */}
+          <View style={styles.extras}>
+            <Leyenda
+              icon={HeartPulse}
+              color={colors.error}
+              label="Recuperación"
+              valor={hrv ? `${hrv.value} ms` : "—"}
+              meta="variabilidad"
+              onPress={() => router.push("/salud/recuperacion")}
+            />
+            <Leyenda
+              icon={ActivityIcon}
+              color={colors.champan}
+              label="Condición"
+              valor={vo2 ? `${vo2.value}` : "—"}
+              meta="VO₂ máx"
+              onPress={() => router.push("/salud/condicion")}
+            />
+          </View>
+        </View>
+
+        <View style={styles.perfil}>
+          <Text style={styles.heroTitle}>Tu perfil</Text>
+          <Text style={styles.heroCaption}>Qué tan cerca estás de tu meta en cada frente</Text>
+          <RadarChart ejes={ejes} />
         </View>
 
         <View style={styles.mosaico}>
@@ -445,6 +495,23 @@ const makeStyles = (colors: Palette) => StyleSheet.create({
     fontFamily: fonts.sans,
     ...typeScale.bodySm,
     color: withAlpha(colors.paloRosa, 0.9),
+  },
+  extras: {
+    flexDirection: "row",
+    gap: spacing.lg,
+    marginTop: spacing.lg,
+    paddingTop: spacing.lg,
+    borderTopWidth: 1,
+    borderTopColor: colors.cardBorder,
+  },
+  perfil: {
+    borderRadius: radius.xxl,
+    borderWidth: 1,
+    borderColor: colors.cardBorder,
+    backgroundColor: colors.cardBg,
+    padding: spacing.xl,
+    gap: spacing.xs,
+    alignItems: "stretch",
   },
   mosaico: {
     flexDirection: "row",

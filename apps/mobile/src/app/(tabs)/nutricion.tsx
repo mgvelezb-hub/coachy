@@ -5,6 +5,7 @@ import { RefreshControl, ScrollView, StyleSheet, Text, View } from "react-native
 import { ScoreCard } from "@/components/ScoreCard";
 import { EmptyState, ErrorState, LoadingState } from "@/components/States";
 import { useTheme } from "@/context/theme";
+import { useScrollTop } from "@/lib/scroll-top";
 import { ApiError, getNutrition, type Menu, type NutritionResponse } from "@/lib/api";
 import { fonts, spacing, type as typeScale, type Palette } from "@/lib/theme";
 
@@ -28,6 +29,8 @@ function isOnboardingIncomplete(error: unknown): boolean {
 export default function NutricionScreen() {
   const { colors } = useTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
+  // Tocar esta pestaña estando en ella regresa el scroll hasta arriba.
+  const scrollRef = useScrollTop();
   const [data, setData] = useState<NutritionResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
@@ -62,6 +65,7 @@ export default function NutricionScreen() {
 
   return (
     <ScrollView
+      ref={scrollRef}
       style={styles.screen}
       contentContainerStyle={styles.content}
       refreshControl={

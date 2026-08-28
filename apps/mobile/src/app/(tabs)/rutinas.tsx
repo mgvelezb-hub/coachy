@@ -7,6 +7,7 @@ import { Collapsible } from "@/components/Collapsible";
 import { ExerciseCapture } from "@/components/ExerciseCapture";
 import { EmptyState, ErrorState, LoadingState } from "@/components/States";
 import { useTheme } from "@/context/theme";
+import { useScrollTop } from "@/lib/scroll-top";
 import {
   ApiError,
   getTrainingWeek,
@@ -155,6 +156,9 @@ function weekWithSubstitute(
 export default function GymScreen() {
   const { colors } = useTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
+  // Tocar esta pestaña estando en ella regresa el scroll hasta arriba.
+  const scrollRef = useScrollTop();
+
   const [week, setWeek] = useState<WeekView | null>(null);
   const [today, setToday] = useState(todayISO());
   const [phase, setPhase] = useState<"loading" | "onboarding" | "empty" | "ready">("loading");
@@ -355,7 +359,7 @@ export default function GymScreen() {
     : 0;
 
   return (
-    <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
+    <ScrollView ref={scrollRef} style={styles.screen} contentContainerStyle={styles.content}>
       <ConnectionBadge online={online} pendingCount={pendingCount} onRetry={() => void syncAndNotify()} />
 
       {week && (

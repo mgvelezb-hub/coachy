@@ -17,6 +17,7 @@ import { Collapsible } from "@/components/Collapsible";
 import { ScoreCard } from "@/components/ScoreCard";
 import { EmptyState, ErrorState, LoadingState } from "@/components/States";
 import { useTheme } from "@/context/theme";
+import { useScrollTop } from "@/lib/scroll-top";
 import { ApiError, getTrainingWeek, type SessionExerciseView, type WeekView } from "@/lib/api";
 import { fonts, radius, spacing, type Palette, type as typeScale } from "@/lib/theme";
 import { getCachedWeek, saveWeek } from "@/lib/training-db";
@@ -142,6 +143,9 @@ function mondayISO(): string {
 export default function BibliotecaScreen() {
   const { colors } = useTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
+  // Tocar esta pestaña estando en ella regresa el scroll hasta arriba.
+  const scrollRef = useScrollTop();
+
   const [week, setWeek] = useState<WeekView | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [online, setOnline] = useState(true);
@@ -217,7 +221,7 @@ export default function BibliotecaScreen() {
   const totalVideos = groups.reduce((sum, g) => sum + g.videos.length, 0);
 
   return (
-    <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
+    <ScrollView ref={scrollRef} style={styles.screen} contentContainerStyle={styles.content}>
       <Text style={styles.title}>Biblioteca</Text>
       <Text style={styles.subtitle}>
         Los videos de tu semana, agrupados por zona. Descárgalos con señal y quedan en tu teléfono

@@ -514,6 +514,16 @@ export type HealthDayPayload = {
   exerciseMin?: number | null;
   sleepMin?: number | null;
   restingHr?: number | null;
+  /** Variabilidad cardiaca (SDNN, ms): el proxy de recuperación. */
+  hrvMs?: number | null;
+  /** VO₂ máx estimado por el reloj (mL/kg/min). */
+  vo2max?: number | null;
+  /** Respiraciones por minuto en reposo. */
+  respiratoryRate?: number | null;
+  /** Saturación de oxígeno (%). Se guarda y grafica; nunca se interpreta. */
+  spo2?: number | null;
+  /** Horas del día con al menos un minuto de pie (anillo azul de Apple). */
+  standHours?: number | null;
 };
 
 export type HealthDaysResponse = { dias: HealthDayPayload[] };

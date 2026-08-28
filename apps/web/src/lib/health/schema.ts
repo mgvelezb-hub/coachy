@@ -27,6 +27,17 @@ const metric = (max: number) =>
     .transform((value) => Math.round(value))
     .nullish();
 
+/** Igual que `metric`, pero conserva un decimal: hay indicadores donde el
+ * .5 sí significa algo (un VO₂ máx de 38.5 no es 39). */
+const metricDecimal = (max: number) =>
+  z
+    .number()
+    .finite()
+    .min(0)
+    .max(max)
+    .transform((value) => Math.round(value * 10) / 10)
+    .nullish();
+
 export const healthDaySchema = z.object({
   date: isoDate,
   steps: metric(200_000),
@@ -34,6 +45,12 @@ export const healthDaySchema = z.object({
   exerciseMin: metric(1_440),
   sleepMin: metric(1_440),
   restingHr: metric(220),
+  /** SDNN en ms. Arriba de 300 ya no es una persona, es un artefacto. */
+  hrvMs: metric(300),
+  vo2max: metricDecimal(90),
+  respiratoryRate: metricDecimal(60),
+  spo2: metricDecimal(100),
+  standHours: metric(24),
 });
 
 export type HealthDayPayload = z.infer<typeof healthDaySchema>;

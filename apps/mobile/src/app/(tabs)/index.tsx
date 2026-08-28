@@ -42,6 +42,7 @@ import { StatRow } from "@/components/StatRow";
 import { EmptyState, ErrorState, LoadingState } from "@/components/States";
 import { SectionLabel } from "@/components/SectionLabel";
 import { useTheme } from "@/context/theme";
+import { useScrollTop } from "@/lib/scroll-top";
 import { bestStreak, currentStreak, todayISO, trainingDays } from "@/lib/streak";
 import {
   fonts,
@@ -112,6 +113,8 @@ export default function HoyScreen() {
   const router = useRouter();
   const { colors } = useTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
+  // Tocar esta pestaña estando en ella regresa el scroll hasta arriba.
+  const scrollRef = useScrollTop();
   const [data, setData] = useState<HomeData | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
@@ -211,6 +214,7 @@ export default function HoyScreen() {
 
   return (
     <ScrollView
+      ref={scrollRef}
       style={styles.screen}
       contentContainerStyle={styles.content}
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.paloRosa} />}

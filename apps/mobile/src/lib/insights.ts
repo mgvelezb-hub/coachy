@@ -301,6 +301,121 @@ export function sleepInsight(days: HealthDayPayload[], goal: string): Insight {
 }
 
 // ---------------------------------------------------------------------------
+// Recuperación (variabilidad cardiaca)
+// ---------------------------------------------------------------------------
+
+/** Debajo de este porcentaje de tu propia normal, la semana se marca. */
+const HRV_CAIDA = 0.85;
+
+/**
+ * Recuperación leída contra TU normal, nunca contra una tabla.
+ *
+ * La variabilidad cardiaca varía muchísimo entre personas —dos atletas sanos
+ * pueden andar en 30 y en 90 ms— así que una tabla de población haría ver
+ * "mal" a quien simplemente tiene la suya baja. Lo que sí significa algo es
+ * una caída sostenida respecto de uno mismo: fatiga acumulada, sueño corto,
+ * algo empezando o estrés. Eso es lo que se dice, y nada más que eso.
+ */
+export function recoveryInsight(days: HealthDayPayload[], goal: string): Insight {
+  const semana = ventana(days, "hrvMs", 0, 7);
+  const base = ventana(days, "hrvMs", 0, 28);
+
+  if (semana.length < MIN_DIAS || base.length < 7) {
+    return {
+      trend: "sin_datos",
+      headline: "Falta historia para leer tu recuperación",
+      detail: `Van ${base.length} ${base.length === 1 ? "noche" : "noches"} con variabilidad registrada. Con cuatro semanas se puede comparar tu semana contra tu normal.`,
+      recomendacion: "Duerme con el reloj puesto: la variabilidad se mide de noche y es el dato que menos se puede reconstruir después.",
+    };
+  }
+
+  const actual = Math.round(promedio(semana)!);
+  const normal = Math.round(promedio(base)!);
+  const razon = actual / normal;
+
+  const trend: Trend = razon >= 1 ? "buena" : razon < HRV_CAIDA ? "atencion" : "estable";
+
+  const headline =
+    trend === "buena"
+      ? "Vienes recuperado"
+      : trend === "atencion"
+        ? "Tu recuperación viene baja"
+        : "Estás en tu normal";
+
+  const recomendacion =
+    trend === "atencion"
+      ? "Una semana así pide bajarle, no apretar: sostén el volumen pero recorta la intensidad, duerme lo que puedas y revísalo en 3 días. Si sigue abajo con malestar, eso ya no lo resuelve el entrenamiento — ve con un médico."
+      : trend === "buena"
+        ? buscaBajarGrasa(goal)
+          ? "Buen momento para las sesiones exigentes de la semana: tu cuerpo está aguantando la carga y el déficit."
+          : "Buen momento para empujar cargas: es cuando una serie difícil se convierte en adaptación y no en fatiga."
+        : "Todo normal. Sigue con el plan tal cual está.";
+
+  return {
+    trend,
+    headline,
+    detail: `Promedio de ${actual} ms esta semana contra ${normal} ms de tu normal de 4 semanas (${Math.round(razon * 100)} %).`,
+    recomendacion,
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Condición cardiorrespiratoria (VO₂ máx)
+// ---------------------------------------------------------------------------
+
+/**
+ * VO₂ máx: la estimación del reloj, con su tendencia.
+ *
+ * Es el indicador que mejor se asocia con salud a largo plazo, y también el
+ * que más despacio se mueve: cambia de mes en mes, no de día en día. Por eso
+ * se compara el último valor contra el de hace un mes y no contra ayer.
+ *
+ * Las bandas de "bueno" y "bajo" dependen de edad y sexo, y el reloj ya
+ * estima con eso adentro; aquí NO se clasifica a nadie contra una tabla — se
+ * dice hacia dónde va el número, que es lo accionable.
+ */
+export function fitnessInsight(days: HealthDayPayload[]): Insight {
+  const conDato = recientesPrimero(days).filter((day) => day.vo2max != null);
+
+  if (conDato.length === 0) {
+    return {
+      trend: "sin_datos",
+      headline: "El reloj todavía no lo estima",
+      detail: "El VO₂ máx sale de caminatas o carreras al aire libre con el reloj puesto, no de las sesiones de pesas.",
+      recomendacion: "Sal a caminar rápido 20 minutos con el reloj y el GPS prendidos: con eso empieza a estimarlo.",
+    };
+  }
+
+  const ultimo = conDato[0]!;
+  const actual = ultimo.vo2max!;
+  // El más viejo dentro de la ventana que traiga dato: la referencia de "hace
+  // un mes" cuando la hay.
+  const anterior = conDato[conDato.length - 1]!;
+  const delta = Math.round((actual - anterior.vo2max!) * 10) / 10;
+
+  const trend: Trend = delta >= 0.5 ? "buena" : delta <= -0.5 ? "atencion" : "estable";
+
+  const headline =
+    trend === "buena"
+      ? "Tu condición va subiendo"
+      : trend === "atencion"
+        ? "Tu condición viene bajando"
+        : "Tu condición está estable";
+
+  const recomendacion =
+    trend === "atencion"
+      ? "Lo que mueve este número es el cardio sostenido, no las pesas: dos sesiones de 20-30 minutos a ritmo en que puedas hablar pero no cantar bastan para revertirlo."
+      : "Sostenlo con dos sesiones de cardio a la semana. Sube solo cuando el resto del plan ya esté cumpliéndose.";
+
+  return {
+    trend,
+    headline,
+    detail: `${actual} mL/kg/min · ${delta >= 0 ? "+" : ""}${delta} desde ${anterior.date}.`,
+    recomendacion,
+  };
+}
+
+// ---------------------------------------------------------------------------
 // Medidas
 // ---------------------------------------------------------------------------
 

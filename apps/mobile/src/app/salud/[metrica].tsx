@@ -1,5 +1,5 @@
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { ChevronLeft, Footprints, Moon, Ruler, Timer } from "lucide-react-native";
+import { Activity, ChevronLeft, Footprints, HeartPulse, Moon, Ruler, Timer } from "lucide-react-native";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -23,8 +23,10 @@ import {
   PASOS_META,
   SUENO_META_MIN,
   exerciseInsight,
+  fitnessInsight,
   formatSleep,
   measuresInsight,
+  recoveryInsight,
   sleepInsight,
   stepsInsight,
   type Insight,
@@ -50,7 +52,7 @@ import {
  * `lib/insights.ts`, aparte y pura.
  */
 
-const METRICAS = ["pasos", "ejercicio", "descanso", "medidas"] as const;
+const METRICAS = ["pasos", "ejercicio", "descanso", "recuperacion", "condicion", "medidas"] as const;
 type Metrica = (typeof METRICAS)[number];
 
 function esMetrica(value: string | undefined): value is Metrica {
@@ -125,6 +127,8 @@ export default function DetalleMetricaScreen() {
         {metrica === "pasos" && <Pasos days={data.days} goal={goal} />}
         {metrica === "ejercicio" && <Ejercicio days={data.days} goal={goal} />}
         {metrica === "descanso" && <Descanso days={data.days} goal={goal} />}
+        {metrica === "recuperacion" && <Recuperacion days={data.days} goal={goal} />}
+        {metrica === "condicion" && <Condicion days={data.days} />}
         {metrica === "medidas" && <Medidas checkIns={data.checkIns} goal={goal} />}
       </ScrollView>
     </SafeAreaView>
@@ -292,6 +296,124 @@ function Descanso({ days, goal }: { days: HealthDayPayload[]; goal: string }) {
 }
 
 // ---------------------------------------------------------------------------
+// Recuperación
+// ---------------------------------------------------------------------------
+
+function Recuperacion({ days, goal }: { days: HealthDayPayload[]; goal: string }) {
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
+  const insight = recoveryInsight(days, goal);
+
+  const ordenados = [...days].sort((a, b) => b.date.localeCompare(a.date)).slice(0, DIAS_VISIBLES);
+  const conDato = ordenados.filter((day) => day.hrvMs != null);
+  const ultimo = conDato[0]?.hrvMs ?? null;
+  const fcReposo = promedioDe(ordenados.map((day) => day.restingHr));
+  const respiratoria = promedioDe(ordenados.map((day) => day.respiratoryRate));
+  const oxigeno = promedioDe(ordenados.map((day) => day.spo2));
+
+  // La referencia del gráfico es TU normal de 4 semanas, no un número de tabla.
+  const base = promedioDe([...days].slice(0, 28).map((day) => day.hrvMs));
+
+  return (
+    <>
+      <Encabezado
+        icon={<HeartPulse size={26} color={colors.error} strokeWidth={2} />}
+        titulo="Recuperación"
+        valor={ultimo === null ? "—" : `${ultimo}`}
+        unidad="ms de variabilidad cardiaca, la última noche con dato"
+        tint={colors.error}
+      />
+
+      <InsightCard insight={insight} />
+
+      <Card>
+        <SectionLabel>Tus signos en reposo</SectionLabel>
+        <View style={styles.resumenRow}>
+          <Dato label="FC en reposo" valor={fcReposo === null ? "—" : `${Math.round(fcReposo)}`} />
+          <Dato
+            label="Respiración"
+            valor={respiratoria === null ? "—" : `${respiratoria.toFixed(1)}`}
+          />
+          <Dato label="Oxígeno" valor={oxigeno === null ? "—" : `${oxigeno.toFixed(1)} %`} />
+        </View>
+        <Text style={styles.aviso}>
+          Estos tres se guardan y se grafican, no se interpretan. Si alguno te preocupa, eso lo ve
+          un médico, no una app.
+        </Text>
+      </Card>
+
+      <Tendencia
+        titulo="Últimas noches"
+        puntos={serieDe(ordenados, "hrvMs")}
+        color={colors.error}
+        meta={base === null ? null : Math.round(base)}
+        format={(v) => `${Math.round(v)} ms`}
+        filas={ordenados.map((day) => ({
+          date: day.date,
+          valor: day.hrvMs ?? null,
+          etiqueta: day.hrvMs == null ? "—" : `${day.hrvMs} ms`,
+        }))}
+      />
+    </>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Condición cardiorrespiratoria
+// ---------------------------------------------------------------------------
+
+function Condicion({ days }: { days: HealthDayPayload[] }) {
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
+  const insight = fitnessInsight(days);
+
+  // El VO₂ máx se mueve de mes en mes: la ventana es larga a propósito.
+  const ordenados = [...days].sort((a, b) => b.date.localeCompare(a.date)).slice(0, 90);
+  const conDato = ordenados.filter((day) => day.vo2max != null);
+  const ultimo = conDato[0]?.vo2max ?? null;
+  const maximo = conDato.length > 0 ? Math.max(...conDato.map((day) => day.vo2max!)) : null;
+
+  return (
+    <>
+      <Encabezado
+        icon={<Activity size={26} color={colors.champan} strokeWidth={2} />}
+        titulo="Condición"
+        valor={ultimo === null ? "—" : `${ultimo}`}
+        unidad="mL/kg/min de VO₂ máx estimado"
+        tint={colors.champan}
+      />
+
+      <InsightCard insight={insight} />
+
+      <Card>
+        <SectionLabel>Tu marca</SectionLabel>
+        <View style={styles.resumenRow}>
+          <Dato label="Mejor registro" valor={maximo === null ? "—" : `${maximo}`} />
+          <Dato label="Mediciones" valor={`${conDato.length}`} />
+        </View>
+        <Text style={styles.aviso}>
+          Lo estima el reloj en caminatas y carreras al aire libre, no en las pesas: por eso puede
+          pasar semanas sin moverse.
+        </Text>
+      </Card>
+
+      <Tendencia
+        titulo="Últimos 90 días"
+        puntos={serieDe(ordenados, "vo2max")}
+        color={colors.champan}
+        meta={null}
+        format={(v) => `${v.toFixed(1)}`}
+        filas={conDato.slice(0, DIAS_VISIBLES).map((day) => ({
+          date: day.date,
+          valor: day.vo2max ?? null,
+          etiqueta: `${day.vo2max}`,
+        }))}
+      />
+    </>
+  );
+}
+
+// ---------------------------------------------------------------------------
 // Medidas
 // ---------------------------------------------------------------------------
 
@@ -413,7 +535,7 @@ type Fila = { date: string; valor: number | null; etiqueta: string };
  * que se busca es "¿qué hice ayer?". */
 function serieDe(
   days: HealthDayPayload[],
-  field: "steps" | "sleepMin" | "exerciseMin",
+  field: "steps" | "sleepMin" | "exerciseMin" | "hrvMs" | "vo2max",
 ): Punto[] {
   return [...days]
     .sort((a, b) => a.date.localeCompare(b.date))
@@ -683,6 +805,12 @@ const makeStyles = (colors: Palette) => StyleSheet.create({
     fontFamily: fonts.sansSemiBold,
     ...typeScale.body,
     color: colors.marfil,
+  },
+  aviso: {
+    fontFamily: fonts.sans,
+    ...typeScale.bodySm,
+    color: colors.paloRosaLight,
+    marginTop: spacing.md,
   },
   vacio: {
     fontFamily: fonts.serifItalic,
