@@ -552,6 +552,34 @@ export function goalPhotoPath(userId: string, view: GoalView): string {
 
 /** El mismo `GoalStatus` de apps/web/src/lib/coachy/goal.ts — el texto de
  * "listo" ya llega renderizado en `lines`, no hay que armar frases aquí. */
+/** Zonas del análisis de objetivo. Mismo enum que el servidor. */
+export const GOAL_ZONES = ["cintura", "cadera_gluteo", "pierna", "brazo", "espalda"] as const;
+export type GoalZone = (typeof GOAL_ZONES)[number];
+
+export const GOAL_ZONE_LABEL: Record<GoalZone, string> = {
+  cintura: "Cintura",
+  cadera_gluteo: "Glúteo",
+  pierna: "Pierna",
+  brazo: "Brazo",
+  espalda: "Espalda",
+};
+
+/** Qué tan lejos está esa zona de la referencia. */
+export type GoalGap = "cerca" | "media" | "lejos";
+/** Hacia dónde se movió respecto de la quincena anterior. */
+export type GoalTrend = "acercándose" | "igual" | "alejándose";
+/** Cuánto énfasis de entrenamiento implica la referencia en esa zona. */
+export type GoalEmphasis = "alto" | "medio" | "bajo";
+
+export type GoalZoneReading = {
+  zona: GoalZone;
+  brecha: GoalGap;
+  tendencia: GoalTrend;
+  accion: string;
+};
+
+export type GoalDirectionReading = { zona: GoalZone; enfasis: GoalEmphasis };
+
 export type GoalStatus =
   | { state: "sin_referencia" }
   /**
@@ -559,9 +587,22 @@ export type GoalStatus =
    * trae la lectura de la referencia sola: dónde poner el énfasis. Puede
    * llegar vacío si la visión está apagada.
    */
-  | { state: "sin_fotos"; references: number; lines: string[] }
+  | {
+      state: "sin_fotos";
+      references: number;
+      lines: string[];
+      /** Lo mismo que `lines`, estructurado, para graficar el énfasis. */
+      emphasis: GoalDirectionReading[];
+    }
   | { state: "en_espera"; references: number }
-  | { state: "listo"; references: number; lines: string[]; analyzedAt: string };
+  | {
+      state: "listo";
+      references: number;
+      lines: string[];
+      /** Lo mismo que `lines`, estructurado, para dibujar la brecha por zona. */
+      readings: GoalZoneReading[];
+      analyzedAt: string;
+    };
 
 export type GoalReferenceUrl = { view: GoalView; url: string };
 

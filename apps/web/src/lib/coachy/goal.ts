@@ -668,9 +668,25 @@ export type GoalStatus =
    * trae la lectura de la referencia sola —dónde poner el énfasis—, que sí se
    * puede decir sin fotos del atleta.
    */
-  | { state: "sin_fotos"; references: number; lines: string[] }
+  | {
+      state: "sin_fotos";
+      references: number;
+      lines: string[];
+      /** Lo mismo que `lines`, estructurado: para graficar el énfasis por zona. */
+      emphasis: GoalDirectionReading[];
+    }
   | { state: "en_espera"; references: number }
-  | { state: "listo"; references: number; lines: string[]; analyzedAt: string };
+  | {
+      state: "listo";
+      references: number;
+      lines: string[];
+      /**
+       * Lo mismo que `lines`, estructurado: para dibujar la brecha por zona.
+       * El texto sigue mandando en la lectura; esto solo lo grafica.
+       */
+      readings: GoalZoneReading[];
+      analyzedAt: string;
+    };
 
 /** Las fotos del check-in con foto más reciente, y las del anterior. */
 async function recentPhotoSeries(userId: string): Promise<{
@@ -709,10 +725,12 @@ export async function goalStatusFor(
 
   const { current, earlier } = await recentPhotoSeries(userId);
   if (current.length === 0) {
+    const emphasis = await directionFor(userId, profile, references);
     return {
       state: "sin_fotos",
       references: references.length,
-      lines: await directionFor(userId, profile, references),
+      lines: directionLines(emphasis),
+      emphasis,
     };
   }
 
@@ -735,6 +753,7 @@ export async function goalStatusFor(
       state: "listo",
       references: references.length,
       lines: goalLines(cached.readings),
+      readings: cached.readings,
       analyzedAt: cached.analyzedAt,
     };
   }
@@ -766,6 +785,7 @@ export async function goalStatusFor(
     state: "listo",
     references: references.length,
     lines: goalLines(analysis.readings),
+    readings: analysis.readings,
     analyzedAt: analysis.analyzedAt,
   };
 }
@@ -782,7 +802,7 @@ async function directionFor(
   userId: string,
   profile: Profile,
   references: GoalReference[],
-): Promise<string[]> {
+): Promise<GoalDirectionReading[]> {
   const fingerprint = goalFingerprint(references, []);
 
   const stored = await prisma.conversation
@@ -798,7 +818,7 @@ async function directionFor(
     const raw = row.contextJson as Record<string, unknown> | null;
     if (!raw || raw.kind !== DIRECTION_KIND) continue;
     if (raw.fingerprint !== fingerprint) continue;
-    return directionLines(parseDirectionReadings(raw.readings));
+    return parseDirectionReadings(raw.readings);
   }
 
   const analysis = await analyzeGoalDirection({ profile, references });
@@ -824,7 +844,7 @@ async function directionFor(
       return null;
     });
 
-  return directionLines(analysis.readings);
+  return analysis.readings;
 }
 
 /** Las referencias con URL firmada, listas para pintar en `/app/objetivo`. */

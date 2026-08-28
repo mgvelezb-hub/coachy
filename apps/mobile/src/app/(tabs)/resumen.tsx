@@ -15,10 +15,19 @@ import {
   TrendingUp,
 } from "lucide-react-native";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from "react-native";
+import {
+  Pressable,
+  RefreshControl,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+  useWindowDimensions,
+} from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import { ActivityRings, type Ring } from "@/components/ActivityRings";
+import { GapChart } from "@/components/GapChart";
 import { RadarChart } from "@/components/RadarChart";
 import { ScoreTile } from "@/components/ScoreTile";
 import { ErrorState, LoadingState } from "@/components/States";
@@ -32,6 +41,7 @@ import {
   getHealthDays,
   getHistoryMeasurements,
   getHistoryTraining,
+  getMe,
   getTrainingWeek,
   type Activity,
   type CheckInRow,
@@ -39,13 +49,21 @@ import {
   type Decision,
   type GoalResponse,
   type HealthDayPayload,
+  type MeResponse,
   type PersonalRecord,
   type TrainingHistoryRow,
   type WeekView,
 } from "@/lib/api";
 import { bestStreak, currentStreak, todayISO, trainingDays } from "@/lib/streak";
-import { EJERCICIO_META_MIN, PASOS_META, SUENO_META_MIN, formatSleep } from "@/lib/insights";
-import { perfilDeEjes } from "@/lib/perfil";
+import {
+  EJERCICIO_META_MIN,
+  GOAL_LABEL,
+  PASOS_META,
+  SUENO_META_MIN,
+  formatSleep,
+  type Goal,
+} from "@/lib/insights";
+import { brechasDeObjetivo, enfasisDeObjetivo, perfilDeEjes } from "@/lib/perfil";
 import { fonts, radius, spacing, type as typeScale, withAlpha, type Palette } from "@/lib/theme";
 import { syncWidgetData } from "@/lib/widget";
 
@@ -76,6 +94,7 @@ type ResumenData = {
   goal: GoalResponse | null;
   decision: Decision | null;
   points: CheckInPoint[] | null;
+  me: MeResponse | null;
 };
 
 /** Cada fuente se tolera por separado: que una falle no tumba la pantalla entera. */
@@ -117,6 +136,7 @@ function diasDesde(dateKey: string): number {
 export default function ResumenScreen() {
   const router = useRouter();
   const { colors } = useTheme();
+  const { width } = useWindowDimensions();
   const styles = useMemo(() => makeStyles(colors), [colors]);
   // Tocar esta pestaña estando en ella regresa el scroll hasta arriba.
   const scrollRef = useScrollTop();
@@ -125,7 +145,7 @@ export default function ResumenScreen() {
   const [refreshing, setRefreshing] = useState(false);
 
   const load = useCallback(async () => {
-    const [historyRes, checkinsRes, healthRes, activitiesRes, week, goal, decisionRes, measurementsRes] =
+    const [historyRes, checkinsRes, healthRes, activitiesRes, week, goal, decisionRes, measurementsRes, me] =
       await Promise.all([
         safeFetch(getHistoryTraining()),
         safeFetch(getCheckins()),
@@ -135,6 +155,7 @@ export default function ResumenScreen() {
         safeFetch(getGoal()),
         safeFetch(getDecision()),
         safeFetch(getHistoryMeasurements()),
+        safeFetch(getMe()),
       ]);
 
     const next: ResumenData = {
@@ -147,6 +168,7 @@ export default function ResumenScreen() {
       goal,
       decision: decisionRes?.decision ?? null,
       points: measurementsRes?.points ?? null,
+      me,
     };
 
     if (Object.values(next).every((value) => value === null)) {
@@ -191,6 +213,7 @@ export default function ResumenScreen() {
   if (!data && error) return <ErrorState message={error} onRetry={load} />;
   if (!data) return null;
 
+  const objetivoLabel = GOAL_LABEL[(data.me?.profile?.goal ?? "") as Goal] ?? null;
   const dias = data.healthDays ?? [];
   const pasos = ultimoConDato(dias, "steps");
   const ejercicio = ultimoConDato(dias, "exerciseMin");
@@ -199,6 +222,17 @@ export default function ResumenScreen() {
 
   const hrv = ultimoConDato(dias, "hrvMs");
   const vo2 = ultimoConDato(dias, "vo2max");
+
+  // La comparación contra la referencia: con fotos propias es una brecha real
+  // por zona; sin ellas, el énfasis que pide cada zona. Son dos preguntas
+  // distintas y la tarjeta lo dice, no se disfraza una de la otra.
+  const objetivoListo = data.goal?.status.state === "listo";
+  const brechas =
+    data.goal?.status.state === "listo"
+      ? brechasDeObjetivo(data.goal.status.readings)
+      : data.goal?.status.state === "sin_fotos"
+        ? enfasisDeObjetivo(data.goal.status.emphasis)
+        : [];
 
   const ejes = perfilDeEjes({
     healthDays: dias,
@@ -230,6 +264,11 @@ export default function ResumenScreen() {
   const ultimoPr = prs[0] ?? null;
 
   const objetivoEstado = data.goal?.status.state ?? null;
+
+  // Lado a lado solo si a cada panel le queda ancho para leerse; en un
+  // teléfono angosto dos telarañas de 150 pt se vuelven adorno ilegible.
+  const ladoALado = width >= 760;
+  const anchoPanel = ladoALado ? 200 : 240;
 
   return (
     <SafeAreaView style={styles.screen} edges={["top"]}>
@@ -306,10 +345,29 @@ export default function ResumenScreen() {
           </View>
         </View>
 
-        <View style={styles.perfil}>
-          <Text style={styles.heroTitle}>Tu perfil</Text>
-          <Text style={styles.heroCaption}>Qué tan cerca estás de tu meta en cada frente</Text>
-          <RadarChart ejes={ejes} />
+        <View style={[styles.comparativa, ladoALado && styles.comparativaAncha]}>
+          <View style={[styles.perfil, styles.mitad]}>
+            <Text style={styles.heroTitle}>Tu perfil</Text>
+            <Text style={styles.heroCaption}>
+              Cada eje contra lo sugerido para tu objetivo
+              {objetivoLabel ? ` de ${objetivoLabel}` : ""}: 100 % es la meta, no un máximo.
+            </Text>
+            <RadarChart ejes={ejes} size={anchoPanel} />
+          </View>
+
+          {brechas.length > 0 && (
+            <View style={[styles.perfil, styles.mitad]}>
+              <Text style={styles.heroTitle}>Vs. tu objetivo</Text>
+              <Text style={styles.heroCaption}>
+                {objetivoListo
+                  ? "Qué tan lejos está cada zona de tu referencia"
+                  : "Todavía sin fotos tuyas: esto es el énfasis que pide tu referencia, no tu brecha"}
+              </Text>
+              <View style={{ marginTop: spacing.md }}>
+                <GapChart brechas={brechas} />
+              </View>
+            </View>
+          )}
         </View>
 
         <View style={styles.mosaico}>
@@ -512,6 +570,15 @@ const makeStyles = (colors: Palette) => StyleSheet.create({
     padding: spacing.xl,
     gap: spacing.xs,
     alignItems: "stretch",
+  },
+  comparativa: {
+    gap: spacing.md,
+  },
+  comparativaAncha: {
+    flexDirection: "row",
+  },
+  mitad: {
+    flex: 1,
   },
   mosaico: {
     flexDirection: "row",

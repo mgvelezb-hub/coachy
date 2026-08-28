@@ -13,7 +13,18 @@
  * se le pasa.
  */
 
-import type { CheckInPoint, HealthDayPayload, WeekView } from "@/lib/api";
+import {
+  GOAL_ZONE_LABEL,
+  type CheckInPoint,
+  type GoalDirectionReading,
+  type GoalEmphasis,
+  type GoalGap,
+  type GoalTrend,
+  type GoalZoneReading,
+  type HealthDayPayload,
+  type WeekView,
+} from "@/lib/api";
+import type { Brecha } from "@/components/GapChart";
 import { EJERCICIO_META_MIN, PASOS_META, SUENO_META_MIN } from "@/lib/insights";
 import type { Eje } from "@/components/RadarChart";
 
@@ -110,4 +121,55 @@ export function recuperacion(days: HealthDayPayload[]): number | null {
   const base = promedio(ventana(days, "hrvMs", DIAS_BASE));
   if (semana === null || base === null || base <= 0) return null;
   return Math.max(0, Math.min(1, semana / base));
+}
+
+// ---------------------------------------------------------------------------
+// Zonas: la brecha contra la referencia
+// ---------------------------------------------------------------------------
+
+/**
+ * Cuánto del camino a la referencia lleva cada zona.
+ *
+ * La lectura del objetivo es ORDINAL, no numérica: el modelo dice "cerca",
+ * "media" o "lejos", nunca un porcentaje —estimar centímetros de una foto
+ * sería inventar precisión que no existe—. Estos tres valores son la
+ * traducción de esas tres palabras a una posición en el riel, y por eso son
+ * redondos: 0.8, 0.5 y 0.2 se leen como "ya casi", "a medio camino" y "apenas
+ * empezando", que es exactamente lo que el modelo quiso decir.
+ */
+const AVANCE_POR_BRECHA: Record<GoalGap, number> = {
+  cerca: 0.8,
+  media: 0.5,
+  lejos: 0.2,
+};
+
+/** Cómo se dice el movimiento de la quincena, en una o dos palabras. */
+const NOTA_POR_TENDENCIA: Record<GoalTrend, string> = {
+  "acercándose": "se acerca",
+  igual: "igual",
+  "alejándose": "se aleja",
+};
+
+/** Las brechas del análisis, listas para `GapChart`. */
+export function brechasDeObjetivo(readings: GoalZoneReading[]): Brecha[] {
+  return readings.map((reading) => ({
+    label: GOAL_ZONE_LABEL[reading.zona],
+    avance: AVANCE_POR_BRECHA[reading.brecha],
+    nota: NOTA_POR_TENDENCIA[reading.tendencia],
+  }));
+}
+
+/**
+ * Mientras no haya fotos propias, el mismo riel enseña otra cosa: cuánto
+ * énfasis pide cada zona. No es una brecha —no se sabe qué tan lejos estás—
+ * y por eso la nota lo dice con todas sus letras.
+ */
+const AVANCE_POR_ENFASIS: Record<GoalEmphasis, number> = { alto: 1, medio: 0.6, bajo: 0.3 };
+
+export function enfasisDeObjetivo(readings: GoalDirectionReading[]): Brecha[] {
+  return readings.map((reading) => ({
+    label: GOAL_ZONE_LABEL[reading.zona],
+    avance: AVANCE_POR_ENFASIS[reading.enfasis],
+    nota: `énfasis ${reading.enfasis}`,
+  }));
 }
