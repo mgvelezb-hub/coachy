@@ -233,7 +233,7 @@ export default function HoyScreen() {
           value={steps === null ? "—" : steps.toLocaleString("es-MX")}
           unit={steps === null ? null : "pasos"}
           tint={colors.champan}
-          onPress={() => router.push("/resumen")}
+          onPress={() => router.push("/salud/pasos")}
         />
         <StatRow
           icon={Moon}
@@ -241,7 +241,7 @@ export default function HoyScreen() {
           value={sleep ?? "—"}
           unit={null}
           tint={colors.paloRosa}
-          onPress={() => router.push("/resumen")}
+          onPress={() => router.push("/salud/descanso")}
         />
         <StatRow
           icon={Ruler}
@@ -249,7 +249,7 @@ export default function HoyScreen() {
           value={lastCheckIn?.waistCm != null ? `${lastCheckIn.waistCm}` : "—"}
           unit={lastCheckIn?.waistCm != null ? "cm" : null}
           tint={colors.guindaLight}
-          onPress={() => router.push("/historial")}
+          onPress={() => router.push("/salud/medidas")}
         />
       </View>
 
