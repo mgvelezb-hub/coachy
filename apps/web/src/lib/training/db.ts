@@ -2,9 +2,10 @@ import "server-only";
 
 import type { Phase, Prisma, Profile, Workout } from "@prisma/client";
 
-import { fromISODate, isoFromDateColumn } from "@/lib/format";
+import { fromISODate, isoFromDateColumn, shiftISODate, toISODate } from "@/lib/format";
 import { prisma } from "@/lib/prisma";
 import { generateWeek, mondayOf, sundayEndOf } from "@/lib/training/generate";
+import { WEEK_DAYS, trainingDaysOf } from "@/lib/training/split";
 import { lastPerformance, type LastPerformance } from "@/lib/training/progression";
 import type {
   ExerciseOption,
@@ -160,12 +161,27 @@ export function parsePlan(json: Prisma.JsonValue): PlannedExercise[] {
   });
 }
 
+/** Las fechas ISO que el horario del perfil pide entrenar en esa semana. */
+function plannedDatesOf(profile: Profile, monday: Date): string[] {
+  const mondayISO = toISODate(monday);
+  return trainingDaysOf(toTrainingProfile(profile)).map((day) =>
+    shiftISODate(mondayISO, WEEK_DAYS.indexOf(day)),
+  );
+}
+
 /**
- * Materializa la semana en `workouts` si no existe todavía.
+ * Materializa la semana en `workouts`, y la RECONCILIA con el perfil de hoy.
  *
  * Corre a demanda: la primera vez que la atleta abre `/app` o el modo gimnasio
  * en la semana. No hay cron que dependa de que alguien esté despierto un lunes
  * a las 6am, y volver a llamarla no duplica nada — `(user_id, date)` es único.
+ *
+ * Reconciliar es lo que arregla el hueco de "cambié mis días y la semana se
+ * quedó como estaba": si el perfil pasa de 4 a 5 días a media semana, el día
+ * que falta se genera aquí mismo. Nada de lo ya vivido se toca — solo se
+ * BORRAN los días que el horario nuevo ya no pide, y únicamente si están de
+ * hoy en adelante, sin series capturadas y sin completar. Un día entrenado es
+ * historia, y la historia no se reescribe.
  */
 export async function ensureWeekMaterialized(
   userId: string,
@@ -178,8 +194,32 @@ export async function ensureWeekMaterialized(
   const existing = await prisma.workout.findMany({
     where: { userId, date: { gte: monday, lte: sunday } },
     orderBy: { date: "asc" },
+    include: { _count: { select: { sets: true } } },
   });
-  if (existing.length > 0) return existing;
+
+  const planned = plannedDatesOf(profile, monday);
+  const existingDates = new Set(existing.map((workout) => isoFromDateColumn(workout.date)));
+  const missing = planned.filter((date) => !existingDates.has(date));
+
+  const todayISO = toISODate(reference);
+  const plannedSet = new Set(planned);
+  const stale = existing.filter((workout) => {
+    const date = isoFromDateColumn(workout.date);
+    return (
+      !plannedSet.has(date) &&
+      date >= todayISO &&
+      workout.completedAt === null &&
+      workout._count.sets === 0
+    );
+  });
+
+  if (missing.length === 0 && stale.length === 0) {
+    return existing.map(({ _count, ...workout }) => workout);
+  }
+
+  if (stale.length > 0) {
+    await prisma.workout.deleteMany({ where: { id: { in: stale.map((workout) => workout.id) } } });
+  }
 
   const [catalog, history] = await Promise.all([
     loadCatalog(),
@@ -191,7 +231,12 @@ export async function ensureWeekMaterialized(
     catalog,
   });
 
+  // Solo se escriben los días que faltaban: `update: {}` protegería la fila
+  // existente de todos modos, pero ni siquiera se toca.
+  const missingSet = new Set(missing);
   for (const workout of week.workouts) {
+    if (!missingSet.has(workout.date)) continue;
+
     const date = fromISODate(workout.date);
     await prisma.workout.upsert({
       where: { userId_date: { userId, date } },
