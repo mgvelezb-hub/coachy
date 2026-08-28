@@ -1,5 +1,5 @@
 import Constants from "expo-constants";
-import { useRouter } from "expo-router";
+import { useLocalSearchParams, useRouter } from "expo-router";
 import { Check } from "lucide-react-native";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Alert, Platform, Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View } from "react-native";
@@ -72,7 +72,30 @@ function formatSyncResult(result: SyncResult): string {
   return parts.join(" · ");
 }
 
-export default function AjustesScreen() {
+/**
+ * El detalle de una sección de Ajustes: `/ajustes/apariencia`,
+ * `/ajustes/perfil`, `/ajustes/telefono`, `/ajustes/reloj`, `/ajustes/fotos`,
+ * `/ajustes/sesion`.
+ *
+ * Las seis viven en la misma pantalla porque comparten el mismo estado
+ * cargado —perfil, cola de sincronización, salud, bóveda— y partirlo en seis
+ * archivos multiplicaría las mismas llamadas por seis. Lo que cambia por
+ * sección es únicamente qué tarjeta se pinta.
+ */
+export const SECCIONES = {
+  apariencia: "Apariencia",
+  perfil: "Tu perfil",
+  telefono: "Tu teléfono",
+  reloj: "Tu reloj",
+  fotos: "Tus fotos",
+  sesion: "Sesión",
+} as const;
+
+export type Seccion = keyof typeof SECCIONES;
+
+export default function AjustesDetalleScreen() {
+  const { seccion } = useLocalSearchParams<{ seccion: string }>();
+  const activa = (Object.keys(SECCIONES) as Seccion[]).find((clave) => clave === seccion) ?? null;
   const router = useRouter();
   const { colors, preference, setPreference } = useTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
@@ -312,8 +335,9 @@ export default function AjustesScreen() {
           <Text style={styles.backText}>← Atrás</Text>
         </Pressable>
 
-        <Text style={styles.title}>Ajustes</Text>
+        <Text style={styles.title}>{activa ? SECCIONES[activa] : "Ajustes"}</Text>
 
+        {activa === "apariencia" && (
         <Card>
           <SectionLabel>Apariencia</SectionLabel>
           <View style={styles.themeList}>
@@ -333,7 +357,9 @@ export default function AjustesScreen() {
             })}
           </View>
         </Card>
+        )}
 
+        {activa === "perfil" && (
         <Card>
           <SectionLabel>Tu perfil</SectionLabel>
           {!me && !meError && <LoadingState label="Cargando tu perfil..." />}
@@ -360,7 +386,9 @@ export default function AjustesScreen() {
             </View>
           )}
         </Card>
+        )}
 
+        {activa === "telefono" && (
         <Card>
           <SectionLabel>Tu teléfono</SectionLabel>
           <View style={styles.phoneList}>
@@ -403,8 +431,9 @@ export default function AjustesScreen() {
             </View>
           </View>
         </Card>
+        )}
 
-        {Platform.OS === "ios" && (
+        {activa === "reloj" && Platform.OS === "ios" && (
           <Card>
             <SectionLabel>Tu reloj</SectionLabel>
             {!healthConnected ? (
@@ -448,6 +477,7 @@ export default function AjustesScreen() {
           </Card>
         )}
 
+        {activa === "fotos" && (
         <Card>
           <SectionLabel>Tus fotos</SectionLabel>
           <Text style={styles.vaultIntro}>
@@ -503,6 +533,9 @@ export default function AjustesScreen() {
           </View>
         </Card>
 
+        )}
+
+        {activa === "sesion" && (
         <Card>
           <SectionLabel>Sesión</SectionLabel>
           <View style={styles.sessionBlock}>
@@ -510,6 +543,7 @@ export default function AjustesScreen() {
             <PrimaryButton label="Cerrar sesión" onPress={handleSignOut} loading={signingOut} />
           </View>
         </Card>
+        )}
       </ScrollView>
     </SafeAreaView>
   );

@@ -45,7 +45,8 @@ function RootNavigator() {
       <Stack.Protected guard={Boolean(session)}>
         <Stack.Screen name="(tabs)" />
         <Stack.Screen name="objetivo" />
-        <Stack.Screen name="ajustes" />
+        <Stack.Screen name="ajustes/index" />
+        <Stack.Screen name="ajustes/[seccion]" />
         <Stack.Screen name="checkin" />
         <Stack.Screen name="historial" />
         <Stack.Screen name="fotos" />

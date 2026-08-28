@@ -116,7 +116,7 @@ export default function FotosScreen() {
           <Card>
             <SectionLabel>Sin clave todavía</SectionLabel>
             <EmptyState message="Para ver tus fotos aquí, primero crea una clave en Ajustes. Es distinta a la de tu teléfono a propósito: quien ya desbloqueó tu celular no debería poder abrirlas." />
-            <PrimaryButton label="Ir a Ajustes" onPress={() => router.replace("/ajustes")} />
+            <PrimaryButton label="Ir a Ajustes" onPress={() => router.replace("/ajustes/fotos")} />
           </Card>
         )}
 
