@@ -102,10 +102,22 @@ export function metasDelMes(
   if (lista.length < 2) return { medidas: [], desde: null };
 
   const actual = lista[lista.length - 1]!;
-  // El punto más viejo dentro de la ventana: el arranque del mes en curso.
+  const previos = lista.slice(0, -1);
+
+  /**
+   * De dónde arranca el mes.
+   *
+   * Primero se busca el punto más viejo DENTRO de la ventana; si el único que
+   * cae ahí es el de hoy —que es lo que pasa cuando alguien se estrena y su
+   * check-in anterior fue hace meses— se usa el inmediatamente anterior, sin
+   * importar su edad. La alternativa era no enseñar nada, y no enseñar nada
+   * cuando sí hay dos mediciones es peor que enseñar un tramo largo diciendo
+   * desde cuándo va.
+   */
   const inicio =
-    lista.find((punto) => diasEntre(punto.date, hoy) <= VENTANA_DIAS) ?? lista[0]!;
-  if (inicio.date === actual.date) return { medidas: [], desde: null };
+    previos.find((punto) => diasEntre(punto.date, hoy) <= VENTANA_DIAS) ??
+    previos[previos.length - 1];
+  if (!inicio) return { medidas: [], desde: null };
 
   const ritmo = RITMOS[goal] ?? RITMOS.SALUD!;
   const medidas: MetaMedida[] = [];
