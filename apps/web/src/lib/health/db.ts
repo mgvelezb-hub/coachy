@@ -168,6 +168,38 @@ export async function sleepMinutesFor(userId: string, isoDate: string): Promise<
   return row?.sleepMin ?? null;
 }
 
+/**
+ * El descanso de la semana, traducido a la escala 1-5 del check-in.
+ *
+ * Existe porque el check-in dejó de preguntar por el sueño: el reloj ya sube
+ * los minutos exactos de cada noche, y pedirle a alguien que califique del 1
+ * al 5 lo que la app mide mejor es puro trámite. Los cortes son los mismos con
+ * los que se evalúa el descanso en la app: 7 h es el objetivo y 6 h el piso.
+ *
+ * `null` cuando no hay ni una noche registrada — ahí el que llama decide qué
+ * hacer, porque inventar un 3 sería meterle ruido al motor.
+ */
+export async function sleepScoreFor(userId: string, isoDate: string): Promise<number | null> {
+  const hasta = fromISODate(isoDate);
+  const desde = new Date(hasta);
+  desde.setDate(desde.getDate() - 6);
+
+  const filas = await prisma.healthDay.findMany({
+    where: { userId, date: { gte: desde, lte: hasta }, sleepMin: { not: null } },
+    select: { sleepMin: true },
+  });
+  if (filas.length === 0) return null;
+
+  const promedio =
+    filas.reduce((suma, fila) => suma + (fila.sleepMin ?? 0), 0) / filas.length;
+
+  if (promedio >= 8 * 60) return 5;
+  if (promedio >= 7 * 60) return 4;
+  if (promedio >= 6 * 60) return 3;
+  if (promedio >= 5 * 60) return 2;
+  return 1;
+}
+
 export type HealthStatus = {
   /** Último día recibido, ISO `YYYY-MM-DD`. `null` si nunca llegó nada. */
   lastDate: string | null;

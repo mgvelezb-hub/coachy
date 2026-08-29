@@ -156,4 +156,10 @@ export type GenerateWeekConfig = {
   /** Lunes de la semana a generar. El generador nunca lee el reloj. */
   weekStart: Date;
   catalog: ExerciseOption[];
+  /**
+   * Grupos con prioridad esta semana, del análisis contra la referencia del
+   * objetivo. Cada día que los toque lleva un ejercicio extra — y nada más:
+   * el énfasis no cambia el split, los días ni las cargas.
+   */
+  emphasis?: MuscleGroup[];
 };

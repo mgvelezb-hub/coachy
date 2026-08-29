@@ -4,6 +4,7 @@ import type { Phase, Prisma, Profile, Workout } from "@prisma/client";
 
 import { fromISODate, isoFromDateColumn, shiftISODate, toISODate } from "@/lib/format";
 import { prisma } from "@/lib/prisma";
+import { emphasisFor } from "@/lib/training/emphasis";
 import { generateWeek, mondayOf, sundayEndOf } from "@/lib/training/generate";
 import { WEEK_DAYS, trainingDaysOf } from "@/lib/training/split";
 import { lastPerformance, type LastPerformance } from "@/lib/training/progression";
@@ -221,14 +222,18 @@ export async function ensureWeekMaterialized(
     await prisma.workout.deleteMany({ where: { id: { in: stale.map((workout) => workout.id) } } });
   }
 
-  const [catalog, history] = await Promise.all([
+  const [catalog, history, emphasis] = await Promise.all([
     loadCatalog(),
     loadHistory(userId, monday),
+    // Lo que salió de comparar sus fotos contra su referencia: qué grupo
+    // lleva prioridad. Sin análisis todavía, llega vacío.
+    emphasisFor(userId).catch(() => []),
   ]);
 
   const week = generateWeek(toTrainingProfile(profile), history, {
     weekStart: monday,
     catalog,
+    emphasis,
   });
 
   // Solo se escriben los días que faltaban: `update: {}` protegería la fila

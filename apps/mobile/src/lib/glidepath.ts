@@ -101,3 +101,44 @@ export function textoDeGlidepath(plan: Glidepath): string {
   const meses = plan.mesesRestantes;
   return `Este mes: ${plan.meta} cm. Destino ${plan.destino} cm —la mitad de tu estatura— en unos ${meses} ${meses === 1 ? "mes" : "meses"} a este ritmo.`;
 }
+
+
+export type EscalonMes = {
+  /** 1 = este mes. */
+  mes: number;
+  /** A dónde debería llegar la cintura al cierre de ese mes. */
+  cintura: number;
+  /** Etiqueta del mes, ya en español: "septiembre 2026". */
+  etiqueta: string;
+};
+
+const MESES = [
+  "enero", "febrero", "marzo", "abril", "mayo", "junio",
+  "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre",
+];
+
+/**
+ * Los escalones mes a mes hasta el destino, para la pantalla de detalle.
+ *
+ * Es una proyección al ritmo actual, no una promesa: por eso se dibuja
+ * completa y se dice de dónde sale cada número. El último escalón puede ser
+ * más corto que los demás —no se pasa del destino.
+ */
+export function escalonesDe(plan: Glidepath, desde: Date, maxMeses = 24): EscalonMes[] {
+  if (plan.enDestino) return [];
+
+  const escalones: EscalonMes[] = [];
+  let cintura = plan.actual;
+
+  for (let mes = 1; mes <= Math.min(plan.mesesRestantes, maxMeses); mes += 1) {
+    cintura = Math.max(plan.destino, Math.round((cintura - CORTE_MENSUAL_CM) * 10) / 10);
+    const fecha = new Date(desde.getFullYear(), desde.getMonth() + mes, 1);
+    escalones.push({
+      mes,
+      cintura,
+      etiqueta: `${MESES[fecha.getMonth()]} ${fecha.getFullYear()}`,
+    });
+  }
+
+  return escalones;
+}

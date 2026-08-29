@@ -379,7 +379,12 @@ export default function ResumenScreen() {
               <Text style={styles.heroCaption}>
                 Tus medidas contra el corte de este mes, desde tu check-in del {metas.desde}
               </Text>
-              {plan && <Text style={styles.glidepath}>{textoDeGlidepath(plan)}</Text>}
+              {plan && (
+                <Pressable onPress={() => router.push("/glidepath")} hitSlop={6}>
+                  <Text style={styles.glidepath}>{textoDeGlidepath(plan)}</Text>
+                  <Text style={styles.glidepathLink}>Ver el plan completo →</Text>
+                </Pressable>
+              )}
               <View style={{ marginTop: spacing.md }}>
                 <ChartBoundary label="Las metas del mes no se pudieron dibujar.">
                   <GapChart brechas={brechasDelMes(metas.medidas)} />
@@ -617,6 +622,12 @@ const makeStyles = (colors: Palette) => StyleSheet.create({
     ...typeScale.bodySm,
     color: colors.champan,
     marginTop: spacing.sm,
+  },
+  glidepathLink: {
+    fontFamily: fonts.sansSemiBold,
+    ...typeScale.bodySm,
+    color: colors.paloRosa,
+    marginTop: spacing.xs,
   },
   mitad: {
     flex: 1,

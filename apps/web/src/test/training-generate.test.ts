@@ -339,4 +339,23 @@ describe("determinismo", () => {
     const repeated = accessoriesAfter.filter((name) => accessoriesBefore.has(name));
     expect(repeated.length).toBeLessThan(accessoriesAfter.length);
   });
+
+  it("el énfasis del objetivo suma un ejercicio en los días de ese grupo", () => {
+    const base = generateWeek(profile(), [], { weekStart: MONDAY, catalog: CATALOG });
+    const conEnfasis = generateWeek(profile(), [], {
+      weekStart: MONDAY,
+      catalog: CATALOG,
+      emphasis: ["ESPALDA"],
+    });
+
+    const diaEspaldaBase = base.workouts.find((w) => w.dayKind === "PECHO_ESPALDA")!;
+    const diaEspaldaEnfasis = conEnfasis.workouts.find((w) => w.dayKind === "PECHO_ESPALDA")!;
+    expect(diaEspaldaEnfasis.exercises.length).toBe(diaEspaldaBase.exercises.length + 1);
+
+    // Los días que no tocan espalda se quedan igual: el énfasis no infla la
+    // semana entera.
+    const piernaBase = base.workouts.find((w) => w.dayKind === "PIERNA_CUADRICEPS")!;
+    const piernaEnfasis = conEnfasis.workouts.find((w) => w.dayKind === "PIERNA_CUADRICEPS")!;
+    expect(piernaEnfasis.exercises.length).toBe(piernaBase.exercises.length);
+  });
 });

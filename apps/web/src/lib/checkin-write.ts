@@ -1,6 +1,7 @@
 import type { CheckIn, Prisma } from "@prisma/client";
 
 import { fromISODate } from "@/lib/format";
+import { sleepScoreFor } from "@/lib/health/db";
 import { prisma } from "@/lib/prisma";
 import type { CheckInInput } from "@/lib/validation/checkin";
 
@@ -29,6 +30,14 @@ export async function persistCheckIn(userId: string, input: CheckInInput): Promi
       ? [input.comment, `Otro síntoma: ${input.otherSymptom}`].filter(Boolean).join("\n")
       : (input.comment ?? null);
 
+  /**
+   * El sueño ya no se pregunta en la app: se deriva de las noches que subió el
+   * reloj. Si no hay ni una noche registrada se guarda un 3 —el punto medio de
+   * la escala—, que es lo que el motor entiende como "sin señal" y no lo
+   * empuja ni a favor ni en contra.
+   */
+  const sleep = input.sleep ?? (await sleepScoreFor(userId, input.date)) ?? 3;
+
   const data = {
     weightKg: dec(input.weightKg),
     waistCm: dec(input.waistCm),
@@ -40,7 +49,7 @@ export async function persistCheckIn(userId: string, input: CheckInInput): Promi
     energy: input.energy,
     hunger: input.hunger,
     satiety: input.satiety,
-    sleep: input.sleep,
+    sleep,
     strengthRpe: input.strengthRpe ?? null,
     strengthTrend: input.strengthTrend ?? null,
     dietCompliance: input.dietCompliance,

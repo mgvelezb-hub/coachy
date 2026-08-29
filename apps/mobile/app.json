@@ -15,6 +15,9 @@
         "com.apple.security.application-groups": [
           "group.com.holygains.app"
         ]
+      },
+      "infoPlist": {
+        "NSFaceIDUsageDescription": "Holy Gains usa Face ID para abrir tus fotos de progreso, que están guardadas detrás de tu clave."
       }
     },
     "android": {

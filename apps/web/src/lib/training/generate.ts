@@ -152,6 +152,7 @@ export function generateWeek(
   );
 
   const exerciseCount = exerciseCountFor(profile.sessionMinutes, profile.volumeBias);
+  const emphasis = config.emphasis ?? [];
   const workouts: PlannedWorkout[] = [];
 
   kinds.forEach((kind, index) => {
@@ -172,7 +173,11 @@ export function generateWeek(
       return slot.roles.some((role) => !HEAVY_ROLES.has(role));
     });
 
-    const chosen = chooseSlots(slots, exerciseCount);
+    // Un ejercicio extra en los días que tocan un grupo con prioridad —la que
+    // salió de comparar tus fotos contra tu referencia—. Es lo único que el
+    // énfasis mueve: ni el split, ni los días, ni las cargas.
+    const tocaPrioridad = DAY_GROUPS[kind].some((group) => emphasis.includes(group));
+    const chosen = chooseSlots(slots, exerciseCount + (tocaPrioridad ? 1 : 0));
     const usedToday = new Set<string>();
     const exercises: PlannedExercise[] = [];
 
