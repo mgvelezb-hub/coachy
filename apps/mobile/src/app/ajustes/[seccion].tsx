@@ -808,7 +808,9 @@ export default function AjustesDetalleScreen() {
 
           {(() => {
             const aviso = avisoDeDieta(dieta, {
-              entrenaTemprano: (me?.profile?.checkinHour ?? 9) < 12,
+              // La hora que importa es la del entrenamiento, no la del
+              // recordatorio del check-in.
+              entrenaTemprano: (me?.profile?.trainingTime ?? "MANANA") === "MANANA",
               inicioVentana: ventana.inicio,
             });
             return aviso ? <Text style={styles.vaultMsg}>{aviso}</Text> : null;

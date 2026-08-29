@@ -52,6 +52,9 @@ export async function GET(request: Request): Promise<NextResponse> {
           otherDisciplines: parseDisciplineLoads(profile.otherDisciplines),
           swimLevel: profile.swimLevel,
           dietStyle: profile.dietStyle,
+          // A qué hora entrena: la pantalla de dieta lo necesita para avisar
+          // cuando la ventana del ayuno deja el entrenamiento fuera.
+          trainingTime: profile.trainingTime,
           fastingStartHour: profile.fastingStartHour,
           fastingEndHour: profile.fastingEndHour,
         }

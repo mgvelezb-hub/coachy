@@ -54,6 +54,8 @@ export type MeResponse = {
     swimLevel?: SwimLevel;
     /** Estilo de dieta elegido. */
     dietStyle?: DietStyle;
+    /** Momento del día en que entrena. */
+    trainingTime?: "MANANA" | "MEDIODIA" | "TARDE" | "NOCHE";
     /** Ventana de alimentación del ayuno, en horas locales. */
     fastingStartHour?: number | null;
     fastingEndHour?: number | null;

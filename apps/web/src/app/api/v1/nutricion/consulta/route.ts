@@ -23,6 +23,9 @@ import { prisma } from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
 
+/** Preguntas al día por persona. */
+const DAILY_LIMIT = 20;
+
 const schema = z.object({
   question: z.string().trim().min(3, "escribe tu pregunta").max(600),
 });
@@ -54,6 +57,25 @@ export async function POST(request: Request): Promise<NextResponse> {
   const parsed = schema.safeParse(body);
   if (!parsed.success) {
     return NextResponse.json({ error: "pregunta inválida" }, { status: 422 });
+  }
+
+  // Tope diario por persona. Cada pregunta cuesta una llamada al modelo, y sin
+  // tope una pantalla con un botón se convierte en una factura abierta. 20 al
+  // día es muy por encima del uso real y muy por debajo de un bucle.
+  const desdeMedianoche = new Date();
+  desdeMedianoche.setHours(0, 0, 0, 0);
+  const hoyCuenta = await prisma.conversation.count({
+    where: { userId: user.id, role: "ATHLETE", date: { gte: desdeMedianoche } },
+  });
+  if (hoyCuenta >= DAILY_LIMIT) {
+    return NextResponse.json(
+      {
+        error:
+          "Ya son muchas preguntas por hoy. Mañana se reinicia — y si algo no te cuadra del plan, " +
+          "eso se resuelve mejor en tu check-in.",
+      },
+      { status: 429 },
+    );
   }
 
   const triage = triageQuestion(parsed.data.question);
@@ -110,6 +132,15 @@ export async function POST(request: Request): Promise<NextResponse> {
   if (!answer) {
     return NextResponse.json({ error: "no se pudo redactar la respuesta" }, { status: 502 });
   }
+
+  // La conversación queda registrada: es el historial que la atleta puede
+  // releer, y es lo que hace contable el tope diario.
+  await prisma.conversation.createMany({
+    data: [
+      { userId: user.id, role: "ATHLETE", text: parsed.data.question },
+      { userId: user.id, role: "COACHY", text: answer },
+    ],
+  });
 
   return NextResponse.json({
     answer,
