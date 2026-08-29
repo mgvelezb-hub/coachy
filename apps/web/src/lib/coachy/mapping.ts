@@ -94,6 +94,9 @@ export function toEngineProfile(profile: Profile, latestWeightKg?: number | null
     favoriteFoods: profile.favoriteFoods,
     excludedFoods: [...profile.excludedFoods, ...profile.allergies],
     allergies: profile.allergies,
+    // Tope de tiempo de cocina. El motor lo trata como preferencia: si deja un
+    // rol sin candidatos, prefiere darte de comer a respetar el tope.
+    ...(profile.maxPrepMin !== null ? { maxPrepMin: profile.maxPrepMin } : {}),
     conditions: {
       glucosaAlta: conditions.includes("glucosa_alta"),
       lesionActiva: conditions.includes("lesion_activa"),

@@ -22,6 +22,20 @@ export const DISCIPLINES = [
   "OTRO",
 ] as const;
 
+export type Discipline = (typeof DISCIPLINES)[number];
+
+/** El nombre de cada disciplina en el vocabulario de la app. */
+export const DISCIPLINE_LABELS: Record<Discipline, string> = {
+  PESAS: "Pesas",
+  FUNCIONAL: "Funcional",
+  CROSSFIT: "CrossFit",
+  NATACION: "Natación",
+  BOX: "Box",
+  SQUASH: "Squash",
+  CARDIO: "Cardio",
+  OTRO: "Otra",
+};
+
 export const ACTIVITY_SOURCES = ["APP", "HEALTHKIT"] as const;
 
 /** `YYYY-MM-DD`, y que sea una fecha de verdad. Mismo patrón que `health/schema.ts`. */

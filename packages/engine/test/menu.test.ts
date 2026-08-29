@@ -210,6 +210,36 @@ describe('generador de menus (spec §6)', () => {
     expect(plan.shoppingList.every((i) => i.grams > 0)).toBe(true);
   });
 
+  it('respeta el tope de tiempo de cocina cuando hay con que', () => {
+    const profile: Profile = { ...P, maxPrepMin: 10 };
+    const lentos = SEEDS.flatMap((seed) => {
+      const { plan } = planFor(profile, 'BASE', seed);
+      return plan.menus
+        .flatMap((m) => m.meals.flatMap((meal) => meal.items.map((i) => findFood(i.foodId))))
+        .filter((food) => food !== undefined && food.prepMin > 10);
+    });
+    expect(lentos).toEqual([]);
+  });
+
+  it('el tope de cocina no deja un rol sin comida: manda comer', () => {
+    // Catalogo donde toda la proteina tarda mas de lo que la persona acepta.
+    const pool = FOODS.map((food) =>
+      food.role === 'proteina_magra' ? { ...food, prepMin: 45 } : food,
+    );
+    const profile: Profile = { ...P, maxPrepMin: 10 };
+    const kcal = kcalForDeficit(profile, pickDeficit('BASE', DEFAULT_CONFIG), DEFAULT_CONFIG);
+    const macros = macrosFor('BASE', profile, kcal);
+    const slots = distribute(macros, profile, 'BASE');
+    const plan = generateMenu(slots, profile, DEFAULT_CONFIG, 42, { phase: 'BASE' }, pool);
+
+    const proteinas = plan.menus.flatMap((m) =>
+      m.meals.flatMap((meal) =>
+        meal.items.filter((item) => findFood(item.foodId, pool)?.role === 'proteina_magra'),
+      ),
+    );
+    expect(proteinas.length).toBeGreaterThan(0);
+  });
+
   it('prioriza favoritos del perfil', () => {
     const profile: Profile = { ...P, favoriteFoods: ['pechuga de pollo', 'camote', 'aguacate'] };
     const hits = SEEDS.flatMap((seed) => {

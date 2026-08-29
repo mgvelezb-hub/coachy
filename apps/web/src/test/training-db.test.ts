@@ -248,6 +248,42 @@ describe.skipIf(!available)("rutina y sesiones contra la base", () => {
     await prisma.user.deleteMany({ where: { id: otherId } });
   });
 
+  it("las preferencias del perfil llegan hasta la rutina que se materializa", async () => {
+    // Punta a punta: lo que se guarda en el perfil es lo que la semana obedece.
+    // Sin esto, una preferencia puede quedarse en la base sin cambiar nada y
+    // la pantalla mentiría diciendo "guardado".
+    const prefsId = randomUUID();
+    await prisma.user.create({
+      data: { id: prefsId, email: `test-${prefsId}@coachy.invalid`, role: "ATHLETE" },
+    });
+    await prisma.profile.create({
+      data: {
+        userId: prefsId,
+        displayName: "Atleta con preferencias",
+        sex: "MALE",
+        heightCm: "180.0",
+        liftingDays: 5,
+        sessionMinutes: 60,
+        mealsPerDay: 4,
+        goal: "RECOMPOSICION",
+        onboardingCompletedAt: new Date(),
+        avoidRepeatGroups: ["PIERNA"],
+        otherDisciplines: [{ discipline: "NATACION", sessionsPerWeek: 2 }],
+      },
+    });
+
+    const profile = await prisma.profile.findUniqueOrThrow({ where: { userId: prefsId } });
+    const week = await ensureWeekMaterialized(prefsId, profile, reference);
+
+    // 5 sesiones de presupuesto − 2 de natación = 3 días de gimnasio.
+    expect(week).toHaveLength(3);
+    // Y de esos tres, pierna aparece una sola vez.
+    const piernas = week.filter((row) => row.muscleGroup.toLowerCase().includes("pierna"));
+    expect(piernas).toHaveLength(1);
+
+    await prisma.user.deleteMany({ where: { id: prefsId } });
+  });
+
   it("la progresión de la semana siguiente usa lo que quedó registrado", async () => {
     const profile = await prisma.profile.findUniqueOrThrow({ where: { userId } });
     const nextWeek = new Date("2026-09-09T12:00:00");

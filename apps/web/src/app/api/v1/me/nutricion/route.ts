@@ -7,16 +7,43 @@ import { prisma } from "@/lib/prisma";
 /**
  * `PATCH /api/v1/me/nutricion` — las preferencias que cambian el menú.
  *
- * Hoy solo el presupuesto. Cambiarlo NO regenera los menús ya publicados: el
- * menú de esta semana ya se compró, y rehacerlo a media semana obligaría a
- * tirar comida. El siguiente check-in lo arma con el nivel nuevo.
+ * Presupuesto, tope de tiempo de cocina y los alimentos que sí y que no.
+ * Cambiarlas NO regenera los menús ya publicados: el menú de esta semana ya se
+ * compró, y rehacerlo a media semana obligaría a tirar comida. El siguiente
+ * check-in lo arma con lo nuevo.
+ *
+ * Cada campo es opcional y se aplica solo si viene: la pantalla guarda un
+ * ajuste a la vez, y mandar el resto en cada toque pisaría con valores viejos
+ * lo que se acaba de cambiar.
  */
 
 export const dynamic = "force-dynamic";
 
-const schema = z.object({
-  budget: z.enum(["BAJO", "MEDIO", "ALTO"]),
-});
+/** Lista de alimentos escritos a mano: normalizada, sin repetidos y acotada. */
+function foodList(max: number) {
+  return z
+    .array(z.string())
+    .max(200)
+    .transform((items) =>
+      Array.from(new Set(items.map((item) => item.trim().toLowerCase()).filter(Boolean))).slice(
+        0,
+        max,
+      ),
+    );
+}
+
+const schema = z
+  .object({
+    budget: z.enum(["BAJO", "MEDIO", "ALTO"]).optional(),
+    /**
+     * Minutos de cocina por preparación. `null` = sin tope. El piso de 5 evita
+     * un tope que solo dejaría pasar lo que se come crudo.
+     */
+    maxPrepMin: z.number().int().min(5).max(120).nullable().optional(),
+    favoriteFoods: foodList(30).optional(),
+    excludedFoods: foodList(30).optional(),
+  })
+  .refine((value) => Object.keys(value).length > 0, { message: "no hay nada que guardar" });
 
 export async function PATCH(request: Request): Promise<NextResponse> {
   const user = await apiUser(request);
@@ -34,14 +61,24 @@ export async function PATCH(request: Request): Promise<NextResponse> {
 
   const parsed = schema.safeParse(body);
   if (!parsed.success) {
-    return NextResponse.json({ error: "presupuesto inválido" }, { status: 422 });
+    return NextResponse.json(
+      { error: "preferencias inválidas", detalles: parsed.error.issues.slice(0, 3) },
+      { status: 422 },
+    );
   }
+
+  const { budget, maxPrepMin, favoriteFoods, excludedFoods } = parsed.data;
 
   const profile = await prisma.profile.update({
     where: { userId: user.id },
-    data: { budget: parsed.data.budget },
-    select: { budget: true },
+    data: {
+      ...(budget !== undefined ? { budget } : {}),
+      ...(maxPrepMin !== undefined ? { maxPrepMin } : {}),
+      ...(favoriteFoods !== undefined ? { favoriteFoods } : {}),
+      ...(excludedFoods !== undefined ? { excludedFoods } : {}),
+    },
+    select: { budget: true, maxPrepMin: true, favoriteFoods: true, excludedFoods: true },
   });
 
-  return NextResponse.json({ budget: profile.budget });
+  return NextResponse.json(profile);
 }

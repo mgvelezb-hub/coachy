@@ -195,12 +195,32 @@ model Profile {
 
   favoriteFoods String[] @map("favorite_foods")
   excludedFoods String[] @map("excluded_foods")
+  /// Minutos de cocina que esta persona acepta por preparación. `null` = sin
+  /// tope. El motor descarta los alimentos que pidan más, salvo que el tope
+  /// deje un rol sin con qué comer (ahí manda comer, no el tope).
+  maxPrepMin    Int?     @map("max_prep_min")
   allergies     String[]
   /// Etiquetas libres: glucosa_alta, lesion_activa, ciclo_tracking, ...
   conditions    String[]
 
   goal         Goal  @default(RECOMPOSICION)
   currentPhase Phase @default(REINTRO)
+
+  // -- Preferencias que mandan sobre la planeación (Fase 6) ------------------
+  /// Grupos musculares que esta persona no quiere repetir en la semana
+  /// (`PIERNA`, `HOMBRO`, ...). El split entrena el grupo una vez y reemplaza
+  /// las repeticiones por trabajo del resto del cuerpo — la misma maquinaria
+  /// del protocolo de lesión, por otra razón.
+  avoidRepeatGroups String[] @map("avoid_repeat_groups")
+  /// La disciplina que arma el esqueleto de la semana. Hoy solo `PESAS` tiene
+  /// generador; las demás se registran y gastan presupuesto, y su prescripción
+  /// llega una a una (Fase 7, natación primero).
+  primaryDiscipline Discipline @default(PESAS) @map("primary_discipline")
+  /// Disciplinas además de la primaria, con cuántas sesiones a la semana:
+  /// `[{ "discipline": "NATACION", "sessionsPerWeek": 2 }]`. Gastan del
+  /// presupuesto semanal: agregar una no suma días encima, se los quita a las
+  /// pesas.
+  otherDisciplines  Json?      @map("other_disciplines")
 
   /// Overrides de la config del motor (spec 02 §7). Null = defaults.
   engineConfig Json? @map("engine_config")

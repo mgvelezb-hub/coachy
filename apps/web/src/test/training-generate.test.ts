@@ -5,7 +5,12 @@ import { describe, expect, it } from "vitest";
 import { generateWeek } from "@/lib/training/generate";
 import { incrementFor, intensityForReps, suggestTopWeight } from "@/lib/training/progression";
 import { SCHEMES, isoWeekNumber, schemeForWeek } from "@/lib/training/schemes";
-import { buildSplit, parseInjuries } from "@/lib/training/split";
+import {
+  buildSplit,
+  liftingDaysWithinBudget,
+  parseInjuries,
+  sessionsSpentOutsideGym,
+} from "@/lib/training/split";
 import type {
   ExerciseOption,
   HistorySet,
@@ -28,6 +33,9 @@ function profile(overrides: Partial<TrainingProfile> = {}): TrainingProfile {
     volumeBias: "normal",
     sessionMinutes: 60,
     cardioMinWk: 0,
+    avoidRepeatGroups: [],
+    primaryDiscipline: "PESAS",
+    otherDisciplines: [],
     ...overrides,
   };
 }
@@ -79,6 +87,110 @@ describe("split semanal", () => {
       }),
     );
     expect(week.workouts.map((w) => w.date)).toEqual(["2026-01-05", "2026-01-07", "2026-01-09"]);
+  });
+});
+
+describe("grupos que no se repiten", () => {
+  it("deja pierna una sola vez y no encoge la semana", () => {
+    const week = generate(profile({ liftingDays: 5, avoidRepeatGroups: ["PIERNA"] }));
+    const kinds = week.workouts.map((w) => w.dayKind);
+
+    expect(week.workouts).toHaveLength(5);
+    expect(kinds.filter((kind) => kind.startsWith("PIERNA"))).toHaveLength(1);
+  });
+
+  it("los días que repetían el grupo entrenan otra cosa, no descansan", () => {
+    const normal = generate(profile({ liftingDays: 6 }));
+    const sinRepetir = generate(profile({ liftingDays: 6, avoidRepeatGroups: ["PIERNA"] }));
+
+    expect(sinRepetir.workouts).toHaveLength(normal.workouts.length);
+    expect(sinRepetir.workouts.every((w) => w.exercises.length > 0)).toBe(true);
+  });
+
+  it("sin la preferencia el split no cambia", () => {
+    expect(generate(profile({ liftingDays: 5, avoidRepeatGroups: [] })).workouts.map((w) => w.dayKind)).toEqual(
+      generate(profile({ liftingDays: 5 })).workouts.map((w) => w.dayKind),
+    );
+  });
+});
+
+describe("presupuesto semanal de sesiones", () => {
+  it("una disciplina secundaria gasta días de gimnasio, no los suma encima", () => {
+    const week = generate(
+      profile({
+        liftingDays: 5,
+        otherDisciplines: [{ discipline: "NATACION", sessionsPerWeek: 2 }],
+      }),
+    );
+    expect(week.workouts).toHaveLength(3);
+  });
+
+  it("una disciplina declarada sin sesiones no cobra nada", () => {
+    const week = generate(
+      profile({
+        liftingDays: 5,
+        otherDisciplines: [{ discipline: "NATACION", sessionsPerWeek: 0 }],
+      }),
+    );
+    expect(week.workouts).toHaveLength(5);
+  });
+
+  it("mientras las pesas sean la primaria nunca se quedan sin semana", () => {
+    expect(
+      liftingDaysWithinBudget({
+        liftingDays: 3,
+        primaryDiscipline: "PESAS",
+        otherDisciplines: [{ discipline: "CROSSFIT", sessionsPerWeek: 5 }],
+      }),
+    ).toBe(1);
+  });
+
+  it("si la primaria es otra, el gimnasio sí puede quedarse en cero", () => {
+    expect(
+      liftingDaysWithinBudget({
+        liftingDays: 3,
+        primaryDiscipline: "NATACION",
+        otherDisciplines: [{ discipline: "NATACION", sessionsPerWeek: 4 }],
+      }),
+    ).toBe(0);
+  });
+
+  it("quien no entrena no entrena: cero días siguen siendo cero", () => {
+    expect(
+      liftingDaysWithinBudget({
+        liftingDays: 0,
+        primaryDiscipline: "PESAS",
+        otherDisciplines: [],
+      }),
+    ).toBe(0);
+  });
+
+  it("suma la carga de todas las secundarias", () => {
+    expect(
+      sessionsSpentOutsideGym([
+        { discipline: "NATACION", sessionsPerWeek: 2 },
+        { discipline: "BOX", sessionsPerWeek: 1 },
+      ]),
+    ).toBe(3);
+  });
+
+  it("el presupuesto recorta también el horario declarado", () => {
+    const week = generate(
+      profile({
+        liftingDays: 3,
+        trainingSchedule: {
+          LUN: "MANANA",
+          MAR: "DESCANSO",
+          MIE: "TARDE",
+          JUE: "DESCANSO",
+          VIE: "MANANA",
+          SAB: "DESCANSO",
+          DOM: "DESCANSO",
+        },
+        otherDisciplines: [{ discipline: "SQUASH", sessionsPerWeek: 1 }],
+      }),
+    );
+    expect(week.workouts.map((w) => w.date)).toEqual(["2026-01-05", "2026-01-07"]);
   });
 });
 

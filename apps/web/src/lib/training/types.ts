@@ -118,8 +118,34 @@ export type GeneratedWeek = {
   workouts: PlannedWorkout[];
 };
 
+/**
+ * Disciplinas que el registro conoce. Igual que `Discipline` en el schema,
+ * repetido aquí porque este módulo es puro y no importa Prisma.
+ */
+export const DISCIPLINES = [
+  "PESAS",
+  "FUNCIONAL",
+  "CROSSFIT",
+  "NATACION",
+  "BOX",
+  "SQUASH",
+  "CARDIO",
+  "OTRO",
+] as const;
+
+export type Discipline = (typeof DISCIPLINES)[number];
+
+/** Una disciplina secundaria y cuántas veces por semana se practica. */
+export type DisciplineLoad = { discipline: Discipline; sessionsPerWeek: number };
+
 /** Lo que el generador necesita saber de la atleta. */
 export type TrainingProfile = {
+  /**
+   * Presupuesto semanal de sesiones de entrenamiento. Se llama `liftingDays`
+   * por historia: cuando solo había pesas, las sesiones y los días de pesas
+   * eran lo mismo. Con otras disciplinas activas ya no lo son — ver
+   * `liftingDaysWithinBudget`.
+   */
   liftingDays: number;
   /** `{LUN..DOM: MANANA|MEDIODIA|TARDE|NOCHE|DESCANSO}` o null. */
   trainingSchedule: Record<string, string> | null;
@@ -130,6 +156,15 @@ export type TrainingProfile = {
   /** Minutos por sesión. 45 ⇒ 4-5 ejercicios; 60+ ⇒ 6-8. */
   sessionMinutes: number;
   cardioMinWk: number;
+  /**
+   * Grupos que esta persona pidió no repetir en la semana. Se entrenan una
+   * vez y las repeticiones se reemplazan por trabajo del resto del cuerpo.
+   */
+  avoidRepeatGroups: MuscleGroup[];
+  /** La disciplina que arma el esqueleto de la semana. */
+  primaryDiscipline: Discipline;
+  /** Las demás disciplinas activas, con su carga semanal. */
+  otherDisciplines: DisciplineLoad[];
 };
 
 /** Una serie ya ejecutada, tal como la devuelve el historial. */

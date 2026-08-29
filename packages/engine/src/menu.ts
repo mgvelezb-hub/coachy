@@ -82,7 +82,6 @@ function eligible(
     // intermedio, alto = sin tope.
     const topeDeCosto = profile.budget === 'bajo' ? 1 : profile.budget === 'medio' ? 2 : 3;
     if (food.costRel > topeDeCosto) return false;
-    if (profile.maxPrepMin !== undefined && food.prepMin > profile.maxPrepMin) return false;
     if (
       profile.conditions?.glucosaAlta &&
       DENSE_CARB_ROLES.includes(role) &&
@@ -93,11 +92,21 @@ function eligible(
     }
     return true;
   });
+  // El tope de tiempo de cocina es una preferencia, no una restricción dura:
+  // si deja un rol sin con qué comer —el caso real es la proteína, que casi
+  // siempre se cocina—, manda comer. Un menú sin proteína no es un menú que
+  // respeta tu agenda, es un menú roto.
+  const quickEnough =
+    profile.maxPrepMin === undefined
+      ? filtered
+      : filtered.filter((f) => f.prepMin <= (profile.maxPrepMin as number));
+  const byPrep = quickEnough.length > 0 ? quickEnough : filtered;
+
   if (options.quickOnly) {
-    const quick = filtered.filter((f) => f.tags.includes('rapido'));
+    const quick = byPrep.filter((f) => f.tags.includes('rapido'));
     if (quick.length > 0) return quick;
   }
-  return filtered;
+  return byPrep;
 }
 
 function pick(candidates: Food[], profile: Profile, random: () => number, avoid: Set<string>): Food | undefined {

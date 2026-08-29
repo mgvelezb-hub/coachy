@@ -34,8 +34,43 @@ export type MeResponse = {
     budget: "BAJO" | "MEDIO" | "ALTO";
     /** Cuántas comidas al día arma el motor. */
     mealsPerDay: number;
+    // Preferencias de la Fase 6. Van opcionales a propósito: la app se
+    // actualiza en el teléfono y la API en Vercel, así que entre un deploy y
+    // otro siempre hay un rato en que el servidor todavía no las manda. Una
+    // pantalla de ajustes no puede caerse por eso.
+    /** Tope de minutos de cocina por preparación. `null` = sin tope. */
+    maxPrepMin?: number | null;
+    /** Lo que sí le gusta comer: el motor lo prefiere al armar el menú. */
+    favoriteFoods?: string[];
+    /** Lo que no come: el motor lo saca del catálogo. */
+    excludedFoods?: string[];
+    /** Grupos que pidió no repetir en la semana. */
+    avoidRepeatGroups?: MuscleGroup[];
+    /** La disciplina que arma el esqueleto de la semana. */
+    primaryDiscipline?: Discipline;
+    /** Las demás disciplinas activas, con su carga semanal. */
+    otherDisciplines?: DisciplineLoad[];
   } | null;
 };
+
+/** Los grupos musculares del generador, en el orden en que se recorre el cuerpo. */
+export const MUSCLE_GROUPS = [
+  "PIERNA",
+  "HOMBRO",
+  "PECHO",
+  "ESPALDA",
+  "BICEP",
+  "TRICEP",
+  "ABDOMEN",
+] as const;
+
+export type MuscleGroup = (typeof MUSCLE_GROUPS)[number];
+
+/**
+ * Una disciplina activa y cuántas veces por semana se practica. `Discipline`
+ * y sus etiquetas viven abajo, con el contrato de `/api/v1/activities`.
+ */
+export type DisciplineLoad = { discipline: Discipline; sessionsPerWeek: number };
 
 export type Decision = {
   id: string;
@@ -502,13 +537,65 @@ export function patchCheckinSchedule(
   );
 }
 
-/** `PATCH /api/v1/me/nutricion` — hoy solo el presupuesto de despensa. */
+/**
+ * `PATCH /api/v1/me/nutricion` — las preferencias que cambian el menú.
+ *
+ * Se manda solo lo que cambió: la pantalla guarda un ajuste a la vez y mandar
+ * el resto pisaría con valores viejos lo que se acaba de tocar.
+ */
+export type PreferenciasNutricion = {
+  budget?: "BAJO" | "MEDIO" | "ALTO";
+  maxPrepMin?: number | null;
+  favoriteFoods?: string[];
+  excludedFoods?: string[];
+};
+
+export type PreferenciasNutricionResponse = {
+  budget: "BAJO" | "MEDIO" | "ALTO";
+  maxPrepMin: number | null;
+  favoriteFoods: string[];
+  excludedFoods: string[];
+};
+
+export function patchNutricion(
+  cambios: PreferenciasNutricion,
+): Promise<PreferenciasNutricionResponse> {
+  return apiFetch<PreferenciasNutricionResponse>("/api/v1/me/nutricion", {
+    method: "PATCH",
+    body: cambios,
+  });
+}
+
+/** `PATCH /api/v1/me/nutricion` — atajo del presupuesto, el ajuste más usado. */
 export function patchPresupuesto(
   budget: "BAJO" | "MEDIO" | "ALTO",
-): Promise<{ budget: "BAJO" | "MEDIO" | "ALTO" }> {
-  return apiFetch<{ budget: "BAJO" | "MEDIO" | "ALTO" }>("/api/v1/me/nutricion", {
+): Promise<PreferenciasNutricionResponse> {
+  return patchNutricion({ budget });
+}
+
+/**
+ * `PATCH /api/v1/me/entrenamiento` — las preferencias que cambian la rutina:
+ * los grupos que no se repiten y las disciplinas que gastan del presupuesto
+ * semanal. Entra en la siguiente rutina, no en la que ya está publicada.
+ */
+export type PreferenciasEntrenamiento = {
+  avoidRepeatGroups?: MuscleGroup[];
+  primaryDiscipline?: Discipline;
+  otherDisciplines?: DisciplineLoad[];
+};
+
+export type PreferenciasEntrenamientoResponse = {
+  avoidRepeatGroups: MuscleGroup[];
+  primaryDiscipline: Discipline;
+  otherDisciplines: DisciplineLoad[];
+};
+
+export function patchEntrenamiento(
+  cambios: PreferenciasEntrenamiento,
+): Promise<PreferenciasEntrenamientoResponse> {
+  return apiFetch<PreferenciasEntrenamientoResponse>("/api/v1/me/entrenamiento", {
     method: "PATCH",
-    body: { budget },
+    body: cambios,
   });
 }
 

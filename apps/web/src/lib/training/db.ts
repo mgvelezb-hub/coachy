@@ -8,10 +8,14 @@ import { emphasisFor } from "@/lib/training/emphasis";
 import { generateWeek, mondayOf, sundayEndOf } from "@/lib/training/generate";
 import { WEEK_DAYS, trainingDaysOf } from "@/lib/training/split";
 import { lastPerformance, type LastPerformance } from "@/lib/training/progression";
+import { DISCIPLINES, MUSCLE_GROUPS } from "@/lib/training/types";
 import type {
+  Discipline,
+  DisciplineLoad,
   ExerciseOption,
   HistorySet,
   HistoryWorkout,
+  MuscleGroup,
   PlannedExercise,
   TargetSet,
   TrainingProfile,
@@ -36,6 +40,36 @@ export function volumeBiasForPhase(phase: Phase): VolumeBias {
   return phase === "CUT_AGRESIVO" ? "reducido" : "normal";
 }
 
+/**
+ * `other_disciplines` es JSON libre en la base: lo que llegue mal formado se
+ * ignora en vez de tumbar la rutina de la semana. Una preferencia corrupta no
+ * puede dejar a nadie sin entrenar.
+ */
+export function parseDisciplineLoads(raw: unknown): DisciplineLoad[] {
+  if (!Array.isArray(raw)) return [];
+
+  const loads: DisciplineLoad[] = [];
+  for (const entry of raw) {
+    if (entry === null || typeof entry !== "object") continue;
+    const { discipline, sessionsPerWeek } = entry as Record<string, unknown>;
+    if (typeof discipline !== "string") continue;
+    if (!(DISCIPLINES as readonly string[]).includes(discipline)) continue;
+    if (typeof sessionsPerWeek !== "number" || !Number.isFinite(sessionsPerWeek)) continue;
+    loads.push({
+      discipline: discipline as Discipline,
+      sessionsPerWeek: Math.max(0, Math.min(7, Math.trunc(sessionsPerWeek))),
+    });
+  }
+  return loads;
+}
+
+/** Las etiquetas de grupo que el generador entiende; el resto se descarta. */
+function parseMuscleGroups(raw: string[]): MuscleGroup[] {
+  return raw.filter((group): group is MuscleGroup =>
+    (MUSCLE_GROUPS as readonly string[]).includes(group),
+  );
+}
+
 /** El perfil de Prisma, aplanado a lo que el generador necesita. */
 export function toTrainingProfile(profile: Profile): TrainingProfile {
   const schedule =
@@ -52,6 +86,9 @@ export function toTrainingProfile(profile: Profile): TrainingProfile {
     volumeBias: volumeBiasForPhase(profile.currentPhase),
     sessionMinutes: profile.sessionMinutes,
     cardioMinWk: profile.cardioMinWk,
+    avoidRepeatGroups: parseMuscleGroups(profile.avoidRepeatGroups),
+    primaryDiscipline: profile.primaryDiscipline as Discipline,
+    otherDisciplines: parseDisciplineLoads(profile.otherDisciplines),
   };
 }
 

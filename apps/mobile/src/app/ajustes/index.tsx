@@ -4,6 +4,7 @@ import {
   CalendarClock,
   ChevronLeft,
   ChevronRight,
+  Dumbbell,
   Images,
   LogOut,
   Palette as PaletteIcon,
@@ -40,7 +41,12 @@ type Entrada = {
 
 const ENTRADAS: Entrada[] = [
   { seccion: "checkin", icon: CalendarClock, detalle: "Qué día cierras tu semana y a qué hora" },
-  { seccion: "nutricion", icon: Salad, detalle: "Presupuesto de despensa" },
+  {
+    seccion: "entrenamiento",
+    icon: Dumbbell,
+    detalle: "Grupos que no repites y otras disciplinas",
+  },
+  { seccion: "nutricion", icon: Salad, detalle: "Presupuesto, tiempo de cocina y alimentos" },
   { seccion: "perfil", icon: User, detalle: "Tus datos y tu fase actual" },
   { seccion: "apariencia", icon: PaletteIcon, detalle: "Claro, oscuro o champán" },
   { seccion: "fotos", icon: Images, detalle: "Tu clave, Face ID y tu bóveda" },

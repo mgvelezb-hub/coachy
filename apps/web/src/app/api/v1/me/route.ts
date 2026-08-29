@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 
 import { apiUser, unauthorized } from "@/lib/api/auth";
 import { decimalToNumber } from "@/lib/format";
+import { parseDisciplineLoads } from "@/lib/training/db";
 
 /**
  * `GET /api/v1/me` — quién es el atleta autenticado y si ya terminó el
@@ -40,6 +41,15 @@ export async function GET(request: Request): Promise<NextResponse> {
           // Lo que la pantalla de Nutrición necesita para explicar el plan.
           budget: profile.budget,
           mealsPerDay: profile.mealsPerDay,
+          // Preferencias que mandan sobre la planeación (Fase 6). Van aquí
+          // porque la pantalla de Ajustes las pinta prellenadas: sin esto
+          // habría que adivinar qué eligió la persona la última vez.
+          maxPrepMin: profile.maxPrepMin,
+          favoriteFoods: profile.favoriteFoods,
+          excludedFoods: profile.excludedFoods,
+          avoidRepeatGroups: profile.avoidRepeatGroups,
+          primaryDiscipline: profile.primaryDiscipline,
+          otherDisciplines: parseDisciplineLoads(profile.otherDisciplines),
         }
       : null,
   });

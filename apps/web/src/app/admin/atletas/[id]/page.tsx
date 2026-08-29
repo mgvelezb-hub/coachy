@@ -5,7 +5,10 @@ import { EngineConfigEditor } from "@/app/admin/atletas/[id]/engine-config-edito
 import { Observatory } from "@/app/admin/atletas/[id]/observatory";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { DISCIPLINE_LABELS, type Discipline } from "@/lib/activity/schema";
 import { requireAdmin } from "@/lib/auth";
+import { muscleGroupLabel } from "@/lib/exercise-groups";
+import { parseDisciplineLoads } from "@/lib/training/db";
 import {
   decimalToNumber,
   formatCm,
@@ -54,6 +57,9 @@ export default async function AthletePage({
   if (!athlete) notFound();
 
   const profile = athlete.profile;
+  // Las disciplinas viven como JSON libre; se leen con el mismo parser que usa
+  // el generador, para que el admin vea exactamente lo que la rutina obedece.
+  const otherDisciplines = parseDisciplineLoads(profile?.otherDisciplines);
   const observatory = await loadObservatory(id);
   // Actividad del reloj (Fase 8): contexto, no decisión. Si falla, no aparece.
   const activity = await healthStatus(id).catch(() => null);
@@ -112,6 +118,31 @@ export default async function AthletePage({
               value={profile.favoriteFoods.join(", ") || "—"}
             />
             <Row label="Excluidos" value={profile.excludedFoods.join(", ") || "—"} />
+            <Row
+              label="Tiempo de cocina"
+              value={profile.maxPrepMin !== null ? `Hasta ${profile.maxPrepMin} min` : "Sin tope"}
+            />
+            <Row
+              label="No repetir"
+              value={
+                profile.avoidRepeatGroups.length > 0
+                  ? profile.avoidRepeatGroups.map((group) => muscleGroupLabel(group)).join(", ")
+                  : "Nada: split completo"
+              }
+            />
+            <Row
+              label="Disciplinas"
+              value={
+                otherDisciplines.length > 0
+                  ? `${DISCIPLINE_LABELS[profile.primaryDiscipline as Discipline]} (primaria) · ${otherDisciplines
+                      .map(
+                        (load) =>
+                          `${DISCIPLINE_LABELS[load.discipline as Discipline]} ×${load.sessionsPerWeek}`,
+                      )
+                      .join(", ")}`
+                  : DISCIPLINE_LABELS[profile.primaryDiscipline as Discipline]
+              }
+            />
             <Row
               label="Consentimiento de fotos"
               value={

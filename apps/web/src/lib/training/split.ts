@@ -1,4 +1,4 @@
-import type { DayKind, MuscleGroup, TrainingProfile } from "@/lib/training/types";
+import type { DayKind, DisciplineLoad, MuscleGroup, TrainingProfile } from "@/lib/training/types";
 
 /**
  * El split del coach (metodología §3): pierna/glúteo 2-3×, hombro+trapecio 1×,
@@ -107,20 +107,106 @@ function touchesInjuredZone(kind: DayKind, zones: MuscleGroup[]): boolean {
 }
 
 /**
- * Split de la semana según días disponibles y lesiones.
+ * Cuántas sesiones de la semana se van en otras disciplinas.
+ *
+ * Una disciplina declarada sin sesiones no gasta nada: está activa para el
+ * registro, no para la planeación.
+ */
+export function sessionsSpentOutsideGym(otherDisciplines: DisciplineLoad[]): number {
+  return otherDisciplines.reduce(
+    (total, load) => total + Math.max(0, Math.trunc(load.sessionsPerWeek)),
+    0,
+  );
+}
+
+/**
+ * Días de pesas que quedan después de pagar las otras disciplinas.
+ *
+ * La regla del modelo: **el presupuesto semanal no se estira**. Agregar
+ * natación dos veces por semana no suma dos sesiones encima de las que ya
+ * había — se las quita al gimnasio. Un cuerpo que recupera de cinco sesiones
+ * no recupera de siete porque el calendario tenga huecos.
+ *
+ * El piso es 1 mientras las pesas sean la primaria: la disciplina que arma el
+ * esqueleto nunca se queda sin semana. Si mañana la primaria es otra, este
+ * piso desaparece y el gimnasio pasa a caer en los huecos.
+ */
+export function liftingDaysWithinBudget(
+  profile: Pick<TrainingProfile, "liftingDays" | "primaryDiscipline" | "otherDisciplines">,
+): number {
+  const budget = Math.max(0, Math.min(7, Math.trunc(profile.liftingDays)));
+  if (budget === 0) return 0;
+
+  const spent = sessionsSpentOutsideGym(profile.otherDisciplines);
+  const floor = profile.primaryDiscipline === "PESAS" ? 1 : 0;
+
+  return Math.max(floor, budget - spent);
+}
+
+/**
+ * Deja una sola aparición de los grupos que la persona pidió no repetir.
+ *
+ * Es la misma sustitución del protocolo de lesión, por otra razón: quien pide
+ * no repetir pierna no quiere que el resto de la semana se encoja, quiere que
+ * esos días entrenen otra cosa.
+ */
+function collapseRepeats(kinds: DayKind[], groups: MuscleGroup[]): DayKind[] {
+  if (groups.length === 0) return kinds;
+
+  const result: DayKind[] = [];
+  const used = new Set<MuscleGroup>();
+
+  /** Marca como vistos los grupos restringidos que toca este día. */
+  function remember(kind: DayKind): void {
+    for (const group of DAY_GROUPS[kind]) {
+      if (groups.includes(group)) used.add(group);
+    }
+  }
+
+  kinds.forEach((kind, position) => {
+    const repeats = DAY_GROUPS[kind].some((group) => groups.includes(group) && used.has(group));
+
+    if (!repeats) {
+      remember(kind);
+      result.push(kind);
+      return;
+    }
+
+    const planned = new Set<DayKind>([...result, ...kinds.slice(position + 1)]);
+    const usable = FALLBACK_ORDER.filter(
+      (candidate) => !DAY_GROUPS[candidate].some((group) => used.has(group) && groups.includes(group)),
+    );
+    const replacement = usable.find((candidate) => !planned.has(candidate)) ?? usable[0];
+
+    if (replacement) {
+      remember(replacement);
+      result.push(replacement);
+    }
+  });
+
+  return result;
+}
+
+/**
+ * Split de la semana según días disponibles, lesiones y lo que se pidió no
+ * repetir.
  *
  * Protocolo de lesión (metodología §3): la zona afectada se entrena **una vez
  * por semana**, con reps altas y peso bajo. Los días extra de esa zona se
  * reemplazan por trabajo del resto del cuerpo, que sigue normal.
  */
-export function buildSplit(profile: Pick<TrainingProfile, "liftingDays" | "conditions">): {
+export function buildSplit(
+  profile: Pick<TrainingProfile, "liftingDays" | "conditions"> &
+    Partial<Pick<TrainingProfile, "avoidRepeatGroups">>,
+): {
   kinds: DayKind[];
   /** Índices (dentro de `kinds`) que van con protocolo de rehabilitación. */
   rehabIndexes: number[];
   injury: InjuryState;
 } {
   const days = Math.max(0, Math.min(7, Math.trunc(profile.liftingDays)));
-  const base = [...(SPLIT_BY_DAYS[days] ?? [])];
+  const avoidRepeat = profile.avoidRepeatGroups ?? [];
+  const base = collapseRepeats([...(SPLIT_BY_DAYS[days] ?? [])], avoidRepeat);
   const injury = parseInjuries(profile.conditions);
 
   if (injury.zones.length === 0) {

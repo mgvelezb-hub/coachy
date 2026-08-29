@@ -16,10 +16,22 @@ import {
   getActivities,
   getMe,
   patchCheckinSchedule,
+  patchEntrenamiento,
+  patchNutricion,
   patchPresupuesto,
+  type Discipline,
+  type DisciplineLoad,
   type MeResponse,
+  type MuscleGroup,
 } from "@/lib/api";
 import { PRESUPUESTOS } from "@/lib/nutricion";
+import {
+  DISCIPLINAS,
+  GRUPOS,
+  TIEMPOS_COCINA,
+  diasDeGimnasio,
+  listaDeAlimentos,
+} from "@/lib/entrenamiento";
 import {
   connectHealth,
   ensureCurrentPermissions,
@@ -93,6 +105,7 @@ function formatSyncResult(result: SyncResult): string {
  */
 export const SECCIONES = {
   checkin: "Tu check-in",
+  entrenamiento: "Tu entrenamiento",
   nutricion: "Nutrición",
   apariencia: "Apariencia",
   perfil: "Tu perfil",
@@ -208,6 +221,113 @@ export default function AjustesDetalleScreen() {
       setPresupuestoMsg(
         error instanceof ApiError ? error.message : "No se pudo guardar tu presupuesto",
       );
+    }
+  }
+
+  // Tiempo de cocina y alimentos: las preferencias que el motor sí usa al
+  // armar el menú (el tope de minutos filtra el catálogo, los favoritos pesan
+  // en la elección y los excluidos salen).
+  const [tiempoCocina, setTiempoCocina] = useState<number | null>(null);
+  const [favoritos, setFavoritos] = useState("");
+  const [excluidos, setExcluidos] = useState("");
+  const [alimentosMsg, setAlimentosMsg] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!me?.profile) return;
+    setTiempoCocina(me.profile.maxPrepMin ?? null);
+    setFavoritos((me.profile.favoriteFoods ?? []).join(", "));
+    setExcluidos((me.profile.excludedFoods ?? []).join(", "));
+  }, [me]);
+
+  async function guardarTiempoCocina(minutos: number | null) {
+    setTiempoCocina(minutos);
+    setAlimentosMsg(null);
+    try {
+      await patchNutricion({ maxPrepMin: minutos });
+      setAlimentosMsg(
+        minutos === null
+          ? "Sin tope: el menú puede pedir cocinar."
+          : `Listo: nada que pida más de ${minutos} minutos, salvo que te dejara sin proteína.`,
+      );
+    } catch (error) {
+      setAlimentosMsg(
+        error instanceof ApiError ? error.message : "No se pudo guardar tu tiempo de cocina",
+      );
+    }
+  }
+
+  async function guardarAlimentos() {
+    setAlimentosMsg(null);
+    try {
+      const guardado = await patchNutricion({
+        favoriteFoods: listaDeAlimentos(favoritos),
+        excludedFoods: listaDeAlimentos(excluidos),
+      });
+      setFavoritos(guardado.favoriteFoods.join(", "));
+      setExcluidos(guardado.excludedFoods.join(", "));
+      setAlimentosMsg("Guardado. Entra en tu siguiente menú.");
+    } catch (error) {
+      setAlimentosMsg(
+        error instanceof ApiError ? error.message : "No se pudieron guardar tus alimentos",
+      );
+    }
+  }
+
+  // Entrenamiento: los grupos que no se repiten y las disciplinas que gastan
+  // del presupuesto semanal.
+  const [sinRepetir, setSinRepetir] = useState<MuscleGroup[]>([]);
+  const [primaria, setPrimaria] = useState<Discipline>("PESAS");
+  const [otras, setOtras] = useState<DisciplineLoad[]>([]);
+  const [entrenoMsg, setEntrenoMsg] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!me?.profile) return;
+    setSinRepetir(me.profile.avoidRepeatGroups ?? []);
+    setPrimaria(me.profile.primaryDiscipline ?? "PESAS");
+    setOtras(me.profile.otherDisciplines ?? []);
+  }, [me]);
+
+  const presupuestoSemanal = me?.profile?.trainingDaysPerWeek ?? 0;
+  const diasGym = diasDeGimnasio(presupuestoSemanal, otras, primaria);
+
+  async function guardarSinRepetir(grupo: MuscleGroup) {
+    const siguiente = sinRepetir.includes(grupo)
+      ? sinRepetir.filter((valor) => valor !== grupo)
+      : [...sinRepetir, grupo];
+
+    setSinRepetir(siguiente);
+    setEntrenoMsg(null);
+    try {
+      await patchEntrenamiento({ avoidRepeatGroups: siguiente });
+      setEntrenoMsg(
+        siguiente.length === 0
+          ? "Sin restricciones: la semana vuelve al split completo."
+          : "Guardado. Esos grupos se entrenan una vez y los días que los repetían pasan a otra cosa.",
+      );
+    } catch (error) {
+      setSinRepetir(sinRepetir);
+      setEntrenoMsg(error instanceof ApiError ? error.message : "No se pudo guardar tu preferencia");
+    }
+  }
+
+  async function guardarSesiones(disciplina: Discipline, sesiones: number) {
+    const limpio = Math.max(0, Math.min(7, sesiones));
+    const siguiente = [
+      ...otras.filter((carga) => carga.discipline !== disciplina),
+      ...(limpio > 0 ? [{ discipline: disciplina, sessionsPerWeek: limpio }] : []),
+    ];
+
+    setOtras(siguiente);
+    setEntrenoMsg(null);
+    try {
+      await patchEntrenamiento({ otherDisciplines: siguiente });
+      const restantes = diasDeGimnasio(presupuestoSemanal, siguiente, primaria);
+      setEntrenoMsg(
+        `Guardado: te quedan ${restantes} ${restantes === 1 ? "día" : "días"} de gimnasio a la semana.`,
+      );
+    } catch (error) {
+      setOtras(otras);
+      setEntrenoMsg(error instanceof ApiError ? error.message : "No se pudo guardar tu disciplina");
     }
   }
 
@@ -453,7 +573,96 @@ export default function AjustesDetalleScreen() {
         </Card>
         )}
 
+        {activa === "entrenamiento" && (
+        <>
+        <Card>
+          <SectionLabel>Grupos que no quieres repetir</SectionLabel>
+          <Text style={styles.vaultIntro}>
+            El grupo que marques se entrena una vez a la semana. Los días que lo repetían no
+            desaparecen: pasan a trabajar otra cosa, así que sigues entrenando los mismos días.
+          </Text>
+
+          <View style={styles.cierreRow}>
+            {GRUPOS.map((grupo) => {
+              const activo = sinRepetir.includes(grupo.valor);
+              return (
+                <Pressable
+                  key={grupo.valor}
+                  onPress={() => guardarSinRepetir(grupo.valor)}
+                  style={[styles.cierreChip, activo && styles.cierreChipOn]}
+                >
+                  <Text style={[styles.cierreChipText, activo && styles.cierreChipTextOn]}>
+                    {grupo.nombre}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </View>
+        </Card>
+
+        <Card>
+          <SectionLabel>Otras disciplinas</SectionLabel>
+          <Text style={styles.vaultIntro}>
+            Tu semana tiene {presupuestoSemanal}{" "}
+            {presupuestoSemanal === 1 ? "sesión" : "sesiones"} de entrenamiento. Agregar una
+            disciplina gasta de ahí: no se suma encima. Hoy te quedan{" "}
+            <Text style={styles.entrenoDato}>
+              {diasGym} {diasGym === 1 ? "día" : "días"} de gimnasio
+            </Text>
+            .
+          </Text>
+
+          <View style={styles.presupuestoLista}>
+            {DISCIPLINAS.filter((disciplina) => disciplina.valor !== "PESAS").map((disciplina) => {
+              const carga =
+                otras.find((entrada) => entrada.discipline === disciplina.valor)?.sessionsPerWeek ?? 0;
+              return (
+                <View key={disciplina.valor} style={styles.entrenoFila}>
+                  <View style={styles.textos}>
+                    <Text style={styles.presupuestoNombre}>{disciplina.nombre}</Text>
+                    <Text style={styles.presupuestoDetalle}>
+                      {carga === 0
+                        ? "Sin sesiones: no gasta nada"
+                        : `${carga} ${carga === 1 ? "sesión" : "sesiones"} a la semana`}
+                    </Text>
+                  </View>
+
+                  <View style={styles.entrenoStepper}>
+                    <Pressable
+                      onPress={() => guardarSesiones(disciplina.valor, carga - 1)}
+                      disabled={carga === 0}
+                      hitSlop={8}
+                      style={[styles.entrenoPaso, carga === 0 && styles.entrenoPasoOff]}
+                    >
+                      <Text style={styles.entrenoPasoText}>−</Text>
+                    </Pressable>
+                    <Text style={styles.entrenoCarga}>{carga}</Text>
+                    <Pressable
+                      onPress={() => guardarSesiones(disciplina.valor, carga + 1)}
+                      hitSlop={8}
+                      style={styles.entrenoPaso}
+                    >
+                      <Text style={styles.entrenoPasoText}>+</Text>
+                    </Pressable>
+                  </View>
+                </View>
+              );
+            })}
+          </View>
+
+          {entrenoMsg && <Text style={styles.vaultMsg}>{entrenoMsg}</Text>}
+
+          <Text style={styles.vaultIntro}>
+            Hoy la app te planea el gimnasio y te registra el resto: qué días y cómo entrenas las
+            otras lo eliges tú. La prescripción por disciplina llega una a una, empezando por
+            natación.
+          </Text>
+        </Card>
+        </>
+        )}
+
         {activa === "nutricion" && (
+        <>
         <Card>
           <SectionLabel>Presupuesto de despensa</SectionLabel>
           <Text style={styles.vaultIntro}>
@@ -492,6 +701,65 @@ export default function AjustesDetalleScreen() {
             semana obliga a tirar comida.
           </Text>
         </Card>
+
+        <Card>
+          <SectionLabel>Cuánto quieres cocinar</SectionLabel>
+          <Text style={styles.vaultIntro}>
+            El tope descarta del catálogo lo que tarde más que eso. Es una preferencia, no una
+            regla: si el tope dejara una comida sin proteína, manda comer.
+          </Text>
+
+          <View style={styles.cierreRow}>
+            {TIEMPOS_COCINA.map((opcion) => {
+              const activo = tiempoCocina === opcion.valor;
+              return (
+                <Pressable
+                  key={opcion.nombre}
+                  onPress={() => guardarTiempoCocina(opcion.valor)}
+                  style={[styles.cierreChip, activo && styles.cierreChipOn]}
+                >
+                  <Text style={[styles.cierreChipText, activo && styles.cierreChipTextOn]}>
+                    {opcion.nombre}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </View>
+        </Card>
+
+        <Card>
+          <SectionLabel>Lo que sí y lo que no</SectionLabel>
+          <Text style={styles.vaultIntro}>
+            Separa con comas. Lo que te gusta aparece más seguido; lo que no comes sale del menú y
+            de la lista de súper. Las alergias no se editan aquí: esas las lleva tu perfil y nunca
+            entran, ni por equivalencia.
+          </Text>
+
+          <Text style={styles.cierreLabel}>Lo que sí te gusta</Text>
+          <TextInput
+            value={favoritos}
+            onChangeText={setFavoritos}
+            onBlur={guardarAlimentos}
+            placeholder="pollo, avena, camote"
+            placeholderTextColor={colors.paloRosaLight}
+            autoCapitalize="none"
+            style={styles.vaultInput}
+          />
+
+          <Text style={styles.cierreLabel}>Lo que no comes</Text>
+          <TextInput
+            value={excluidos}
+            onChangeText={setExcluidos}
+            onBlur={guardarAlimentos}
+            placeholder="salmón, brócoli"
+            placeholderTextColor={colors.paloRosaLight}
+            autoCapitalize="none"
+            style={styles.vaultInput}
+          />
+
+          {alimentosMsg && <Text style={styles.vaultMsg}>{alimentosMsg}</Text>}
+        </Card>
+        </>
         )}
 
         {activa === "apariencia" && (
@@ -759,6 +1027,37 @@ const swatchStyles = StyleSheet.create({
 
 const makeStyles = (colors: Palette) => StyleSheet.create({
   presupuestoLista: { gap: spacing.sm, marginTop: spacing.md },
+  textos: { flex: 1, gap: 2 },
+  entrenoDato: { fontFamily: fonts.sansSemiBold, color: colors.champan },
+  entrenoFila: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.md,
+    borderRadius: radius.xl,
+    borderWidth: 1,
+    borderColor: colors.cardBorder,
+    backgroundColor: colors.cardBg,
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.lg,
+  },
+  entrenoStepper: { flexDirection: "row", alignItems: "center", gap: spacing.md },
+  entrenoPaso: {
+    width: 32,
+    height: 32,
+    borderRadius: radius.full,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: colors.guinda,
+  },
+  entrenoPasoOff: { opacity: 0.35 },
+  entrenoPasoText: { fontFamily: fonts.sansSemiBold, ...typeScale.body, color: colors.pergamino },
+  entrenoCarga: {
+    minWidth: 18,
+    textAlign: "center",
+    fontFamily: fonts.sansSemiBold,
+    ...typeScale.body,
+    color: colors.marfil,
+  },
   presupuestoFila: {
     borderRadius: radius.xl,
     borderWidth: 1,

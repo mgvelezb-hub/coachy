@@ -8,7 +8,14 @@ import {
 } from "@/lib/training/progression";
 import { exerciseCountFor, recipeFor, type Slot } from "@/lib/training/recipes";
 import { SCHEMES, isoWeekNumber, schemeForExercise, schemeForWeek } from "@/lib/training/schemes";
-import { DAY_LABELS, DAY_GROUPS, WEEK_DAYS, buildSplit, trainingDaysOf } from "@/lib/training/split";
+import {
+  DAY_LABELS,
+  DAY_GROUPS,
+  WEEK_DAYS,
+  buildSplit,
+  liftingDaysWithinBudget,
+  trainingDaysOf,
+} from "@/lib/training/split";
 import type {
   ExerciseOption,
   GenerateWeekConfig,
@@ -135,10 +142,15 @@ export function generateWeek(
   const isoWeek = isoWeekNumber(weekStart);
   const weekScheme = schemeForWeek(weekStart);
 
-  const days = trainingDaysOf(profile);
+  // El presupuesto semanal se paga antes de repartir la semana: si hay otras
+  // disciplinas activas, el gimnasio se queda con los días que sobran, no con
+  // los que pidió.
+  const gymDays = liftingDaysWithinBudget(profile);
+  const days = trainingDaysOf(profile).slice(0, gymDays);
   const { kinds, rehabIndexes, injury } = buildSplit({
     liftingDays: days.length,
     conditions: profile.conditions,
+    avoidRepeatGroups: profile.avoidRepeatGroups,
   });
 
   const weekStartISO = toISODate(weekStart);
