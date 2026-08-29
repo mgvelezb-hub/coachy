@@ -268,7 +268,14 @@ export type TodayCard = {
   trimmedMinutes: number | null;
 };
 
-export type TrainingTodayResponse = { today: TodayCard | null };
+export type TrainingTodayResponse = {
+  today: TodayCard | null;
+  /**
+   * La sesión de otra disciplina de hoy (Fase 7). Opcional: una app instalada
+   * antes de la fase habla con el mismo endpoint y no la recibe.
+   */
+  otherSession?: OtherSessionView | null;
+};
 
 /** Lo que regresa `POST /api/v1/training/trim`. */
 export type TrimResponse = {

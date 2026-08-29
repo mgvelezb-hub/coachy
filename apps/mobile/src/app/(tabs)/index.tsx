@@ -31,6 +31,8 @@ import {
   type HealthDayPayload,
   type MeResponse,
   type Notification,
+  type OtherSessionView,
+  type TrainingTodayResponse,
   type NutritionResponse,
   type TodayCard,
 } from "@/lib/api";
@@ -70,6 +72,8 @@ type HomeData = {
   decision: Decision | null;
   nutrition: NutritionResponse | null;
   today: TodayCard | null;
+  /** La sesión de otra disciplina de hoy, si el día la trae (Fase 7). */
+  todayOther: OtherSessionView | null;
   notifications: Notification[];
   /**
    * Racha de entrenamiento. No se pinta en Hoy —vive en Resumen y en el
@@ -128,8 +132,11 @@ export default function HoyScreen() {
           getDecision(),
           getNotifications(),
           getNutrition().catch((e) => (isOnboardingIncomplete(e) ? null : Promise.reject(e))),
-          getTrainingToday().catch((e) =>
-            isOnboardingIncomplete(e) ? { today: null } : Promise.reject(e),
+          getTrainingToday().catch(
+            (e): TrainingTodayResponse =>
+              isOnboardingIncomplete(e)
+                ? { today: null, otherSession: null }
+                : (Promise.reject(e) as never),
           ),
           // Las fuentes de la racha son tolerantes a fallar por separado: un
           // endpoint caído no debe tumbar la pantalla de Hoy.
@@ -152,6 +159,7 @@ export default function HoyScreen() {
         decision: decisionRes.decision,
         nutrition,
         today: todayCard,
+        todayOther: today.otherSession ?? null,
         notifications: notificationsRes.notificaciones,
         streak,
         healthDays: healthRes?.dias ?? [],
@@ -165,7 +173,9 @@ export default function HoyScreen() {
         syncWidgetData({
           racha: streak,
           mejorRacha: bestStreak(days),
-          hoyGrupo: todayCard?.muscleGroup ?? "Descanso",
+          hoyGrupo:
+            todayCard?.muscleGroup ??
+            (today.otherSession ? DISCIPLINE_LABELS[today.otherSession.discipline] : "Descanso"),
           hoyEjercicios: todayCard?.exerciseCount ?? null,
           hoyEsquema: todayCard?.schemeLabel ?? null,
           hoyHecho: todayCard?.completed ?? false,
@@ -239,7 +249,11 @@ export default function HoyScreen() {
         />
       ))}
 
-      <TodayTrainingCard today={today} onPress={() => router.push("/rutinas")} />
+      <TodayTrainingCard
+        today={today}
+        otherSession={data.todayOther}
+        onPress={() => router.push("/rutinas")}
+      />
 
       <View style={styles.stats}>
         <StatRow
@@ -302,8 +316,34 @@ function NotificationBanner({
   );
 }
 
-function TodayTrainingCard({ today, onPress }: { today: TodayCard | null; onPress: () => void }) {
+function TodayTrainingCard({
+  today,
+  otherSession,
+  onPress,
+}: {
+  today: TodayCard | null;
+  otherSession: OtherSessionView | null;
+  onPress: () => void;
+}) {
   const { colors } = useTheme();
+
+  // Un día sin pesas pero con alberca NO es descanso. Decirlo así mandaría a
+  // descansar a quien tiene sesión programada.
+  if (!today && otherSession) {
+    const nombre = DISCIPLINE_LABELS[otherSession.discipline];
+    return (
+      <HeroCard
+        eyebrow="Hoy toca"
+        title={nombre}
+        subtitle={
+          otherSession.swim
+            ? `${otherSession.swim.totalMeters} m · ${otherSession.swim.focus} · ${otherSession.minutes} min`
+            : `${otherSession.minutes} min · tú eliges cómo la entrenas`
+        }
+        onPress={onPress}
+      />
+    );
+  }
 
   if (!today) {
     return (
@@ -322,7 +362,9 @@ function TodayTrainingCard({ today, onPress }: { today: TodayCard | null; onPres
       title={today.muscleGroup}
       subtitle={`${today.exerciseCount} ejercicios · ${today.schemeLabel}${
         today.cardioMinutes ? ` · ${today.cardioMinutes} min cardio` : ""
-      }${today.trimmedMinutes ? ` · recortada a ${today.trimmedMinutes} min` : ""}`}
+      }${today.trimmedMinutes ? ` · recortada a ${today.trimmedMinutes} min` : ""}${
+        otherSession ? ` · + ${DISCIPLINE_LABELS[otherSession.discipline].toLowerCase()}` : ""
+      }`}
       onPress={onPress}
     />
   );
