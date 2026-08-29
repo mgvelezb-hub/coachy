@@ -51,6 +51,9 @@ export async function GET(request: Request): Promise<NextResponse> {
           primaryDiscipline: profile.primaryDiscipline,
           otherDisciplines: parseDisciplineLoads(profile.otherDisciplines),
           swimLevel: profile.swimLevel,
+          dietStyle: profile.dietStyle,
+          fastingStartHour: profile.fastingStartHour,
+          fastingEndHour: profile.fastingEndHour,
         }
       : null,
   });

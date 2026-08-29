@@ -8,6 +8,7 @@
 export type {
   CheckIn as EngineCheckIn,
   CyclePhase as EngineCyclePhase,
+  DietStyle as EngineDietStyle,
   Decision as EngineDecision,
   EngineConfig,
   MacroTargets,

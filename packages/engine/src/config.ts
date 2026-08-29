@@ -50,6 +50,8 @@ export const ConfigSchema = z
     proteinSafetyFloorGPerKgBodyweight: z.number().min(1.2).max(2),
     fatMinGPerKg: z.number().min(0.4).max(1.5),
     fatMinPctKcal: z.number().min(0.1).max(0.4),
+    /** Tope de carbohidrato neto al dia en dieta keto. */
+    ketoCarbMaxG: z.number().min(20).max(50),
     fiberMinG: z.number().min(10).max(60),
     fiberMinGHighGlucose: z.number().min(10).max(60),
     kcalFloorFactorBmr: z.number().min(0.7).max(1),
@@ -150,6 +152,9 @@ export const DEFAULT_CONFIG: EngineConfig = {
   // Calibrado: 40 g a 75 kg = 0.53 g/kg (>= el piso hormonal de 0.5 del spec).
   fatMinGPerKg: 0.53,
   fatMinPctKcal: 0.2,
+  // 30 g es el tope de uso comun para sostener cetosis en la mayoria de la
+  // gente. No es un umbral clinico: varia por persona y por actividad.
+  ketoCarbMaxG: 30,
   fiberMinG: 25,
   fiberMinGHighGlucose: 30,
   kcalFloorFactorBmr: 0.85,

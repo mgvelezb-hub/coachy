@@ -1,6 +1,16 @@
-import { Droplets, Flame, Info, Salad, ShoppingBasket, UtensilsCrossed } from "lucide-react-native";
+import {
+  Droplets,
+  Flame,
+  FlaskConical,
+  Info,
+  MessageCircleQuestion,
+  Salad,
+  ShoppingBasket,
+  UtensilsCrossed,
+} from "lucide-react-native";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { RefreshControl, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import { useRouter } from "expo-router";
 
 import { ScoreCard } from "@/components/ScoreCard";
 import { EmptyState, ErrorState, LoadingState } from "@/components/States";
@@ -11,6 +21,8 @@ import {
   getCheckins,
   getMe,
   getNutrition,
+  preguntarNutricion,
+  type ConsultaResponse,
   type MeResponse,
   type Menu,
   type NutritionResponse,
@@ -115,6 +127,10 @@ export default function NutricionScreen() {
           <EmptyState message="En cuanto tu coach publique tu decisión, aquí aparecen tus números." />
         )}
       </ScoreCard>
+
+      <PreguntaAlPlan />
+
+      <EstudiosCard />
 
       <ScoreCard
         icon={Salad}
@@ -255,7 +271,128 @@ function Macro({ label, valor }: { label: string; valor: string }) {
   );
 }
 
+/**
+ * Pregúntale a tu plan.
+ *
+ * Explica lo que el motor ya decidió; no arma planes nuevos ni mueve números.
+ * Las preguntas clínicas las frena el servidor **antes** de redactar nada: el
+ * freno vive en un `if`, no en una instrucción del prompt que se pueda rodear
+ * pidiendo lo mismo de otra manera.
+ */
+function PreguntaAlPlan() {
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
+  const [pregunta, setPregunta] = useState("");
+  const [respuesta, setRespuesta] = useState<ConsultaResponse | null>(null);
+  const [pensando, setPensando] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function enviar() {
+    if (pregunta.trim().length < 3) return;
+    setPensando(true);
+    setError(null);
+    try {
+      setRespuesta(await preguntarNutricion(pregunta.trim()));
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "No se pudo responder ahora");
+    } finally {
+      setPensando(false);
+    }
+  }
+
+  return (
+    <ScoreCard
+      icon={MessageCircleQuestion}
+      tint={colors.champan}
+      title="Pregúntale a tu plan"
+      summary="Por qué esos alimentos, cómo cambiar uno, qué hacer si comes fuera"
+      status={null}
+    >
+      <TextInput
+        value={pregunta}
+        onChangeText={setPregunta}
+        placeholder="¿Puedo cambiar el pollo por atún?"
+        placeholderTextColor={colors.paloRosaLight}
+        multiline
+        style={styles.consultaInput}
+      />
+
+      <Pressable
+        onPress={enviar}
+        disabled={pensando}
+        style={[styles.consultaBoton, pensando && styles.consultaBotonOff]}
+      >
+        <Text style={styles.consultaBotonText}>{pensando ? "Pensando..." : "Preguntar"}</Text>
+      </Pressable>
+
+      {error && <Text style={styles.consultaAviso}>{error}</Text>}
+
+      {respuesta && (
+        <View style={styles.consultaRespuesta}>
+          <Text style={styles.consultaTexto}>{respuesta.answer}</Text>
+          <Text style={styles.consultaAviso}>{respuesta.disclaimer}</Text>
+        </View>
+      )}
+    </ScoreCard>
+  );
+}
+
+/** Acceso a los estudios: se guardan y se grafican, no se interpretan. */
+function EstudiosCard() {
+  const router = useRouter();
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
+
+  return (
+    <ScoreCard
+      icon={FlaskConical}
+      tint={colors.paloRosa}
+      title="Tus estudios"
+      summary="InBody y química sanguínea, con su historial"
+      status={null}
+    >
+      <Text style={styles.consultaAviso}>
+        Se guardan y se grafican. La app no los interpreta: lo que salga fuera del rango de tu
+        laboratorio lo revisa un médico.
+      </Text>
+
+      <Pressable onPress={() => router.push("/laboratorios")} style={styles.consultaBoton}>
+        <Text style={styles.consultaBotonText}>Abrir mis estudios</Text>
+      </Pressable>
+    </ScoreCard>
+  );
+}
+
 const makeStyles = (colors: Palette) => StyleSheet.create({
+  consultaInput: {
+    marginTop: spacing.md,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: colors.cardBorder,
+    backgroundColor: colors.cardBg,
+    padding: spacing.md,
+    minHeight: 64,
+    fontFamily: fonts.sansMedium,
+    ...typeScale.body,
+    color: colors.marfil,
+  },
+  consultaBoton: {
+    marginTop: spacing.md,
+    paddingVertical: spacing.md,
+    borderRadius: 999,
+    backgroundColor: colors.guinda,
+    alignItems: "center",
+  },
+  consultaBotonOff: { opacity: 0.5 },
+  consultaBotonText: { fontFamily: fonts.sansSemiBold, ...typeScale.body, color: colors.pergamino },
+  consultaRespuesta: { marginTop: spacing.md, gap: spacing.sm },
+  consultaTexto: { fontFamily: fonts.sans, ...typeScale.body, color: colors.marfil },
+  consultaAviso: {
+    fontFamily: fonts.sans,
+    ...typeScale.bodySm,
+    color: colors.paloRosaLight,
+    marginTop: spacing.sm,
+  },
   parrafo: {
     fontFamily: fonts.sans,
     ...typeScale.body,

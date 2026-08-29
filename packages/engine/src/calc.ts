@@ -154,11 +154,22 @@ export function macrosFor(
   const proteinSafetyFloor = config.proteinSafetyFloorGPerKgBodyweight * profile.weightKg;
   const proteinG = roundTo(Math.max(proteinRaw, proteinSafetyFloor), config.macroRoundingG);
 
-  const fatRaw = Math.max(config.fatMinGPerKg * profile.weightKg, (config.fatMinPctKcal * kcal) / 9);
+  // Keto invierte el reparto: el carbohidrato se topa y las kcal que sobran se
+  // van a grasa. La proteina NO se toca — es lo que sostiene el musculo, y
+  // subirla "porque sobra" es el error clasico de las ketos caseras.
+  const keto = profile.diet === 'keto';
+
+  const fatRaw = keto
+    ? Math.max(
+        config.fatMinGPerKg * profile.weightKg,
+        (kcal - proteinG * 4 - config.ketoCarbMaxG * 4) / 9,
+      )
+    : Math.max(config.fatMinGPerKg * profile.weightKg, (config.fatMinPctKcal * kcal) / 9);
   const fatG = roundTo(fatRaw, config.macroRoundingG);
 
   const carbKcal = kcal - proteinG * 4 - fatG * 9;
-  const carbG = Math.max(0, roundTo(carbKcal / 4, config.macroRoundingG));
+  const carbRaw = Math.max(0, carbKcal / 4);
+  const carbG = roundTo(keto ? Math.min(carbRaw, config.ketoCarbMaxG) : carbRaw, config.macroRoundingG);
 
   const fiberBase = profile.conditions?.glucosaAlta ? config.fiberMinGHighGlucose : config.fiberMinG;
   const fiberG = Math.max(fiberBase, Math.round(carbG * 0.12));

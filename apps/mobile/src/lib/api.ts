@@ -52,6 +52,11 @@ export type MeResponse = {
     otherDisciplines?: DisciplineLoad[];
     /** Nivel en el agua; ordena el volumen de la sesión de natación. */
     swimLevel?: SwimLevel;
+    /** Estilo de dieta elegido. */
+    dietStyle?: DietStyle;
+    /** Ventana de alimentación del ayuno, en horas locales. */
+    fastingStartHour?: number | null;
+    fastingEndHour?: number | null;
   } | null;
 };
 
@@ -586,11 +591,17 @@ export function patchCheckinSchedule(
  * Se manda solo lo que cambió: la pantalla guarda un ajuste a la vez y mandar
  * el resto pisaría con valores viejos lo que se acaba de tocar.
  */
+export const DIET_STYLES = ["ESTANDAR", "AYUNO", "VEGETARIANA", "KETO"] as const;
+export type DietStyle = (typeof DIET_STYLES)[number];
+
 export type PreferenciasNutricion = {
   budget?: "BAJO" | "MEDIO" | "ALTO";
   maxPrepMin?: number | null;
   favoriteFoods?: string[];
   excludedFoods?: string[];
+  dietStyle?: DietStyle;
+  fastingStartHour?: number | null;
+  fastingEndHour?: number | null;
 };
 
 export type PreferenciasNutricionResponse = {
@@ -598,6 +609,9 @@ export type PreferenciasNutricionResponse = {
   maxPrepMin: number | null;
   favoriteFoods: string[];
   excludedFoods: string[];
+  dietStyle: DietStyle;
+  fastingStartHour: number | null;
+  fastingEndHour: number | null;
 };
 
 export function patchNutricion(
@@ -641,6 +655,65 @@ export function patchEntrenamiento(
   return apiFetch<PreferenciasEntrenamientoResponse>("/api/v1/me/entrenamiento", {
     method: "PATCH",
     body: cambios,
+  });
+}
+
+/** Un valor de un estudio, tal como lo imprimió el laboratorio. */
+export type LabValue = {
+  key: string;
+  label: string;
+  value: number;
+  unit: string;
+  refLow: number | null;
+  refHigh: number | null;
+};
+
+export type LabResult = {
+  id: string;
+  kind: "INBODY" | "QUIMICA";
+  takenOn: string;
+  values: LabValue[];
+  filePath: string | null;
+  notes: string | null;
+  /** Llaves fuera del rango del PROPIO laboratorio. No es un diagnóstico. */
+  outsideRange: string[];
+  /** Si un InBody se contradice a sí mismo, aquí se dice por qué. */
+  coherence: { coherent: boolean; reason: string | null };
+};
+
+export type LabsResponse = { labs: LabResult[]; disclaimer: string };
+
+export function getLabs(): Promise<LabsResponse> {
+  return apiFetch<LabsResponse>("/api/v1/labs");
+}
+
+export function postLab(input: {
+  kind: "INBODY" | "QUIMICA";
+  takenOn: string;
+  values: Array<Omit<LabValue, "unit" | "refLow" | "refHigh"> & Partial<LabValue>>;
+  notes?: string | null;
+}): Promise<{ lab: LabResult; disclaimer: string }> {
+  return apiFetch<{ lab: LabResult; disclaimer: string }>("/api/v1/labs", {
+    method: "POST",
+    body: input,
+  });
+}
+
+export type ConsultaResponse = {
+  answer: string;
+  category: "URGENCIA" | "CLINICO" | "TCA" | "FUERA_DE_ALCANCE" | "OK";
+  blocked: boolean;
+  disclaimer: string;
+};
+
+/**
+ * Pregunta sobre el plan de alimentación. El servidor frena las preguntas
+ * clínicas ANTES de redactar nada: el freno no es un texto en un prompt.
+ */
+export function preguntarNutricion(question: string): Promise<ConsultaResponse> {
+  return apiFetch<ConsultaResponse>("/api/v1/nutricion/consulta", {
+    method: "POST",
+    body: { question },
   });
 }
 

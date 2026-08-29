@@ -76,3 +76,64 @@ export const PORQUE_DEL_PLAN = [
       "Cada intercambio ya está calculado para caer dentro del 10 % del macro que reemplaza. Cambiar por lo que sí tienes en casa es mejor que saltarte la comida.",
   },
 ] as const;
+
+/**
+ * Los estilos de dieta, con lo que cambia cada uno.
+ *
+ * Se elige explícitamente. Una IA que decide sola tu filosofía nutricional
+ * sin que sepas cuál es la caja negra que este diseño evita a propósito: el
+ * motor es determinista y la IA solo redacta.
+ */
+export const ESTILOS_DIETA = [
+  {
+    valor: "ESTANDAR" as const,
+    nombre: "Estándar por equivalencias",
+    detalle:
+      "El método del coach: proteína alta, carbohidratos alrededor del entrenamiento y equivalencias por alimento. Es el único con 19 semanas de decisiones reales detrás.",
+  },
+  {
+    valor: "AYUNO" as const,
+    nombre: "Ayuno intermitente",
+    detalle:
+      "Las mismas comidas y los mismos gramos, comprimidos en tu ventana. Mueve horarios, no números.",
+  },
+  {
+    valor: "VEGETARIANA" as const,
+    nombre: "Vegetariana",
+    detalle:
+      "Sin carne, pollo ni pescado; huevo y lácteos se quedan. Cambia el catálogo, no la fórmula.",
+  },
+  {
+    valor: "KETO" as const,
+    nombre: "Keto",
+    detalle:
+      "El carbohidrato baja a un tope y las calorías que sobran se van a grasa. La proteína no se mueve.",
+  },
+];
+
+/** Ventanas de alimentación de uso común para el ayuno. */
+export const VENTANAS_AYUNO = [
+  { inicio: 12, fin: 20, nombre: "16/8 · 12–20 h" },
+  { inicio: 13, fin: 21, nombre: "16/8 · 13–21 h" },
+  { inicio: 10, fin: 18, nombre: "16/8 · 10–18 h" },
+  { inicio: 14, fin: 20, nombre: "18/6 · 14–20 h" },
+];
+
+/**
+ * El aviso que va con el estilo elegido, cuando hay algo que advertir.
+ *
+ * Son advertencias de coherencia, no clínicas: la app dice cuándo tu propia
+ * configuración se pelea consigo misma, y ahí se detiene.
+ */
+export function avisoDeDieta(
+  estilo: string,
+  opciones: { entrenaTemprano: boolean; inicioVentana: number | null },
+): string | null {
+  if (estilo === "AYUNO" && opciones.entrenaTemprano && (opciones.inicioVentana ?? 12) > 9) {
+    return "Entrenas en la mañana y tu ventana abre después: vas a entrenar en ayuno y a comer el post-entreno horas más tarde. Si te cuesta, mueve la ventana o el entrenamiento.";
+  }
+  if (estilo === "KETO") {
+    return "En keto los días altos en carbohidrato de la fase de recarga no aplican: esas calorías se quedan en grasa. Si tu fase cambia, el plan lo dirá.";
+  }
+  return null;
+}

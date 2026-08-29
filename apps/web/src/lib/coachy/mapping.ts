@@ -3,10 +3,12 @@ import { DEFAULT_CONFIG, loadConfig } from "engine";
 
 import { decimalToNumber } from "@/lib/format";
 import { palAdjustment, type ActivityWindow, type PalAdjustment } from "@/lib/health/activity";
+import type { DietStyle } from "@prisma/client";
 import type {
   EngineCheckIn,
   EngineConfig,
   EngineCyclePhase,
+  EngineDietStyle,
   EngineProfile,
   EngineStrengthTrend,
 } from "@/lib/engine-types";
@@ -55,6 +57,14 @@ function yearsSince(date: Date | null): number | null {
 /** Edad por defecto cuando el onboarding no pidió fecha de nacimiento. */
 const DEFAULT_AGE_YEARS = 30;
 
+/** El enum del schema, en el vocabulario del motor. */
+const DIET_STYLE_TO_ENGINE: Record<DietStyle, EngineDietStyle> = {
+  ESTANDAR: "estandar",
+  AYUNO: "ayuno",
+  VEGETARIANA: "vegetariana",
+  KETO: "keto",
+};
+
 export function toEngineProfile(profile: Profile, latestWeightKg?: number | null): EngineProfile {
   const heightCm = decimalToNumber(profile.heightCm);
   const weightKg = latestWeightKg ?? decimalToNumber(profile.weightKg);
@@ -97,6 +107,16 @@ export function toEngineProfile(profile: Profile, latestWeightKg?: number | null
     // Tope de tiempo de cocina. El motor lo trata como preferencia: si deja un
     // rol sin candidatos, prefiere darte de comer a respetar el tope.
     ...(profile.maxPrepMin !== null ? { maxPrepMin: profile.maxPrepMin } : {}),
+    // Estilo de dieta (Fase 8). El motor solo conoce minúsculas.
+    diet: DIET_STYLE_TO_ENGINE[profile.dietStyle],
+    ...(profile.fastingStartHour !== null && profile.fastingEndHour !== null
+      ? {
+          fastingWindow: {
+            startHour: profile.fastingStartHour,
+            endHour: profile.fastingEndHour,
+          },
+        }
+      : {}),
     conditions: {
       glucosaAlta: conditions.includes("glucosa_alta"),
       lesionActiva: conditions.includes("lesion_activa"),

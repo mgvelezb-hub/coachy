@@ -42,8 +42,22 @@ const schema = z
     maxPrepMin: z.number().int().min(5).max(120).nullable().optional(),
     favoriteFoods: foodList(30).optional(),
     excludedFoods: foodList(30).optional(),
+    /** Estilo de dieta. Se elige; la app no lo decide por ti. */
+    dietStyle: z.enum(["ESTANDAR", "AYUNO", "VEGETARIANA", "KETO"]).optional(),
+    /** Ventana de alimentación del ayuno, en horas locales. */
+    fastingStartHour: z.number().int().min(0).max(23).nullable().optional(),
+    fastingEndHour: z.number().int().min(0).max(23).nullable().optional(),
   })
-  .refine((value) => Object.keys(value).length > 0, { message: "no hay nada que guardar" });
+  .refine((value) => Object.keys(value).length > 0, { message: "no hay nada que guardar" })
+  .refine(
+    (value) =>
+      value.fastingStartHour === undefined ||
+      value.fastingEndHour === undefined ||
+      value.fastingStartHour === null ||
+      value.fastingEndHour === null ||
+      value.fastingEndHour - value.fastingStartHour >= 1,
+    { message: "la ventana de alimentación tiene que durar al menos una hora" },
+  );
 
 export async function PATCH(request: Request): Promise<NextResponse> {
   const user = await apiUser(request);
@@ -67,7 +81,8 @@ export async function PATCH(request: Request): Promise<NextResponse> {
     );
   }
 
-  const { budget, maxPrepMin, favoriteFoods, excludedFoods } = parsed.data;
+  const { budget, maxPrepMin, favoriteFoods, excludedFoods, dietStyle, fastingStartHour, fastingEndHour } =
+    parsed.data;
 
   const profile = await prisma.profile.update({
     where: { userId: user.id },
@@ -76,8 +91,19 @@ export async function PATCH(request: Request): Promise<NextResponse> {
       ...(maxPrepMin !== undefined ? { maxPrepMin } : {}),
       ...(favoriteFoods !== undefined ? { favoriteFoods } : {}),
       ...(excludedFoods !== undefined ? { excludedFoods } : {}),
+      ...(dietStyle !== undefined ? { dietStyle } : {}),
+      ...(fastingStartHour !== undefined ? { fastingStartHour } : {}),
+      ...(fastingEndHour !== undefined ? { fastingEndHour } : {}),
     },
-    select: { budget: true, maxPrepMin: true, favoriteFoods: true, excludedFoods: true },
+    select: {
+      budget: true,
+      maxPrepMin: true,
+      favoriteFoods: true,
+      excludedFoods: true,
+      dietStyle: true,
+      fastingStartHour: true,
+      fastingEndHour: true,
+    },
   });
 
   return NextResponse.json(profile);

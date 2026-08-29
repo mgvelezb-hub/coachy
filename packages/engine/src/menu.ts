@@ -78,6 +78,10 @@ function eligible(
     if (options.freeVegetable && food.carbPer100 > config.freeVegetableMaxCarbPer100) return false;
     if (options.noSupplements && food.tags.includes('suplemento')) return false;
     if (matchesAny(food, excluded)) return false;
+    // Vegetariana es ovolactovegetariana: sale la carne, el pollo y el
+    // pescado; el huevo y los lacteos se quedan. El catalogo trae la etiqueta
+    // por alimento, así que aquí no se adivina por nombre.
+    if (profile.diet === 'vegetariana' && food.tags.includes('no_vegetariano')) return false;
     // Escalera de precio: bajo = solo lo más barato, medio = hasta el
     // intermedio, alto = sin tope.
     const topeDeCosto = profile.budget === 'bajo' ? 1 : profile.budget === 'medio' ? 2 : 3;

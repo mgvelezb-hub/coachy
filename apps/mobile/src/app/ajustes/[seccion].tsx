@@ -22,10 +22,11 @@ import {
   type Discipline,
   type DisciplineLoad,
   type MeResponse,
+  type DietStyle,
   type MuscleGroup,
   type SwimLevel,
 } from "@/lib/api";
-import { PRESUPUESTOS } from "@/lib/nutricion";
+import { ESTILOS_DIETA, PRESUPUESTOS, VENTANAS_AYUNO, avisoDeDieta } from "@/lib/nutricion";
 import {
   DISCIPLINAS,
   GRUPOS,
@@ -272,6 +273,49 @@ export default function AjustesDetalleScreen() {
       setAlimentosMsg(
         error instanceof ApiError ? error.message : "No se pudieron guardar tus alimentos",
       );
+    }
+  }
+
+  // Estilo de dieta y, si es ayuno, la ventana en la que sí se come.
+  const [dieta, setDieta] = useState<DietStyle>("ESTANDAR");
+  const [ventana, setVentana] = useState<{ inicio: number | null; fin: number | null }>({
+    inicio: null,
+    fin: null,
+  });
+  const [dietaMsg, setDietaMsg] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!me?.profile) return;
+    setDieta(me.profile.dietStyle ?? "ESTANDAR");
+    setVentana({
+      inicio: me.profile.fastingStartHour ?? null,
+      fin: me.profile.fastingEndHour ?? null,
+    });
+  }, [me]);
+
+  async function guardarDieta(valor: DietStyle) {
+    const anterior = dieta;
+    setDieta(valor);
+    setDietaMsg(null);
+    try {
+      await patchNutricion({ dietStyle: valor });
+      setDietaMsg("Guardado. Entra en tu siguiente menú, no en el de esta semana.");
+    } catch (error) {
+      setDieta(anterior);
+      setDietaMsg(error instanceof ApiError ? error.message : "No se pudo guardar tu dieta");
+    }
+  }
+
+  async function guardarVentana(inicio: number, fin: number) {
+    const anterior = ventana;
+    setVentana({ inicio, fin });
+    setDietaMsg(null);
+    try {
+      await patchNutricion({ fastingStartHour: inicio, fastingEndHour: fin });
+      setDietaMsg(`Listo: comes entre las ${inicio}:00 y las ${fin}:00.`);
+    } catch (error) {
+      setVentana(anterior);
+      setDietaMsg(error instanceof ApiError ? error.message : "No se pudo guardar tu ventana");
     }
   }
 
@@ -713,6 +757,66 @@ export default function AjustesDetalleScreen() {
 
         {activa === "nutricion" && (
         <>
+        <Card>
+          <SectionLabel>Tu tipo de dieta</SectionLabel>
+          <Text style={styles.vaultIntro}>
+            Cada estilo cambia una cosa y nada más. Lo eliges tú: la app no decide sola qué
+            filosofía sigues, y te dice qué implica cada una antes de cambiar.
+          </Text>
+
+          <View style={styles.presupuestoLista}>
+            {ESTILOS_DIETA.map((estilo) => (
+              <Pressable
+                key={estilo.valor}
+                onPress={() => guardarDieta(estilo.valor)}
+                style={[styles.presupuestoFila, dieta === estilo.valor && styles.presupuestoFilaOn]}
+              >
+                <Text
+                  style={[
+                    styles.presupuestoNombre,
+                    dieta === estilo.valor && styles.presupuestoNombreOn,
+                  ]}
+                >
+                  {estilo.nombre}
+                </Text>
+                <Text style={styles.presupuestoDetalle}>{estilo.detalle}</Text>
+              </Pressable>
+            ))}
+          </View>
+
+          {dieta === "AYUNO" && (
+            <>
+              <Text style={styles.cierreLabel}>Tu ventana para comer</Text>
+              <View style={styles.cierreRow}>
+                {VENTANAS_AYUNO.map((opcion) => {
+                  const activo = ventana.inicio === opcion.inicio && ventana.fin === opcion.fin;
+                  return (
+                    <Pressable
+                      key={opcion.nombre}
+                      onPress={() => guardarVentana(opcion.inicio, opcion.fin)}
+                      style={[styles.cierreChip, activo && styles.cierreChipOn]}
+                    >
+                      <Text style={[styles.cierreChipText, activo && styles.cierreChipTextOn]}>
+                        {opcion.nombre}
+                      </Text>
+                    </Pressable>
+                  );
+                })}
+              </View>
+            </>
+          )}
+
+          {(() => {
+            const aviso = avisoDeDieta(dieta, {
+              entrenaTemprano: (me?.profile?.checkinHour ?? 9) < 12,
+              inicioVentana: ventana.inicio,
+            });
+            return aviso ? <Text style={styles.vaultMsg}>{aviso}</Text> : null;
+          })()}
+
+          {dietaMsg && <Text style={styles.vaultMsg}>{dietaMsg}</Text>}
+        </Card>
+
         <Card>
           <SectionLabel>Presupuesto de despensa</SectionLabel>
           <Text style={styles.vaultIntro}>

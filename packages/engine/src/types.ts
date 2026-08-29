@@ -89,7 +89,27 @@ export interface Profile {
   conditions?: ProfileConditions;
   /** Minutos disponibles por sesion de cocina; el generador prefiere recetas mas rapidas si es bajo. */
   maxPrepMin?: number;
+  /**
+   * Estilo de dieta (Fase 8). `estandar` es el metodo del coach; los demas
+   * cambian una cosa cada uno y nada mas:
+   *
+   * - `ayuno` mueve horarios, no macros: el motor reparte las mismas comidas
+   *   dentro de la ventana declarada.
+   * - `vegetariana` cambia el catalogo (ovolactovegetariana: huevo y lacteos
+   *   se quedan), no la formula.
+   * - `keto` si cambia la formula: el carbohidrato baja a un tope y las kcal
+   *   que sobran se van a grasa.
+   */
+  diet?: DietStyle;
+  /**
+   * Ventana de alimentacion para `ayuno`: hora de inicio y de fin, 0-23.
+   * Sin ella, el ayuno usa 12:00-20:00, que es el 16/8 mas comun.
+   */
+  fastingWindow?: { startHour: number; endHour: number };
 }
+
+export const DIET_STYLES = ['estandar', 'ayuno', 'vegetariana', 'keto'] as const;
+export type DietStyle = (typeof DIET_STYLES)[number];
 
 /** Cambio de contexto declarado por el atleta (no es un resultado corporal). */
 export interface ContextChange {

@@ -71,6 +71,55 @@ function templateFor(profile: Profile): SlotTemplate[] {
   return MORNING_4;
 }
 
+/** Hora "HH:MM" a minutos desde medianoche. */
+function toMinutes(time: string): number {
+  const [hour, minute] = time.split(':').map((part) => Number(part));
+  return (hour ?? 0) * 60 + (minute ?? 0);
+}
+
+function toClock(minutes: number): string {
+  const total = ((Math.round(minutes) % 1440) + 1440) % 1440;
+  const hour = Math.floor(total / 60);
+  const minute = total % 60;
+  return `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`;
+}
+
+/** Ventana de alimentacion por defecto: 16/8, que es la version mas comun. */
+const DEFAULT_FASTING_WINDOW = { startHour: 12, endHour: 20 };
+
+/**
+ * Recoloca los horarios dentro de la ventana de ayuno.
+ *
+ * El ayuno intermitente **mueve horarios, no macros**: las mismas comidas, los
+ * mismos gramos, comprimidos en la ventana. Se conserva el ORDEN y el reparto
+ * relativo del dia original, de modo que la comida pre-entreno sigue antes que
+ * la post y la cena sigue siendo la ultima.
+ *
+ * Lo que este modulo NO hace es opinar sobre si el entrenamiento cae fuera de
+ * la ventana. Eso lo dice la app con los datos del perfil, porque es una
+ * advertencia, no un ajuste.
+ */
+function withFastingWindow(template: SlotTemplate[], profile: Profile): SlotTemplate[] {
+  if (profile.diet !== 'ayuno' || template.length === 0) return template;
+
+  const window = profile.fastingWindow ?? DEFAULT_FASTING_WINDOW;
+  const start = clamp(Math.round(window.startHour), 0, 23) * 60;
+  const end = clamp(Math.round(window.endHour), 0, 23) * 60;
+  // Una ventana invertida o de una hora no se corrige a la brava: se ignora y
+  // el dia se queda como estaba, que es mejor que inventar horarios absurdos.
+  if (end - start < 60) return template;
+
+  const original = template.map((slot) => toMinutes(slot.timeHint));
+  const first = Math.min(...original);
+  const last = Math.max(...original);
+  const span = last - first;
+
+  return template.map((slot, index) => {
+    const position = span > 0 ? (original[index]! - first) / span : index / Math.max(1, template.length - 1);
+    return { ...slot, timeHint: toClock(start + position * (end - start)) };
+  });
+}
+
 /** Reparte `total` entre pesos, en gramos enteros, sin perder ni inventar gramos. */
 function allocate(total: number, weights: number[]): number[] {
   const sum = weights.reduce((a, b) => a + b, 0);
@@ -108,7 +157,7 @@ export function distribute(
   phase: Phase = 'BASE',
   _config: EngineConfig = DEFAULT_CONFIG,
 ): MealSlot[] {
-  const template = templateFor(profile);
+  const template = withFastingWindow(templateFor(profile), profile);
   const aggressive = NO_DENSE_CARB_PHASES.includes(phase);
 
   const carbWeights = template.map((t) => (aggressive ? t.carbPctAggressive : t.carbPct));

@@ -134,6 +134,15 @@ enum Discipline {
   OTRO
 }
 
+/// Estilo de dieta. Cada uno cambia una cosa: el ayuno los horarios, la
+/// vegetariana el catálogo, la keto el reparto de macros.
+enum DietStyle {
+  ESTANDAR
+  AYUNO
+  VEGETARIANA
+  KETO
+}
+
 /// Nivel de natación declarado por la atleta. Ordena volumen y descansos.
 enum SwimLevel {
   PRINCIPIANTE
@@ -166,6 +175,7 @@ model User {
   workouts           Workout[]
   healthDays         HealthDay[]
   activitySessions   ActivitySession[]
+  labResults         LabResult[]
   conversations      Conversation[]
   notifications      Notification[]
   trainingExamples   TrainingExample[] @relation("TrainingExampleAthlete")
@@ -206,6 +216,15 @@ model Profile {
   /// tope. El motor descarta los alimentos que pidan más, salvo que el tope
   /// deje un rol sin con qué comer (ahí manda comer, no el tope).
   maxPrepMin    Int?     @map("max_prep_min")
+
+  // -- Estilo de dieta (Fase 8) ---------------------------------------------
+  /// Qué método sigue el plan. Se elige explícitamente: una IA que decide sola
+  /// tu filosofía nutricional es justo la caja negra que este diseño evita.
+  dietStyle        DietStyle @default(ESTANDAR) @map("diet_style")
+  /// Ventana de alimentación para el ayuno, en horas locales (0-23).
+  /// `null` = 12:00-20:00, el 16/8 de uso más común.
+  fastingStartHour Int?      @map("fasting_start_hour")
+  fastingEndHour   Int?      @map("fasting_end_hour")
   allergies     String[]
   /// Etiquetas libres: glucosa_alta, lesion_activa, ciclo_tracking, ...
   conditions    String[]
@@ -614,6 +633,48 @@ model Food {
 
   @@index([role])
   @@map("foods")
+}
+
+/// Qué tipo de estudio se cargó.
+enum LabKind {
+  /// Bioimpedancia (InBody y equivalentes).
+  INBODY
+  /// Química sanguínea y perfiles de laboratorio.
+  QUIMICA
+}
+
+/// Un estudio cargado por la atleta (Fase 8).
+///
+/// **La app guarda y grafica. No interpreta.** No hay rangos de referencia
+/// propios: si el laboratorio imprimió los suyos, se capturan y se dibujan
+/// como banda; si no, el valor se grafica solo. Decir "tu glucosa está alta"
+/// sería diagnosticar, y eso lo hace un médico con el paciente enfrente.
+model LabResult {
+  id     String @id @default(uuid()) @db.Uuid
+  userId String @map("user_id") @db.Uuid
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  kind    LabKind
+  /// Fecha del estudio, no la de captura.
+  takenOn DateTime @map("taken_on") @db.Date
+
+  /**
+   * Valores del estudio:
+   * `[{ "key": "glucosa", "label": "Glucosa", "value": 100, "unit": "mg/dL",
+   *     "refLow": 70, "refHigh": 100 }]`
+   * `refLow`/`refHigh` son los del propio laboratorio y pueden faltar.
+   */
+  valuesJson Json @map("values_json")
+
+  /// Ruta en Storage del PDF original, si se subió.
+  filePath String? @map("file_path")
+  notes    String?
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@unique([userId, kind, takenOn])
+  @@index([userId, takenOn])
+  @@map("lab_results")
 }
 
 // ---------------------------------------------------------------------------

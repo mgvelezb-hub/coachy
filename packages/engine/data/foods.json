@@ -12,9 +12,10 @@
     "costRel": 2,
     "prepMin": 20,
     "tags": [
-      "mexicano",
       "favorito",
-      "meal_prep"
+      "meal_prep",
+      "mexicano",
+      "no_vegetariano"
     ],
     "servingG": 150,
     "unit": "g"
@@ -32,7 +33,8 @@
     "costRel": 2,
     "prepMin": 20,
     "tags": [
-      "meal_prep"
+      "meal_prep",
+      "no_vegetariano"
     ],
     "servingG": 150,
     "unit": "g"
@@ -50,9 +52,10 @@
     "costRel": 1,
     "prepMin": 8,
     "tags": [
-      "mexicano",
       "favorito",
-      "rapido"
+      "mexicano",
+      "rapido",
+      "vegetariano"
     ],
     "servingG": 120,
     "unit": "g"
@@ -70,8 +73,9 @@
     "costRel": 1,
     "prepMin": 2,
     "tags": [
-      "mexicano",
       "favorito",
+      "mexicano",
+      "no_vegetariano",
       "rapido",
       "sin_cocinar"
     ],
@@ -91,7 +95,8 @@
     "costRel": 2,
     "prepMin": 15,
     "tags": [
-      "favorito"
+      "favorito",
+      "no_vegetariano"
     ],
     "servingG": 160,
     "unit": "g"
@@ -108,7 +113,9 @@
     "gi": null,
     "costRel": 3,
     "prepMin": 15,
-    "tags": [],
+    "tags": [
+      "no_vegetariano"
+    ],
     "servingG": 160,
     "unit": "g"
   },
@@ -125,7 +132,8 @@
     "costRel": 3,
     "prepMin": 15,
     "tags": [
-      "mexicano"
+      "mexicano",
+      "no_vegetariano"
     ],
     "servingG": 150,
     "unit": "g"
@@ -143,7 +151,8 @@
     "costRel": 3,
     "prepMin": 10,
     "tags": [
-      "mexicano"
+      "mexicano",
+      "no_vegetariano"
     ],
     "servingG": 150,
     "unit": "g"
@@ -161,8 +170,9 @@
     "costRel": 3,
     "prepMin": 15,
     "tags": [
+      "favorito",
       "mexicano",
-      "favorito"
+      "no_vegetariano"
     ],
     "servingG": 150,
     "unit": "g"
@@ -182,7 +192,8 @@
     "tags": [
       "favorito",
       "rapido",
-      "sin_cocinar"
+      "sin_cocinar",
+      "vegetariano"
     ],
     "servingG": 200,
     "unit": "g"
@@ -201,7 +212,8 @@
     "prepMin": 1,
     "tags": [
       "rapido",
-      "sin_cocinar"
+      "sin_cocinar",
+      "vegetariano"
     ],
     "servingG": 120,
     "unit": "g"
@@ -220,7 +232,8 @@
     "prepMin": 1,
     "tags": [
       "mexicano",
-      "rapido"
+      "rapido",
+      "vegetariano"
     ],
     "servingG": 120,
     "unit": "g"
@@ -238,6 +251,7 @@
     "costRel": 2,
     "prepMin": 1,
     "tags": [
+      "no_vegetariano",
       "rapido",
       "sin_cocinar"
     ],
@@ -259,7 +273,8 @@
     "tags": [
       "favorito",
       "rapido",
-      "suplemento"
+      "suplemento",
+      "vegetariano"
     ],
     "servingG": 30,
     "unit": "g",
@@ -278,9 +293,9 @@
     "costRel": 3,
     "prepMin": 1,
     "tags": [
-      "vegetariano",
       "rapido",
-      "suplemento"
+      "suplemento",
+      "vegetariano"
     ],
     "servingG": 30,
     "unit": "g",
@@ -299,7 +314,8 @@
     "costRel": 1,
     "prepMin": 1,
     "tags": [
-      "rapido"
+      "rapido",
+      "vegetariano"
     ],
     "servingG": 250,
     "unit": "ml",
@@ -318,7 +334,8 @@
     "costRel": 2,
     "prepMin": 3,
     "tags": [
-      "rapido"
+      "rapido",
+      "vegetariano"
     ],
     "servingG": 150,
     "unit": "ml"
@@ -336,9 +353,10 @@
     "costRel": 1,
     "prepMin": 8,
     "tags": [
-      "mexicano",
       "favorito",
-      "rapido"
+      "mexicano",
+      "rapido",
+      "vegetariano"
     ],
     "servingG": 55,
     "unit": "pieza"
@@ -355,7 +373,9 @@
     "gi": null,
     "costRel": 3,
     "prepMin": 15,
-    "tags": [],
+    "tags": [
+      "no_vegetariano"
+    ],
     "servingG": 150,
     "unit": "g"
   },
@@ -373,6 +393,7 @@
     "prepMin": 2,
     "tags": [
       "mexicano",
+      "no_vegetariano",
       "rapido",
       "sin_cocinar"
     ],
@@ -392,7 +413,8 @@
     "costRel": 2,
     "prepMin": 25,
     "tags": [
-      "mexicano"
+      "mexicano",
+      "no_vegetariano"
     ],
     "servingG": 150,
     "unit": "g"
@@ -410,9 +432,10 @@
     "costRel": 2,
     "prepMin": 1,
     "tags": [
-      "mexicano",
       "favorito",
-      "rapido"
+      "mexicano",
+      "rapido",
+      "vegetariano"
     ],
     "servingG": 100,
     "unit": "g"
@@ -431,7 +454,8 @@
     "prepMin": 1,
     "tags": [
       "mexicano",
-      "rapido"
+      "rapido",
+      "vegetariano"
     ],
     "servingG": 80,
     "unit": "g"
@@ -485,6 +509,7 @@
     "costRel": 1,
     "prepMin": 2,
     "tags": [
+      "no_vegetariano",
       "rapido",
       "sin_cocinar"
     ],
@@ -505,7 +530,8 @@
     "prepMin": 5,
     "tags": [
       "favorito",
-      "rapido"
+      "rapido",
+      "vegetariano"
     ],
     "servingG": 50,
     "unit": "g",
@@ -525,7 +551,8 @@
     "prepMin": 1,
     "tags": [
       "rapido",
-      "sin_cocinar"
+      "sin_cocinar",
+      "vegetariano"
     ],
     "servingG": 60,
     "unit": "g",
@@ -544,7 +571,8 @@
     "costRel": 2,
     "prepMin": 1,
     "tags": [
-      "rapido"
+      "rapido",
+      "vegetariano"
     ],
     "servingG": 15,
     "unit": "g",
@@ -564,7 +592,8 @@
     "prepMin": 2,
     "tags": [
       "mexicano",
-      "rapido"
+      "rapido",
+      "vegetariano"
     ],
     "servingG": 30,
     "unit": "g",
@@ -583,7 +612,8 @@
     "costRel": 3,
     "prepMin": 1,
     "tags": [
-      "rapido"
+      "rapido",
+      "vegetariano"
     ],
     "servingG": 40,
     "unit": "g",
@@ -602,8 +632,9 @@
     "costRel": 1,
     "prepMin": 20,
     "tags": [
+      "favorito",
       "mexicano",
-      "favorito"
+      "vegetariano"
     ],
     "servingG": 150,
     "unit": "g"
@@ -621,8 +652,9 @@
     "costRel": 1,
     "prepMin": 25,
     "tags": [
+      "favorito",
       "mexicano",
-      "favorito"
+      "vegetariano"
     ],
     "servingG": 150,
     "unit": "g"
@@ -641,7 +673,8 @@
     "prepMin": 1,
     "tags": [
       "rapido",
-      "sin_cocinar"
+      "sin_cocinar",
+      "vegetariano"
     ],
     "servingG": 40,
     "unit": "g",
@@ -660,7 +693,8 @@
     "costRel": 1,
     "prepMin": 25,
     "tags": [
-      "mexicano"
+      "mexicano",
+      "vegetariano"
     ],
     "servingG": 200,
     "unit": "g"
@@ -678,9 +712,10 @@
     "costRel": 1,
     "prepMin": 2,
     "tags": [
-      "mexicano",
       "favorito",
-      "rapido"
+      "mexicano",
+      "rapido",
+      "vegetariano"
     ],
     "servingG": 30,
     "unit": "pieza",
@@ -699,10 +734,11 @@
     "costRel": 1,
     "prepMin": 1,
     "tags": [
-      "mexicano",
       "favorito",
+      "mexicano",
       "rapido",
-      "sin_cocinar"
+      "sin_cocinar",
+      "vegetariano"
     ],
     "servingG": 120,
     "unit": "pieza"
@@ -720,8 +756,9 @@
     "costRel": 1,
     "prepMin": 35,
     "tags": [
+      "favorito",
       "mexicano",
-      "favorito"
+      "vegetariano"
     ],
     "servingG": 180,
     "unit": "g"
@@ -739,7 +776,8 @@
     "costRel": 3,
     "prepMin": 20,
     "tags": [
-      "favorito"
+      "favorito",
+      "vegetariano"
     ],
     "servingG": 180,
     "unit": "g"
@@ -757,8 +795,9 @@
     "costRel": 1,
     "prepMin": 10,
     "tags": [
+      "favorito",
       "mexicano",
-      "favorito"
+      "vegetariano"
     ],
     "servingG": 120,
     "unit": "g"
@@ -776,8 +815,9 @@
     "costRel": 1,
     "prepMin": 30,
     "tags": [
+      "favorito",
       "mexicano",
-      "favorito"
+      "vegetariano"
     ],
     "servingG": 150,
     "unit": "g"
@@ -795,7 +835,8 @@
     "costRel": 1,
     "prepMin": 30,
     "tags": [
-      "mexicano"
+      "mexicano",
+      "vegetariano"
     ],
     "servingG": 120,
     "unit": "g"
@@ -813,7 +854,8 @@
     "costRel": 1,
     "prepMin": 30,
     "tags": [
-      "mexicano"
+      "mexicano",
+      "vegetariano"
     ],
     "servingG": 120,
     "unit": "g"
@@ -830,7 +872,9 @@
     "gi": 42,
     "costRel": 2,
     "prepMin": 15,
-    "tags": [],
+    "tags": [
+      "vegetariano"
+    ],
     "servingG": 150,
     "unit": "g"
   },
@@ -848,7 +892,8 @@
     "prepMin": 1,
     "tags": [
       "rapido",
-      "sin_cocinar"
+      "sin_cocinar",
+      "vegetariano"
     ],
     "servingG": 60,
     "unit": "g",
@@ -867,7 +912,8 @@
     "costRel": 1,
     "prepMin": 15,
     "tags": [
-      "mexicano"
+      "mexicano",
+      "vegetariano"
     ],
     "servingG": 150,
     "unit": "g"
@@ -885,10 +931,11 @@
     "costRel": 1,
     "prepMin": 1,
     "tags": [
-      "mexicano",
       "favorito",
+      "mexicano",
       "rapido",
-      "sin_cocinar"
+      "sin_cocinar",
+      "vegetariano"
     ],
     "servingG": 15,
     "unit": "pieza",
@@ -907,7 +954,8 @@
     "costRel": 1,
     "prepMin": 8,
     "tags": [
-      "rapido"
+      "rapido",
+      "vegetariano"
     ],
     "servingG": 250,
     "unit": "g"
@@ -926,7 +974,8 @@
     "prepMin": 2,
     "tags": [
       "mexicano",
-      "rapido"
+      "rapido",
+      "vegetariano"
     ],
     "servingG": 30,
     "unit": "pieza",
@@ -945,7 +994,8 @@
     "costRel": 2,
     "prepMin": 1,
     "tags": [
-      "rapido"
+      "rapido",
+      "vegetariano"
     ],
     "servingG": 10,
     "unit": "ml",
@@ -964,10 +1014,11 @@
     "costRel": 2,
     "prepMin": 2,
     "tags": [
-      "mexicano",
       "favorito",
+      "mexicano",
       "rapido",
-      "sin_cocinar"
+      "sin_cocinar",
+      "vegetariano"
     ],
     "servingG": 70,
     "unit": "g"
@@ -987,7 +1038,8 @@
     "tags": [
       "favorito",
       "rapido",
-      "sin_cocinar"
+      "sin_cocinar",
+      "vegetariano"
     ],
     "servingG": 20,
     "unit": "g"
@@ -1006,7 +1058,8 @@
     "prepMin": 1,
     "tags": [
       "rapido",
-      "sin_cocinar"
+      "sin_cocinar",
+      "vegetariano"
     ],
     "servingG": 20,
     "unit": "g"
@@ -1026,7 +1079,8 @@
     "tags": [
       "mexicano",
       "rapido",
-      "sin_cocinar"
+      "sin_cocinar",
+      "vegetariano"
     ],
     "servingG": 20,
     "unit": "g"
@@ -1044,7 +1098,8 @@
     "costRel": 2,
     "prepMin": 1,
     "tags": [
-      "rapido"
+      "rapido",
+      "vegetariano"
     ],
     "servingG": 15,
     "unit": "g",
@@ -1063,7 +1118,8 @@
     "costRel": 1,
     "prepMin": 1,
     "tags": [
-      "rapido"
+      "rapido",
+      "vegetariano"
     ],
     "servingG": 20,
     "unit": "g"
@@ -1082,7 +1138,8 @@
     "prepMin": 1,
     "tags": [
       "favorito",
-      "rapido"
+      "rapido",
+      "vegetariano"
     ],
     "servingG": 15,
     "unit": "g",
@@ -1101,7 +1158,8 @@
     "costRel": 1,
     "prepMin": 1,
     "tags": [
-      "rapido"
+      "rapido",
+      "vegetariano"
     ],
     "servingG": 15,
     "unit": "g",
@@ -1121,7 +1179,8 @@
     "prepMin": 1,
     "tags": [
       "mexicano",
-      "rapido"
+      "rapido",
+      "vegetariano"
     ],
     "servingG": 10,
     "unit": "g",
@@ -1140,7 +1199,8 @@
     "costRel": 2,
     "prepMin": 1,
     "tags": [
-      "rapido"
+      "rapido",
+      "vegetariano"
     ],
     "servingG": 10,
     "unit": "g",
@@ -1160,7 +1220,8 @@
     "prepMin": 1,
     "tags": [
       "rapido",
-      "sin_cocinar"
+      "sin_cocinar",
+      "vegetariano"
     ],
     "servingG": 20,
     "unit": "g"
@@ -1179,7 +1240,8 @@
     "prepMin": 1,
     "tags": [
       "mexicano",
-      "rapido"
+      "rapido",
+      "vegetariano"
     ],
     "servingG": 10,
     "unit": "ml",
@@ -1198,7 +1260,8 @@
     "costRel": 1,
     "prepMin": 10,
     "tags": [
-      "favorito"
+      "favorito",
+      "vegetariano"
     ],
     "servingG": 200,
     "unit": "g"
@@ -1216,9 +1279,10 @@
     "costRel": 1,
     "prepMin": 3,
     "tags": [
-      "mexicano",
       "favorito",
-      "rapido"
+      "mexicano",
+      "rapido",
+      "vegetariano"
     ],
     "servingG": 150,
     "unit": "g"
@@ -1236,10 +1300,11 @@
     "costRel": 1,
     "prepMin": 2,
     "tags": [
-      "mexicano",
       "favorito",
+      "mexicano",
       "rapido",
-      "sin_cocinar"
+      "sin_cocinar",
+      "vegetariano"
     ],
     "servingG": 150,
     "unit": "g"
@@ -1257,10 +1322,11 @@
     "costRel": 1,
     "prepMin": 2,
     "tags": [
-      "mexicano",
       "favorito",
+      "mexicano",
       "rapido",
-      "sin_cocinar"
+      "sin_cocinar",
+      "vegetariano"
     ],
     "servingG": 200,
     "unit": "g"
@@ -1278,8 +1344,9 @@
     "costRel": 1,
     "prepMin": 10,
     "tags": [
+      "favorito",
       "mexicano",
-      "favorito"
+      "vegetariano"
     ],
     "servingG": 200,
     "unit": "g"
@@ -1297,8 +1364,9 @@
     "costRel": 1,
     "prepMin": 10,
     "tags": [
+      "favorito",
       "mexicano",
-      "favorito"
+      "vegetariano"
     ],
     "servingG": 200,
     "unit": "g"
@@ -1316,7 +1384,8 @@
     "costRel": 3,
     "prepMin": 10,
     "tags": [
-      "favorito"
+      "favorito",
+      "vegetariano"
     ],
     "servingG": 150,
     "unit": "g"
@@ -1334,7 +1403,8 @@
     "costRel": 1,
     "prepMin": 12,
     "tags": [
-      "favorito"
+      "favorito",
+      "vegetariano"
     ],
     "servingG": 200,
     "unit": "g"
@@ -1352,8 +1422,9 @@
     "costRel": 2,
     "prepMin": 8,
     "tags": [
+      "favorito",
       "mexicano",
-      "favorito"
+      "vegetariano"
     ],
     "servingG": 150,
     "unit": "g"
@@ -1373,7 +1444,8 @@
     "tags": [
       "mexicano",
       "rapido",
-      "sin_cocinar"
+      "sin_cocinar",
+      "vegetariano"
     ],
     "servingG": 100,
     "unit": "g"
@@ -1393,7 +1465,8 @@
     "tags": [
       "mexicano",
       "rapido",
-      "sin_cocinar"
+      "sin_cocinar",
+      "vegetariano"
     ],
     "servingG": 150,
     "unit": "g"
@@ -1412,7 +1485,8 @@
     "prepMin": 3,
     "tags": [
       "mexicano",
-      "rapido"
+      "rapido",
+      "vegetariano"
     ],
     "servingG": 80,
     "unit": "g"
@@ -1430,7 +1504,8 @@
     "costRel": 1,
     "prepMin": 5,
     "tags": [
-      "mexicano"
+      "mexicano",
+      "vegetariano"
     ],
     "servingG": 150,
     "unit": "g"
@@ -1447,7 +1522,9 @@
     "gi": 15,
     "costRel": 2,
     "prepMin": 5,
-    "tags": [],
+    "tags": [
+      "vegetariano"
+    ],
     "servingG": 120,
     "unit": "g"
   },
@@ -1465,7 +1542,8 @@
     "prepMin": 2,
     "tags": [
       "rapido",
-      "sin_cocinar"
+      "sin_cocinar",
+      "vegetariano"
     ],
     "servingG": 120,
     "unit": "g"
@@ -1483,7 +1561,8 @@
     "costRel": 1,
     "prepMin": 5,
     "tags": [
-      "mexicano"
+      "mexicano",
+      "vegetariano"
     ],
     "servingG": 150,
     "unit": "g"
@@ -1501,7 +1580,8 @@
     "costRel": 1,
     "prepMin": 10,
     "tags": [
-      "mexicano"
+      "mexicano",
+      "vegetariano"
     ],
     "servingG": 100,
     "unit": "g"
@@ -1519,7 +1599,8 @@
     "costRel": 1,
     "prepMin": 10,
     "tags": [
-      "mexicano"
+      "mexicano",
+      "vegetariano"
     ],
     "servingG": 150,
     "unit": "g"
@@ -1539,7 +1620,8 @@
     "tags": [
       "mexicano",
       "rapido",
-      "sin_cocinar"
+      "sin_cocinar",
+      "vegetariano"
     ],
     "servingG": 150,
     "unit": "g"
@@ -1557,7 +1639,8 @@
     "costRel": 1,
     "prepMin": 12,
     "tags": [
-      "mexicano"
+      "mexicano",
+      "vegetariano"
     ],
     "servingG": 200,
     "unit": "g"
@@ -1576,7 +1659,8 @@
     "prepMin": 5,
     "tags": [
       "mexicano",
-      "rapido"
+      "rapido",
+      "vegetariano"
     ],
     "servingG": 120,
     "unit": "g"
@@ -1594,7 +1678,8 @@
     "costRel": 1,
     "prepMin": 25,
     "tags": [
-      "mexicano"
+      "mexicano",
+      "vegetariano"
     ],
     "servingG": 120,
     "unit": "g"
@@ -1613,7 +1698,8 @@
     "prepMin": 1,
     "tags": [
       "rapido",
-      "sin_cocinar"
+      "sin_cocinar",
+      "vegetariano"
     ],
     "servingG": 80,
     "unit": "g"
@@ -1631,8 +1717,9 @@
     "costRel": 1,
     "prepMin": 8,
     "tags": [
+      "favorito",
       "mexicano",
-      "favorito"
+      "vegetariano"
     ],
     "servingG": 120,
     "unit": "g"
@@ -1650,10 +1737,11 @@
     "costRel": 1,
     "prepMin": 1,
     "tags": [
-      "mexicano",
       "favorito",
+      "mexicano",
       "rapido",
-      "sin_cocinar"
+      "sin_cocinar",
+      "vegetariano"
     ],
     "servingG": 180,
     "unit": "pieza"
@@ -1673,7 +1761,8 @@
     "tags": [
       "favorito",
       "rapido",
-      "sin_cocinar"
+      "sin_cocinar",
+      "vegetariano"
     ],
     "servingG": 150,
     "unit": "g"
@@ -1693,7 +1782,8 @@
     "tags": [
       "favorito",
       "rapido",
-      "sin_cocinar"
+      "sin_cocinar",
+      "vegetariano"
     ],
     "servingG": 100,
     "unit": "g"
@@ -1712,7 +1802,8 @@
     "prepMin": 1,
     "tags": [
       "rapido",
-      "sin_cocinar"
+      "sin_cocinar",
+      "vegetariano"
     ],
     "servingG": 100,
     "unit": "g"
@@ -1730,9 +1821,10 @@
     "costRel": 1,
     "prepMin": 3,
     "tags": [
-      "mexicano",
       "favorito",
-      "rapido"
+      "mexicano",
+      "rapido",
+      "vegetariano"
     ],
     "servingG": 200,
     "unit": "g"
@@ -1751,7 +1843,8 @@
     "prepMin": 3,
     "tags": [
       "mexicano",
-      "rapido"
+      "rapido",
+      "vegetariano"
     ],
     "servingG": 200,
     "unit": "g"
@@ -1769,10 +1862,11 @@
     "costRel": 1,
     "prepMin": 1,
     "tags": [
-      "mexicano",
       "favorito",
+      "mexicano",
       "rapido",
-      "sin_cocinar"
+      "sin_cocinar",
+      "vegetariano"
     ],
     "servingG": 120,
     "unit": "pieza"
@@ -1792,7 +1886,8 @@
     "tags": [
       "mexicano",
       "rapido",
-      "sin_cocinar"
+      "sin_cocinar",
+      "vegetariano"
     ],
     "servingG": 180,
     "unit": "pieza"
@@ -1812,7 +1907,8 @@
     "tags": [
       "mexicano",
       "rapido",
-      "sin_cocinar"
+      "sin_cocinar",
+      "vegetariano"
     ],
     "servingG": 200,
     "unit": "pieza"
@@ -1831,7 +1927,8 @@
     "prepMin": 3,
     "tags": [
       "mexicano",
-      "rapido"
+      "rapido",
+      "vegetariano"
     ],
     "servingG": 180,
     "unit": "g"
@@ -1850,7 +1947,8 @@
     "prepMin": 5,
     "tags": [
       "mexicano",
-      "rapido"
+      "rapido",
+      "vegetariano"
     ],
     "servingG": 150,
     "unit": "g"
@@ -1869,7 +1967,8 @@
     "prepMin": 1,
     "tags": [
       "rapido",
-      "sin_cocinar"
+      "sin_cocinar",
+      "vegetariano"
     ],
     "servingG": 170,
     "unit": "pieza"
@@ -1889,7 +1988,8 @@
     "tags": [
       "mexicano",
       "rapido",
-      "sin_cocinar"
+      "sin_cocinar",
+      "vegetariano"
     ],
     "servingG": 150,
     "unit": "pieza"
@@ -1908,7 +2008,8 @@
     "prepMin": 1,
     "tags": [
       "rapido",
-      "sin_cocinar"
+      "sin_cocinar",
+      "vegetariano"
     ],
     "servingG": 25,
     "unit": "g",
@@ -1927,8 +2028,9 @@
     "costRel": 2,
     "prepMin": 1,
     "tags": [
+      "rapido",
       "suplemento",
-      "rapido"
+      "vegetariano"
     ],
     "servingG": 5,
     "unit": "g",
@@ -1947,8 +2049,9 @@
     "costRel": 2,
     "prepMin": 1,
     "tags": [
+      "rapido",
       "suplemento",
-      "rapido"
+      "vegetariano"
     ],
     "servingG": 5,
     "unit": "g",
@@ -1968,7 +2071,8 @@
     "prepMin": 1,
     "tags": [
       "mexicano",
-      "rapido"
+      "rapido",
+      "vegetariano"
     ],
     "servingG": 2,
     "unit": "g",
@@ -1987,7 +2091,8 @@
     "costRel": 2,
     "prepMin": 1,
     "tags": [
-      "rapido"
+      "rapido",
+      "vegetariano"
     ],
     "servingG": 10,
     "unit": "ml",
@@ -2007,7 +2112,8 @@
     "prepMin": 1,
     "tags": [
       "mexicano",
-      "rapido"
+      "rapido",
+      "vegetariano"
     ],
     "servingG": 30,
     "unit": "g",
