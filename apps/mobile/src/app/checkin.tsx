@@ -15,6 +15,7 @@ import { useTheme } from "@/context/theme";
 import {
   ApiError,
   getMe,
+  getTrainingWeek,
   PHOTO_BUCKET,
   PHOTO_VIEWS,
   PHOTO_VIEW_LABEL,
@@ -77,12 +78,17 @@ export default function CheckinScreen() {
   const [energy, setEnergy] = useState<number | null>(null);
   const [hunger, setHunger] = useState<number | null>(null);
   const [satiety, setSatiety] = useState<number | null>(null);
-  const [sleep, setSleep] = useState<number | null>(null);
   const [strengthRpe, setStrengthRpe] = useState("");
 
   // Cumplimiento
   const [dietCompliance, setDietCompliance] = useState(80);
   const [trainingCompliance, setTrainingCompliance] = useState(80);
+  /**
+   * Brazos y piernas cambian demasiado lento para leerse cada 7 días, así que
+   * dejan de ser campos semanales: se abren a mano, o solos cuando ya pasó un
+   * mes desde la última vez que se midieron.
+   */
+  const [mostrarMensuales, setMostrarMensuales] = useState(false);
   const [symptoms, setSymptoms] = useState<Set<Symptom>>(new Set());
   const [comment, setComment] = useState("");
   const [periodStarted, setPeriodStarted] = useState(false);
@@ -104,6 +110,33 @@ export default function CheckinScreen() {
     };
   }, []);
   const preguntaCiclo = sex === "FEMALE" || sex === "OTHER";
+
+  /**
+   * El cumplimiento de entrenamiento llega prellenado con lo que la app ya
+   * sabe: cuántas sesiones de la semana quedaron cerradas. Se puede corregir
+   * —quien entrenó fuera de la app lo sube— pero preguntar desde cero algo que
+   * está registrado serie por serie es pedirle a la memoria lo que ya está
+   * medido.
+   */
+  const [entrenoAuto, setEntrenoAuto] = useState<{ hechas: number; total: number } | null>(null);
+  useEffect(() => {
+    let vivo = true;
+    getTrainingWeek()
+      .then((week) => {
+        if (!vivo) return;
+        const total = week.sessions.length;
+        if (total === 0) return;
+        const hechas = week.sessions.filter((sesion) => sesion.completedAt !== null).length;
+        setEntrenoAuto({ hechas, total });
+        setTrainingCompliance(Math.round((hechas / total) * 100));
+      })
+      .catch(() => {
+        // Sin semana cargada se queda el valor por defecto y se pregunta normal.
+      });
+    return () => {
+      vivo = false;
+    };
+  }, []);
 
   function toggleSymptom(symptom: Symptom) {
     setSymptoms((prev) => {
@@ -168,7 +201,7 @@ export default function CheckinScreen() {
       setFieldErrors({ waistCm: "La cintura es obligatoria" });
       return;
     }
-    if (inflammation === null || energy === null || hunger === null || satiety === null || sleep === null) {
+    if (inflammation === null || energy === null || hunger === null || satiety === null) {
       setGeneralError("Completa las 5 escalas de sensaciones antes de enviar");
       return;
     }
@@ -187,7 +220,6 @@ export default function CheckinScreen() {
         energy,
         hunger,
         satiety,
-        sleep,
         strengthRpe: strengthRpe.trim() ? Math.round(Number(strengthRpe)) : null,
         dietCompliance,
         trainingCompliance,
@@ -256,46 +288,56 @@ export default function CheckinScreen() {
             onChangeText={setWeightKg}
             error={fieldErrors.weightKg}
           />
-          <View style={styles.row}>
-            <View style={styles.half}>
-              <Stepper
-                label="Pierna izq."
-                unit="cm"
-                value={legLeftCm}
-                onChangeText={setLegLeftCm}
-                error={fieldErrors.legLeftCm}
-              />
-            </View>
-            <View style={styles.half}>
-              <Stepper
-                label="Pierna der."
-                unit="cm"
-                value={legRightCm}
-                onChangeText={setLegRightCm}
-                error={fieldErrors.legRightCm}
-              />
-            </View>
-          </View>
-          <View style={styles.row}>
-            <View style={styles.half}>
-              <Stepper
-                label="Brazo izq."
-                unit="cm"
-                value={armLeftCm}
-                onChangeText={setArmLeftCm}
-                error={fieldErrors.armLeftCm}
-              />
-            </View>
-            <View style={styles.half}>
-              <Stepper
-                label="Brazo der."
-                unit="cm"
-                value={armRightCm}
-                onChangeText={setArmRightCm}
-                error={fieldErrors.armRightCm}
-              />
-            </View>
-          </View>
+          {mostrarMensuales ? (
+            <>
+              <View style={styles.row}>
+                <View style={styles.half}>
+                  <Stepper
+                    label="Pierna izq."
+                    unit="cm"
+                    value={legLeftCm}
+                    onChangeText={setLegLeftCm}
+                    error={fieldErrors.legLeftCm}
+                  />
+                </View>
+                <View style={styles.half}>
+                  <Stepper
+                    label="Pierna der."
+                    unit="cm"
+                    value={legRightCm}
+                    onChangeText={setLegRightCm}
+                    error={fieldErrors.legRightCm}
+                  />
+                </View>
+              </View>
+              <View style={styles.row}>
+                <View style={styles.half}>
+                  <Stepper
+                    label="Brazo izq."
+                    unit="cm"
+                    value={armLeftCm}
+                    onChangeText={setArmLeftCm}
+                    error={fieldErrors.armLeftCm}
+                  />
+                </View>
+                <View style={styles.half}>
+                  <Stepper
+                    label="Brazo der."
+                    unit="cm"
+                    value={armRightCm}
+                    onChangeText={setArmRightCm}
+                    error={fieldErrors.armRightCm}
+                  />
+                </View>
+              </View>
+            </>
+          ) : (
+            <Pressable onPress={() => setMostrarMensuales(true)} hitSlop={8}>
+              <Text style={styles.mensualesLink}>
+                Agregar brazos y piernas (van una vez al mes) →
+              </Text>
+            </Pressable>
+          )}
         </View>
       </Card>
 
@@ -306,7 +348,6 @@ export default function CheckinScreen() {
           <ScaleField label="Energía" value={energy} onChange={setEnergy} error={fieldErrors.energy} />
           <ScaleField label="Hambre" value={hunger} onChange={setHunger} error={fieldErrors.hunger} />
           <ScaleField label="Saciedad" value={satiety} onChange={setSatiety} error={fieldErrors.satiety} />
-          <ScaleField label="Sueño" value={sleep} onChange={setSleep} error={fieldErrors.sleep} />
           <Stepper
             label="Qué tan pesado se sintió"
             unit="/ 10"
@@ -328,6 +369,12 @@ export default function CheckinScreen() {
         <View style={styles.fieldGroup}>
           <PercentStepper label="Dieta" value={dietCompliance} onChange={setDietCompliance} />
           <PercentStepper label="Entreno" value={trainingCompliance} onChange={setTrainingCompliance} />
+          {entrenoAuto && (
+            <Text style={styles.autoNota}>
+              Prellenado con tus sesiones cerradas: {entrenoAuto.hechas} de {entrenoAuto.total}.
+              Corrígelo si entrenaste fuera de la app.
+            </Text>
+          )}
         </View>
       </Card>
 
@@ -436,6 +483,17 @@ function ScaleField({
 }
 
 const makeStyles = (colors: Palette) => StyleSheet.create({
+  autoNota: {
+    fontFamily: fonts.sans,
+    ...typeScale.bodySm,
+    color: colors.paloRosaLight,
+  },
+  mensualesLink: {
+    fontFamily: fonts.sansSemiBold,
+    ...typeScale.body,
+    color: colors.champan,
+    paddingVertical: spacing.sm,
+  },
   fotosNota: {
     fontFamily: fonts.sans,
     ...typeScale.bodySm,

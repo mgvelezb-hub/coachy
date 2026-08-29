@@ -26,6 +26,10 @@ export type MeResponse = {
     currentPhase: string;
     goal: string;
     trainingDaysPerWeek: number;
+    /** Día en que cierra su semana: 0 = domingo. `null` = sin elegir. */
+    checkinWeekday: number | null;
+    /** Hora local del recordatorio, 0-23. `null` = sin recordatorio. */
+    checkinHour: number | null;
   } | null;
 };
 
@@ -108,7 +112,11 @@ export type CheckInPayload = {
   energy: number;
   hunger: number;
   satiety: number;
-  sleep: number;
+  /**
+   * Descanso 1-5. Opcional: la app ya no lo pregunta y el servidor lo deriva
+   * de las noches que subió el reloj.
+   */
+  sleep?: number;
   strengthRpe?: number | null;
   strengthTrend?: StrengthTrend | null;
   dietCompliance: number;
@@ -477,6 +485,17 @@ async function apiFetch<T>(
 
 export function getMe(): Promise<MeResponse> {
   return apiFetch<MeResponse>("/api/v1/me");
+}
+
+/** `PATCH /api/v1/me/checkin` — cuándo cierra su semana esta persona. */
+export function patchCheckinSchedule(
+  weekday: number | null,
+  hour: number | null,
+): Promise<{ checkinWeekday: number | null; checkinHour: number | null }> {
+  return apiFetch<{ checkinWeekday: number | null; checkinHour: number | null }>(
+    "/api/v1/me/checkin",
+    { method: "PATCH", body: { weekday, hour } },
+  );
 }
 
 export function getDecision(): Promise<DecisionResponse> {

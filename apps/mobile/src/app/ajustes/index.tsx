@@ -1,6 +1,7 @@
 import Constants from "expo-constants";
 import { useRouter } from "expo-router";
 import {
+  CalendarClock,
   ChevronLeft,
   ChevronRight,
   Images,
@@ -37,6 +38,7 @@ type Entrada = {
 };
 
 const ENTRADAS: Entrada[] = [
+  { seccion: "checkin", icon: CalendarClock, detalle: "Qué día cierras tu semana y a qué hora" },
   { seccion: "perfil", icon: User, detalle: "Tus datos y tu fase actual" },
   { seccion: "apariencia", icon: PaletteIcon, detalle: "Claro, oscuro o champán" },
   { seccion: "fotos", icon: Images, detalle: "Tu clave, Face ID y tu bóveda" },

@@ -7,7 +7,8 @@ import {
   Inter_700Bold,
 } from "@expo-google-fonts/inter";
 import { useFonts } from "expo-font";
-import { Stack } from "expo-router";
+import * as Notifications from "expo-notifications";
+import { Stack, router } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import { StatusBar } from "expo-status-bar";
 import { useEffect, useState } from "react";
@@ -23,7 +24,25 @@ SplashScreen.preventAutoHideAsync().catch(() => {
   // Puede fallar si ya se ocultó (fast refresh); no es un error real.
 });
 
+/**
+ * Tocar el recordatorio abre directo el check-in.
+ *
+ * El `data.ruta` lo pone `lib/recordatorio.ts` al programar la notificación —
+ * es el único contrato entre las dos piezas—. Se escucha aquí, en la raíz,
+ * porque la notificación puede llegar con cualquier pestaña abierta.
+ */
+function useAbrirDesdeNotificacion() {
+  useEffect(() => {
+    const sub = Notifications.addNotificationResponseReceivedListener((respuesta) => {
+      const ruta = respuesta.notification.request.content.data?.ruta;
+      if (typeof ruta === "string" && ruta.startsWith("/")) router.push(ruta as never);
+    });
+    return () => sub.remove();
+  }, []);
+}
+
 function RootNavigator() {
+  useAbrirDesdeNotificacion();
   const { session, loading } = useSession();
   const { colors } = useTheme();
 
