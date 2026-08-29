@@ -5,7 +5,14 @@
 
 export type Sex = 'female' | 'male';
 export type WorkActivity = 'sedentario' | 'activo';
-export type Budget = 'bajo' | 'medio';
+/**
+ * Presupuesto de despensa, en tres escalones sobre `costRel` del catálogo:
+ * `bajo` se queda con lo más barato (costRel 1), `medio` abre el intermedio
+ * (≤2) y `alto` no filtra por precio. Los tres cubren todos los roles del
+ * menú —proteína, carbohidrato, grasa, vegetal— así que ninguno deja al
+ * generador sin con qué armar una comida.
+ */
+export type Budget = 'bajo' | 'medio' | 'alto';
 export type TrainingTime = 'manana' | 'tarde';
 
 export type Phase =

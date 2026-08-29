@@ -78,7 +78,10 @@ function eligible(
     if (options.freeVegetable && food.carbPer100 > config.freeVegetableMaxCarbPer100) return false;
     if (options.noSupplements && food.tags.includes('suplemento')) return false;
     if (matchesAny(food, excluded)) return false;
-    if (profile.budget === 'bajo' && food.costRel > 2) return false;
+    // Escalera de precio: bajo = solo lo más barato, medio = hasta el
+    // intermedio, alto = sin tope.
+    const topeDeCosto = profile.budget === 'bajo' ? 1 : profile.budget === 'medio' ? 2 : 3;
+    if (food.costRel > topeDeCosto) return false;
     if (profile.maxPrepMin !== undefined && food.prepMin > profile.maxPrepMin) return false;
     if (
       profile.conditions?.glucosaAlta &&
@@ -279,7 +282,16 @@ function equivalencesFor(
     }))
     .filter((option) => {
       const food = pool.find((f) => f.id === option.foodId);
-      return food !== undefined && option.grams <= maxGrams(food);
+      if (food === undefined || option.grams > maxGrams(food)) return false;
+
+      // Los gramos se redondean al múltiplo del alimento, y ese redondeo puede
+      // empujar la equivalencia fuera del ±10% que promete. Se revisa DESPUÉS
+      // de redondear, que es como la va a comer quien la siga: una porción que
+      // se pasa del 10% ya no es equivalente, es otra comida.
+      const objetivo = (slot.grams * base) / 100;
+      const real = (option.grams * food[key]) / 100;
+      const desviacion = objetivo <= 0 ? 0 : Math.abs(real - objetivo) / objetivo;
+      return desviacion <= config.equivalenceMaxDeviation;
     })
     .slice(0, config.equivalencesPerItem);
   if (options.length === 0) return null;

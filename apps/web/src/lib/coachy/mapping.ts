@@ -87,8 +87,10 @@ export function toEngineProfile(profile: Profile, latestWeightKg?: number | null
     // El motor distingue entreno de mañana y de tarde; mediodía cuenta como mañana.
     trainingTime:
       profile.trainingTime === "TARDE" || profile.trainingTime === "NOCHE" ? "tarde" : "manana",
-    // El catálogo solo tiene dos niveles de costo; `ALTO` no restringe nada.
-    budget: profile.budget === "BAJO" ? "bajo" : "medio",
+    // Tres escalones de costo sobre `costRel` del catálogo: bajo se queda con
+    // lo más barato, medio abre el intermedio y alto no filtra por precio.
+    budget:
+      profile.budget === "BAJO" ? "bajo" : profile.budget === "ALTO" ? "alto" : "medio",
     favoriteFoods: profile.favoriteFoods,
     excludedFoods: [...profile.excludedFoods, ...profile.allergies],
     allergies: profile.allergies,

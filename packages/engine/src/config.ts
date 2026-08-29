@@ -93,6 +93,8 @@ export const ConfigSchema = z
     denseFoodKcalPer100: z.number().int().min(150).max(900),
     menuGramRoundingG: z.number().int().min(1).max(25),
     equivalencesPerItem: z.number().int().min(1).max(5),
+    /** Cuánto puede desviarse una equivalencia de su macro base, ya redondeada. */
+    equivalenceMaxDeviation: z.number().min(0.01).max(0.5),
   })
   .strict();
 
@@ -182,6 +184,8 @@ export const DEFAULT_CONFIG: EngineConfig = {
   denseFoodKcalPer100: 300,
   menuGramRoundingG: 5,
   equivalencesPerItem: 3,
+  // 10 %: es lo que la app promete al decir "se puede cambiar por".
+  equivalenceMaxDeviation: 0.1,
 };
 
 function isPlainObject(value: unknown): value is Record<string, unknown> {

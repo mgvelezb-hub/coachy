@@ -16,8 +16,10 @@ import {
   getActivities,
   getMe,
   patchCheckinSchedule,
+  patchPresupuesto,
   type MeResponse,
 } from "@/lib/api";
+import { PRESUPUESTOS } from "@/lib/nutricion";
 import {
   connectHealth,
   ensureCurrentPermissions,
@@ -91,6 +93,7 @@ function formatSyncResult(result: SyncResult): string {
  */
 export const SECCIONES = {
   checkin: "Tu check-in",
+  nutricion: "Nutrición",
   apariencia: "Apariencia",
   perfil: "Tu perfil",
   telefono: "Tu teléfono",
@@ -184,6 +187,27 @@ export default function AjustesDetalleScreen() {
       );
     } catch (error) {
       setCierreMsg(error instanceof ApiError ? error.message : "No se pudo guardar tu día de cierre");
+    }
+  }
+
+  // Presupuesto de despensa: cambia el catálogo con el que se arma el menú.
+  const [presupuesto, setPresupuesto] = useState<"BAJO" | "MEDIO" | "ALTO" | null>(null);
+  const [presupuestoMsg, setPresupuestoMsg] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (me?.profile) setPresupuesto(me.profile.budget);
+  }, [me]);
+
+  async function guardarPresupuesto(valor: "BAJO" | "MEDIO" | "ALTO") {
+    setPresupuesto(valor);
+    setPresupuestoMsg(null);
+    try {
+      await patchPresupuesto(valor);
+      setPresupuestoMsg("Guardado. Entra en tu siguiente menú, no en el de esta semana.");
+    } catch (error) {
+      setPresupuestoMsg(
+        error instanceof ApiError ? error.message : "No se pudo guardar tu presupuesto",
+      );
     }
   }
 
@@ -426,6 +450,47 @@ export default function AjustesDetalleScreen() {
               <Text style={styles.vaultLinkSoft}>Quitar recordatorio</Text>
             </Pressable>
           )}
+        </Card>
+        )}
+
+        {activa === "nutricion" && (
+        <Card>
+          <SectionLabel>Presupuesto de despensa</SectionLabel>
+          <Text style={styles.vaultIntro}>
+            Acota con qué alimentos se arma tu menú. Los tres niveles cubren proteína,
+            carbohidrato, grasa y vegetales: ninguno te deja sin con qué comer, cambian la variedad
+            y el precio.
+          </Text>
+
+          <View style={styles.presupuestoLista}>
+            {PRESUPUESTOS.map((opcion) => (
+              <Pressable
+                key={opcion.valor}
+                onPress={() => guardarPresupuesto(opcion.valor)}
+                style={[
+                  styles.presupuestoFila,
+                  presupuesto === opcion.valor && styles.presupuestoFilaOn,
+                ]}
+              >
+                <Text
+                  style={[
+                    styles.presupuestoNombre,
+                    presupuesto === opcion.valor && styles.presupuestoNombreOn,
+                  ]}
+                >
+                  {opcion.nombre}
+                </Text>
+                <Text style={styles.presupuestoDetalle}>{opcion.detalle}</Text>
+              </Pressable>
+            ))}
+          </View>
+
+          {presupuestoMsg && <Text style={styles.vaultMsg}>{presupuestoMsg}</Text>}
+
+          <Text style={styles.vaultIntro}>
+            Cambiarlo no rehace el menú de esta semana: ese ya se compró, y rehacerlo a media
+            semana obliga a tirar comida.
+          </Text>
         </Card>
         )}
 
@@ -693,6 +758,19 @@ const swatchStyles = StyleSheet.create({
 });
 
 const makeStyles = (colors: Palette) => StyleSheet.create({
+  presupuestoLista: { gap: spacing.sm, marginTop: spacing.md },
+  presupuestoFila: {
+    borderRadius: radius.xl,
+    borderWidth: 1,
+    borderColor: colors.cardBorder,
+    backgroundColor: colors.cardBg,
+    padding: spacing.lg,
+    gap: 2,
+  },
+  presupuestoFilaOn: { backgroundColor: colors.guinda, borderColor: colors.guindaLight },
+  presupuestoNombre: { fontFamily: fonts.sansSemiBold, ...typeScale.body, color: colors.marfil },
+  presupuestoNombreOn: { color: colors.pergamino },
+  presupuestoDetalle: { fontFamily: fonts.sans, ...typeScale.bodySm, color: colors.paloRosa },
   cierreLabel: {
     fontFamily: fonts.sansSemiBold,
     ...typeScale.label,

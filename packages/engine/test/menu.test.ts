@@ -120,12 +120,18 @@ describe('generador de menus (spec §6)', () => {
     }
   });
 
-  it('con presupuesto bajo no propone alimentos de costo 3', () => {
-    const profile: Profile = { ...P, budget: 'bajo' };
-    for (const seed of SEEDS) {
-      const { plan } = planFor(profile, 'BASE', seed);
-      for (const item of plan.menus.flatMap((m) => m.meals.flatMap((meal) => meal.items))) {
-        expect(findFood(item.foodId)!.costRel).toBeLessThanOrEqual(2);
+  it('la escalera de presupuesto acota el costo de los alimentos', () => {
+    const topes = { bajo: 1, medio: 2, alto: 3 } as const;
+
+    for (const [budget, tope] of Object.entries(topes)) {
+      const profile: Profile = { ...P, budget: budget as Profile['budget'] };
+      for (const seed of SEEDS) {
+        const { plan } = planFor(profile, 'BASE', seed);
+        const items = plan.menus.flatMap((m) => m.meals.flatMap((meal) => meal.items));
+        expect(items.length, `${budget} seed ${seed} sin comidas`).toBeGreaterThan(0);
+        for (const item of items) {
+          expect(findFood(item.foodId)!.costRel, `${budget} seed ${seed}`).toBeLessThanOrEqual(tope);
+        }
       }
     }
   });

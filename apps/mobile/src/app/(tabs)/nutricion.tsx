@@ -1,4 +1,4 @@
-import { Flame, ShoppingBasket, UtensilsCrossed } from "lucide-react-native";
+import { Droplets, Flame, Info, Salad, ShoppingBasket, UtensilsCrossed } from "lucide-react-native";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { RefreshControl, ScrollView, StyleSheet, Text, View } from "react-native";
 
@@ -6,7 +6,16 @@ import { ScoreCard } from "@/components/ScoreCard";
 import { EmptyState, ErrorState, LoadingState } from "@/components/States";
 import { useTheme } from "@/context/theme";
 import { useScrollTop } from "@/lib/scroll-top";
-import { ApiError, getNutrition, type Menu, type NutritionResponse } from "@/lib/api";
+import {
+  ApiError,
+  getCheckins,
+  getMe,
+  getNutrition,
+  type MeResponse,
+  type Menu,
+  type NutritionResponse,
+} from "@/lib/api";
+import { DIETA_ACTUAL, PORQUE_DEL_PLAN, PRESUPUESTOS, aguaDelDia } from "@/lib/nutricion";
 import { fonts, spacing, type as typeScale, type Palette } from "@/lib/theme";
 
 /**
@@ -32,6 +41,9 @@ export default function NutricionScreen() {
   // Tocar esta pestaña estando en ella regresa el scroll hasta arriba.
   const scrollRef = useScrollTop();
   const [data, setData] = useState<NutritionResponse | null>(null);
+  const [me, setMe] = useState<MeResponse | null>(null);
+  /** El peso más reciente: es lo que dimensiona el agua del día. */
+  const [pesoKg, setPesoKg] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
 
@@ -41,6 +53,13 @@ export default function NutricionScreen() {
         isOnboardingIncomplete(e) ? null : Promise.reject(e),
       );
       setData(nutrition ?? { decision: null, menus: [], groceries: [], materialized: false });
+
+      const [perfil, checkins] = await Promise.all([
+        getMe().catch(() => null),
+        getCheckins(4).catch(() => null),
+      ]);
+      setMe(perfil);
+      setPesoKg(checkins?.checkIns.find((fila) => fila.weightKg !== null)?.weightKg ?? null);
       setError(null);
     } catch (e) {
       setError(e instanceof ApiError ? e.message : "No se pudo cargar tu alimentación");
@@ -62,6 +81,7 @@ export default function NutricionScreen() {
   if (!data) return null;
 
   const { decision, menus, groceries } = data;
+  const agua = aguaDelDia(pesoKg);
 
   return (
     <ScrollView
@@ -94,6 +114,67 @@ export default function NutricionScreen() {
         ) : (
           <EmptyState message="En cuanto tu coach publique tu decisión, aquí aparecen tus números." />
         )}
+      </ScoreCard>
+
+      <ScoreCard
+        icon={Salad}
+        tint={colors.paloRosa}
+        title="Tu dieta"
+        summary={`${DIETA_ACTUAL.nombre} · ${me?.profile?.mealsPerDay ?? "—"} comidas al día`}
+        status={
+          me?.profile
+            ? {
+                label: `Presupuesto ${PRESUPUESTOS.find((p) => p.valor === me.profile!.budget)?.nombre.toLowerCase() ?? ""}`,
+                tone: "neutral",
+              }
+            : null
+        }
+      >
+        <Text style={styles.parrafo}>{DIETA_ACTUAL.resumen}</Text>
+        {DIETA_ACTUAL.puntos.map((punto) => (
+          <Text key={punto} style={styles.vinneta}>
+            · {punto}
+          </Text>
+        ))}
+        <Text style={styles.aviso}>
+          El presupuesto se cambia en Ajustes → Nutrición, y entra en tu siguiente check-in: el
+          menú de esta semana ya se compró.
+        </Text>
+      </ScoreCard>
+
+      <ScoreCard
+        icon={Droplets}
+        tint={colors.champan}
+        title="Agua del día"
+        summary={
+          agua === null
+            ? "Registra tu peso en el check-in para calcularla"
+            : `${agua} litros · ${me?.profile?.mealsPerDay ?? 4} tomas de referencia`
+        }
+      >
+        <Text style={styles.parrafo}>
+          {agua === null
+            ? "Sale de tu peso: 35 ml por kilo al día, que es la referencia práctica para una persona adulta sana con actividad moderada."
+            : `Son 35 ml por kilo de tu peso (${pesoKg} kg), la referencia práctica para actividad moderada. Sube con el calor y con las sesiones largas; si entrenas fuerte, agrégale medio litro ese día.`}
+        </Text>
+      </ScoreCard>
+
+      <ScoreCard
+        icon={Info}
+        tint={colors.guindaLight}
+        title="Por qué tu plan se ve así"
+        summary="Las reglas que arman tu menú, en español"
+      >
+        {PORQUE_DEL_PLAN.map((bloque) => (
+          <View key={bloque.titulo} style={styles.bloque}>
+            <Text style={styles.bloqueTitulo}>{bloque.titulo}</Text>
+            <Text style={styles.parrafo}>{bloque.texto}</Text>
+          </View>
+        ))}
+        <Text style={styles.aviso}>
+          Esto explica un plan generado por reglas; no es una indicación médica. Si tienes una
+          condición que cambie tu alimentación, consúltalo con una especialista.
+        </Text>
       </ScoreCard>
 
       {menus.map((menu) => (
@@ -175,6 +256,28 @@ function Macro({ label, valor }: { label: string; valor: string }) {
 }
 
 const makeStyles = (colors: Palette) => StyleSheet.create({
+  parrafo: {
+    fontFamily: fonts.sans,
+    ...typeScale.body,
+    color: colors.marfil,
+  },
+  vinneta: {
+    fontFamily: fonts.sans,
+    ...typeScale.bodySm,
+    color: colors.paloRosaLight,
+  },
+  bloque: { gap: spacing.xs },
+  bloqueTitulo: {
+    fontFamily: fonts.sansSemiBold,
+    ...typeScale.body,
+    color: colors.champan,
+  },
+  aviso: {
+    fontFamily: fonts.sans,
+    ...typeScale.bodySm,
+    color: colors.paloRosaLight,
+    marginTop: spacing.sm,
+  },
   screen: {
     flex: 1,
     backgroundColor: colors.obsidiana,

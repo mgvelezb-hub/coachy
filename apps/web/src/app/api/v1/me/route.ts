@@ -37,6 +37,9 @@ export async function GET(request: Request): Promise<NextResponse> {
           // con esto; `null` = todavía no lo eligió.
           checkinWeekday: profile.checkinWeekday,
           checkinHour: profile.checkinHour,
+          // Lo que la pantalla de Nutrición necesita para explicar el plan.
+          budget: profile.budget,
+          mealsPerDay: profile.mealsPerDay,
         }
       : null,
   });

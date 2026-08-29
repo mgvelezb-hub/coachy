@@ -30,6 +30,10 @@ export type MeResponse = {
     checkinWeekday: number | null;
     /** Hora local del recordatorio, 0-23. `null` = sin recordatorio. */
     checkinHour: number | null;
+    /** Escalón de presupuesto de despensa. */
+    budget: "BAJO" | "MEDIO" | "ALTO";
+    /** Cuántas comidas al día arma el motor. */
+    mealsPerDay: number;
   } | null;
 };
 
@@ -496,6 +500,16 @@ export function patchCheckinSchedule(
     "/api/v1/me/checkin",
     { method: "PATCH", body: { weekday, hour } },
   );
+}
+
+/** `PATCH /api/v1/me/nutricion` — hoy solo el presupuesto de despensa. */
+export function patchPresupuesto(
+  budget: "BAJO" | "MEDIO" | "ALTO",
+): Promise<{ budget: "BAJO" | "MEDIO" | "ALTO" }> {
+  return apiFetch<{ budget: "BAJO" | "MEDIO" | "ALTO" }>("/api/v1/me/nutricion", {
+    method: "PATCH",
+    body: { budget },
+  });
 }
 
 export function getDecision(): Promise<DecisionResponse> {
