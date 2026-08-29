@@ -134,6 +134,13 @@ enum Discipline {
   OTRO
 }
 
+/// Nivel de natación declarado por la atleta. Ordena volumen y descansos.
+enum SwimLevel {
+  PRINCIPIANTE
+  INTERMEDIO
+  AVANZADO
+}
+
 /// De dónde entró la sesión: capturada a mano en la app, o sincronizada desde
 /// HealthKit (Apple Watch / Salud).
 enum ActivitySource {
@@ -216,6 +223,10 @@ model Profile {
   /// generador; las demás se registran y gastan presupuesto, y su prescripción
   /// llega una a una (Fase 7, natación primero).
   primaryDiscipline Discipline @default(PESAS) @map("primary_discipline")
+  /// Nivel en el agua, para prescribir natación (Fase 7). No se infiere de la
+  /// nada: quien no lo declara arranca en `PRINCIPIANTE`, que es la sesión con
+  /// más técnica, más descanso y menos volumen.
+  swimLevel         SwimLevel  @default(PRINCIPIANTE) @map("swim_level")
   /// Disciplinas además de la primaria, con cuántas sesiones a la semana:
   /// `[{ "discipline": "NATACION", "sessionsPerWeek": 2 }]`. Gastan del
   /// presupuesto semanal: agregar una no suma días encima, se los quita a las

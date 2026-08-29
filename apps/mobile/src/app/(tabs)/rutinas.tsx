@@ -3,7 +3,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 
 import { Chip } from "@/components/Chip";
-import { CalendarRange, Timer } from "lucide-react-native";
+import { CalendarRange, Timer, Waves } from "lucide-react-native";
 import { Collapsible } from "@/components/Collapsible";
 import { ScoreCard } from "@/components/ScoreCard";
 import { ExerciseCapture } from "@/components/ExerciseCapture";
@@ -12,8 +12,10 @@ import { useTheme } from "@/context/theme";
 import { useScrollTop } from "@/lib/scroll-top";
 import {
   ApiError,
+  DISCIPLINE_LABELS,
   getTrainingWeek,
   type ExerciseAlternative,
+  type OtherSessionView,
   type SessionSyncInput,
   type SessionView,
   type WeekView,
@@ -388,6 +390,10 @@ export default function GymScreen() {
     }
   }
 
+  // La sesión de otra disciplina del día que se está mirando. Va antes que el
+  // detalle del gimnasio: si hoy toca alberca, es lo primero que hay que saber.
+  const otraSesion = week?.otherSessions?.find((entry) => entry.date === selectedDate) ?? null;
+
   return (
     <ScrollView ref={scrollRef} style={styles.screen} contentContainerStyle={styles.content}>
       <ConnectionBadge online={online} pendingCount={pendingCount} onRetry={() => void syncAndNotify()} />
@@ -400,6 +406,8 @@ export default function GymScreen() {
           onSelectDate={setSelectedDate}
         />
       )}
+
+      {otraSesion && <OtraDisciplina session={otraSesion} isToday={isViewingToday} />}
 
       {isViewingToday && session && session.completedAt === null && (
         <TiempoDeHoy
@@ -636,6 +644,72 @@ function TiempoDeHoy({
   );
 }
 
+/**
+ * La sesión de otra disciplina del día.
+ *
+ * Cerrada ya contesta —qué disciplina, cuánto y por qué cayó ahí— y abierta
+ * trae el plan bloque por bloque cuando la app sabe prescribirlo. Hoy solo la
+ * natación: para las demás se reserva el día y se dice para qué es, en vez de
+ * inventar una sesión que nadie validó.
+ */
+function OtraDisciplina({
+  session,
+  isToday,
+}: {
+  session: OtherSessionView;
+  isToday: boolean;
+}) {
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
+  const nombre = DISCIPLINE_LABELS[session.discipline];
+
+  return (
+    <ScoreCard
+      icon={Waves}
+      tint={colors.paloRosa}
+      title={isToday ? `Hoy también: ${nombre.toLowerCase()}` : nombre}
+      summary={
+        session.swim
+          ? `${session.swim.totalMeters} m · ${session.swim.focus} · ${session.minutes} min`
+          : `${session.minutes} min · la app registra la sesión, no la prescribe`
+      }
+      status={session.swim?.deload ? { label: "Descarga", tone: "warn" } : null}
+    >
+      <Text style={styles.swimNote}>{session.note}</Text>
+
+      {session.swim ? (
+        <View style={styles.swimBlocks}>
+          {session.swim.blocks.map((block) => (
+            <View key={block.title} style={styles.swimBlock}>
+              <View style={styles.swimBlockHead}>
+                <Text style={styles.swimBlockTitle}>{block.title}</Text>
+                <Text style={styles.swimBlockMeters}>{block.meters} m</Text>
+              </View>
+              <Text style={styles.swimBlockDetail}>
+                {block.detail}
+                {block.restSeconds !== null ? ` · ${block.restSeconds} s de descanso` : " · continuo"}
+              </Text>
+              <Text style={styles.swimBlockNote}>{block.note}</Text>
+            </View>
+          ))}
+
+          {session.swim.notes.map((note) => (
+            <Text key={note} style={styles.swimNote}>
+              {note}
+            </Text>
+          ))}
+        </View>
+      ) : (
+        <Text style={styles.swimNote}>
+          Todavía no armamos la sesión de {nombre.toLowerCase()}: el día está reservado y lo que
+          entrenes se registra desde el reloj o a mano. La prescripción por disciplina va llegando
+          una a una.
+        </Text>
+      )}
+    </ScoreCard>
+  );
+}
+
 function WeekOverview({
   week,
   today,
@@ -656,10 +730,17 @@ function WeekOverview({
 
   const hechas = week.sessions.filter((entry) => entry.completedAt !== null).length;
   const hoy = week.sessions.find((entry) => entry.date === today) ?? null;
+  const otras = week.otherSessions ?? [];
+  const hoyOtra = otras.find((entry) => entry.date === today) ?? null;
   const resumen = [
-    `${week.sessions.length} ${week.sessions.length === 1 ? "día" : "días"}`,
+    `${week.sessions.length} ${week.sessions.length === 1 ? "día" : "días"} de pesas`,
+    ...(otras.length > 0 ? [`${otras.length} de otras disciplinas`] : []),
     `${hechas} ${hechas === 1 ? "hecho" : "hechos"}`,
-    hoy ? `hoy: ${hoy.muscleGroup.toLowerCase()}` : "hoy: descanso",
+    hoy
+      ? `hoy: ${hoy.muscleGroup.toLowerCase()}`
+      : hoyOtra
+        ? `hoy: ${DISCIPLINE_LABELS[hoyOtra.discipline].toLowerCase()}`
+        : "hoy: descanso",
   ].join(" · ");
 
   return (
@@ -679,6 +760,7 @@ function WeekOverview({
       <View style={styles.weekList}>
         {days.map((date) => {
           const daySession = week.sessions.find((entry) => entry.date === date) ?? null;
+          const dayOther = week.otherSessions?.find((entry) => entry.date === date) ?? null;
           const isToday = date === today;
           const isSelected = date === selectedDate;
           const done = daySession?.completedAt != null;
@@ -708,8 +790,23 @@ function WeekOverview({
                       {daySession.trimmedMinutes ? ` · recortada a ${daySession.trimmedMinutes} min` : ""}
                     </Text>
                   </>
+                ) : dayOther ? (
+                  <>
+                    <Text style={styles.weekMuscle}>{DISCIPLINE_LABELS[dayOther.discipline]}</Text>
+                    <Text style={styles.weekMeta}>
+                      {dayOther.swim
+                        ? `${dayOther.swim.totalMeters} m · ${dayOther.swim.focus.toLowerCase()}`
+                        : `${dayOther.minutes} min`}
+                    </Text>
+                  </>
                 ) : (
                   <Text style={styles.weekRest}>Descanso</Text>
+                )}
+
+                {daySession && dayOther && (
+                  <Text style={styles.weekMeta}>
+                    + {DISCIPLINE_LABELS[dayOther.discipline].toLowerCase()} el mismo día
+                  </Text>
                 )}
               </View>
 
@@ -737,12 +834,25 @@ function RestDay({
   const { colors } = useTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
   const next = week?.sessions.find((entry) => entry.date > selectedDate) ?? null;
+  // Un día con alberca no es un día de descanso: decirlo así sería mentirle a
+  // quien ya tiene la sesión arriba en la pantalla.
+  const otra = week?.otherSessions?.find((entry) => entry.date === selectedDate) ?? null;
 
   return (
     <View style={styles.restDay}>
-      <Text style={styles.title}>{isToday ? "Hoy toca descanso" : `Descanso el ${weekdayLong(selectedDate)}`}</Text>
+      <Text style={styles.title}>
+        {otra
+          ? isToday
+            ? "Hoy no toca gimnasio"
+            : `Sin gimnasio el ${weekdayLong(selectedDate)}`
+          : isToday
+            ? "Hoy toca descanso"
+            : `Descanso el ${weekdayLong(selectedDate)}`}
+      </Text>
       <Text style={styles.restMessage}>
-        El descanso es parte del plan: el músculo se construye fuera del gimnasio.
+        {otra
+          ? `Tu sesión de ${DISCIPLINE_LABELS[otra.discipline].toLowerCase()} está arriba. Las pesas vuelven el siguiente día que toque.`
+          : "El descanso es parte del plan: el músculo se construye fuera del gimnasio."}
       </Text>
 
       {next && (
@@ -825,6 +935,26 @@ function SummaryModal({
 }
 
 const makeStyles = (colors: Palette) => StyleSheet.create({
+  swimBlocks: { gap: spacing.md, marginTop: spacing.md },
+  swimBlock: {
+    borderRadius: radius.xl,
+    borderWidth: 1,
+    borderColor: colors.cardBorder,
+    backgroundColor: withAlpha(colors.paloRosa, 0.06),
+    padding: spacing.md,
+    gap: 2,
+  },
+  swimBlockHead: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
+  swimBlockTitle: { fontFamily: fonts.sansSemiBold, ...typeScale.body, color: colors.marfil },
+  swimBlockMeters: { fontFamily: fonts.sansSemiBold, ...typeScale.bodySm, color: colors.champan },
+  swimBlockDetail: { fontFamily: fonts.sansMedium, ...typeScale.bodySm, color: colors.marfil },
+  swimBlockNote: { fontFamily: fonts.sans, ...typeScale.bodySm, color: colors.paloRosa },
+  swimNote: {
+    fontFamily: fonts.sans,
+    ...typeScale.bodySm,
+    color: colors.paloRosaLight,
+    marginTop: spacing.sm,
+  },
   screen: { flex: 1, backgroundColor: colors.obsidiana },
   content: { padding: spacing.lg, gap: spacing.lg, paddingBottom: spacing.huge },
   center: { flex: 1, alignItems: "center", justifyContent: "center", padding: spacing.xxl },

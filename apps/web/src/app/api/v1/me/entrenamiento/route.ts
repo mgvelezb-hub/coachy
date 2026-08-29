@@ -3,7 +3,7 @@ import { z } from "zod";
 
 import { apiUser, unauthorized } from "@/lib/api/auth";
 import { prisma } from "@/lib/prisma";
-import { DISCIPLINES, MUSCLE_GROUPS } from "@/lib/training/types";
+import { DISCIPLINES, MUSCLE_GROUPS, SWIM_LEVELS } from "@/lib/training/types";
 
 /**
  * `PATCH /api/v1/me/entrenamiento` — las preferencias que cambian la rutina.
@@ -25,6 +25,8 @@ const schema = z
   .object({
     avoidRepeatGroups: z.array(z.enum(MUSCLE_GROUPS)).max(MUSCLE_GROUPS.length).optional(),
     primaryDiscipline: z.enum(DISCIPLINES).optional(),
+    /** Nivel en el agua: ordena volumen y descansos de la sesión de natación. */
+    swimLevel: z.enum(SWIM_LEVELS).optional(),
     otherDisciplines: z
       .array(
         z.object({
@@ -67,7 +69,7 @@ export async function PATCH(request: Request): Promise<NextResponse> {
     );
   }
 
-  const { avoidRepeatGroups, primaryDiscipline, otherDisciplines } = parsed.data;
+  const { avoidRepeatGroups, primaryDiscipline, otherDisciplines, swimLevel } = parsed.data;
 
   // La primaria no puede estar además en la lista de secundarias: se cobraría
   // dos veces del mismo presupuesto.
@@ -80,8 +82,14 @@ export async function PATCH(request: Request): Promise<NextResponse> {
       ...(avoidRepeatGroups !== undefined ? { avoidRepeatGroups } : {}),
       ...(primaryDiscipline !== undefined ? { primaryDiscipline } : {}),
       ...(others !== undefined ? { otherDisciplines: others } : {}),
+      ...(swimLevel !== undefined ? { swimLevel } : {}),
     },
-    select: { avoidRepeatGroups: true, primaryDiscipline: true, otherDisciplines: true },
+    select: {
+      avoidRepeatGroups: true,
+      primaryDiscipline: true,
+      otherDisciplines: true,
+      swimLevel: true,
+    },
   });
 
   return NextResponse.json(profile);

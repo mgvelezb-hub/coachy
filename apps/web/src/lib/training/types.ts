@@ -116,6 +116,27 @@ export type GeneratedWeek = {
   isoWeek: number;
   scheme: SchemeId;
   workouts: PlannedWorkout[];
+  /**
+   * Sesiones de las otras disciplinas activas, ya repartidas en la semana.
+   * No se guardan como `Workout`: son sugerencias de día con su plan, y el
+   * registro de lo que pase vive en `ActivitySession`.
+   */
+  otherSessions: OtherSessionPlan[];
+};
+
+/**
+ * Una sesión de otra disciplina, tal como sale del planificador. El tipo
+ * completo vive en `disciplines.ts`; aquí se declara estructural para que
+ * `types.ts` siga sin importar nada.
+ */
+export type OtherSessionPlan = {
+  date: string;
+  weekday: string;
+  discipline: Discipline;
+  minutes: number;
+  swim: unknown | null;
+  note: string;
+  sharesDayWithGym: boolean;
 };
 
 /**
@@ -137,6 +158,10 @@ export type Discipline = (typeof DISCIPLINES)[number];
 
 /** Una disciplina secundaria y cuántas veces por semana se practica. */
 export type DisciplineLoad = { discipline: Discipline; sessionsPerWeek: number };
+
+/** Nivel en el agua. Igual que `SwimLevel` en el schema. */
+export const SWIM_LEVELS = ["PRINCIPIANTE", "INTERMEDIO", "AVANZADO"] as const;
+export type SwimLevel = (typeof SWIM_LEVELS)[number];
 
 /** Lo que el generador necesita saber de la atleta. */
 export type TrainingProfile = {
@@ -165,6 +190,8 @@ export type TrainingProfile = {
   primaryDiscipline: Discipline;
   /** Las demás disciplinas activas, con su carga semanal. */
   otherDisciplines: DisciplineLoad[];
+  /** Nivel en el agua; ordena el volumen de la sesión de natación. */
+  swimLevel: SwimLevel;
 };
 
 /** Una serie ya ejecutada, tal como la devuelve el historial. */

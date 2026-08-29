@@ -5,11 +5,14 @@ import type { Phase, Prisma, Profile, Workout } from "@prisma/client";
 import { fromISODate, isoFromDateColumn, shiftISODate, toISODate } from "@/lib/format";
 import { prisma } from "@/lib/prisma";
 import { emphasisFor } from "@/lib/training/emphasis";
+import { planDisciplines, type OtherSession } from "@/lib/training/disciplines";
 import { generateWeek, mondayOf, sundayEndOf } from "@/lib/training/generate";
-import { WEEK_DAYS, trainingDaysOf } from "@/lib/training/split";
+import { isoWeekNumber } from "@/lib/training/schemes";
+import { WEEK_DAYS, liftingDaysWithinBudget, trainingDaysOf, type WeekDay } from "@/lib/training/split";
 import { lastPerformance, type LastPerformance } from "@/lib/training/progression";
 import { DISCIPLINES, MUSCLE_GROUPS } from "@/lib/training/types";
 import type {
+  DayKind,
   Discipline,
   DisciplineLoad,
   ExerciseOption,
@@ -18,6 +21,7 @@ import type {
   MuscleGroup,
   PlannedExercise,
   TargetSet,
+  SwimLevel,
   TrainingProfile,
   VolumeBias,
 } from "@/lib/training/types";
@@ -89,6 +93,7 @@ export function toTrainingProfile(profile: Profile): TrainingProfile {
     avoidRepeatGroups: parseMuscleGroups(profile.avoidRepeatGroups),
     primaryDiscipline: profile.primaryDiscipline as Discipline,
     otherDisciplines: parseDisciplineLoads(profile.otherDisciplines),
+    swimLevel: profile.swimLevel as SwimLevel,
   };
 }
 
@@ -199,12 +204,53 @@ export function parsePlan(json: Prisma.JsonValue): PlannedExercise[] {
   });
 }
 
-/** Las fechas ISO que el horario del perfil pide entrenar en esa semana. */
+/**
+ * Las fechas ISO de gimnasio de esa semana.
+ *
+ * Aplica el presupuesto semanal, igual que el generador: si hay disciplinas
+ * activas, los días que se llevan NO son días de pesas. Sin esto, la
+ * reconciliación dejaría vivos los días que el presupuesto ya no paga.
+ */
 function plannedDatesOf(profile: Profile, monday: Date): string[] {
   const mondayISO = toISODate(monday);
-  return trainingDaysOf(toTrainingProfile(profile)).map((day) =>
-    shiftISODate(mondayISO, WEEK_DAYS.indexOf(day)),
-  );
+  const training = toTrainingProfile(profile);
+  return trainingDaysOf(training)
+    .slice(0, liftingDaysWithinBudget(training))
+    .map((day) => shiftISODate(mondayISO, WEEK_DAYS.indexOf(day)));
+}
+
+/**
+ * Las sesiones de las otras disciplinas de la semana.
+ *
+ * Se recalculan a partir de la semana de pesas ya materializada en vez de
+ * guardarse: son sugerencias de día con su plan, no filas que alguien vaya a
+ * editar. Lo que sí queda registrado es lo que se hizo, y eso vive en
+ * `ActivitySession`.
+ */
+export function otherSessionsFor(
+  profile: Profile,
+  monday: Date,
+  workouts: Array<{ date: Date; exercisesJson: Prisma.JsonValue }>,
+): OtherSession[] {
+  const mondayISO = toISODate(monday);
+  const gymByDay = new Map<WeekDay, DayKind>();
+
+  for (const workout of workouts) {
+    const iso = isoFromDateColumn(workout.date);
+    const index = WEEK_DAYS.findIndex((_, position) => shiftISODate(mondayISO, position) === iso);
+    const day = WEEK_DAYS[index];
+    const kind = parseStoredPlan(workout.exercisesJson).dayKind;
+    if (day && kind) gymByDay.set(day, kind as DayKind);
+  }
+
+  const training = toTrainingProfile(profile);
+  return planDisciplines({
+    weekStart: monday,
+    otherDisciplines: training.otherDisciplines,
+    gymByDay,
+    swimLevel: training.swimLevel,
+    isoWeek: isoWeekNumber(monday),
+  }).sessions;
 }
 
 /**

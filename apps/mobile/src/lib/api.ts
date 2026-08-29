@@ -50,6 +50,8 @@ export type MeResponse = {
     primaryDiscipline?: Discipline;
     /** Las demás disciplinas activas, con su carga semanal. */
     otherDisciplines?: DisciplineLoad[];
+    /** Nivel en el agua; ordena el volumen de la sesión de natación. */
+    swimLevel?: SwimLevel;
   } | null;
 };
 
@@ -370,10 +372,51 @@ export type SessionView = {
   exercises: SessionExerciseView[];
 };
 
+/** Un bloque de la sesión de natación: calentamiento, técnica, principal... */
+export type SwimBlock = {
+  title: string;
+  detail: string;
+  meters: number;
+  restSeconds: number | null;
+  note: string;
+};
+
+export type SwimPlan = {
+  level: SwimLevel;
+  focus: string;
+  totalMeters: number;
+  minutes: number;
+  blocks: SwimBlock[];
+  deload: boolean;
+  notes: string[];
+};
+
+/**
+ * Una sesión de otra disciplina dentro de la semana (Fase 7). `swim` solo
+ * viene en natación: es la única disciplina que la app sabe prescribir.
+ */
+export type OtherSessionView = {
+  date: string;
+  weekday: string;
+  discipline: Discipline;
+  minutes: number;
+  swim: SwimPlan | null;
+  note: string;
+  sharesDayWithGym: boolean;
+};
+
+export const SWIM_LEVELS = ["PRINCIPIANTE", "INTERMEDIO", "AVANZADO"] as const;
+export type SwimLevel = (typeof SWIM_LEVELS)[number];
+
 export type WeekView = {
   weekStart: string;
   today: string;
   sessions: SessionView[];
+  /**
+   * Opcional a propósito: una semana cacheada en el teléfono antes de la Fase
+   * 7 no la trae, y la pantalla tiene que pintarse igual.
+   */
+  otherSessions?: OtherSessionView[];
 };
 
 /**
@@ -582,12 +625,14 @@ export type PreferenciasEntrenamiento = {
   avoidRepeatGroups?: MuscleGroup[];
   primaryDiscipline?: Discipline;
   otherDisciplines?: DisciplineLoad[];
+  swimLevel?: SwimLevel;
 };
 
 export type PreferenciasEntrenamientoResponse = {
   avoidRepeatGroups: MuscleGroup[];
   primaryDiscipline: Discipline;
   otherDisciplines: DisciplineLoad[];
+  swimLevel: SwimLevel;
 };
 
 export function patchEntrenamiento(

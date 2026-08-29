@@ -23,11 +23,13 @@ import {
   type DisciplineLoad,
   type MeResponse,
   type MuscleGroup,
+  type SwimLevel,
 } from "@/lib/api";
 import { PRESUPUESTOS } from "@/lib/nutricion";
 import {
   DISCIPLINAS,
   GRUPOS,
+  NIVELES_NATACION,
   TIEMPOS_COCINA,
   diasDeGimnasio,
   listaDeAlimentos,
@@ -278,6 +280,7 @@ export default function AjustesDetalleScreen() {
   const [sinRepetir, setSinRepetir] = useState<MuscleGroup[]>([]);
   const [primaria, setPrimaria] = useState<Discipline>("PESAS");
   const [otras, setOtras] = useState<DisciplineLoad[]>([]);
+  const [nivelNatacion, setNivelNatacion] = useState<SwimLevel>("PRINCIPIANTE");
   const [entrenoMsg, setEntrenoMsg] = useState<string | null>(null);
 
   useEffect(() => {
@@ -285,6 +288,7 @@ export default function AjustesDetalleScreen() {
     setSinRepetir(me.profile.avoidRepeatGroups ?? []);
     setPrimaria(me.profile.primaryDiscipline ?? "PESAS");
     setOtras(me.profile.otherDisciplines ?? []);
+    setNivelNatacion(me.profile.swimLevel ?? "PRINCIPIANTE");
   }, [me]);
 
   const presupuestoSemanal = me?.profile?.trainingDaysPerWeek ?? 0;
@@ -328,6 +332,19 @@ export default function AjustesDetalleScreen() {
     } catch (error) {
       setOtras(otras);
       setEntrenoMsg(error instanceof ApiError ? error.message : "No se pudo guardar tu disciplina");
+    }
+  }
+
+  async function guardarNivelNatacion(nivel: SwimLevel) {
+    const anterior = nivelNatacion;
+    setNivelNatacion(nivel);
+    setEntrenoMsg(null);
+    try {
+      await patchEntrenamiento({ swimLevel: nivel });
+      setEntrenoMsg("Guardado. Entra en tu siguiente sesión de alberca.");
+    } catch (error) {
+      setNivelNatacion(anterior);
+      setEntrenoMsg(error instanceof ApiError ? error.message : "No se pudo guardar tu nivel");
     }
   }
 
@@ -658,6 +675,39 @@ export default function AjustesDetalleScreen() {
             natación.
           </Text>
         </Card>
+
+        {otras.some((carga) => carga.discipline === "NATACION") && (
+        <Card>
+          <SectionLabel>Tu nivel en el agua</SectionLabel>
+          <Text style={styles.vaultIntro}>
+            Ordena cuánto nadas y cuánto descansas entre series. No se adivina: quien no lo elige
+            arranca en principiante, que es la sesión con más técnica y más descanso.
+          </Text>
+
+          <View style={styles.presupuestoLista}>
+            {NIVELES_NATACION.map((nivel) => (
+              <Pressable
+                key={nivel.valor}
+                onPress={() => guardarNivelNatacion(nivel.valor)}
+                style={[
+                  styles.presupuestoFila,
+                  nivelNatacion === nivel.valor && styles.presupuestoFilaOn,
+                ]}
+              >
+                <Text
+                  style={[
+                    styles.presupuestoNombre,
+                    nivelNatacion === nivel.valor && styles.presupuestoNombreOn,
+                  ]}
+                >
+                  {nivel.nombre}
+                </Text>
+                <Text style={styles.presupuestoDetalle}>{nivel.detalle}</Text>
+              </Pressable>
+            ))}
+          </View>
+        </Card>
+        )}
         </>
         )}
 

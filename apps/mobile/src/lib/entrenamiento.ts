@@ -6,7 +6,7 @@
  * que solo se guarda es el que enseña a no confiar en los ajustes.
  */
 
-import { DISCIPLINE_LABELS, type Discipline, type MuscleGroup } from "@/lib/api";
+import { DISCIPLINE_LABELS, type Discipline, type MuscleGroup, type SwimLevel } from "@/lib/api";
 
 /** El nombre de cada grupo en el vocabulario de la app. */
 export const GRUPOS: Array<{ valor: MuscleGroup; nombre: string }> = [
@@ -87,3 +87,28 @@ export function listaDeAlimentos(texto: string): string[] {
     ),
   ).slice(0, 30);
 }
+
+/**
+ * Los niveles de natación con lo que cambia cada uno.
+ *
+ * Se declaran, no se infieren: el historial del reloj dice cuánto nadaste, no
+ * si sabes nadar. Prescribir series fuertes a quien todavía no cruza la
+ * alberca es la peor manera de estrenar una disciplina.
+ */
+export const NIVELES_NATACION: Array<{ valor: SwimLevel; nombre: string; detalle: string }> = [
+  {
+    valor: "PRINCIPIANTE",
+    nombre: "Principiante",
+    detalle: "Todavía no nadas de corrido. Técnica, tabla y descansos largos.",
+  },
+  {
+    valor: "INTERMEDIO",
+    nombre: "Intermedio",
+    detalle: "Nadas 400-800 m sin parar. Series de resistencia y de velocidad.",
+  },
+  {
+    valor: "AVANZADO",
+    nombre: "Avanzado",
+    detalle: "Más de 1500 m por sesión. Más volumen y menos descanso.",
+  },
+];

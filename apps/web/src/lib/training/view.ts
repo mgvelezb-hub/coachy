@@ -8,8 +8,10 @@ import { readinessNote } from "@/lib/health/activity";
 import { sleepMinutesFor } from "@/lib/health/db";
 import { prisma } from "@/lib/prisma";
 import { signedExerciseVideoUrls } from "@/lib/storage";
+import type { OtherSession } from "@/lib/training/disciplines";
 import {
   ensureWeekMaterialized,
+  otherSessionsFor,
   lastPerformances,
   loadCatalog,
   parseStoredPlan,
@@ -68,6 +70,12 @@ export type WeekView = {
   weekStart: string;
   today: string;
   sessions: SessionView[];
+  /**
+   * Las sesiones de las otras disciplinas activas (Fase 7). Viajan con la
+   * semana para que la app las pinte sin otra llamada — y para que la de
+   * natación se pueda leer en la orilla de la alberca, sin señal.
+   */
+  otherSessions: OtherSession[];
 };
 
 /**
@@ -144,6 +152,7 @@ export async function weekView(
     weekStart: toISODate(mondayOf(reference)),
     today: toISODate(reference),
     sessions,
+    otherSessions: otherSessionsFor(profile, mondayOf(reference), workouts),
   };
 }
 
@@ -187,6 +196,25 @@ export async function todayCard(
     completed: workout.completedAt !== null,
     trimmedMinutes: workout.trimmedMinutes,
   };
+}
+
+/**
+ * La sesión de otra disciplina que toca hoy, si hay.
+ *
+ * Vive aparte de `todayCard` porque son dos preguntas distintas: "¿qué me toca
+ * en el gimnasio?" y "¿qué más tengo hoy?". Un día puede tener las dos, una, o
+ * ninguna — y la pantalla necesita distinguirlo para no decir "descanso"
+ * cuando en realidad toca alberca.
+ */
+export async function todayOtherSession(
+  userId: string,
+  profile: Profile,
+  reference: Date,
+): Promise<OtherSession | null> {
+  const workouts = await ensureWeekMaterialized(userId, profile, reference);
+  const iso = toISODate(reference);
+  const sessions = otherSessionsFor(profile, mondayOf(reference), workouts);
+  return sessions.find((session) => session.date === iso) ?? null;
 }
 
 export type TrainingHistoryRow = {

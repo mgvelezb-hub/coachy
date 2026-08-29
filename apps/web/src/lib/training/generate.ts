@@ -8,6 +8,7 @@ import {
 } from "@/lib/training/progression";
 import { exerciseCountFor, recipeFor, type Slot } from "@/lib/training/recipes";
 import { SCHEMES, isoWeekNumber, schemeForExercise, schemeForWeek } from "@/lib/training/schemes";
+import { planDisciplines, type OtherSession } from "@/lib/training/disciplines";
 import {
   DAY_LABELS,
   DAY_GROUPS,
@@ -15,6 +16,7 @@ import {
   buildSplit,
   liftingDaysWithinBudget,
   trainingDaysOf,
+  type WeekDay,
 } from "@/lib/training/split";
 import type {
   ExerciseOption,
@@ -167,6 +169,23 @@ export function generateWeek(
   const emphasis = config.emphasis ?? [];
   const workouts: PlannedWorkout[] = [];
 
+  // Las otras disciplinas se reparten sobre la semana de pesas ya decidida:
+  // sin saber qué día es de pierna no se puede aplicar la vecindad.
+  const gymByDay = new Map<WeekDay, (typeof kinds)[number]>();
+  kinds.forEach((kind, index) => {
+    const day = days[index];
+    if (day) gymByDay.set(day, kind);
+  });
+
+  const disciplines = planDisciplines({
+    weekStart,
+    otherDisciplines: profile.otherDisciplines,
+    gymByDay,
+    swimLevel: profile.swimLevel,
+    isoWeek,
+  });
+  const crowded = new Set(disciplines.crowdedDates);
+
   kinds.forEach((kind, index) => {
     const day = days[index];
     if (!day) return;
@@ -189,7 +208,15 @@ export function generateWeek(
     // salió de comparar tus fotos contra tu referencia—. Es lo único que el
     // énfasis mueve: ni el split, ni los días, ni las cargas.
     const tocaPrioridad = DAY_GROUPS[kind].some((group) => emphasis.includes(group));
-    const chosen = chooseSlots(slots, exerciseCount + (tocaPrioridad ? 1 : 0));
+    // Regla 4 del modelo: un día que además trae sesión de otra disciplina
+    // pierde un accesorio. Es el mismo recorte por prioridad de siempre, por
+    // otra razón — y nunca baja de tres ejercicios: media sesión de pesas ya
+    // no entrena nada.
+    const apretado = crowded.has(dateOfDay(weekStart, dayIndex));
+    const chosen = chooseSlots(
+      slots,
+      Math.max(3, exerciseCount + (tocaPrioridad ? 1 : 0) - (apretado ? 1 : 0)),
+    );
     const usedToday = new Set<string>();
     const exercises: PlannedExercise[] = [];
 
@@ -253,7 +280,13 @@ export function generateWeek(
     });
   });
 
-  return { weekStart: weekStartISO, isoWeek, scheme: weekScheme, workouts };
+  return {
+    weekStart: weekStartISO,
+    isoWeek,
+    scheme: weekScheme,
+    workouts,
+    otherSessions: disciplines.sessions,
+  };
 }
 
 /** Grupos que toca un tipo de día. Reexportado para las vistas. */

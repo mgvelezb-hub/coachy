@@ -50,6 +50,7 @@ export async function GET(request: Request): Promise<NextResponse> {
           avoidRepeatGroups: profile.avoidRepeatGroups,
           primaryDiscipline: profile.primaryDiscipline,
           otherDisciplines: parseDisciplineLoads(profile.otherDisciplines),
+          swimLevel: profile.swimLevel,
         }
       : null,
   });
