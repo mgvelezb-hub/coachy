@@ -1,4 +1,4 @@
-import { GripVertical, Plus, RotateCcw, X } from "lucide-react-native";
+import { Check, Maximize2, Minimize2, Plus, RotateCcw, Trash2, X } from "lucide-react-native";
 import { useMemo, useState } from "react";
 import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { Gesture, GestureDetector, GestureHandlerRootView } from "react-native-gesture-handler";
@@ -8,13 +8,12 @@ import Animated, {
   useSharedValue,
   withTiming,
 } from "react-native-reanimated";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
+import { PanelResumen, type VistaResumen } from "@/components/PanelResumen";
 import { useTheme } from "@/context/theme";
 import {
-  ETIQUETA_ANCHO,
   ETIQUETA_VARIANTE,
-  MUESTRA_VARIANTE,
   definicionDe,
   layoutPorDefecto,
   moverA,
@@ -25,37 +24,38 @@ import {
 } from "@/lib/paneles";
 import { fonts, radius, spacing, type as typeScale, withAlpha, type Palette } from "@/lib/theme";
 
-/** Alto de cada fila del editor. Fijo, porque de él sale la posición al arrastrar. */
-const ALTO_FILA = 96;
-
 /**
- * El editor del Resumen.
+ * El editor del Resumen: el tablero de verdad, mientras se acomoda.
  *
- * Se arrastra para reordenar, como cualquier pantalla de widgets: el gesto ya
- * está aprendido y nadie tiene que descubrir un par de flechas. La fila que se
- * levanta sigue al dedo y las demás se recorren; al soltar, el acomodo se
- * guarda.
+ * Lo que se ve mientras arrastras son los paneles reales, con tus datos y en
+ * el tamaño que van a quedar. La primera versión enseñaba una lista de
+ * nombres, y acomodar así obliga a salir, mirar y volver a entrar por cada
+ * cambio — el tablero se arma a ciegas.
  *
- * Las filas miden lo mismo a propósito (`ALTO_FILA`): con alturas variables la
- * posición de destino habría que medirla en tiempo real, y el cálculo se
- * vuelve frágil justo mientras el dedo está encima.
+ * Tres cosas se hacen encima del panel: arrastrarlo (mantener y mover), sacarlo
+ * (la tacha de la esquina, como en cualquier pantalla de widgets) y tocarlo
+ * para elegir tamaño y detalle, que se aplican en vivo.
  *
- * Abajo, los disponibles van como una lista de nombres y no como tarjetas de
- * muestra: agregar es una decisión de una palabra, y seis previsualizaciones
- * la vuelven una lectura larga.
+ * El insets de arriba se calcula a mano y no con `SafeAreaView`: dentro de un
+ * `Modal` el contexto de área segura no siempre baja, y el resultado era el
+ * título encimado con la hora y la batería.
  */
 export function EditorDePaneles({
   visible,
   layout,
+  vista,
   onChange,
   onClose,
 }: {
   visible: boolean;
   layout: PanelConfig[];
+  /** Los datos ya calculados: el editor pinta paneles reales, no maquetas. */
+  vista: VistaResumen;
   onChange: (layout: PanelConfig[]) => void;
   onClose: () => void;
 }) {
   const { colors } = useTheme();
+  const insets = useSafeAreaInsets();
   const styles = useMemo(() => makeStyles(colors), [colors]);
   const disponibles = useMemo(() => panelesDisponibles(layout), [layout]);
   const [abierto, setAbierto] = useState<string | null>(null);
@@ -79,93 +79,94 @@ export function EditorDePaneles({
   return (
     <Modal visible={visible} animationType="slide" onRequestClose={onClose}>
       <GestureHandlerRootView style={styles.raiz}>
-        {/* `edges` incluye arriba: sin eso el título y el botón quedaban debajo
-            de la hora y la batería, y "Listo" era casi intocable. */}
-        <SafeAreaView style={styles.screen} edges={["top", "bottom"]}>
-          <View style={styles.header}>
-            <Text style={styles.titulo}>Tu resumen</Text>
-            <View style={styles.headerBotones}>
-              <Pressable
-                onPress={() => onChange(layoutPorDefecto())}
-                hitSlop={8}
-                style={styles.restaurar}
-                accessibilityLabel="Restaurar el tablero de siempre"
-              >
-                <RotateCcw size={16} color={colors.paloRosa} strokeWidth={2} />
-                <Text style={styles.restaurarTexto}>Restaurar</Text>
-              </Pressable>
-              <Pressable onPress={() => onChange([])} hitSlop={8} style={styles.restaurar}>
-                <Text style={styles.restaurarTexto}>Limpiar todo</Text>
-              </Pressable>
-              <Pressable onPress={onClose} hitSlop={10} style={styles.listo}>
-                <Text style={styles.listoTexto}>Listo</Text>
-              </Pressable>
-            </View>
-          </View>
+        <View style={[styles.header, { paddingTop: insets.top + spacing.sm }]}>
+          <Text style={styles.titulo}>Tu resumen</Text>
+          <Pressable onPress={onClose} hitSlop={12} style={styles.listo}>
+            <Check size={16} color={colors.pergamino} strokeWidth={3} />
+            <Text style={styles.listoTexto}>Listo</Text>
+          </Pressable>
+        </View>
 
-          <ScrollView contentContainerStyle={styles.contenido}>
+        <View style={styles.barraAcciones}>
+          <Pressable onPress={() => onChange(layoutPorDefecto())} hitSlop={8} style={styles.accion}>
+            <RotateCcw size={15} color={colors.paloRosa} strokeWidth={2} />
+            <Text style={styles.accionTexto}>Restaurar</Text>
+          </Pressable>
+          <Pressable onPress={() => onChange([])} hitSlop={8} style={styles.accion}>
+            <Trash2 size={15} color={colors.paloRosa} strokeWidth={2} />
+            <Text style={styles.accionTexto}>Limpiar todo</Text>
+          </Pressable>
+        </View>
+
+        <ScrollView
+          contentContainerStyle={[styles.contenido, { paddingBottom: insets.bottom + 80 }]}
+        >
+          <Text style={styles.ayuda}>
+            Mantén y arrastra para acomodar. Toca un panel para cambiar su tamaño o su detalle: lo
+            que ves aquí es lo que va a quedar.
+          </Text>
+
+          {layout.map((panel, index) => (
+            <PanelEditable
+              key={panel.id}
+              index={index}
+              total={layout.length}
+              panel={panel}
+              vista={vista}
+              abierto={abierto === panel.id}
+              onAbrir={() => setAbierto(abierto === panel.id ? null : panel.id)}
+              onQuitar={() => quitar(panel.id)}
+              onAplicar={(cambios) => aplicar(panel.id, cambios)}
+              onSoltar={(destino) => onChange(moverA(layout, panel.id, destino))}
+            />
+          ))}
+
+          {layout.length === 0 && (
             <Text style={styles.ayuda}>
-              Arrastra para acomodar. Toca un panel para elegir su tamaño y cuánto detalle
-              muestra. Se guarda en tu cuenta.
+              Tu resumen quedó vacío. Agrega los paneles que quieras de la lista de abajo.
             </Text>
+          )}
 
-            <View style={{ height: layout.length * ALTO_FILA }}>
-              {layout.map((panel, index) => (
-                <FilaArrastrable
-                  key={panel.id}
-                  index={index}
-                  total={layout.length}
-                  panel={panel}
-                  abierto={abierto === panel.id}
-                  onAbrir={() => setAbierto(abierto === panel.id ? null : panel.id)}
-                  onQuitar={() => quitar(panel.id)}
-                  onAplicar={(cambios) => aplicar(panel.id, cambios)}
-                  onSoltar={(destino) => onChange(moverA(layout, panel.id, destino))}
-                />
-              ))}
-            </View>
-
-            {layout.length === 0 && (
-              <Text style={styles.ayuda}>
-                Tu resumen quedó vacío. Agrega los paneles que quieras de la lista de abajo.
-              </Text>
-            )}
-
-            {disponibles.length > 0 && (
-              <>
-                <Text style={styles.seccion}>Para agregar</Text>
-                <View style={styles.disponibles}>
-                  {disponibles.map((def) => (
-                    <Pressable
-                      key={def.id}
-                      onPress={() => agregar(def.id)}
-                      style={({ pressed }) => [styles.pastilla, pressed && styles.pastillaPresionada]}
-                    >
-                      <Plus size={14} color={colors.champan} strokeWidth={2.5} />
-                      <Text style={styles.pastillaTexto}>{def.nombre}</Text>
-                    </Pressable>
-                  ))}
-                </View>
-              </>
-            )}
-          </ScrollView>
-        </SafeAreaView>
+          {disponibles.length > 0 && (
+            <>
+              <Text style={styles.seccion}>Para agregar</Text>
+              <View style={styles.disponibles}>
+                {disponibles.map((def) => (
+                  <Pressable
+                    key={def.id}
+                    onPress={() => agregar(def.id)}
+                    style={({ pressed }) => [styles.pastilla, pressed && styles.pastillaPresionada]}
+                  >
+                    <Plus size={14} color={colors.champan} strokeWidth={2.5} />
+                    <Text style={styles.pastillaTexto}>{def.nombre}</Text>
+                  </Pressable>
+                ))}
+              </View>
+            </>
+          )}
+        </ScrollView>
       </GestureHandlerRootView>
     </Modal>
   );
 }
 
 /**
- * Una fila del editor: se arrastra, se abre para configurar y se quita.
+ * Un panel del tablero en modo edición.
  *
- * El desplazamiento vive en un `SharedValue` para que el arrastre corra en el
- * hilo de UI; solo al soltar se cruza a JS con `runOnJS`, que es donde vive el
- * acomodo.
+ * El arrastre mueve SOLO este panel con `transform`; los demás se quedan en su
+ * sitio hasta que se suelta. Se ve menos vistoso que una lista que se abre
+ * sola, y a cambio no hay dos elementos disputándose el mismo hueco —que fue
+ * justo lo que rompió la primera versión, con las filas encimadas.
+ *
+ * El alto de referencia para calcular el destino se mide del propio panel
+ * (`onLayout`): los paneles no miden lo mismo, y suponerlo movía la fila
+ * equivocada.
  */
-function FilaArrastrable({
+function PanelEditable({
   index,
   total,
   panel,
+  vista,
   abierto,
   onAbrir,
   onQuitar,
@@ -175,6 +176,7 @@ function FilaArrastrable({
   index: number;
   total: number;
   panel: PanelConfig;
+  vista: VistaResumen;
   abierto: boolean;
   onAbrir: () => void;
   onQuitar: () => void;
@@ -186,60 +188,63 @@ function FilaArrastrable({
   const def = definicionDe(panel.id);
 
   const desplazamiento = useSharedValue(0);
-  const arrastrando = useSharedValue(false);
+  const levantado = useSharedValue(false);
+  const alto = useSharedValue(160);
 
   const gesto = Gesture.Pan()
-    .activateAfterLongPress(120)
+    .activateAfterLongPress(200)
     .onStart(() => {
-      arrastrando.value = true;
+      levantado.value = true;
     })
     .onUpdate((evento) => {
       desplazamiento.value = evento.translationY;
     })
     .onEnd(() => {
-      const saltos = Math.round(desplazamiento.value / ALTO_FILA);
+      const saltos = Math.round(desplazamiento.value / Math.max(80, alto.value));
       const destino = Math.max(0, Math.min(total - 1, index + saltos));
-      arrastrando.value = false;
-      desplazamiento.value = withTiming(0, { duration: 120 });
+      levantado.value = false;
+      desplazamiento.value = withTiming(0, { duration: 140 });
       if (destino !== index) runOnJS(onSoltar)(destino);
     });
 
   const estilo = useAnimatedStyle(() => ({
-    transform: [{ translateY: desplazamiento.value }, { scale: arrastrando.value ? 1.03 : 1 }],
-    zIndex: arrastrando.value ? 10 : 1,
-    opacity: arrastrando.value ? 0.95 : 1,
+    transform: [{ translateY: desplazamiento.value }, { scale: levantado.value ? 1.02 : 1 }],
+    zIndex: levantado.value ? 20 : 1,
+    opacity: levantado.value ? 0.96 : 1,
   }));
 
   if (!def) return null;
 
   return (
-    <Animated.View style={[styles.filaPosicion, { top: index * ALTO_FILA }, estilo]}>
-      <View style={styles.fila}>
-        <GestureDetector gesture={gesto}>
-          <View style={styles.asa} accessibilityLabel={`Arrastrar ${def.nombre}`}>
-            <GripVertical size={20} color={colors.paloRosa} strokeWidth={2} />
+    <Animated.View
+      style={[styles.editable, estilo]}
+      onLayout={(evento) => {
+        alto.value = evento.nativeEvent.layout.height;
+      }}
+    >
+      <GestureDetector gesture={gesto}>
+        <View>
+          {/* El panel real, en su tamaño real. `pointerEvents="none"` para que
+              el toque sea del editor y no de los enlaces internos del panel. */}
+          <View pointerEvents="none" style={panel.ancho === "medio" && styles.mitad}>
+            <PanelResumen config={panel} vista={vista} />
           </View>
-        </GestureDetector>
 
-        <Pressable onPress={onAbrir} style={styles.filaTexto}>
-          <Text style={styles.filaNombre} numberOfLines={1}>
-            {def.nombre}
-          </Text>
-          <Text style={styles.filaPregunta} numberOfLines={1}>
-            {ETIQUETA_ANCHO[panel.ancho]} · {ETIQUETA_VARIANTE[panel.variante]}
-          </Text>
-        </Pressable>
+          <Pressable onPress={onAbrir} style={styles.capa} />
 
-        {/* La tacha va arriba a la derecha, como en cualquier pantalla de
-            widgets: es el gesto que la gente ya trae aprendido. */}
-        <Pressable onPress={onQuitar} hitSlop={8} style={styles.tacha} accessibilityLabel={`Quitar ${def.nombre}`}>
-          <X size={14} color={colors.pergamino} strokeWidth={3} />
-        </Pressable>
-      </View>
+          <Pressable
+            onPress={onQuitar}
+            hitSlop={10}
+            style={styles.tacha}
+            accessibilityLabel={`Quitar ${def.nombre}`}
+          >
+            <X size={14} color={colors.pergamino} strokeWidth={3} />
+          </Pressable>
+        </View>
+      </GestureDetector>
 
       {abierto && (
         <View style={styles.opciones}>
-          <Text style={styles.opcionesTitulo}>Tamaño</Text>
           <View style={styles.opcionesFila}>
             {def.anchos.map((ancho: Ancho) => (
               <Pressable
@@ -247,33 +252,46 @@ function FilaArrastrable({
                 onPress={() => onAplicar({ ancho })}
                 style={[styles.opcion, panel.ancho === ancho && styles.opcionActiva]}
               >
-                <Text style={[styles.opcionTexto, panel.ancho === ancho && styles.opcionTextoActivo]}>
-                  {ETIQUETA_ANCHO[ancho]}
+                {ancho === "ancho" ? (
+                  <Maximize2
+                    size={14}
+                    color={panel.ancho === ancho ? colors.pergamino : colors.marfil}
+                    strokeWidth={2}
+                  />
+                ) : (
+                  <Minimize2
+                    size={14}
+                    color={panel.ancho === ancho ? colors.pergamino : colors.marfil}
+                    strokeWidth={2}
+                  />
+                )}
+                <Text
+                  style={[styles.opcionTexto, panel.ancho === ancho && styles.opcionTextoActivo]}
+                >
+                  {ancho === "ancho" ? "1 por renglón" : "2 por renglón"}
                 </Text>
               </Pressable>
             ))}
           </View>
 
-          <Text style={styles.opcionesTitulo}>Qué muestra</Text>
-          {def.variantes.map((variante: Variante) => (
-            <Pressable
-              key={variante}
-              onPress={() => onAplicar({ variante })}
-              style={[styles.muestra, panel.variante === variante && styles.muestraActiva]}
-            >
-              <Text
-                style={[
-                  styles.muestraNombre,
-                  panel.variante === variante && styles.opcionTextoActivo,
-                ]}
+          <View style={styles.opcionesFila}>
+            {def.variantes.map((variante: Variante) => (
+              <Pressable
+                key={variante}
+                onPress={() => onAplicar({ variante })}
+                style={[styles.opcion, panel.variante === variante && styles.opcionActiva]}
               >
-                {ETIQUETA_VARIANTE[variante]}
-              </Text>
-              {/* La muestra dice qué vas a ver antes de elegir: sin ella hay
-                  que salir, mirar y volver a entrar por cada opción. */}
-              <Text style={styles.muestraEjemplo}>{MUESTRA_VARIANTE[variante]}</Text>
-            </Pressable>
-          ))}
+                <Text
+                  style={[
+                    styles.opcionTexto,
+                    panel.variante === variante && styles.opcionTextoActivo,
+                  ]}
+                >
+                  {ETIQUETA_VARIANTE[variante]}
+                </Text>
+              </Pressable>
+            ))}
+          </View>
         </View>
       )}
     </Animated.View>
@@ -294,29 +312,36 @@ export function BotonEditar({ onPress }: { onPress: () => void }) {
 const makeStyles = (colors: Palette) =>
   StyleSheet.create({
     raiz: { flex: 1, backgroundColor: colors.obsidiana },
-    screen: { flex: 1, backgroundColor: colors.obsidiana },
     header: {
       flexDirection: "row",
       alignItems: "center",
       justifyContent: "space-between",
       paddingHorizontal: spacing.lg,
-      paddingVertical: spacing.md,
-      borderBottomWidth: 1,
-      borderBottomColor: colors.cardBorder,
-      gap: spacing.sm,
+      paddingBottom: spacing.md,
+      gap: spacing.md,
     },
-    titulo: { fontFamily: fonts.sansBold, ...typeScale.heading, color: colors.marfil },
-    headerBotones: { flexDirection: "row", alignItems: "center", gap: spacing.sm },
-    restaurar: { flexDirection: "row", alignItems: "center", gap: 4, paddingVertical: 4 },
-    restaurarTexto: { fontFamily: fonts.sansMedium, ...typeScale.bodySm, color: colors.paloRosa },
+    titulo: { fontFamily: fonts.sansBold, ...typeScale.title, color: colors.marfil },
     listo: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: spacing.xs,
       backgroundColor: colors.guinda,
       paddingHorizontal: spacing.lg,
-      paddingVertical: spacing.sm,
+      paddingVertical: spacing.md,
       borderRadius: radius.full,
     },
-    listoTexto: { fontFamily: fonts.sansSemiBold, ...typeScale.bodySm, color: colors.pergamino },
-    contenido: { padding: spacing.lg, gap: spacing.md, paddingBottom: spacing.huge },
+    listoTexto: { fontFamily: fonts.sansSemiBold, ...typeScale.body, color: colors.pergamino },
+    barraAcciones: {
+      flexDirection: "row",
+      gap: spacing.lg,
+      paddingHorizontal: spacing.lg,
+      paddingBottom: spacing.md,
+      borderBottomWidth: 1,
+      borderBottomColor: colors.cardBorder,
+    },
+    accion: { flexDirection: "row", alignItems: "center", gap: 5 },
+    accionTexto: { fontFamily: fonts.sansMedium, ...typeScale.bodySm, color: colors.paloRosa },
+    contenido: { padding: spacing.lg, gap: spacing.md },
     ayuda: { fontFamily: fonts.sans, ...typeScale.bodySm, color: colors.paloRosa },
     seccion: {
       fontFamily: fonts.sansSemiBold,
@@ -326,49 +351,33 @@ const makeStyles = (colors: Palette) =>
       color: colors.paloRosa,
       marginTop: spacing.lg,
     },
-    filaPosicion: { position: "absolute", left: 0, right: 0 },
-    fila: {
-      flexDirection: "row",
-      alignItems: "center",
-      gap: spacing.sm,
-      borderRadius: radius.xl,
-      borderWidth: 1,
-      borderColor: colors.cardBorder,
-      backgroundColor: colors.cardBg,
-      paddingVertical: spacing.md,
-      paddingLeft: spacing.xs,
-      paddingRight: spacing.lg,
-      height: ALTO_FILA - spacing.md,
-    },
-    asa: { padding: spacing.sm },
-    filaTexto: { flex: 1, gap: 2 },
-    filaNombre: { fontFamily: fonts.sansSemiBold, ...typeScale.body, color: colors.marfil },
-    filaPregunta: { fontFamily: fonts.sans, ...typeScale.bodySm, color: colors.paloRosa },
+    editable: { gap: spacing.sm },
+    // Media pantalla se enseña a media pantalla: si en el editor se viera a
+    // todo lo ancho, elegir el tamaño sería adivinar.
+    mitad: { width: "52%" },
+    capa: { position: "absolute", top: 0, left: 0, right: 0, bottom: 0 },
     tacha: {
-      width: 26,
-      height: 26,
+      position: "absolute",
+      top: -8,
+      right: -6,
+      width: 28,
+      height: 28,
       borderRadius: radius.full,
       alignItems: "center",
       justifyContent: "center",
       backgroundColor: colors.error,
     },
     opciones: {
-      marginTop: -spacing.xs,
-      marginBottom: spacing.md,
       padding: spacing.md,
       borderRadius: radius.xl,
-      backgroundColor: withAlpha(colors.paloRosa, 0.08),
+      backgroundColor: withAlpha(colors.paloRosa, 0.1),
       gap: spacing.sm,
     },
-    opcionesTitulo: {
-      fontFamily: fonts.sansSemiBold,
-      ...typeScale.label,
-      letterSpacing: 1,
-      textTransform: "uppercase",
-      color: colors.paloRosa,
-    },
-    opcionesFila: { flexDirection: "row", gap: spacing.sm },
+    opcionesFila: { flexDirection: "row", flexWrap: "wrap", gap: spacing.sm },
     opcion: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 5,
       paddingHorizontal: spacing.md,
       paddingVertical: spacing.sm,
       borderRadius: radius.full,
@@ -378,16 +387,6 @@ const makeStyles = (colors: Palette) =>
     opcionActiva: { backgroundColor: colors.guinda, borderColor: colors.guindaLight },
     opcionTexto: { fontFamily: fonts.sansMedium, ...typeScale.bodySm, color: colors.marfil },
     opcionTextoActivo: { color: colors.pergamino },
-    muestra: {
-      borderRadius: radius.xl,
-      borderWidth: 1,
-      borderColor: colors.cardBorder,
-      padding: spacing.md,
-      gap: 2,
-    },
-    muestraActiva: { backgroundColor: colors.guinda, borderColor: colors.guindaLight },
-    muestraNombre: { fontFamily: fonts.sansSemiBold, ...typeScale.bodySm, color: colors.marfil },
-    muestraEjemplo: { fontFamily: fonts.sans, ...typeScale.bodySm, color: colors.paloRosa },
     disponibles: { flexDirection: "row", flexWrap: "wrap", gap: spacing.sm },
     pastilla: {
       flexDirection: "row",

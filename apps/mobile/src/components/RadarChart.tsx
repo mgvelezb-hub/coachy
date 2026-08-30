@@ -44,7 +44,8 @@ export function RadarChart({ ejes, size = 240 }: { ejes: Eje[] | undefined; size
   const styles = useMemo(() => makeStyles(colors), [colors]);
 
   const center = size / 2;
-  const radio = center * 0.62;
+  // Menos radio: las etiquetas ahora llevan su valor debajo y necesitan aire.
+  const radio = center * 0.56;
   const lista = ejes ?? [];
   const total = lista.length;
 
@@ -116,19 +117,63 @@ export function RadarChart({ ejes, size = 240 }: { ejes: Eje[] | undefined; size
           );
         })}
 
+        {/* Nombre y valor van juntos en la punta del eje: la tabla de abajo
+            hacía la tarjeta larguísima para decir lo que cabe aquí mismo. El
+            detalle completo está a un toque. */}
         {lista.map((eje, index) => {
-          const etiqueta = punto(index, 1.32);
+          const etiqueta = punto(index, 1.34);
+          const desvio =
+            eje.value === null || typeof eje.esperado !== "number" || eje.esperado === null
+              ? null
+              : Math.round((eje.value - eje.esperado) * 100);
+          const anclaje =
+            Math.abs(etiqueta.x - center) < 6 ? "middle" : etiqueta.x > center ? "start" : "end";
+
           return (
             <SvgText
               key={`label-${eje.label}`}
               x={etiqueta.x}
-              y={etiqueta.y + 4}
+              y={etiqueta.y}
               fill={colors.paloRosa}
               fontSize={11}
               fontFamily={fonts.sansSemiBold}
-              textAnchor="middle"
+              textAnchor={anclaje}
             >
               {eje.label}
+            </SvgText>
+          );
+        })}
+
+        {lista.map((eje, index) => {
+          const etiqueta = punto(index, 1.34);
+          const desvio =
+            eje.value === null || typeof eje.esperado !== "number" || eje.esperado === null
+              ? null
+              : Math.round((eje.value - eje.esperado) * 100);
+          const anclaje =
+            Math.abs(etiqueta.x - center) < 6 ? "middle" : etiqueta.x > center ? "start" : "end";
+
+          return (
+            <SvgText
+              key={`valor-${eje.label}`}
+              x={etiqueta.x}
+              y={etiqueta.y + 14}
+              fill={
+                desvio === null
+                  ? colors.paloRosaLight
+                  : desvio < -5
+                    ? colors.error
+                    : colors.champan
+              }
+              fontSize={12}
+              fontFamily={fonts.sansBold}
+              textAnchor={anclaje}
+            >
+              {eje.value === null
+                ? "—"
+                : desvio === null
+                  ? `${Math.round(eje.value * 100)}%`
+                  : `${desvio > 0 ? "+" : ""}${desvio}`}
             </SvgText>
           );
         })}
@@ -167,49 +212,11 @@ export function RadarChart({ ejes, size = 240 }: { ejes: Eje[] | undefined; size
       </Svg>
 
       {esperadoPoligono && (
-        <View style={styles.leyenda}>
-          <View style={styles.leyendaItem}>
-            <View style={[styles.muestra, { backgroundColor: colors.champan }]} />
-            <Text style={styles.leyendaTexto}>Tu semana</Text>
-          </View>
-          <View style={styles.leyendaItem}>
-            <View style={[styles.muestra, styles.muestraEsperada]} />
-            <Text style={styles.leyendaTexto}>Lo esperado a estas alturas</Text>
-          </View>
-        </View>
+        <Text style={styles.pie}>
+          Los números son tu diferencia contra lo esperado, en puntos. La silueta punteada es lo
+          que tocaba a estas alturas.
+        </Text>
       )}
-
-      {/* La tabla no sobra: la telaraña enseña la forma y la tabla enseña de
-          cuánto es la diferencia. Una sin la otra deja preguntas. */}
-      <View style={styles.tabla}>
-        {lista.map((eje) => {
-          const desvio =
-            eje.value === null || typeof eje.esperado !== "number" || eje.esperado === null
-              ? null
-              : Math.round((eje.value - eje.esperado) * 100);
-
-          return (
-            <View key={`fila-${eje.label}`} style={styles.fila}>
-              <Text style={styles.filaLabel} numberOfLines={1}>
-                {eje.label}
-              </Text>
-              <Text style={styles.filaDato} numberOfLines={1}>
-                {eje.value === null ? "sin dato" : (eje.detalle ?? `${Math.round(eje.value * 100)} %`)}
-                {eje.referencia ? ` · ${eje.referencia}` : ""}
-              </Text>
-              <Text
-                style={[
-                  styles.filaDesvio,
-                  desvio !== null && desvio < -5 && styles.filaDesvioAbajo,
-                  desvio !== null && desvio >= 0 && styles.filaDesvioArriba,
-                ]}
-              >
-                {desvio === null ? "—" : `${desvio > 0 ? "+" : ""}${desvio} pp`}
-              </Text>
-            </View>
-          );
-        })}
-      </View>
 
       {lista.some((eje) => eje.value === null) && (
         <Text style={styles.nota}>
@@ -222,32 +229,12 @@ export function RadarChart({ ejes, size = 240 }: { ejes: Eje[] | undefined; size
 }
 
 const makeStyles = (colors: Palette) => StyleSheet.create({
-  leyenda: { flexDirection: "row", flexWrap: "wrap", gap: spacing.md, marginTop: spacing.sm },
-  leyendaItem: { flexDirection: "row", alignItems: "center", gap: 6 },
-  muestra: { width: 12, height: 12, borderRadius: 3 },
-  muestraEsperada: {
-    backgroundColor: withAlpha(colors.paloRosa, 0.25),
-    borderWidth: 1,
-    borderColor: withAlpha(colors.paloRosa, 0.6),
-  },
-  leyendaTexto: { fontFamily: fonts.sans, ...typeScale.bodySm, color: colors.paloRosa },
-  tabla: { marginTop: spacing.md, gap: 4 },
-  fila: { flexDirection: "row", alignItems: "center", gap: spacing.sm },
-  filaLabel: { width: 92, fontFamily: fonts.sansMedium, ...typeScale.bodySm, color: colors.marfil },
-  filaDato: { flex: 1, fontFamily: fonts.sans, ...typeScale.bodySm, color: colors.paloRosa },
-  filaDesvio: {
-    width: 62,
-    textAlign: "right",
-    fontFamily: fonts.sansSemiBold,
+  wrap: { alignItems: "center", gap: spacing.sm },
+  pie: {
+    fontFamily: fonts.sans,
     ...typeScale.bodySm,
-    color: colors.paloRosa,
-    fontVariant: ["tabular-nums"],
-  },
-  filaDesvioAbajo: { color: colors.error },
-  filaDesvioArriba: { color: colors.champan },
-  wrap: {
-    alignItems: "center",
-    gap: spacing.sm,
+    color: colors.paloRosaLight,
+    textAlign: "center",
   },
   nota: {
     fontFamily: fonts.sans,
