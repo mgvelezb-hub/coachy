@@ -169,3 +169,38 @@ export const SUPLEMENTOS: Array<{
     detalle: "Con una comida que tenga grasa: en ayunas se aprovecha menos y suele repetir.",
   },
 ];
+
+/**
+ * Para qué entrena la persona, con lo que implica cada objetivo.
+ *
+ * Es la respuesta que más mueve el plan: de aquí salen el déficit o el
+ * superávit, el ritmo mensual de cada medida y la proyección al objetivo. Por
+ * eso lleva su explicación y no solo su nombre.
+ */
+export const OBJETIVOS: Array<{ valor: string; nombre: string; detalle: string }> = [
+  {
+    valor: "RECOMPOSICION",
+    nombre: "Recomposición",
+    detalle: "Bajar grasa sosteniendo músculo. La báscula se mueve poco; la cinta manda.",
+  },
+  {
+    valor: "PERDIDA_GRASA",
+    nombre: "Pérdida de grasa",
+    detalle: "Déficit sostenido. Es el que más pide del apego y el que más rápido se ve.",
+  },
+  {
+    valor: "GANANCIA_MUSCULO",
+    nombre: "Ganancia de músculo",
+    detalle: "Subir despacio. Ir rápido gana grasa, no músculo.",
+  },
+  {
+    valor: "SALUD",
+    nombre: "Salud",
+    detalle: "Sostener, moverse y comer bien, sin perseguir un número.",
+  },
+  {
+    valor: "RENDIMIENTO",
+    nombre: "Rendimiento",
+    detalle: "Rendir en tu disciplina. La comida sirve al entrenamiento, no al revés.",
+  },
+];

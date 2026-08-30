@@ -17,7 +17,12 @@ import { SafeAreaView } from "react-native-safe-area-context";
 
 import { ErrorState, LoadingState } from "@/components/States";
 import { useTheme } from "@/context/theme";
-import { type SessionSyncInput, type SessionView, type WeekView } from "@/lib/api";
+import {
+  type ExerciseAlternative,
+  type SessionSyncInput,
+  type SessionView,
+  type WeekView,
+} from "@/lib/api";
 import {
   alCerrarSerieEnElReloj,
   drenarSeriesCerradas,
@@ -43,7 +48,7 @@ import {
 } from "@/lib/sesion-viva";
 import { pulsoEntre, type PulsoDeTramo } from "@/lib/health";
 import { fonts, radius, spacing, type as typeScale, withAlpha, type Palette } from "@/lib/theme";
-import { clientIdFor } from "@/lib/training-client-id";
+import { clientIdFor, exercisePrefix } from "@/lib/training-client-id";
 import { getCachedWeek, getPendingSession, upsertPendingSession } from "@/lib/training-db";
 import { refreshPendingCount, syncAndNotify } from "@/lib/training-sync";
 
@@ -121,6 +126,7 @@ export default function EnVivoScreen() {
    * costó más que la primera.
    */
   const [pulsos, setPulsos] = useState<Record<string, PulsoDeTramo>>({});
+  const [cambiando, setCambiando] = useState(false);
   const inicioDeSerie = useRef<Date>(new Date());
 
   // Hay un Apple Watch con la app puesta. Se resuelve una vez: emparejar un
@@ -163,6 +169,7 @@ export default function EnVivoScreen() {
       const ejercicios: EjercicioVivo[] = encontrada.exercises.map((ejercicio, indice) => ({
         indice,
         nombre: ejercicio.name,
+        alternativas: ejercicio.alternatives,
         descansoSeg: ejercicio.restSeconds,
         series: ejercicio.sets.map((serie, setIndex) => {
           const capturada = guardadas.sets.find(
@@ -373,6 +380,45 @@ export default function EnVivoScreen() {
     });
   }
 
+  /**
+   * Cambiar de ejercicio a media sesión.
+   *
+   * Es el caso que pasa siempre: la máquina está ocupada y hay que resolver
+   * ahora, no salir a Rutinas a reacomodar el plan. Solo se ofrecen
+   * alternativas del mismo grupo muscular — cambiar de máquina no es cambiar
+   * de músculo.
+   *
+   * Lo capturado en ese lugar se va con la máquina anterior: la carga de la
+   * prensa no es la del hack squat, y conservarla mentiría en la progresión.
+   */
+  function sustituir(alternativa: ExerciseAlternative) {
+    if (!estado || !draft || !sesion) return;
+
+    const indice = estado.ejercicioActual;
+    const ejercicios = estado.ejercicios.map((ejercicio, posicion) =>
+      posicion === indice
+        ? {
+            ...ejercicio,
+            nombre: alternativa.name,
+            series: ejercicio.series.map((serie) => ({ ...serie, hechas: null, pesoKg: null })),
+          }
+        : ejercicio,
+    );
+
+    setEstado({ ...estado, ejercicios, serieActual: 0, descansoRestante: null });
+    setCambiando(false);
+
+    const prefijo = exercisePrefix(sesion.workoutId, indice);
+    void persistir({
+      ...draft,
+      sets: draft.sets.filter((serie) => !serie.clientId.startsWith(prefijo)),
+      substitutions: [
+        ...draft.substitutions.filter((cambio) => cambio.exerciseIndex !== indice),
+        { exerciseIndex: indice, exerciseId: alternativa.exerciseId },
+      ],
+    });
+  }
+
   async function cerrarSesion() {
     if (!draft) return;
     await persistir({ ...draft, completedAt: new Date().toISOString() });
@@ -485,6 +531,28 @@ export default function EnVivoScreen() {
               <Check size={26} color={colors.pergamino} strokeWidth={2.5} />
               <Text style={styles.botonPrincipalTexto}>Serie hecha</Text>
             </Pressable>
+          )}
+
+          {(ejercicio?.alternativas ?? []).length > 0 && (
+            <View style={styles.cambiarCaja}>
+              <Pressable onPress={() => setCambiando((valor) => !valor)} hitSlop={8}>
+                <Text style={styles.cambiarEnlace}>
+                  {cambiando ? "Dejar este ejercicio" : "¿Máquina ocupada? Cambiar ejercicio"}
+                </Text>
+              </Pressable>
+
+              {cambiando &&
+                (ejercicio?.alternativas ?? []).map((alternativa) => (
+                  <Pressable
+                    key={alternativa.exerciseId}
+                    onPress={() => sustituir(alternativa)}
+                    style={styles.alternativa}
+                  >
+                    <Text style={styles.alternativaNombre}>{alternativa.name}</Text>
+                    <Text style={styles.alternativaNota}>mismo grupo muscular</Text>
+                  </Pressable>
+                ))}
+            </View>
           )}
 
           <View style={styles.lista}>
@@ -674,6 +742,17 @@ const makeStyles = (colors: Palette) =>
       paddingVertical: spacing.sm,
     },
     botonSecundarioTexto: { fontFamily: fonts.sansMedium, ...typeScale.body, color: colors.marfil },
+    cambiarCaja: { gap: spacing.sm },
+    cambiarEnlace: { fontFamily: fonts.sansSemiBold, ...typeScale.body, color: colors.champan },
+    alternativa: {
+      borderRadius: radius.xl,
+      borderWidth: 1,
+      borderColor: colors.cardBorder,
+      padding: spacing.md,
+      gap: 2,
+    },
+    alternativaNombre: { fontFamily: fonts.sansMedium, ...typeScale.body, color: colors.marfil },
+    alternativaNota: { fontFamily: fonts.sans, ...typeScale.bodySm, color: colors.paloRosa },
     lista: { gap: spacing.xs },
     listaFila: {
       flexDirection: "row",

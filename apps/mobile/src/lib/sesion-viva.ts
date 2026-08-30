@@ -29,6 +29,19 @@ export type SerieViva = {
 export type EjercicioVivo = {
   indice: number;
   nombre: string;
+  /**
+   * A qué se puede cambiar si la máquina está ocupada. Viaja con la sesión
+   * —y por lo tanto al teléfono— para que el cambio funcione sin señal.
+   *
+   * El tipo se declara estructural y no importado: este módulo es puro y no
+   * conoce el cliente de la API.
+   */
+  alternativas?: Array<{
+    exerciseId: string;
+    name: string;
+    declared: boolean;
+    videoPath: string | null;
+  }>;
   /** Segundos de descanso que pide el esquema entre series. */
   descansoSeg: number;
   series: SerieViva[];

@@ -734,6 +734,36 @@ export function postComidaLog(input: {
   });
 }
 
+/** Lo que devuelve `POST /api/v1/nutricion/replan`. */
+export type NutricionReplanResponse = {
+  /** Qué implica cada respuesta, en el vocabulario de quien come. */
+  lectura: string[];
+  /** Cuándo entra el cambio. El menú de esta semana ya se compró. */
+  cuando: string;
+};
+
+/**
+ * Rearma el perfil de alimentación.
+ *
+ * No regenera el menú de la semana en curso: ese ya se compró, y rehacerlo a
+ * media semana obliga a tirar comida.
+ */
+export function postNutricionReplan(input: {
+  goal: string;
+  mealsPerDay: number;
+  budget: "BAJO" | "MEDIO" | "ALTO";
+  dietStyle: DietStyle;
+  maxPrepMin: number | null;
+  supplements: Array<"WHEY" | "CREATINA" | "OMEGA3">;
+  excludedFoods: string[];
+  favoriteFoods: string[];
+}): Promise<NutricionReplanResponse> {
+  return apiFetch<NutricionReplanResponse>("/api/v1/nutricion/replan", {
+    method: "POST",
+    body: input,
+  });
+}
+
 /** Lo que devuelve `POST /api/v1/training/replan`. */
 export type ReplanResponse = {
   asignadas: Array<{

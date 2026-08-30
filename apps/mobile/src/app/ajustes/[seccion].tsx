@@ -942,6 +942,25 @@ export default function AjustesDetalleScreen() {
         {activa === "nutricion" && (
         <>
         <Card>
+          <SectionLabel>Rearmar tu alimentación</SectionLabel>
+          <Text style={styles.vaultIntro}>
+            Cambiar una cosa se hace aquí abajo. Cuando cambió el conjunto —otro objetivo, otro
+            estilo, otro presupuesto— conviene volver a mirar todas las respuestas juntas y ver qué
+            implica cada una.
+          </Text>
+
+          <Pressable onPress={() => router.push("/replantear-dieta")} style={styles.replantear}>
+            <RotateCcw size={18} color={colors.pergamino} strokeWidth={2} />
+            <View style={{ flex: 1 }}>
+              <Text style={styles.replantearTitulo}>Volver a armar mi perfil</Text>
+              <Text style={styles.replantearDetalle}>
+                Entra con tu siguiente check-in: el menú de esta semana ya se compró.
+              </Text>
+            </View>
+          </Pressable>
+        </Card>
+
+        <Card>
           <SectionLabel>Tu tipo de dieta</SectionLabel>
           <Explicacion>
             <TextoExplicativo>
