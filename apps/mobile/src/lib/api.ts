@@ -734,6 +734,30 @@ export function postComidaLog(input: {
   });
 }
 
+/** Lo que devuelve `POST /api/v1/training/recalibrar`. */
+export type RecalibrarResponse = {
+  asignadas: Array<{ weekday: string; discipline: Discipline; minutos: number; esPrimaria: boolean }>;
+  cargas: Array<{ discipline: Discipline; sessionsPerWeek: number }>;
+  avisos: string[];
+  /** Qué cambió respecto de lo que había. */
+  cambios: Array<{ discipline: Discipline; antes: number; ahora: number }>;
+};
+
+/**
+ * Mueve el peso entre disciplinas sobre la semana que ya existe.
+ *
+ * No pregunta horarios de nuevo: usa el tiempo que ya está declarado. Subir la
+ * importancia de una disciplina no crea días — si no cabe, lo dice.
+ */
+export function postRecalibrar(
+  pesos: Array<{ discipline: Discipline; proposito: string; importancia: number }>,
+): Promise<RecalibrarResponse> {
+  return apiFetch<RecalibrarResponse>("/api/v1/training/recalibrar", {
+    method: "POST",
+    body: { pesos },
+  });
+}
+
 /** Lo que devuelve `POST /api/v1/nutricion/replan`. */
 export type NutricionReplanResponse = {
   /** Qué implica cada respuesta, en el vocabulario de quien come. */

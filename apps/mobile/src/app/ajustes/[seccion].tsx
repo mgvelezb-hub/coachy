@@ -848,6 +848,14 @@ export default function AjustesDetalleScreen() {
             </View>
           </Pressable>
 
+          {/* Mover el peso es lo que se quiere a las dos semanas; rearmar es
+              para cuando cambió la vida, no el gusto. */}
+          <Pressable onPress={() => router.push("/recalibrar")} style={styles.recalibrar}>
+            <Text style={styles.recalibrarTexto}>
+              Solo mover el peso entre disciplinas →
+            </Text>
+          </Pressable>
+
           <Text style={styles.vaultIntro}>
             Hoy la app te planea el gimnasio y te registra el resto: qué días y cómo entrenas las
             otras lo eliges tú. La prescripción por disciplina llega una a una, empezando por
@@ -1489,6 +1497,8 @@ const makeStyles = (colors: Palette) => StyleSheet.create({
     borderRadius: radius.xl,
     padding: spacing.lg,
   },
+  recalibrar: { paddingVertical: spacing.md, alignItems: "center" },
+  recalibrarTexto: { fontFamily: fonts.sansSemiBold, ...typeScale.body, color: colors.champan },
   replantearTitulo: { fontFamily: fonts.sansSemiBold, ...typeScale.body, color: colors.pergamino },
   replantearDetalle: {
     fontFamily: fonts.sans,

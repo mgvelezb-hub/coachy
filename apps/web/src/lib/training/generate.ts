@@ -1,4 +1,5 @@
 import { fromISODate, shiftISODate, toISODate, weekdayIn } from "@/lib/format";
+import { gruposFatigados } from "@/lib/training/carga-muscular";
 import {
   buildTargetSets,
   lastPerformance,
@@ -74,6 +75,25 @@ function dateOfDay(weekStart: Date, dayIndex: number): string {
  * Elige qué huecos de la receta caben en el tiempo disponible, respetando el
  * orden de la sesión: primero se descartan los de prioridad más baja.
  */
+/**
+ * Baja la prioridad de los huecos que tocan un grupo ya cansado.
+ *
+ * `chooseSlots` recorta por prioridad; esto hace que lo primero en caer sea el
+ * accesorio del grupo que otra disciplina ya trabajó. Los compuestos no se
+ * mueven —son el trabajo principal del día— y por eso solo se penalizan los
+ * huecos de prioridad 2 en adelante.
+ */
+function ordenarPorFatiga(slots: Slot[], cansados: MuscleGroup[]): Slot[] {
+  return slots.map((slot) => {
+    if (slot.priority < 2) return slot;
+    const tocaCansado = slot.groups.some((group) => cansados.includes(group));
+    // La prioridad está acotada a 4 en el tipo: `chooseSlots` ordena de menor a
+    // mayor, así que empujar al último peldaño ya lo pone primero en la fila de
+    // lo que se suelta.
+    return tocaCansado ? { ...slot, priority: 4 as const } : slot;
+  });
+}
+
 function chooseSlots(slots: Slot[], count: number): Slot[] {
   const ranked = slots
     .map((slot, index) => ({ slot, index }))
@@ -205,6 +225,27 @@ export function generateWeek(
   });
   const crowded = new Set(disciplines.crowdedDates);
 
+  /**
+   * Qué grupos llegan cansados cada día por otra disciplina.
+   *
+   * No es lo mismo haber nadado que haber jugado squash: el crol deja la
+   * espalda y el hombro trabajados, el squash la pierna. Quitar "un accesorio
+   * cualquiera" por compartir día recortaba a ciegas — a veces el del grupo
+   * que estaba fresco.
+   *
+   * Cuenta el día de la sesión y el anterior: la fatiga de ayer es la que
+   * decide cuánto aguanta hoy.
+   */
+  const fatigaPorDia = new Map<string, MuscleGroup[]>();
+  for (const sesion of disciplines.sessions) {
+    const grupos = gruposFatigados(sesion.discipline);
+    if (grupos.length === 0) continue;
+
+    for (const fecha of [sesion.date, shiftISODate(sesion.date, 1)]) {
+      fatigaPorDia.set(fecha, [...new Set([...(fatigaPorDia.get(fecha) ?? []), ...grupos])]);
+    }
+  }
+
   kinds.forEach((kind, index) => {
     const day = days[index];
     if (!day) return;
@@ -231,9 +272,21 @@ export function generateWeek(
     // pierde un accesorio. Es el mismo recorte por prioridad de siempre, por
     // otra razón — y nunca baja de tres ejercicios: media sesión de pesas ya
     // no entrena nada.
-    const apretado = crowded.has(dateOfDay(weekStart, dayIndex));
+    const fecha = dateOfDay(weekStart, dayIndex);
+    const apretado = crowded.has(fecha);
+
+    // Y el recorte se hace DONDE toca: si ayer nadaste, el que sobra es un
+    // accesorio de espalda, no el de pierna que hoy está fresca.
+    const cansados = (fatigaPorDia.get(fecha) ?? []).filter((grupo) =>
+      DAY_GROUPS[kind].includes(grupo),
+    );
+    const disponibles =
+      cansados.length > 0
+        ? ordenarPorFatiga(slots, cansados)
+        : slots;
+
     const chosen = chooseSlots(
-      slots,
+      disponibles,
       Math.max(3, exerciseCount + (tocaPrioridad ? 1 : 0) - (apretado ? 1 : 0)),
     );
     const usedToday = new Set<string>();

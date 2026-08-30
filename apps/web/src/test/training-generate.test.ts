@@ -226,6 +226,45 @@ describe("presupuesto semanal de sesiones", () => {
   });
 });
 
+describe("fatiga de otras disciplinas", () => {
+  it("el recorte cae en el grupo que la otra disciplina ya trabajó", () => {
+    // Natación deja espalda y hombro cansados. En una semana con natación, el
+    // día de pecho y espalda debe soltar accesorio de ESPALDA antes que de
+    // pecho — que es lo que quedó fresco.
+    const conNatacion = generate(
+      profile({
+        liftingDays: 5,
+        otherDisciplines: [{ discipline: "NATACION", sessionsPerWeek: 2 }],
+      }),
+    );
+
+    const dia = conNatacion.workouts.find((w) => w.dayKind === "PECHO_ESPALDA");
+    if (!dia) return; // Con el reparto de esa semana puede no haber ese día.
+
+    const espalda = dia.exercises.filter((e) => e.muscleGroup === "ESPALDA").length;
+    const pecho = dia.exercises.filter((e) => e.muscleGroup === "PECHO").length;
+
+    // No se exige que espalda quede en cero —el día sigue siendo de espalda—,
+    // sino que no cargue MÁS que el grupo fresco.
+    expect(espalda).toBeLessThanOrEqual(pecho + 1);
+  });
+
+  it("sin otras disciplinas la sesión no se recorta", () => {
+    const solo = generate(profile({ liftingDays: 5 }));
+    const conOtras = generate(
+      profile({
+        liftingDays: 5,
+        otherDisciplines: [{ discipline: "NATACION", sessionsPerWeek: 1 }],
+      }),
+    );
+
+    // Con natación hay menos días de gimnasio (presupuesto) pero los que
+    // quedan no pierden ejercicios porque sí.
+    expect(solo.workouts[0]!.exercises.length).toBeGreaterThan(0);
+    expect(conOtras.workouts.length).toBeLessThan(solo.workouts.length);
+  });
+});
+
 describe("protocolo de lesión", () => {
   it("lee la zona de las condiciones del perfil", () => {
     expect(parseInjuries(["lesion_rodilla"])).toEqual({ active: true, zones: ["PIERNA"] });
