@@ -9,9 +9,9 @@
  * el truco que comparten la app y el widget aquí no sirve. La conversación va
  * por `WatchConnectivity` (ver `Conectividad.swift`).
  *
- * **Sin HealthKit todavía**: el reloj graba movimiento con CoreMotion para
- * poder calibrar el conteo de repeticiones, y eso no necesita permisos de
- * salud. Pedir la capacidad antes de usarla solo complica el aprovisionamiento.
+ * **Con HealthKit**: no por los datos, sino porque una `HKWorkoutSession` es
+ * lo único que impide que watchOS suspenda la app en cuanto bajas el brazo.
+ * Los permisos y el modo de fondo `workout-processing` van en `Info.plist`.
  *
  * watchOS 10 como piso: es lo que corren los relojes Series 6 en adelante y lo
  * que permite escribir la pantalla entera en SwiftUI moderno.
@@ -32,8 +32,11 @@ module.exports = (config) => ({
   // equivoca, el plugin no falla: escribe "Skipping icon generation" en medio
   // del prebuild y sigue, y el reloj se queda con el círculo gris.
   icon: "../../assets/images/icon.png",
-  frameworks: ["SwiftUI", "WatchConnectivity", "CoreMotion"],
+  frameworks: ["SwiftUI", "WatchConnectivity", "CoreMotion", "HealthKit"],
   colors: {
     $accent: "#C9A961",
+  },
+  entitlements: {
+    "com.apple.developer.healthkit": true,
   },
 });

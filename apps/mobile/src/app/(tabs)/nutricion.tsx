@@ -25,6 +25,7 @@ import {
   type ConsultaResponse,
   type MeResponse,
   type Menu,
+  type MenuMeal,
   type NutritionResponse,
 } from "@/lib/api";
 import { DIETA_ACTUAL, PORQUE_DEL_PLAN, PRESUPUESTOS, aguaDelDia } from "@/lib/nutricion";
@@ -259,24 +260,82 @@ function MenuCard({ menu }: { menu: Menu }) {
       summary={resumen}
     >
       {menu.meals.map((meal) => (
-        <View key={meal.slot} style={styles.meal}>
-          <Text style={styles.mealLabel}>
-            {meal.label} · {meal.timeHint}
-          </Text>
-          {meal.items.map((item) => (
-            <Text key={item.name} style={styles.item}>
-              · {item.name} {item.free ? "(libre)" : `— ${item.grams} g`}
-            </Text>
-          ))}
-          {meal.equivalences.map((equivalencia) => (
-            <Text key={equivalencia.forName} style={styles.equivalencia}>
-              {equivalencia.forName} se puede cambiar por{" "}
-              {equivalencia.options.map((option) => `${option.name} (${option.grams} g)`).join(", ")}
-            </Text>
-          ))}
-        </View>
+        <ComidaDelMenu key={meal.slot} meal={meal} />
       ))}
     </ScoreCard>
+  );
+}
+
+/**
+ * Una comida del menú: la lista limpia, y la equivalencia solo si se pide.
+ *
+ * Antes cada comida traía debajo el párrafo completo de equivalencias de todos
+ * sus ingredientes, así que abrir un menú era encontrarse un muro de texto que
+ * había que saltar para leer qué se come. Ahora el menú se abre limpio y cada
+ * ingrediente que tiene cambio lo dice con un toque.
+ *
+ * La cantidad se lee primero en la unidad en que se sirve —"3 tortillas"— y
+ * los gramos van al lado, más chicos: siguen siendo la cifra exacta, pero ya
+ * no son lo primero que hay que interpretar.
+ */
+function ComidaDelMenu({ meal }: { meal: MenuMeal }) {
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
+  const [abierto, setAbierto] = useState<string | null>(null);
+
+  const equivalenciaDe = (nombre: string) =>
+    meal.equivalences.find((equivalencia) => equivalencia.forName === nombre) ?? null;
+
+  return (
+    <View style={styles.meal}>
+      <Text style={styles.mealLabel}>
+        {meal.label} · {meal.timeHint}
+      </Text>
+
+      {meal.items.map((item) => {
+        const equivalencia = equivalenciaDe(item.name);
+        const expandido = abierto === item.name;
+
+        return (
+          <View key={item.name}>
+            <Pressable
+              onPress={() => equivalencia && setAbierto(expandido ? null : item.name)}
+              disabled={!equivalencia}
+              style={styles.itemFila}
+            >
+              <Text style={styles.item}>
+                {item.name}
+                {item.free ? " · libre" : ""}
+              </Text>
+
+              <View style={styles.itemCantidad}>
+                {item.portion ? (
+                  <Text style={styles.itemPorcion}>{item.portion}</Text>
+                ) : !item.free ? (
+                  <Text style={styles.itemPorcion}>{item.grams} g</Text>
+                ) : null}
+                {item.portion && !item.free ? (
+                  <Text style={styles.itemGramos}>{item.grams} g</Text>
+                ) : null}
+              </View>
+
+              {equivalencia ? (
+                <Text style={styles.itemCambio}>{expandido ? "−" : "cambiar"}</Text>
+              ) : null}
+            </Pressable>
+
+            {expandido && equivalencia && (
+              <Text style={styles.equivalencia}>
+                En su lugar:{" "}
+                {equivalencia.options
+                  .map((opcion) => opcion.portion ?? `${opcion.name} (${opcion.grams} g)`)
+                  .join(" · ")}
+              </Text>
+            )}
+          </View>
+        );
+      })}
+    </View>
   );
 }
 
@@ -472,19 +531,51 @@ const makeStyles = (colors: Palette) => StyleSheet.create({
   },
   mealLabel: {
     fontFamily: fonts.sansSemiBold,
-    ...typeScale.bodySm,
-    color: colors.paloRosa,
-    marginBottom: 2,
+    // El nombre de la comida encabeza su bloque: sube de `bodySm` a
+    // `subheading` para que se distinga de sus ingredientes.
+    ...typeScale.subheading,
+    color: colors.champan,
+    marginBottom: spacing.xs,
+  },
+  itemFila: {
+    flexDirection: "row",
+    alignItems: "baseline",
+    gap: spacing.sm,
+    paddingVertical: 5,
   },
   item: {
+    flex: 1,
     fontFamily: fonts.sans,
     ...typeScale.body,
     color: colors.marfil,
   },
-  equivalencia: {
-    fontFamily: fonts.serifItalic,
+  itemCantidad: { alignItems: "flex-end" },
+  itemPorcion: {
+    fontFamily: fonts.sansSemiBold,
+    ...typeScale.body,
+    color: colors.marfil,
+    fontVariant: ["tabular-nums"],
+  },
+  // Los gramos no desaparecen: quedan debajo, más chicos. Siguen siendo la
+  // cifra exacta, pero ya no son lo primero que hay que interpretar.
+  itemGramos: {
+    fontFamily: fonts.sans,
     ...typeScale.bodySm,
-    color: colors.paloRosaLight,
-    marginTop: spacing.xs,
+    color: colors.paloRosa,
+    fontVariant: ["tabular-nums"],
+  },
+  itemCambio: {
+    fontFamily: fonts.sansMedium,
+    ...typeScale.bodySm,
+    color: colors.champan,
+    width: 62,
+    textAlign: "right",
+  },
+  equivalencia: {
+    fontFamily: fonts.sans,
+    ...typeScale.bodySm,
+    color: colors.paloRosa,
+    marginBottom: spacing.sm,
+    paddingLeft: spacing.sm,
   },
 });

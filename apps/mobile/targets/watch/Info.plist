@@ -1,5 +1,25 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  Info.plist de la app del reloj.
+
+  Xcode genera el resto de las llaves (GENERATE_INFOPLIST_FILE) y las mezcla
+  con estas. El plugin de targets solo escribe este archivo cuando NO existe,
+  así que lo que se ponga aquí sobrevive a los prebuilds.
+
+  `workout-processing` es lo que permite que la HKWorkoutSession siga corriendo
+  con la muñeca abajo. Sin esa llave, watchOS suspende la app entre serie y
+  serie y la pantalla del entrenamiento sirve para la primera nada más.
+-->
 <plist version="1.0">
-  <dict/>
+  <dict>
+    <key>WKBackgroundModes</key>
+    <array>
+      <string>workout-processing</string>
+    </array>
+    <key>NSHealthShareUsageDescription</key>
+    <string>Holy Gains lee tu frecuencia cardiaca y calorías durante la sesión para enseñártelas en la muñeca.</string>
+    <key>NSHealthUpdateUsageDescription</key>
+    <string>Holy Gains guarda tu sesión de pesas en Salud para que cuente en tus anillos.</string>
+  </dict>
 </plist>

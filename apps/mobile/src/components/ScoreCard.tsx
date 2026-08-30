@@ -86,15 +86,24 @@ export function ScoreCard({
         <View style={styles.body}>
           <Text style={styles.title}>{title}</Text>
           <Text style={styles.summary}>{summary}</Text>
-        </View>
 
-        {status && (
-          <View style={[styles.chip, { backgroundColor: withAlpha(toneColor[status.tone], 0.18) }]}>
-            <Text style={[styles.chipText, { color: toneColor[status.tone] }]}>
-              {status.label.toUpperCase()}
-            </Text>
-          </View>
-        )}
+          {/* La etiqueta va DEBAJO del resumen, no a su derecha.
+              Compartiendo renglón le robaba el ancho al texto y lo partía en
+              tres o cuatro líneas cortas; el dato quedaba estrangulado para
+              que cupiera una palabra en mayúsculas. Abajo, el resumen usa
+              todo el ancho y la etiqueta se lee igual de bien. */}
+          {status && (
+            <View style={styles.chipRow}>
+              <View
+                style={[styles.chip, { backgroundColor: withAlpha(toneColor[status.tone], 0.18) }]}
+              >
+                <Text style={[styles.chipText, { color: toneColor[status.tone] }]}>
+                  {status.label.toUpperCase()}
+                </Text>
+              </View>
+            </View>
+          )}
+        </View>
 
         {expandible ? (
           open ? (
@@ -141,6 +150,10 @@ const makeStyles = (colors: Palette) => StyleSheet.create({
     flex: 1,
     gap: 2,
   },
+  chipRow: {
+    flexDirection: "row",
+    marginTop: spacing.xs,
+  },
   title: {
     fontFamily: fonts.sansSemiBold,
     ...typeScale.subheading,
@@ -152,8 +165,9 @@ const makeStyles = (colors: Palette) => StyleSheet.create({
     color: colors.paloRosa,
   },
   chip: {
+    alignSelf: "flex-start",
     paddingHorizontal: spacing.md,
-    paddingVertical: spacing.xs,
+    paddingVertical: 3,
     borderRadius: radius.full,
   },
   chipText: {

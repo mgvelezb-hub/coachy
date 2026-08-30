@@ -30,8 +30,12 @@ describe("toMenuView", () => {
           label: "Desayuno",
           timeHint: "7:00 am",
           allowDenseCarb: true,
-          items: [{ name: "Avena", grams: 60, free: false }],
-          equivalences: [{ forName: "Avena", options: [{ name: "Amaranto", grams: 55 }] }],
+          // La avena y el amaranto se pesan: su porción natural es `null`.
+          // Un alimento por pieza —tortilla, huevo— sí trae texto aquí.
+          items: [{ name: "Avena", grams: 60, free: false, portion: null }],
+          equivalences: [
+            { forName: "Avena", options: [{ name: "Amaranto", grams: 55, portion: null }] },
+          ],
         },
       ],
     });

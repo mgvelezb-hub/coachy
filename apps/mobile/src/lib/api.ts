@@ -237,14 +237,23 @@ export function getPhotos(limit?: number): Promise<{ fotos: ProgressPhoto[] }> {
   return apiFetch<{ fotos: ProgressPhoto[] }>(`/api/v1/photos${query}`);
 }
 
-export type MenuItem = { name: string; grams: number; free: boolean };
+export type MenuItem = {
+  name: string;
+  grams: number;
+  free: boolean;
+  /** "3 tortillas de maíz" cuando el alimento se sirve por pieza. */
+  portion: string | null;
+};
 export type MenuMeal = {
   slot: string;
   label: string;
   timeHint: string;
   allowDenseCarb: boolean;
   items: MenuItem[];
-  equivalences: Array<{ forName: string; options: Array<{ name: string; grams: number }> }>;
+  equivalences: Array<{
+    forName: string;
+    options: Array<{ name: string; grams: number; portion: string | null }>;
+  }>;
 };
 export type Menu = { menuNumber: number; meals: MenuMeal[] };
 export type GroceryItem = { name: string; grams: number; unit: string };

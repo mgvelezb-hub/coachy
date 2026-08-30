@@ -1,5 +1,7 @@
 import { Tabs } from "expo-router";
-import { Dumbbell, LayoutGrid, LibraryBig, Salad, Sun } from "lucide-react-native";
+import { LayoutGrid, LibraryBig, Salad, Sun } from "lucide-react-native";
+
+import { FiguraEntrenando } from "@/components/iconos/Disciplinas";
 import { useEffect } from "react";
 import { AppState, Text, useWindowDimensions, type ColorValue } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -124,7 +126,9 @@ export default function TabsLayout() {
         name="rutinas"
         options={{
           tabBarLabel: tabLabel("Rutinas"),
-          tabBarIcon: ({ color }) => <Dumbbell size={20} color={color} strokeWidth={1.75} />,
+          // Una figura entrenando y no una mancuerna: en esta pestaña también
+          // viven natación, box y squash desde que hay multi-disciplina.
+          tabBarIcon: ({ color }) => <FiguraEntrenando size={22} color={color} strokeWidth={1.75} />,
         }}
       />
       <Tabs.Screen

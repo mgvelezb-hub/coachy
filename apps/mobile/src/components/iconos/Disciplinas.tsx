@@ -1,3 +1,4 @@
+import type { ColorValue } from "react-native";
 import Svg, { Circle, Ellipse, G, Line, Path, Rect } from "react-native-svg";
 
 /**
@@ -17,7 +18,14 @@ import Svg, { Circle, Ellipse, G, Line, Path, Rect } from "react-native-svg";
  * `strokeWidth`), así que se pueden intercambiar sin tocar las pantallas.
  */
 
-type IconProps = { size?: number; color?: string; strokeWidth?: number };
+/**
+ * La misma firma que los íconos del set genérico.
+ *
+ * `color` acepta `ColorValue` y no solo `string` porque las barras de pestañas
+ * de React Navigation pasan el color ya resuelto en ese tipo; con `string` a
+ * secas, cada uso en una pestaña obligaba a castear.
+ */
+type IconProps = { size?: number; color?: ColorValue; strokeWidth?: number };
 
 /**
  * Raqueta de squash.
@@ -233,6 +241,67 @@ export function LevantamientoClean({ size = 24, color = "currentColor", strokeWi
         d="M12 14.2 9 17v3M12 14.2l3 2.8v3"
         stroke={color}
         strokeWidth={strokeWidth * 1.4}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </Svg>
+  );
+}
+
+/**
+ * Silueta entrenando, para la pestaña de Rutinas.
+ *
+ * La mancuerna que había ahí decía "gimnasio", y desde la Fase 7 esa pestaña
+ * también contiene natación, box, squash y lo que venga. Una figura en
+ * movimiento cubre todas sin quedarle a ninguna: es la señalética genérica de
+ * "actividad física", no el equipo de una disciplina.
+ *
+ * Va en zancada dinámica con los brazos en oposición —el gesto que cualquiera
+ * lee como "moviéndose"— y no en pose estática de brazos abiertos, que se
+ * confunde con un ícono de usuario.
+ */
+export function FiguraEntrenando({ size = 24, color = "currentColor", strokeWidth = 2 }: IconProps) {
+  const grueso = strokeWidth * 1.5;
+
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+      <Circle cx="13.4" cy="4.2" r="2.4" fill={color} />
+
+      {/* Tronco inclinado hacia adelante: es lo que separa correr de estar de pie. */}
+      <Path
+        d="M13 7v5.2"
+        stroke={color}
+        strokeWidth={grueso * 1.15}
+        strokeLinecap="round"
+      />
+
+      {/* Brazos en oposición: uno adelante arriba, otro atrás abajo. */}
+      <Path
+        d="m13.2 8.6 4.2-1.8"
+        stroke={color}
+        strokeWidth={grueso}
+        strokeLinecap="round"
+      />
+      <Path
+        d="m12.8 9 -3.6 2.4"
+        stroke={color}
+        strokeWidth={grueso}
+        strokeLinecap="round"
+      />
+
+      {/* Pierna adelantada, rodilla alta. */}
+      <Path
+        d="m13.1 12.4 2.9 2.4 1 4.6"
+        stroke={color}
+        strokeWidth={grueso}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      {/* Pierna de atrás, extendida. */}
+      <Path
+        d="m12.7 12.6-3.5 3.1-3.4 1.2"
+        stroke={color}
+        strokeWidth={grueso}
         strokeLinecap="round"
         strokeLinejoin="round"
       />

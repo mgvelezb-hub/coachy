@@ -14,6 +14,8 @@ export interface MenuItemView {
   name: string;
   grams: number;
   free: boolean;
+  /** "3 tortillas de maíz" cuando el alimento se sirve por pieza. */
+  portion: string | null;
 }
 
 export interface MenuMealView {
@@ -22,7 +24,10 @@ export interface MenuMealView {
   timeHint: string;
   allowDenseCarb: boolean;
   items: MenuItemView[];
-  equivalences: Array<{ forName: string; options: Array<{ name: string; grams: number }> }>;
+  equivalences: Array<{
+    forName: string;
+    options: Array<{ name: string; grams: number; portion: string | null }>;
+  }>;
 }
 
 export interface MenuView {
@@ -37,6 +42,8 @@ export interface GroceryItemView {
 }
 
 /** El JSON del motor, aplanado a lo que necesita la vista. */
+import { porcionNatural } from "@/lib/coachy/porciones";
+
 export function toMenuView(menuNumber: number, mealsJson: Prisma.JsonValue): MenuView {
   const meals = Array.isArray(mealsJson) ? mealsJson : [];
 
@@ -54,10 +61,15 @@ export function toMenuView(menuNumber: number, mealsJson: Prisma.JsonValue): Men
         allowDenseCarb: meal.allowDenseCarb !== false,
         items: items.map((item) => {
           const row = item as Record<string, unknown>;
+          const name = String(row.name ?? "");
+          const grams = Number(row.grams ?? 0);
           return {
-            name: String(row.name ?? ""),
-            grams: Number(row.grams ?? 0),
+            name,
+            grams,
             free: row.free === true,
+            // Lo que se compra por pieza se dice en piezas: nadie pesa una
+            // tortilla, y "90 g" obliga a dividir para saber si son tres.
+            portion: porcionNatural(name, grams),
           };
         }),
         equivalences: equivalences.map((equivalence) => {
@@ -67,7 +79,9 @@ export function toMenuView(menuNumber: number, mealsJson: Prisma.JsonValue): Men
             forName: String(row.forName ?? ""),
             options: options.map((option) => {
               const item = option as Record<string, unknown>;
-              return { name: String(item.name ?? ""), grams: Number(item.grams ?? 0) };
+              const nombre = String(item.name ?? "");
+              const gramos = Number(item.grams ?? 0);
+              return { name: nombre, grams: gramos, portion: porcionNatural(nombre, gramos) };
             }),
           };
         }),

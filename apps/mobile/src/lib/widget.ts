@@ -93,7 +93,13 @@ export function syncWidgetData(payload: WidgetPayload): void {
 // Selección del siguiente tiempo de comida — lógica PURA, sin React ni red.
 // ---------------------------------------------------------------------------
 
-export type WidgetMealItem = { name: string; grams: number; free: boolean };
+export type WidgetMealItem = {
+  name: string;
+  grams: number;
+  free: boolean;
+  /** "3 tortillas de maíz", cuando el alimento se sirve por pieza. */
+  portion?: string | null;
+};
 
 export type WidgetMeal = {
   label: string;
@@ -101,9 +107,11 @@ export type WidgetMeal = {
   items: WidgetMealItem[];
 };
 
-/** "Naranja — 180 g" o "Café — (libre)" para los alimentos sin gramaje fijo. */
+/** "1 naranja", "Naranja — 180 g" o "Café (libre)", en ese orden de preferencia. */
 export function formatMealItem(item: WidgetMealItem): string {
-  return item.free ? `${item.name} (libre)` : `${item.name} — ${item.grams} g`;
+  if (item.free) return `${item.name} (libre)`;
+  // En el widget cabe una línea por alimento: gana la unidad en que se sirve.
+  return item.portion ? item.portion : `${item.name} — ${item.grams} g`;
 }
 
 /**
