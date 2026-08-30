@@ -289,12 +289,7 @@ export default function BibliotecaScreen() {
           dos lugares: para ver un ejercicio había que adivinar en cuál de las
           dos estaba. Ahora el catálogo manda y el video es un atributo del
           ejercicio, no una lista aparte. */}
-      <ScoreCard
-        icon={Dumbbell}
-        tint={colors.champan}
-        title="Gym"
-        summary={resumenGym}
-      >
+      <ScoreCard icon={Dumbbell} tint={colors.paloRosa} title="Gym" summary={resumenGym}>
         {catalogo.length === 0 ? (
           totalVideos === 0 ? (
             <EmptyState message="Tu semana todavía no tiene ejercicios con video." />
@@ -555,6 +550,10 @@ function EjercicioGymRow({
             {ejercicio.videoPath ? (isDownloaded ? " · descargado" : " · con video") : " · sin video"}
           </Text>
         </View>
+
+        {/* El mismo signo que usan los acordeones de arriba: sin él, la fila
+            parece un renglón muerto y nadie descubre que tiene detalle. */}
+        <Text style={styles.rowChevron}>{abierto ? "−" : "+"}</Text>
       </Pressable>
 
       {abierto && (
@@ -694,6 +693,12 @@ const makeStyles = (colors: Palette) => StyleSheet.create({
   },
   fichaLinea: { fontFamily: fonts.sans, ...typeScale.bodySm, color: colors.paloRosa },
   enSemana: { fontFamily: fonts.sansSemiBold, color: colors.champan },
+  rowChevron: {
+    fontFamily: fonts.display,
+    ...typeScale.heading,
+    color: colors.paloRosa,
+    marginLeft: spacing.md,
+  },
   fichaCuerpo: { gap: spacing.xs, paddingBottom: spacing.sm },
   fichaEtiqueta: { fontFamily: fonts.sansSemiBold, color: colors.marfil },
 
