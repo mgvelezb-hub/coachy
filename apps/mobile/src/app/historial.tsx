@@ -10,17 +10,73 @@ import { WaistChart } from "@/components/WaistChart";
 import { useTheme } from "@/context/theme";
 import {
   ApiError,
+  DISCIPLINE_LABELS,
+  getActivities,
   getHistoryMeasurements,
   getHistoryTraining,
+  type Activity,
   type CheckInPoint,
   type PersonalRecord,
+  type TrainingHistoryRow,
 } from "@/lib/api";
 import { fonts, radius, spacing, withAlpha, type Palette, type as typeScale } from "@/lib/theme";
 
 type HistorialData = {
   points: CheckInPoint[];
   records: PersonalRecord[];
+  /** Sesiones de pesas y de las demás disciplinas, ya mezcladas. */
+  entrenamientos: EntrenamientoHecho[];
 };
+
+/**
+ * Una sesión entrenada, venga de donde venga.
+ *
+ * El historial de alguien que entrena tres disciplinas no puede tener tres
+ * memorias separadas: lo que se recuerda es "qué hice el martes", no "qué hice
+ * el martes en el módulo de pesas".
+ */
+type EntrenamientoHecho = {
+  id: string;
+  fecha: string;
+  titulo: string;
+  detalle: string;
+  esPesas: boolean;
+};
+
+function mezclarEntrenamientos(
+  sesiones: TrainingHistoryRow[],
+  actividades: Activity[],
+): EntrenamientoHecho[] {
+  const dePesas: EntrenamientoHecho[] = sesiones.map((sesion) => ({
+    id: sesion.workoutId,
+    fecha: sesion.date,
+    titulo: sesion.muscleGroup,
+    detalle: `${sesion.sets} series · ${sesion.volumeKg.toLocaleString("es-MX")} kg${
+      sesion.prs.length > 0 ? ` · ${sesion.prs.length} PR` : ""
+    }`,
+    esPesas: true,
+  }));
+
+  // Las pesas sincronizadas del reloj ya están arriba como sesión propia: si
+  // se dejaran pasar de nuevo, cada día de gimnasio aparecería dos veces.
+  const deOtras: EntrenamientoHecho[] = actividades
+    .filter((actividad) => actividad.discipline !== "PESAS")
+    .map((actividad) => ({
+      id: actividad.id,
+      fecha: actividad.date,
+      titulo: DISCIPLINE_LABELS[actividad.discipline],
+      detalle: [
+        `${actividad.durationMin} min`,
+        actividad.distanceM ? `${(actividad.distanceM / 1000).toFixed(1)} km` : null,
+        actividad.avgHr ? `${actividad.avgHr} lpm` : null,
+      ]
+        .filter(Boolean)
+        .join(" · "),
+      esPesas: false,
+    }));
+
+  return [...dePesas, ...deOtras].sort((a, b) => b.fecha.localeCompare(a.fecha));
+}
 
 const CHART_POINTS = 12;
 
@@ -34,11 +90,19 @@ export default function HistorialScreen() {
 
   const load = useCallback(async () => {
     try {
-      const [measurements, training] = await Promise.all([
+      const [measurements, training, actividades] = await Promise.all([
         getHistoryMeasurements(),
         getHistoryTraining(),
+        getActivities().catch(() => null),
       ]);
-      setData({ points: measurements.points, records: training.records });
+      setData({
+        points: measurements.points,
+        records: training.records,
+        entrenamientos: mezclarEntrenamientos(
+          training.sessions ?? [],
+          actividades?.actividades ?? [],
+        ),
+      });
       setError(null);
     } catch (e) {
       setError(e instanceof ApiError ? e.message : "No se pudo cargar tu historial");
@@ -100,6 +164,25 @@ export default function HistorialScreen() {
                   : null;
               return <CheckInRow key={point.id} point={point} delta={delta} />;
             })}
+          </View>
+        )}
+      </Card>
+
+      <Card>
+        <SectionLabel>Lo que has entrenado</SectionLabel>
+        {data.entrenamientos.length === 0 ? (
+          <EmptyState message="Cuando cierres tu primera sesión aparece aquí." />
+        ) : (
+          <View style={styles.list}>
+            {data.entrenamientos.slice(0, 20).map((entrenamiento) => (
+              <View key={entrenamiento.id} style={styles.prRow}>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.prName}>{entrenamiento.titulo}</Text>
+                  <Text style={styles.entrenamientoDetalle}>{entrenamiento.detalle}</Text>
+                </View>
+                <Text style={styles.entrenamientoFecha}>{entrenamiento.fecha.slice(5)}</Text>
+              </View>
+            ))}
           </View>
         )}
       </Card>
@@ -245,6 +328,8 @@ const makeStyles = (colors: Palette) => StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: colors.cardBorder,
   },
+  entrenamientoDetalle: { fontFamily: fonts.sans, ...typeScale.bodySm, color: colors.paloRosa },
+  entrenamientoFecha: { fontFamily: fonts.sansMedium, ...typeScale.bodySm, color: colors.paloRosaLight },
   prName: {
     fontFamily: fonts.sans,
     ...typeScale.bodySm,

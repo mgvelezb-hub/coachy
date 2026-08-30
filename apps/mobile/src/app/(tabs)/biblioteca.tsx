@@ -19,6 +19,7 @@ import { EmptyState, ErrorState, LoadingState } from "@/components/States";
 import { useTheme } from "@/context/theme";
 import { useScrollTop } from "@/lib/scroll-top";
 import { ApiError, getTrainingWeek, type SessionExerciseView, type WeekView } from "@/lib/api";
+import { TECNICA_NATACION } from "@/lib/natacion";
 import { fonts, radius, spacing, type Palette, type as typeScale } from "@/lib/theme";
 import { getCachedWeek, saveWeek } from "@/lib/training-db";
 import {
@@ -276,14 +277,47 @@ export default function BibliotecaScreen() {
         )}
       </ScoreCard>
 
-      {DISCIPLINAS.map((disciplina) => (
+      {/* Natación ya no es una promesa: la sesión está prescrita y pide estos
+          ejercicios por nombre. Aquí están explicados, aunque el video no
+          exista todavía — pedir algo que no se enseña sería peor. */}
+      <ScoreCard
+        icon={Waves}
+        tint={colors.paloRosa}
+        title="Natación"
+        summary={`${TECNICA_NATACION.length} ejercicios de técnica · sin video todavía`}
+        status={{ label: "Ya se prescribe", tone: "ok" }}
+      >
+        <Text style={styles.disciplinaIntro}>
+          Estos son los ejercicios que aparecen en el bloque de técnica de tu sesión. Todavía no
+          hay video: lo que hay es cómo se hace, para qué sirve y el error más común.
+        </Text>
+
+        {TECNICA_NATACION.map((ficha) => (
+          <Collapsible key={ficha.id} title={ficha.nombre}>
+            <Text style={styles.fichaLinea}>
+              <Text style={styles.fichaEtiqueta}>Cómo: </Text>
+              {ficha.como}
+            </Text>
+            <Text style={styles.fichaLinea}>
+              <Text style={styles.fichaEtiqueta}>Para qué: </Text>
+              {ficha.para}
+            </Text>
+            <Text style={styles.fichaLinea}>
+              <Text style={styles.fichaEtiqueta}>Ojo con: </Text>
+              {ficha.ojo}
+            </Text>
+          </Collapsible>
+        ))}
+      </ScoreCard>
+
+      {DISCIPLINAS.filter((disciplina) => disciplina.label !== "Natación").map((disciplina) => (
         <ScoreCard
           key={disciplina.label}
           icon={disciplina.icon}
           tint={colors.paloRosa}
           title={disciplina.label}
           summary={disciplina.nota}
-          status={{ label: disciplina.orden === 1 ? "La que sigue" : "Próximamente", tone: "neutral" }}
+          status={{ label: "Próximamente", tone: "neutral" }}
         />
       ))}
 
@@ -369,6 +403,15 @@ function VideoPlayer({ uri }: { uri: string }) {
 }
 
 const makeStyles = (colors: Palette) => StyleSheet.create({
+  disciplinaIntro: {
+    fontFamily: fonts.sans,
+    ...typeScale.bodySm,
+    color: colors.paloRosa,
+    marginBottom: spacing.sm,
+  },
+  fichaLinea: { fontFamily: fonts.sans, ...typeScale.bodySm, color: colors.paloRosa },
+  fichaEtiqueta: { fontFamily: fonts.sansSemiBold, color: colors.marfil },
+
   screen: { flex: 1, backgroundColor: colors.obsidiana },
   content: { padding: spacing.lg, gap: spacing.lg, paddingBottom: spacing.huge },
   title: { fontFamily: fonts.display, ...typeScale.title, color: colors.marfil },

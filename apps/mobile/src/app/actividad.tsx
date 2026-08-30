@@ -1,4 +1,4 @@
-import { useRouter } from "expo-router";
+import { useLocalSearchParams, useRouter } from "expo-router";
 import {
   Bike,
   Dumbbell,
@@ -87,8 +87,23 @@ export default function ActividadScreen() {
   const { colors } = useTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
 
-  const [discipline, setDiscipline] = useState<Discipline>("CARDIO");
-  const [durationMin, setDurationMin] = useState(45);
+  /**
+   * Se puede llegar aquí desde la sesión planeada de Rutinas, y entonces la
+   * disciplina y los minutos vienen puestos. Es la mitad que faltaba del
+   * modelo de la Fase 7: la app prescribía la sesión y luego te mandaba a
+   * capturarla desde cero, que es el mismo pecado que le criticamos al
+   * check-in — preguntar lo que ya sabe.
+   */
+  const params = useLocalSearchParams<{ discipline?: string; minutes?: string }>();
+  const disciplinaSugerida = (DISCIPLINES as readonly string[]).includes(params.discipline ?? "")
+    ? (params.discipline as Discipline)
+    : "CARDIO";
+  const minutosSugeridos = Number(params.minutes);
+
+  const [discipline, setDiscipline] = useState<Discipline>(disciplinaSugerida);
+  const [durationMin, setDurationMin] = useState(
+    Number.isFinite(minutosSugeridos) && minutosSugeridos > 0 ? Math.round(minutosSugeridos) : 45,
+  );
   const [dayOffset, setDayOffset] = useState(0);
   const [notes, setNotes] = useState("");
   const [saving, setSaving] = useState(false);

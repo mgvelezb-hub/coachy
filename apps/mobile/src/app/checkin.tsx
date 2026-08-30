@@ -15,6 +15,7 @@ import { useTheme } from "@/context/theme";
 import {
   ApiError,
   getMe,
+  getActivities,
   getTrainingWeek,
   PHOTO_BUCKET,
   PHOTO_VIEWS,
@@ -121,12 +122,24 @@ export default function CheckinScreen() {
   const [entrenoAuto, setEntrenoAuto] = useState<{ hechas: number; total: number } | null>(null);
   useEffect(() => {
     let vivo = true;
-    getTrainingWeek()
-      .then((week) => {
+    Promise.all([getTrainingWeek(), getActivities().catch(() => null)])
+      .then(([week, actividades]) => {
         if (!vivo) return;
-        const total = week.sessions.length;
+
+        // La semana no son solo las pesas: desde la Fase 7 hay sesiones de
+        // otras disciplinas, y contarlas fuera castigaría a quien sí entrenó.
+        // Una sesión de otra disciplina cuenta como hecha si ese día quedó
+        // registrada una actividad.
+        const otras = week.otherSessions ?? [];
+        const registradas = new Set((actividades?.actividades ?? []).map((entrada) => entrada.date));
+
+        const total = week.sessions.length + otras.length;
         if (total === 0) return;
-        const hechas = week.sessions.filter((sesion) => sesion.completedAt !== null).length;
+
+        const hechas =
+          week.sessions.filter((sesion) => sesion.completedAt !== null).length +
+          otras.filter((sesion) => registradas.has(sesion.date)).length;
+
         setEntrenoAuto({ hechas, total });
         setTrainingCompliance(Math.round((hechas / total) * 100));
       })
@@ -371,7 +384,8 @@ export default function CheckinScreen() {
           <PercentStepper label="Entreno" value={trainingCompliance} onChange={setTrainingCompliance} />
           {entrenoAuto && (
             <Text style={styles.autoNota}>
-              Prellenado con tus sesiones cerradas: {entrenoAuto.hechas} de {entrenoAuto.total}.
+              Prellenado con lo que ya entrenaste: {entrenoAuto.hechas} de {entrenoAuto.total}{" "}
+              sesiones de tu semana, gimnasio y otras disciplinas.
               Corrígelo si entrenaste fuera de la app.
             </Text>
           )}

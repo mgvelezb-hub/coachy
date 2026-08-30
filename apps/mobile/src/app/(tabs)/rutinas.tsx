@@ -676,6 +676,7 @@ function OtraDisciplina({
   session: OtherSessionView;
   isToday: boolean;
 }) {
+  const router = useRouter();
   const { colors } = useTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
   const nombre = DISCIPLINE_LABELS[session.discipline];
@@ -723,6 +724,20 @@ function OtraDisciplina({
           una a una.
         </Text>
       )}
+
+      {/* El ciclo se cierra aquí: la app la prescribe y aquí mismo se registra,
+          con la disciplina y los minutos ya puestos. */}
+      <Pressable
+        onPress={() =>
+          router.push({
+            pathname: "/actividad",
+            params: { discipline: session.discipline, minutes: `${session.minutes}` },
+          })
+        }
+        style={styles.registrarOtra}
+      >
+        <Text style={styles.registrarOtraTexto}>Registrar esta sesión</Text>
+      </Pressable>
     </ScoreCard>
   );
 }
@@ -962,6 +977,15 @@ const makeStyles = (colors: Palette) => StyleSheet.create({
   },
   enVivoTitulo: { fontFamily: fonts.sansBold, ...typeScale.heading, color: colors.pergamino },
   enVivoDetalle: { fontFamily: fonts.sans, ...typeScale.bodySm, color: withAlpha(colors.pergamino, 0.85) },
+  registrarOtra: {
+    marginTop: spacing.md,
+    paddingVertical: spacing.md,
+    borderRadius: radius.full,
+    borderWidth: 1,
+    borderColor: colors.cardBorder,
+    alignItems: "center",
+  },
+  registrarOtraTexto: { fontFamily: fonts.sansSemiBold, ...typeScale.body, color: colors.champan },
   swimBlocks: { gap: spacing.md, marginTop: spacing.md },
   swimBlock: {
     borderRadius: radius.xl,
