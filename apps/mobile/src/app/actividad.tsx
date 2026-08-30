@@ -1,15 +1,5 @@
 import { useLocalSearchParams, useRouter } from "expo-router";
-import {
-  Bike,
-  Dumbbell,
-  Flame,
-  Hand,
-  Layers,
-  Target,
-  Waves,
-  X,
-  type LucideIcon,
-} from "lucide-react-native";
+import { X } from "lucide-react-native";
 import { useMemo, useState } from "react";
 import {
   KeyboardAvoidingView,
@@ -34,6 +24,7 @@ import {
   postManualActivity,
   type Discipline,
 } from "@/lib/api";
+import { iconoDe } from "@/lib/disciplinas";
 import { fonts, radius, spacing, type as typeScale, withAlpha, type Palette } from "@/lib/theme";
 
 /**
@@ -46,17 +37,6 @@ import { fonts, radius, spacing, type as typeScale, withAlpha, type Palette } fr
  * genera rutina de natación ni de box, solo deja constancia de que la sesión
  * pasó, la enseña y la cuenta en la racha de entrenamiento.
  */
-
-const DISCIPLINE_ICONS: Record<Discipline, LucideIcon> = {
-  PESAS: Dumbbell,
-  FUNCIONAL: Layers,
-  CROSSFIT: Flame,
-  NATACION: Waves,
-  BOX: Hand,
-  SQUASH: Target,
-  CARDIO: Bike,
-  OTRO: Target,
-};
 
 /** Duraciones que cubren casi todo, para no obligar a teclear. */
 const QUICK_MINUTES = [30, 45, 60, 90];
@@ -151,7 +131,7 @@ export default function ActividadScreen() {
             <SectionLabel>Disciplina</SectionLabel>
             <View style={styles.grid}>
               {DISCIPLINES.map((option) => {
-                const Icon = DISCIPLINE_ICONS[option];
+                const Icon = iconoDe(option);
                 const selected = option === discipline;
                 return (
                   <Pressable

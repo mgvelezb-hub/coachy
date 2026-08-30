@@ -16,9 +16,11 @@ import {
   getHistoryTraining,
   type Activity,
   type CheckInPoint,
+  type Discipline,
   type PersonalRecord,
   type TrainingHistoryRow,
 } from "@/lib/api";
+import { iconoDe } from "@/lib/disciplinas";
 import { fonts, radius, spacing, withAlpha, type Palette, type as typeScale } from "@/lib/theme";
 
 type HistorialData = {
@@ -41,6 +43,8 @@ type EntrenamientoHecho = {
   titulo: string;
   detalle: string;
   esPesas: boolean;
+  /** Con qué se entrenó: de ahí sale el ícono de la fila. */
+  discipline: Discipline;
 };
 
 function mezclarEntrenamientos(
@@ -55,6 +59,7 @@ function mezclarEntrenamientos(
       sesion.prs.length > 0 ? ` · ${sesion.prs.length} PR` : ""
     }`,
     esPesas: true,
+    discipline: "PESAS" as Discipline,
   }));
 
   // Las pesas sincronizadas del reloj ya están arriba como sesión propia: si
@@ -73,6 +78,7 @@ function mezclarEntrenamientos(
         .filter(Boolean)
         .join(" · "),
       esPesas: false,
+      discipline: actividad.discipline,
     }));
 
   return [...dePesas, ...deOtras].sort((a, b) => b.fecha.localeCompare(a.fecha));
@@ -174,15 +180,19 @@ export default function HistorialScreen() {
           <EmptyState message="Cuando cierres tu primera sesión aparece aquí." />
         ) : (
           <View style={styles.list}>
-            {data.entrenamientos.slice(0, 20).map((entrenamiento) => (
-              <View key={entrenamiento.id} style={styles.prRow}>
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.prName}>{entrenamiento.titulo}</Text>
-                  <Text style={styles.entrenamientoDetalle}>{entrenamiento.detalle}</Text>
+            {data.entrenamientos.slice(0, 20).map((entrenamiento) => {
+              const Icono = iconoDe(entrenamiento.discipline);
+              return (
+                <View key={entrenamiento.id} style={styles.prRow}>
+                  <Icono size={20} color={colors.paloRosa} strokeWidth={2} />
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.prName}>{entrenamiento.titulo}</Text>
+                    <Text style={styles.entrenamientoDetalle}>{entrenamiento.detalle}</Text>
+                  </View>
+                  <Text style={styles.entrenamientoFecha}>{entrenamiento.fecha.slice(5)}</Text>
                 </View>
-                <Text style={styles.entrenamientoFecha}>{entrenamiento.fecha.slice(5)}</Text>
-              </View>
-            ))}
+              );
+            })}
           </View>
         )}
       </Card>
@@ -323,6 +333,8 @@ const makeStyles = (colors: Palette) => StyleSheet.create({
   },
   prRow: {
     flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.md,
     justifyContent: "space-between",
     paddingVertical: spacing.sm,
     borderBottomWidth: 1,

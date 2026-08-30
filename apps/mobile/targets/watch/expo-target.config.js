@@ -24,6 +24,14 @@ module.exports = (config) => ({
   displayName: "Holy Gains",
   bundleIdentifier: `${config.ios.bundleIdentifier}.watchkitapp`,
   deploymentTarget: "10.0",
+  // El mismo ícono de la app. Sin esto el reloj pinta un círculo gris y la
+  // app queda invisible entre las demás: en watchOS la lista es una cuadrícula
+  // de íconos sin nombre hasta que enfocas uno.
+  //
+  // La ruta es relativa a ESTA carpeta, no a la raíz del proyecto. Si se
+  // equivoca, el plugin no falla: escribe "Skipping icon generation" en medio
+  // del prebuild y sigue, y el reloj se queda con el círculo gris.
+  icon: "../../assets/images/icon.png",
   frameworks: ["SwiftUI", "WatchConnectivity", "CoreMotion"],
   colors: {
     $accent: "#C9A961",

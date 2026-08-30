@@ -15,7 +15,7 @@ import {
   Trophy,
   Waves,
 } from "lucide-react-native";
-import { useMemo } from "react";
+import { useMemo, type ComponentType } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 
 import { ActivityRings, type Ring } from "@/components/ActivityRings";
@@ -26,8 +26,10 @@ import { PanelGrande } from "@/components/PanelGrande";
 import { RadarChart, type Eje } from "@/components/RadarChart";
 import { ScoreTile } from "@/components/ScoreTile";
 import { useTheme } from "@/context/theme";
+import { iconoDe } from "@/lib/disciplinas";
 import {
   DISCIPLINE_LABELS,
+  type Discipline,
   type Activity,
   type CheckInPoint,
   type CheckInRow,
@@ -159,6 +161,9 @@ function Macro({ label, valor }: { label: string; valor: string }) {
   );
 }
 
+/** La firma que comparten los íconos del set y los propios de las disciplinas. */
+type IconoProps = { size?: number; color?: string; strokeWidth?: number };
+
 export function PanelResumen({
   config,
   vista,
@@ -230,7 +235,7 @@ export function PanelResumen({
    * estado. Sin gráficas y sin párrafos — para eso están los otros dos.
    */
   function cuadro(props: {
-    icon: typeof Flame;
+    icon: ComponentType<IconoProps>;
     tint: string;
     title: string;
     value: string;
@@ -261,7 +266,7 @@ export function PanelResumen({
    * accidente: si no hay `children`, no hay cuerpo.
    */
   function renglon(props: {
-    icon: typeof Flame;
+    icon: ComponentType<IconoProps>;
     tint: string;
     title: string;
     value: string;
@@ -662,6 +667,18 @@ export function PanelResumen({
     case "disciplinas": {
       const otras = datos.week?.otherSessions ?? [];
       const valor = `${sesionesTotal + otras.length}`;
+
+      // El ícono del panel es el de la disciplina que más aparece en la
+      // semana, no unas olas fijas: quien juega squash no tiene por qué ver
+      // una alberca en su tablero.
+      const conteo = otras.reduce<Partial<Record<Discipline, number>>>((cuenta, sesion) => {
+        cuenta[sesion.discipline] = (cuenta[sesion.discipline] ?? 0) + 1;
+        return cuenta;
+      }, {});
+      const dominante = (Object.entries(conteo) as Array<[Discipline, number]>).sort(
+        (a, b) => b[1] - a[1],
+      )[0]?.[0];
+      const IconoPanel = iconoDe(dominante ?? "PESAS");
       const reparto =
         otras.length === 0
           ? "solo pesas"
@@ -671,7 +688,7 @@ export function PanelResumen({
 
       if (mini) {
         return cuadro({
-          icon: Waves,
+          icon: IconoPanel,
           tint: colors.paloRosa,
           title: "Disciplinas",
           value: valor,
@@ -681,7 +698,7 @@ export function PanelResumen({
       }
 
       return renglon({
-        icon: Waves,
+        icon: IconoPanel,
         tint: colors.paloRosa,
         title: "Tus disciplinas",
         value: valor,
@@ -689,27 +706,22 @@ export function PanelResumen({
         onPress: () => navegar("/rutinas"),
         children: (
           <>
-            <View style={styles.filaSemana}>
-              <Text style={styles.filaSemanaGrupo}>Pesas</Text>
-              <Text style={styles.filaSemanaEstado}>{sesionesTotal} sesiones</Text>
-            </View>
+            <FilaDisciplina
+              discipline="PESAS"
+              detalle={`${sesionesTotal} ${sesionesTotal === 1 ? "sesión" : "sesiones"}`}
+            />
             {otras.length === 0 ? (
               <Text style={styles.panelNota}>
                 Agrega otra disciplina en Ajustes y se reparte sola en tu semana, gastando del
                 mismo presupuesto de sesiones.
               </Text>
             ) : (
-              Object.entries(
-                otras.reduce<Record<string, number>>((cuenta, sesion) => {
-                  const nombre = DISCIPLINE_LABELS[sesion.discipline];
-                  cuenta[nombre] = (cuenta[nombre] ?? 0) + 1;
-                  return cuenta;
-                }, {}),
-              ).map(([nombre, cuantas]) => (
-                <View key={nombre} style={styles.filaSemana}>
-                  <Text style={styles.filaSemanaGrupo}>{nombre}</Text>
-                  <Text style={styles.filaSemanaEstado}>{cuantas} sesiones</Text>
-                </View>
+              (Object.entries(conteo) as Array<[Discipline, number]>).map(([disciplina, cuantas]) => (
+                <FilaDisciplina
+                  key={disciplina}
+                  discipline={disciplina}
+                  detalle={`${cuantas} ${cuantas === 1 ? "sesión" : "sesiones"}`}
+                />
               ))
             )}
           </>
@@ -1038,7 +1050,7 @@ export function PanelResumen({
 
   /** Las cinco métricas de una sola serie comparten molde en los tres tamaños. */
   function metrica(props: {
-    icon: typeof Flame;
+    icon: ComponentType<IconoProps>;
     tint: string;
     title: string;
     value: string;
@@ -1072,6 +1084,32 @@ export function PanelResumen({
       formato: props.formato,
     });
   }
+}
+
+/**
+ * Una disciplina en el desglose: su ícono, su nombre y cuántas sesiones.
+ *
+ * Con el ícono la lista se recorre de un vistazo; sin él son cuatro renglones
+ * de texto que hay que leer uno por uno para encontrar el que interesa.
+ */
+function FilaDisciplina({
+  discipline,
+  detalle,
+}: {
+  discipline: Discipline;
+  detalle: string;
+}) {
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
+  const Icono = iconoDe(discipline);
+
+  return (
+    <View style={styles.filaSemana}>
+      <Icono size={18} color={colors.paloRosa} strokeWidth={2} />
+      <Text style={styles.filaSemanaGrupo}>{DISCIPLINE_LABELS[discipline]}</Text>
+      <Text style={styles.filaSemanaEstado}>{detalle}</Text>
+    </View>
+  );
 }
 
 const makeStyles = (colors: Palette) =>

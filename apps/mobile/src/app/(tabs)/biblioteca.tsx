@@ -2,12 +2,8 @@ import NetInfo from "@react-native-community/netinfo";
 import {
   Dumbbell,
   Flame,
-  Footprints,
-  Hand,
   Home,
-  Layers,
   Target,
-  Waves,
 } from "lucide-react-native";
 import { useVideoPlayer, VideoView } from "expo-video";
 import { useCallback, useEffect, useMemo, useState } from "react";

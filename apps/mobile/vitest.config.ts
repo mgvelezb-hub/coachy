@@ -16,6 +16,10 @@ export default defineConfig({
       // hasta Node, donde su Flow no se puede parsear.
       { find: /^react-native$/, replacement: resolve(__dirname, "src/test/stubs/react-native.ts") },
       { find: "@/lib/supabase", replacement: resolve(__dirname, "src/test/stubs/supabase.ts") },
+      // Los íconos son componentes: para probar el mapa de disciplinas basta
+      // con que cada nombre sea un componente distinto.
+      { find: /^lucide-react-native$/, replacement: resolve(__dirname, "src/test/stubs/iconos.ts") },
+      { find: /^react-native-svg$/, replacement: resolve(__dirname, "src/test/stubs/svg.ts") },
       { find: "@", replacement: resolve(__dirname, "src") },
     ],
   },

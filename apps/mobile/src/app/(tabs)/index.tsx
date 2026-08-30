@@ -1,7 +1,5 @@
 import { useRouter } from "expo-router";
 import {
-  Bike,
-  Dumbbell,
   Footprints,
   Moon,
   Plus,
@@ -57,6 +55,7 @@ import {
   withAlpha,
   type Palette,
 } from "@/lib/theme";
+import { iconoDe } from "@/lib/disciplinas";
 import { formatMealItem, pickNextMeal, syncWidgetData } from "@/lib/widget";
 
 /**
@@ -423,11 +422,12 @@ function ActivitiesCard({
           {recent.map((activity) => (
             <View key={activity.id} style={styles.activityRow}>
               <View style={styles.activityIcon}>
-                {activity.discipline === "PESAS" ? (
-                  <Dumbbell size={20} color={colors.champan} strokeWidth={2} />
-                ) : (
-                  <Bike size={20} color={colors.champan} strokeWidth={2} />
-                )}
+                {(() => {
+                  // Una bici para todo lo que no fuera pesas: nadar, boxear y
+                  // jugar squash salían con el mismo ícono.
+                  const Icono = iconoDe(activity.discipline);
+                  return <Icono size={20} color={colors.champan} strokeWidth={2} />;
+                })()}
               </View>
               <View style={styles.activityText}>
                 <Text style={styles.activityName}>{DISCIPLINE_LABELS[activity.discipline]}</Text>

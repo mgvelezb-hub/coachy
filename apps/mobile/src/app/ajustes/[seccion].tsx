@@ -40,6 +40,7 @@ import {
   diasDeGimnasio,
   listaDeAlimentos,
 } from "@/lib/entrenamiento";
+import { iconoDe } from "@/lib/disciplinas";
 import {
   connectHealth,
   ensureCurrentPermissions,
@@ -746,8 +747,10 @@ export default function AjustesDetalleScreen() {
             {DISCIPLINAS.filter((disciplina) => disciplina.valor !== "PESAS").map((disciplina) => {
               const carga =
                 otras.find((entrada) => entrada.discipline === disciplina.valor)?.sessionsPerWeek ?? 0;
+              const Icono = iconoDe(disciplina.valor);
               return (
                 <View key={disciplina.valor} style={styles.entrenoFila}>
+                  <Icono size={20} color={carga === 0 ? colors.paloRosa : colors.champan} strokeWidth={2} />
                   <View style={styles.textos}>
                     <Text style={styles.presupuestoNombre}>{disciplina.nombre}</Text>
                     <Text style={styles.presupuestoDetalle}>
@@ -843,7 +846,13 @@ export default function AjustesDetalleScreen() {
 
             return (
               <View key={carga.discipline} style={{ marginTop: spacing.lg }}>
-                <Text style={styles.cierreLabel}>{DISCIPLINE_LABELS[carga.discipline]}</Text>
+                <View style={styles.nivelTitulo}>
+                  {(() => {
+                    const Icono = iconoDe(carga.discipline);
+                    return <Icono size={18} color={colors.champan} strokeWidth={2} />;
+                  })()}
+                  <Text style={styles.cierreLabel}>{DISCIPLINE_LABELS[carga.discipline]}</Text>
+                </View>
                 <View style={styles.presupuestoLista}>
                   {opciones.map((opcion) => (
                     <Pressable
@@ -1357,6 +1366,7 @@ const makeStyles = (colors: Palette) => StyleSheet.create({
   presupuestoLista: { gap: spacing.sm, marginTop: spacing.md },
   textos: { flex: 1, gap: 2 },
   entrenoDato: { fontFamily: fonts.sansSemiBold, color: colors.champan },
+  nivelTitulo: { flexDirection: "row", alignItems: "center", gap: spacing.xs },
   consecuencia: {
     marginTop: spacing.lg,
     padding: spacing.md,
