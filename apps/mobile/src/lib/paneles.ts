@@ -122,13 +122,22 @@ export const PANELES: PanelDef[] = [
     porDefecto: { orden: 7, variante: "normal", ancho: "medio" },
   },
   {
+    id: "cumplimiento",
+    nombre: "Cumplimiento",
+    pregunta: "¿Estoy haciendo lo que dice mi plan, de rutina y de dieta?",
+    grupo: "Entrenamiento",
+    variantes: ["compacto", "normal"],
+    anchos: ["medio", "ancho"],
+    porDefecto: { orden: 8, variante: "normal", ancho: "medio" },
+  },
+  {
     id: "racha",
     nombre: "Racha",
     pregunta: "¿Cuántos días llevo sin fallar?",
     grupo: "Entrenamiento",
     variantes: ["compacto", "normal"],
     anchos: ["medio"],
-    porDefecto: { orden: 8, variante: "normal", ancho: "medio" },
+    porDefecto: { orden: 9, variante: "normal", ancho: "medio" },
   },
   {
     id: "estudios",
@@ -137,7 +146,7 @@ export const PANELES: PanelDef[] = [
     grupo: "Salud",
     variantes: ["compacto", "normal"],
     anchos: ["medio", "ancho"],
-    porDefecto: { orden: 9, variante: "normal", ancho: "medio" },
+    porDefecto: { orden: 10, variante: "normal", ancho: "medio" },
   },
   {
     id: "plan",
@@ -146,7 +155,7 @@ export const PANELES: PanelDef[] = [
     grupo: "Nutrición",
     variantes: ["compacto", "normal", "detallado"],
     anchos: ["medio", "ancho"],
-    porDefecto: { orden: 10, variante: "normal", ancho: "medio" },
+    porDefecto: { orden: 11, variante: "normal", ancho: "medio" },
   },
   {
     id: "objetivo",
@@ -155,7 +164,7 @@ export const PANELES: PanelDef[] = [
     grupo: "Cuerpo",
     variantes: ["compacto", "normal"],
     anchos: ["medio"],
-    porDefecto: { orden: 11, variante: "normal", ancho: "medio" },
+    porDefecto: { orden: 12, variante: "normal", ancho: "medio" },
   },
   {
     id: "records",
@@ -279,12 +288,23 @@ export function panelesDisponibles(layout: PanelConfig[]): PanelDef[] {
 /** Mueve un panel una posición. Devuelve una lista nueva. */
 export function mover(layout: PanelConfig[], id: string, direccion: -1 | 1): PanelConfig[] {
   const index = layout.findIndex((panel) => panel.id === id);
-  const destino = index + direccion;
-  if (index < 0 || destino < 0 || destino >= layout.length) return layout;
+  return moverA(layout, id, index + direccion);
+}
+
+/**
+ * Lleva un panel a una posición concreta. Es lo que necesita el arrastre:
+ * el gesto no sabe de "uno arriba", sabe de "aquí".
+ */
+export function moverA(layout: PanelConfig[], id: string, destino: number): PanelConfig[] {
+  const index = layout.findIndex((panel) => panel.id === id);
+  if (index < 0) return layout;
+
+  const limite = Math.max(0, Math.min(layout.length - 1, destino));
+  if (limite === index) return layout;
 
   const copia = [...layout];
   const [panel] = copia.splice(index, 1);
-  copia.splice(destino, 0, panel!);
+  copia.splice(limite, 0, panel!);
   return copia;
 }
 
@@ -304,6 +324,18 @@ export const ETIQUETA_VARIANTE: Record<Variante, string> = {
   compacto: "Solo el número",
   normal: "Número y contexto",
   detallado: "Con su tendencia",
+};
+
+/**
+ * Qué se va a ver con cada variante, en una línea.
+ *
+ * Existe para no tener que salir del editor, mirar el tablero y volver a
+ * entrar por cada opción: la muestra dice de antemano qué cambia.
+ */
+export const MUESTRA_VARIANTE: Record<Variante, string> = {
+  compacto: "94.6 cm",
+  normal: "94.6 cm · 5 check-ins · 22 de agosto",
+  detallado: "94.6 cm · 5 check-ins · 22 de agosto · ▁▂▃▅▄▆",
 };
 
 export const ETIQUETA_ANCHO: Record<Ancho, string> = {

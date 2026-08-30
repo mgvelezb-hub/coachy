@@ -13,6 +13,7 @@ import {
   Timer,
   Trophy,
   TrendingUp,
+  ClipboardCheck,
   FlaskConical,
   Waves,
 } from "lucide-react-native";
@@ -30,6 +31,8 @@ import { SafeAreaView } from "react-native-safe-area-context";
 
 import { ActivityRings, type Ring } from "@/components/ActivityRings";
 import { BotonEditar, EditorDePaneles } from "@/components/EditorDePaneles";
+import { LineChart } from "@/components/LineChart";
+import { PanelGrande } from "@/components/PanelGrande";
 import { ChartBoundary } from "@/components/ChartBoundary";
 import { GapChart } from "@/components/GapChart";
 import { RadarChart } from "@/components/RadarChart";
@@ -332,6 +335,46 @@ export default function ResumenScreen() {
       .slice(-8);
   }
 
+  /**
+   * El cumplimiento de la semana: rutina y dieta.
+   *
+   * La rutina se cuenta sola con lo que ya está registrado —sesiones cerradas
+   * en la app más las de otras disciplinas que quedaron capturadas—; la dieta
+   * sigue viniendo del último check-in, que es donde hoy se declara.
+   */
+  const cumplimiento = (() => {
+    const sesiones = datos.week?.sessions ?? [];
+    const otras = datos.week?.otherSessions ?? [];
+    const registradas = new Set((datos.activities ?? []).map((actividad) => actividad.date));
+
+    const hoyISO = todayISO();
+    const gymTocaban = sesiones.filter((sesion) => sesion.date <= hoyISO);
+    const otrasTocaban = otras.filter((sesion) => sesion.date <= hoyISO);
+    const total = gymTocaban.length + otrasTocaban.length;
+
+    const hechas =
+      gymTocaban.filter((sesion) => sesion.completedAt !== null).length +
+      otrasTocaban.filter((sesion) => registradas.has(sesion.date)).length;
+
+    return {
+      rutina: total === 0 ? null : Math.round((hechas / total) * 100),
+      rutinaDetalle: total === 0 ? null : `${hechas} de ${total} que ya tocaban`,
+      // El apego a la dieta viaja en el contrato de medidas, no en el de
+      // check-ins: por eso sale de `points` y no de `checkIns`.
+      dieta: [...(datos.points ?? [])].sort((a, b) => b.date.localeCompare(a.date))[0]?.dietCompliance ?? null,
+    };
+  })();
+
+  /** Los últimos días del reloj para esa métrica, como puntos para la gráfica. */
+  function puntosSalud(
+    campo: "steps" | "sleepMin" | "hrvMs" | "vo2max",
+  ): Array<{ date: string; value: number | null }> {
+    return [...(datos.healthDays ?? [])]
+      .sort((a, b) => a.date.localeCompare(b.date))
+      .slice(-14)
+      .map((dia) => ({ date: dia.date, value: dia[campo] ?? null }));
+  }
+
   /** Los últimos días del reloj para esa métrica, en orden cronológico. */
   function serieSalud(campo: "steps" | "sleepMin" | "hrvMs" | "vo2max"): number[] {
     return [...(datos.healthDays ?? [])]
@@ -355,90 +398,138 @@ export default function ResumenScreen() {
    * afuera es el catálogo (`lib/paneles.ts`), que es lo que el editor necesita
    * y lo único que hay que tocar para agregar un panel nuevo.
    */
+  /**
+   * Cada panel del tablero, ya resuelto.
+   *
+   * Dos formatos y no uno estirado: **medio** es un cuadro estándar —ícono,
+   * título, número grande, una línea de contexto y, si se pidió, su
+   * tendencia— y **ancho** trae contenido que en media pantalla no cabía. Un
+   * cuadro chico estirado a toda la pantalla se ve peor que el chico, y eso
+   * fue exactamente lo que pasó la primera vez que alguien probó los tamaños.
+   *
+   * El `switch` vive aquí porque los paneles se alimentan de los datos que la
+   * pantalla ya calculó; sacarlo obligaría a pasar veinte props. Lo que sí
+   * vive afuera es el catálogo (`lib/paneles.ts`).
+   */
   function renderPanel(config: PanelConfig): React.ReactNode {
     const { id, variante, ancho } = config;
-    const detallado = variante === "detallado";
+    const grande = ancho === "ancho";
+    const conTendencia = variante === "detallado";
     const compacto = variante === "compacto";
 
+    /** Cuadro estándar de media pantalla. Todos los chicos se ven igual. */
+    function chico(props: {
+      icon: typeof Flame;
+      tint: string;
+      title: string;
+      value: string;
+      detail?: string | null;
+      status?: { label: string; tone: "ok" | "warn" | "alto" | "neutral" } | null;
+      serie?: number[];
+      onPress?: () => void;
+    }) {
+      return (
+        <ScoreTile
+          icon={props.icon}
+          tint={props.tint}
+          title={props.title}
+          value={props.value}
+          detail={compacto ? null : props.detail}
+          status={props.status ?? null}
+          serie={conTendencia ? props.serie : undefined}
+          onPress={props.onPress}
+        />
+      );
+    }
+
     switch (id) {
-      case "anillos":
-        return (
-          <View style={styles.hero}>
-            <Text style={styles.heroTitle}>Tu día</Text>
-            {!compacto && (
-              <Text style={styles.heroCaption}>
-                {fecha ? `Último dato del reloj: ${formatDateEs(fecha)}` : "Conecta tu reloj para llenar los anillos"}
-              </Text>
-            )}
-
+      case "anillos": {
+        const cuerpo = (
+          <>
             <View style={styles.heroBody}>
-              <ActivityRings rings={rings} size={compacto ? 110 : 132} />
-
-              {!compacto && (
-                <View style={styles.leyendas}>
-                  <Leyenda
-                    icon={Footprints}
-                    color={colors.champan}
-                    label="Pasos"
-                    valor={pasos ? `${pasos.value.toLocaleString("es-MX")}` : "—"}
-                    meta={`de ${PASOS_META.toLocaleString("es-MX")}`}
-                    onPress={() => router.push("/salud/pasos")}
-                  />
-                  <Leyenda
-                    icon={Timer}
-                    color={colors.guindaLight}
-                    label="Ejercicio"
-                    valor={ejercicio ? `${ejercicio.value} min` : "—"}
-                    meta={`de ${EJERCICIO_META_MIN} min`}
-                    onPress={() => router.push("/salud/pasos")}
-                  />
-                  <Leyenda
-                    icon={Moon}
-                    color={colors.paloRosa}
-                    label="Sueño"
-                    valor={sueno ? formatSleep(sueno.value) : "—"}
-                    meta={`de ${formatSleep(SUENO_META_MIN)}`}
-                    onPress={() => router.push("/salud/descanso")}
-                  />
-                </View>
-              )}
+              <ActivityRings rings={rings} size={grande ? 132 : 108} />
+              <View style={styles.leyendas}>
+                <Leyenda
+                  icon={Footprints}
+                  color={colors.champan}
+                  label="Pasos"
+                  valor={pasos ? `${pasos.value.toLocaleString("es-MX")}` : "—"}
+                  meta={`de ${PASOS_META.toLocaleString("es-MX")}`}
+                  onPress={() => router.push("/salud/pasos")}
+                />
+                <Leyenda
+                  icon={Timer}
+                  color={colors.guindaLight}
+                  label="Ejercicio"
+                  valor={ejercicio ? `${ejercicio.value} min` : "—"}
+                  meta={`de ${EJERCICIO_META_MIN} min`}
+                  onPress={() => router.push("/salud/pasos")}
+                />
+                <Leyenda
+                  icon={Moon}
+                  color={colors.paloRosa}
+                  label="Sueño"
+                  valor={sueno ? formatSleep(sueno.value) : "—"}
+                  meta={`de ${formatSleep(SUENO_META_MIN)}`}
+                  onPress={() => router.push("/salud/descanso")}
+                />
+              </View>
             </View>
 
-            {detallado && (
+            {/* Recuperación y condición ya no son dos íconos sueltos abajo:
+                llevan su número y su lectura, o dicen que falta el dato. Un
+                ícono solo no informa nada. */}
+            {grande && (
               <View style={styles.extras}>
                 <Leyenda
                   icon={HeartPulse}
                   color={colors.error}
                   label="Recuperación"
-                  valor={hrv ? `${hrv.value} ms` : "—"}
-                  meta="variabilidad"
+                  valor={hrv ? `${hrv.value} ms` : "Sin dato"}
+                  meta={hrv ? "vs. tu normal de 4 semanas" : "el reloj no la ha subido"}
                   onPress={() => router.push("/salud/recuperacion")}
                 />
                 <Leyenda
                   icon={ActivityIcon}
                   color={colors.champan}
                   label="Condición"
-                  valor={vo2 ? `${vo2.value}` : "—"}
-                  meta="VO₂ máx"
+                  valor={vo2 ? `${vo2.value}` : "Sin dato"}
+                  meta={vo2 ? "VO₂ máx" : "necesita entrenos al aire libre"}
                   onPress={() => router.push("/salud/condicion")}
                 />
               </View>
             )}
+          </>
+        );
+
+        return (
+          <View style={styles.hero}>
+            <View style={styles.heroHead}>
+              <Text style={styles.heroTitle}>Tu día</Text>
+              <Text style={styles.heroPista}>toca cualquiera para ver su detalle ›</Text>
+            </View>
+            {!compacto && (
+              <Text style={styles.heroCaption}>
+                {fecha
+                  ? `Último dato del reloj: ${formatDateEs(fecha)}`
+                  : "Conecta tu reloj para llenar los anillos"}
+              </Text>
+            )}
+            {cuerpo}
           </View>
         );
+      }
 
       case "perfil":
         return (
           <View style={styles.perfil}>
-            <Text style={styles.heroTitle}>Tu perfil</Text>
-            {detallado && (
-              <Text style={styles.heroCaption}>
-                Cada eje contra lo sugerido para tu objetivo
-                {objetivoLabel ? ` de ${objetivoLabel}` : ""}: 100 % es la meta, no un máximo.
-              </Text>
-            )}
+            <Text style={styles.heroTitle}>Tu semana vs. lo esperado</Text>
+            <Text style={styles.heroCaption}>
+              Cada eje contra lo que tocaba a estas alturas
+              {objetivoLabel ? `, para tu objetivo de ${objetivoLabel}` : ""}.
+            </Text>
             <ChartBoundary label="La telaraña no se pudo dibujar.">
-              <RadarChart ejes={ejes} size={ancho === "ancho" ? 280 : anchoPanel} />
+              <RadarChart ejes={grande ? ejes : ejes.slice(0, 6)} size={grande ? 260 : anchoPanel} />
             </ChartBoundary>
           </View>
         );
@@ -448,22 +539,20 @@ export default function ResumenScreen() {
         return (
           <View style={styles.perfil}>
             <Text style={styles.heroTitle}>Tu mes</Text>
-            {detallado && (
-              <Text style={styles.heroCaption}>
-                Tus medidas contra el corte de este mes, desde tu check-in del {metas.desde}
-              </Text>
-            )}
-            {plan && detallado && (
-              <Pressable onPress={() => router.push("/glidepath")} hitSlop={6}>
-                <Text style={styles.glidepath}>{textoDeGlidepath(plan)}</Text>
-                <Text style={styles.glidepathLink}>Ver el plan completo →</Text>
-              </Pressable>
-            )}
+            <Text style={styles.heroCaption}>
+              Dónde estás hoy y a dónde llega el escalón de este mes, desde tu check-in del{" "}
+              {metas.desde}
+            </Text>
+
             <View style={{ marginTop: spacing.md }}>
               <ChartBoundary label="Las metas del mes no se pudieron dibujar.">
-                <GapChart brechas={brechasDelMes(metas.medidas)} />
+                <GapChart brechas={grande ? brechasDelMes(metas.medidas) : brechasDelMes(metas.medidas).slice(0, 2)} />
               </ChartBoundary>
             </View>
+
+            <Pressable onPress={() => router.push("/glidepath")} hitSlop={6}>
+              <Text style={styles.glidepathLink}>Ver todo el camino al objetivo →</Text>
+            </Pressable>
           </View>
         );
 
@@ -471,273 +560,554 @@ export default function ResumenScreen() {
         if (brechas.length === 0) return null;
         return (
           <View style={styles.perfil}>
-            <Text style={styles.heroTitle}>Vs. tu objetivo</Text>
-            {detallado && (
-              <Text style={styles.heroCaption}>
-                {objetivoListo
-                  ? "Qué tan lejos está cada zona de tu referencia"
-                  : "Todavía sin fotos tuyas: esto es el énfasis que pide tu referencia, no tu brecha"}
-              </Text>
-            )}
+            <Text style={styles.heroTitle}>Vs. tu objetivo final</Text>
+            <Text style={styles.heroCaption}>
+              {objetivoListo
+                ? "Sale de comparar tus fotos con tu referencia. Es una lectura por zona, no centímetros: de una foto no salen medidas."
+                : "Todavía sin fotos tuyas: esto es el énfasis que pide tu referencia, no tu brecha."}
+            </Text>
             <View style={{ marginTop: spacing.md }}>
               <ChartBoundary label="La brecha no se pudo dibujar.">
-                <GapChart brechas={brechas} />
+                <GapChart brechas={grande ? brechas : brechas.slice(0, 3)} />
               </ChartBoundary>
             </View>
           </View>
         );
 
-      case "cintura":
+      case "cintura": {
+        const serie = serieDe("waistCm");
+        const detalle = ultimoCheckIn
+          ? `${datos.checkIns?.length ?? 0} check-ins · ${formatDateEs(ultimoCheckIn.date)}`
+          : "Tu primer check-in arranca el historial";
+        const valor = ultimoCheckIn?.waistCm != null ? `${ultimoCheckIn.waistCm} cm` : "—";
+
+        if (!grande) {
+          return chico({
+            icon: TrendingUp,
+            tint: colors.champan,
+            title: "Cintura",
+            value: valor,
+            detail: detalle,
+            serie,
+            onPress: () => router.push("/salud/medidas"),
+          });
+        }
+
         return (
-          <ScoreTile
+          <PanelGrande
             icon={TrendingUp}
             tint={colors.champan}
             title="Cintura"
-            value={ultimoCheckIn?.waistCm != null ? `${ultimoCheckIn.waistCm} cm` : "—"}
-            detail={
-              compacto
-                ? null
-                : ultimoCheckIn
-                  ? `${datos.checkIns?.length ?? 0} check-ins · ${formatDateEs(ultimoCheckIn.date)}`
-                  : "Tu primer check-in arranca el historial"
-            }
-            serie={detallado ? serieDe("waistCm") : undefined}
+            value={valor}
+            detail={detalle}
             onPress={() => router.push("/salud/medidas")}
-          />
-        );
-
-      case "checkin":
-        return (
-          <ScoreTile
-            icon={CalendarCheck}
-            tint={colors.guindaLight}
-            title="Check-in"
-            value={diasCheckIn === null ? "—" : diasCheckIn === 0 ? "Hoy" : `${diasCheckIn} d`}
-            detail={compacto ? null : diasCheckIn === null ? "Nunca has hecho uno" : "desde el último"}
-            status={{
-              label: checkInPendiente ? "Toca" : "Al día",
-              tone: checkInPendiente ? "warn" : "ok",
-            }}
-            onPress={() => router.push("/checkin")}
-          />
-        );
-
-      case "semana":
-        return (
-          <ScoreTile
-            icon={Dumbbell}
-            tint={colors.paloRosa}
-            title="Esta semana"
-            value={sesionesTotal === 0 ? "—" : `${sesionesHechas}/${sesionesTotal}`}
-            detail={
-              compacto ? null : sesionesTotal === 0 ? "Sin semana generada" : "sesiones completadas"
-            }
-            extra={
-              detallado && datos.week
-                ? datos.week.sessions.map((sesion) => sesion.muscleGroup).join(" · ")
-                : undefined
-            }
-            onPress={() => router.push("/rutinas")}
-          />
-        );
-
-      case "disciplinas": {
-        const otras = datos.week?.otherSessions ?? [];
-        return (
-          <ScoreTile
-            icon={Waves}
-            tint={colors.paloRosa}
-            title="Tus disciplinas"
-            value={`${sesionesTotal + otras.length}`}
-            detail={compacto ? null : "sesiones esta semana"}
-            extra={
-              detallado
-                ? otras.length > 0
-                  ? `${sesionesTotal} de pesas · ${otras
-                      .map((sesion) => DISCIPLINE_LABELS[sesion.discipline].toLowerCase())
-                      .join(", ")}`
-                  : "Solo pesas. Agrega otra disciplina en Ajustes."
-                : undefined
-            }
-            onPress={() => router.push("/rutinas")}
-          />
+          >
+            <ChartBoundary label="La tendencia no se pudo dibujar.">
+              <LineChart
+                points={(datos.points ?? []).slice(-10).map((punto) => ({
+                  date: punto.date,
+                  value: punto.waistCm,
+                }))}
+                color={colors.champan}
+                goal={plan?.meta ?? null}
+                format={(valor) => `${valor} cm`}
+              />
+            </ChartBoundary>
+            {plan && <Text style={styles.panelNota}>{textoDeGlidepath(plan)}</Text>}
+          </PanelGrande>
         );
       }
 
-      case "racha":
-        return (
-          <ScoreTile
-            icon={Flame}
-            tint={colors.champan}
-            title="Racha"
-            value={`${streak}`}
-            detail={
-              compacto
-                ? null
-                : streak === 0
-                  ? "Hoy cuenta para empezar"
-                  : best > streak
-                    ? `días · tu mejor: ${best}`
-                    : "días entrenando seguido"
-            }
-          />
-        );
+      case "checkin": {
+        const valor = diasCheckIn === null ? "—" : diasCheckIn === 0 ? "Hoy" : `${diasCheckIn} d`;
+        const estado = {
+          label: checkInPendiente ? "Toca" : "Al día",
+          tone: (checkInPendiente ? "warn" : "ok") as "warn" | "ok",
+        };
+        const detalle = diasCheckIn === null ? "Nunca has hecho uno" : "desde el último";
 
-      case "estudios":
+        if (!grande) {
+          return chico({
+            icon: CalendarCheck,
+            tint: colors.guindaLight,
+            title: "Check-in",
+            value: valor,
+            detail: detalle,
+            status: estado,
+            onPress: () => router.push("/checkin"),
+          });
+        }
+
         return (
-          <ScoreTile
+          <PanelGrande
+            icon={CalendarCheck}
+            tint={colors.guindaLight}
+            title="Check-in"
+            value={valor}
+            detail={detalle}
+            status={estado}
+            onPress={() => router.push("/checkin")}
+          >
+            <Text style={styles.panelNota}>
+              {datos.me?.profile?.checkinWeekday != null
+                ? `Cierras tu semana los ${DIAS_SEMANA[datos.me.profile.checkinWeekday]}${
+                    datos.me.profile.checkinHour != null
+                      ? ` a las ${datos.me.profile.checkinHour}:00`
+                      : ""
+                  }.`
+                : "Todavía no eliges qué día cierras tu semana. Se configura en Ajustes."}
+            </Text>
+            <Text style={styles.panelNota}>
+              Seis campos: cintura, peso y cuatro escalas. Brazos y piernas van una vez al mes.
+            </Text>
+          </PanelGrande>
+        );
+      }
+
+      case "semana": {
+        const valor = sesionesTotal === 0 ? "—" : `${sesionesHechas}/${sesionesTotal}`;
+        const detalle = sesionesTotal === 0 ? "Sin semana generada" : "sesiones completadas";
+
+        if (!grande) {
+          return chico({
+            icon: Dumbbell,
+            tint: colors.paloRosa,
+            title: "Esta semana",
+            value: valor,
+            detail: detalle,
+            onPress: () => router.push("/rutinas"),
+          });
+        }
+
+        return (
+          <PanelGrande
+            icon={Dumbbell}
+            tint={colors.paloRosa}
+            title="Esta semana"
+            value={valor}
+            detail={detalle}
+            onPress={() => router.push("/rutinas")}
+          >
+            {(datos.week?.sessions ?? []).map((sesion) => (
+              <View key={sesion.workoutId} style={styles.filaSemana}>
+                <Text style={styles.filaSemanaDia}>{sesion.date.slice(8)}/{sesion.date.slice(5, 7)}</Text>
+                <Text style={styles.filaSemanaGrupo} numberOfLines={1}>
+                  {sesion.muscleGroup}
+                </Text>
+                <Text
+                  style={[
+                    styles.filaSemanaEstado,
+                    sesion.completedAt !== null && styles.filaSemanaHecha,
+                  ]}
+                >
+                  {sesion.completedAt !== null ? "hecha" : "pendiente"}
+                </Text>
+              </View>
+            ))}
+          </PanelGrande>
+        );
+      }
+
+      case "disciplinas": {
+        const otras = datos.week?.otherSessions ?? [];
+        const valor = `${sesionesTotal + otras.length}`;
+
+        if (!grande) {
+          return chico({
+            icon: Waves,
+            tint: colors.paloRosa,
+            title: "Tus disciplinas",
+            value: valor,
+            detail: "sesiones esta semana",
+            onPress: () => router.push("/rutinas"),
+          });
+        }
+
+        return (
+          <PanelGrande
+            icon={Waves}
+            tint={colors.paloRosa}
+            title="Tus disciplinas"
+            value={valor}
+            detail="sesiones esta semana"
+            onPress={() => router.push("/rutinas")}
+          >
+            <View style={styles.filaSemana}>
+              <Text style={styles.filaSemanaGrupo}>Pesas</Text>
+              <Text style={styles.filaSemanaEstado}>{sesionesTotal} sesiones</Text>
+            </View>
+            {otras.length === 0 ? (
+              <Text style={styles.panelNota}>
+                Solo pesas. Agrega otra disciplina en Ajustes y se reparte sola en tu semana.
+              </Text>
+            ) : (
+              Object.entries(
+                otras.reduce<Record<string, number>>((cuenta, sesion) => {
+                  const nombre = DISCIPLINE_LABELS[sesion.discipline];
+                  cuenta[nombre] = (cuenta[nombre] ?? 0) + 1;
+                  return cuenta;
+                }, {}),
+              ).map(([nombre, cuantas]) => (
+                <View key={nombre} style={styles.filaSemana}>
+                  <Text style={styles.filaSemanaGrupo}>{nombre}</Text>
+                  <Text style={styles.filaSemanaEstado}>{cuantas} sesiones</Text>
+                </View>
+              ))
+            )}
+          </PanelGrande>
+        );
+      }
+
+      case "cumplimiento": {
+        const valor = cumplimiento.rutina === null ? "—" : `${cumplimiento.rutina} %`;
+        const detalle = "de tu rutina, con lo ya registrado";
+
+        if (!grande) {
+          return chico({
+            icon: ClipboardCheck,
+            tint: colors.champan,
+            title: "Cumplimiento",
+            value: valor,
+            detail: detalle,
+            onPress: () => router.push("/checkin"),
+          });
+        }
+
+        return (
+          <PanelGrande
+            icon={ClipboardCheck}
+            tint={colors.champan}
+            title="Cumplimiento"
+            value={valor}
+            detail={detalle}
+            onPress={() => router.push("/checkin")}
+          >
+            <View style={styles.filaSemana}>
+              <Text style={styles.filaSemanaGrupo}>Rutina</Text>
+              <Text style={styles.filaSemanaEstado}>
+                {cumplimiento.rutinaDetalle ?? "sin semana generada"}
+              </Text>
+            </View>
+            <View style={styles.filaSemana}>
+              <Text style={styles.filaSemanaGrupo}>Dieta</Text>
+              <Text style={styles.filaSemanaEstado}>
+                {cumplimiento.dieta === null
+                  ? "sin check-in todavía"
+                  : `${cumplimiento.dieta} % en tu último check-in`}
+              </Text>
+            </View>
+            <Text style={styles.panelNota}>
+              La rutina se cuenta sola con lo que cierras en la app y lo que sube el reloj. La
+              dieta todavía la reportas tú en el check-in.
+            </Text>
+          </PanelGrande>
+        );
+      }
+
+      case "racha": {
+        const detalle =
+          streak === 0
+            ? "Hoy cuenta para empezar"
+            : best > streak
+              ? `días · tu mejor: ${best}`
+              : "días entrenando seguido";
+
+        if (!grande) {
+          return chico({ icon: Flame, tint: colors.champan, title: "Racha", value: `${streak}`, detail: detalle });
+        }
+
+        return (
+          <PanelGrande icon={Flame} tint={colors.champan} title="Racha" value={`${streak}`} detail={detalle}>
+            <Text style={styles.panelNota}>
+              Tu mejor racha son {best} {best === 1 ? "día" : "días"}. Cuenta cualquier sesión
+              registrada, de gimnasio o de otra disciplina.
+            </Text>
+          </PanelGrande>
+        );
+      }
+
+      case "estudios": {
+        const valor = ultimoLab ? formatDateEs(ultimoLab.takenOn) : "—";
+        const detalle = ultimoLab
+          ? `${ultimoLab.values.length} valores · ${ultimoLab.kind === "INBODY" ? "bioimpedancia" : "química"}`
+          : "Todavía sin estudios cargados";
+        const estado =
+          ultimoLab && ultimoLab.outsideRange.length > 0
+            ? { label: "Revisar", tone: "warn" as const }
+            : null;
+
+        if (!grande) {
+          return chico({
+            icon: FlaskConical,
+            tint: colors.guindaLight,
+            title: "Tus estudios",
+            value: valor,
+            detail: detalle,
+            status: estado,
+            onPress: () => router.push("/laboratorios"),
+          });
+        }
+
+        return (
+          <PanelGrande
             icon={FlaskConical}
             tint={colors.guindaLight}
             title="Tus estudios"
-            value={ultimoLab ? formatDateEs(ultimoLab.takenOn) : "—"}
-            detail={
-              compacto
-                ? null
-                : ultimoLab
-                  ? `${ultimoLab.values.length} valores · ${ultimoLab.kind === "INBODY" ? "bioimpedancia" : "química"}`
-                  : "Todavía sin estudios cargados"
-            }
-            status={
-              ultimoLab && ultimoLab.outsideRange.length > 0
-                ? { label: "Revisar", tone: "warn" }
-                : null
-            }
+            value={valor}
+            detail={detalle}
+            status={estado}
             onPress={() => router.push("/laboratorios")}
-          />
+          >
+            {(ultimoLab?.values ?? []).slice(0, 5).map((dato) => (
+              <View key={dato.key} style={styles.filaSemana}>
+                <Text style={styles.filaSemanaGrupo} numberOfLines={1}>
+                  {dato.label}
+                </Text>
+                <Text style={styles.filaSemanaEstado}>
+                  {dato.value} {dato.unit}
+                </Text>
+              </View>
+            ))}
+            <Text style={styles.panelNota}>
+              Se guardan y se grafican. La app no los interpreta: lo que salga fuera del rango de
+              tu laboratorio lo revisa un médico.
+            </Text>
+          </PanelGrande>
         );
+      }
 
-      case "plan":
+      case "plan": {
+        const valor = datos.decision ? `${datos.decision.kcal}` : "—";
+        const detalle = datos.decision
+          ? `kcal · ${datos.decision.phase.replace(/_/g, " ").toLowerCase()}`
+          : "Sin decisión publicada";
+
+        if (!grande) {
+          return chico({
+            icon: Flame,
+            tint: colors.paloRosa,
+            title: "Tu plan",
+            value: valor,
+            detail: detalle,
+            onPress: () => router.push("/nutricion"),
+          });
+        }
+
         return (
-          <ScoreTile
+          <PanelGrande
             icon={Flame}
             tint={colors.paloRosa}
             title="Tu plan"
-            value={datos.decision ? `${datos.decision.kcal}` : "—"}
-            detail={
-              compacto
-                ? null
-                : datos.decision
-                  ? `kcal · ${datos.decision.phase.replace(/_/g, " ").toLowerCase()}`
-                  : "Sin decisión publicada"
-            }
-            extra={
-              detallado && datos.decision
-                ? `P ${datos.decision.proteinG} · C ${datos.decision.carbsG} · G ${datos.decision.fatG}`
-                : undefined
-            }
+            value={valor}
+            detail={detalle}
             onPress={() => router.push("/nutricion")}
-          />
+          >
+            {datos.decision ? (
+              <View style={styles.macros}>
+                <Macro label="Proteína" valor={`${datos.decision.proteinG} g`} />
+                <Macro label="Carbohidratos" valor={`${datos.decision.carbsG} g`} />
+                <Macro label="Grasas" valor={`${datos.decision.fatG} g`} />
+              </View>
+            ) : (
+              <Text style={styles.panelNota}>
+                Tu primera decisión sale de tu primer check-in.
+              </Text>
+            )}
+          </PanelGrande>
         );
+      }
 
-      case "objetivo":
+      case "objetivo": {
+        const valor =
+          objetivoEstado === "listo"
+            ? "Listo"
+            : objetivoEstado === "en_espera"
+              ? "En análisis"
+              : "Pendiente";
+        const detalle =
+          datos.goal && "references" in datos.goal.status
+            ? `${datos.goal.status.references} referencias`
+            : "Sube tus fotos de referencia";
+
+        if (!grande) {
+          return chico({
+            icon: Target,
+            tint: colors.guindaLight,
+            title: "Objetivo",
+            value: valor,
+            detail: detalle,
+            onPress: () => router.push("/objetivo"),
+          });
+        }
+
         return (
-          <ScoreTile
+          <PanelGrande
             icon={Target}
             tint={colors.guindaLight}
             title="Objetivo"
-            value={
-              objetivoEstado === "listo"
-                ? "Listo"
-                : objetivoEstado === "en_espera"
-                  ? "En análisis"
-                  : "Pendiente"
-            }
-            detail={
-              compacto
-                ? null
-                : datos.goal && "references" in datos.goal.status
-                  ? `${datos.goal.status.references} referencias`
-                  : "Sube tus fotos de referencia"
-            }
+            value={valor}
+            detail={detalle}
             onPress={() => router.push("/objetivo")}
-          />
+          >
+            <Text style={styles.panelNota}>
+              La referencia es dirección, no promesa: se comparan proporciones, nunca identidades.
+            </Text>
+          </PanelGrande>
         );
+      }
 
-      case "records":
+      case "records": {
+        const detalle = ultimoPr
+          ? `último: ${ultimoPr.exerciseName} ${ultimoPr.weightKg} kg`
+          : "Cierra sesiones para tener PRs";
+
+        if (!grande) {
+          return chico({
+            icon: Trophy,
+            tint: colors.champan,
+            title: "Récords",
+            value: `${prs.length}`,
+            detail: detalle,
+            onPress: () => router.push("/historial"),
+          });
+        }
+
         return (
-          <ScoreTile
+          <PanelGrande
             icon={Trophy}
             tint={colors.champan}
             title="Récords"
             value={`${prs.length}`}
-            detail={
-              compacto
-                ? null
-                : ultimoPr
-                  ? `último: ${ultimoPr.exerciseName} ${ultimoPr.weightKg} kg`
-                  : "Cierra sesiones para tener PRs"
-            }
+            detail={detalle}
             onPress={() => router.push("/historial")}
-          />
+          >
+            {prs.slice(0, 5).map((record) => (
+              <View key={record.exerciseName} style={styles.filaSemana}>
+                <Text style={styles.filaSemanaGrupo} numberOfLines={1}>
+                  {record.exerciseName}
+                </Text>
+                <Text style={styles.filaSemanaEstado}>
+                  {record.weightKg} kg × {record.reps}
+                </Text>
+              </View>
+            ))}
+          </PanelGrande>
         );
+      }
 
       case "peso":
-        return (
-          <ScoreTile
-            icon={TrendingUp}
-            tint={colors.paloRosa}
-            title="Peso"
-            value={ultimoCheckIn?.weightKg != null ? `${ultimoCheckIn.weightKg} kg` : "—"}
-            detail={compacto ? null : "de tu último check-in"}
-            serie={detallado ? serieDe("weightKg") : undefined}
-            onPress={() => router.push("/salud/medidas")}
-          />
-        );
+        return metricaSimple({
+          grande,
+          icon: TrendingUp,
+          tint: colors.paloRosa,
+          title: "Peso",
+          value: ultimoCheckIn?.weightKg != null ? `${ultimoCheckIn.weightKg} kg` : "—",
+          detail: "de tu último check-in",
+          serie: serieDe("weightKg"),
+          puntos: (datos.points ?? []).slice(-10).map((punto) => ({ date: punto.date, value: punto.weightKg })),
+          formato: (valor: number) => `${valor} kg`,
+          ruta: "/salud/medidas",
+        });
 
       case "pasos":
-        return (
-          <ScoreTile
-            icon={Footprints}
-            tint={colors.champan}
-            title="Pasos"
-            value={pasos ? pasos.value.toLocaleString("es-MX") : "—"}
-            detail={compacto ? null : `de ${PASOS_META.toLocaleString("es-MX")}`}
-            serie={detallado ? serieSalud("steps") : undefined}
-            onPress={() => router.push("/salud/pasos")}
-          />
-        );
+        return metricaSimple({
+          grande,
+          icon: Footprints,
+          tint: colors.champan,
+          title: "Pasos",
+          value: pasos ? pasos.value.toLocaleString("es-MX") : "—",
+          detail: `de ${PASOS_META.toLocaleString("es-MX")}`,
+          serie: serieSalud("steps"),
+          puntos: puntosSalud("steps"),
+          formato: (valor: number) => `${Math.round(valor)}`,
+          ruta: "/salud/pasos",
+        });
 
       case "sueno":
-        return (
-          <ScoreTile
-            icon={Moon}
-            tint={colors.paloRosa}
-            title="Sueño"
-            value={sueno ? formatSleep(sueno.value) : "—"}
-            detail={compacto ? null : `de ${formatSleep(SUENO_META_MIN)}`}
-            serie={detallado ? serieSalud("sleepMin") : undefined}
-            onPress={() => router.push("/salud/descanso")}
-          />
-        );
+        return metricaSimple({
+          grande,
+          icon: Moon,
+          tint: colors.paloRosa,
+          title: "Sueño",
+          value: sueno ? formatSleep(sueno.value) : "—",
+          detail: `de ${formatSleep(SUENO_META_MIN)}`,
+          serie: serieSalud("sleepMin"),
+          puntos: puntosSalud("sleepMin"),
+          formato: (valor: number) => formatSleep(valor),
+          ruta: "/salud/descanso",
+        });
 
       case "recuperacion":
-        return (
-          <ScoreTile
-            icon={HeartPulse}
-            tint={colors.error}
-            title="Recuperación"
-            value={hrv ? `${hrv.value}` : "—"}
-            detail={compacto ? null : "ms de variabilidad"}
-            serie={detallado ? serieSalud("hrvMs") : undefined}
-            onPress={() => router.push("/salud/recuperacion")}
-          />
-        );
+        return metricaSimple({
+          grande,
+          icon: HeartPulse,
+          tint: colors.error,
+          title: "Recuperación",
+          value: hrv ? `${hrv.value}` : "—",
+          detail: "ms de variabilidad",
+          serie: serieSalud("hrvMs"),
+          puntos: puntosSalud("hrvMs"),
+          formato: (valor: number) => `${Math.round(valor)} ms`,
+          ruta: "/salud/recuperacion",
+        });
 
       case "condicion":
-        return (
-          <ScoreTile
-            icon={ActivityIcon}
-            tint={colors.champan}
-            title="Condición"
-            value={vo2 ? `${vo2.value}` : "—"}
-            detail={compacto ? null : "VO₂ máx"}
-            serie={detallado ? serieSalud("vo2max") : undefined}
-            onPress={() => router.push("/salud/condicion")}
-          />
-        );
+        return metricaSimple({
+          grande,
+          icon: ActivityIcon,
+          tint: colors.champan,
+          title: "Condición",
+          value: vo2 ? `${vo2.value}` : "—",
+          detail: "VO₂ máx",
+          serie: serieSalud("vo2max"),
+          puntos: puntosSalud("vo2max"),
+          formato: (valor: number) => `${valor}`,
+          ruta: "/salud/condicion",
+        });
 
       default:
         return null;
+    }
+
+    /** Métrica de una sola serie: el mismo molde para las cinco del reloj. */
+    function metricaSimple(props: {
+      grande: boolean;
+      icon: typeof Flame;
+      tint: string;
+      title: string;
+      value: string;
+      detail: string;
+      serie: number[];
+      puntos: Array<{ date: string; value: number | null }>;
+      formato: (valor: number) => string;
+      ruta: string;
+    }): React.ReactNode {
+      if (!props.grande) {
+        return chico({
+          icon: props.icon,
+          tint: props.tint,
+          title: props.title,
+          value: props.value,
+          detail: props.detail,
+          serie: props.serie,
+          onPress: () => router.push(props.ruta as never),
+        });
+      }
+
+      return (
+        <PanelGrande
+          icon={props.icon}
+          tint={props.tint}
+          title={props.title}
+          value={props.value}
+          detail={props.detail}
+          onPress={() => router.push(props.ruta as never)}
+        >
+          <ChartBoundary label="La tendencia no se pudo dibujar.">
+            <LineChart points={props.puntos} color={props.tint} format={props.formato} />
+          </ChartBoundary>
+        </PanelGrande>
+      );
     }
   }
 
@@ -802,6 +1172,19 @@ export default function ResumenScreen() {
         onClose={() => setEditando(false)}
       />
     </SafeAreaView>
+  );
+}
+
+const DIAS_SEMANA = ["domingos", "lunes", "martes", "miércoles", "jueves", "viernes", "sábados"];
+
+function Macro({ label, valor }: { label: string; valor: string }) {
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
+  return (
+    <View style={styles.macro}>
+      <Text style={styles.macroLabel}>{label}</Text>
+      <Text style={styles.macroValor}>{valor}</Text>
+    </View>
   );
 }
 
@@ -946,6 +1329,31 @@ const makeStyles = (colors: Palette) => StyleSheet.create({
     gap: spacing.md,
   },
   headerAcciones: { flexDirection: "row", alignItems: "center", gap: spacing.xs },
+  heroHead: { flexDirection: "row", alignItems: "baseline", justifyContent: "space-between", gap: spacing.sm },
+  // La pista de que los anillos son tocables: sin ella nadie descubre que
+  // cada uno lleva a su detalle.
+  heroPista: { fontFamily: fonts.sans, ...typeScale.label, color: colors.paloRosaLight },
+  panelNota: { fontFamily: fonts.sans, ...typeScale.bodySm, color: colors.paloRosa },
+  filaSemana: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.sm,
+    paddingVertical: 4,
+  },
+  filaSemanaDia: {
+    width: 52,
+    fontFamily: fonts.sansMedium,
+    ...typeScale.bodySm,
+    color: colors.paloRosaLight,
+    fontVariant: ["tabular-nums"],
+  },
+  filaSemanaGrupo: { flex: 1, fontFamily: fonts.sansMedium, ...typeScale.bodySm, color: colors.marfil },
+  filaSemanaEstado: { fontFamily: fonts.sans, ...typeScale.bodySm, color: colors.paloRosa },
+  filaSemanaHecha: { color: colors.champan, fontFamily: fonts.sansSemiBold },
+  macros: { flexDirection: "row", gap: spacing.lg },
+  macro: { gap: 2 },
+  macroLabel: { fontFamily: fonts.sansMedium, ...typeScale.label, color: colors.paloRosa },
+  macroValor: { fontFamily: fonts.sansBold, ...typeScale.subheading, color: colors.marfil },
   // Una fila del tablero: hasta dos paneles de media pantalla. Los de ancho
   // completo no pasan por aquí, van sueltos y cortan la retícula.
   filaMosaico: { flexDirection: "row", gap: spacing.md, alignItems: "stretch" },

@@ -14,12 +14,20 @@ import {
   GOAL_VIEW_LABEL,
   deleteGoalReference,
   getGoal,
+  getMe,
   goalPhotoPath,
+  patchReferencia,
   postGoalReference,
   type GoalReferenceUrl,
   type GoalResponse,
   type GoalView,
+  type MeResponse,
 } from "@/lib/api";
+import {
+  REFERENCIAS_CONOCIDAS,
+  metasDesdeReferencia,
+  type MedidasReferencia,
+} from "@/lib/referencia";
 import { supabase } from "@/lib/supabase";
 import { fonts, radius, spacing, type Palette, type as typeScale } from "@/lib/theme";
 import { useSession } from "@/context/session";
@@ -159,6 +167,8 @@ export default function ObjetivoScreen() {
         <Text style={styles.subtitle}>
           Hasta tres fotos del físico al que le apuntas: frente, perfil y espalda.
         </Text>
+
+        <ReferenciaNumerica />
 
         <Card>
           <SectionLabel>Qué es y qué no es esta referencia</SectionLabel>
@@ -314,7 +324,161 @@ function StatusCard({ status }: { status: GoalResponse["status"] }) {
   );
 }
 
+/**
+ * La referencia con números.
+ *
+ * Las fotos dan una lectura ordinal —de una foto no salen centímetros—. Cuando
+ * la referencia tiene medidas publicadas, sí se puede aterrizar en metas, y
+ * esta tarjeta es donde se capturan.
+ *
+ * Lo que NO hace: copiar los números. Se escalan por proporción a tu estatura,
+ * la cintura nunca queda por encima de la mitad de tu estatura, y el
+ * porcentaje de grasa no cruza de un sexo a otro — eso último se dice, no se
+ * calla.
+ */
+function ReferenciaNumerica() {
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
+
+  const [me, setMe] = useState<MeResponse | null>(null);
+  const [referencia, setReferencia] = useState<MedidasReferencia | null>(null);
+  const [mensaje, setMensaje] = useState<string | null>(null);
+  const [abierto, setAbierto] = useState(false);
+
+  useEffect(() => {
+    let vivo = true;
+    getMe()
+      .then((perfil) => {
+        if (!vivo) return;
+        setMe(perfil);
+        const guardada = perfil.profile?.goalReference;
+        if (guardada && typeof guardada === "object") {
+          setReferencia(guardada as MedidasReferencia);
+        }
+      })
+      .catch(() => {
+        // Sin perfil no hay escalado posible; la tarjeta lo dice sola.
+      });
+    return () => {
+      vivo = false;
+    };
+  }, []);
+
+  async function guardar(nueva: MedidasReferencia | null) {
+    setReferencia(nueva);
+    setMensaje(null);
+    try {
+      await patchReferencia(nueva);
+      setMensaje(nueva ? "Guardada. Tus metas por zona ya salen de ella." : "Referencia quitada.");
+    } catch (error) {
+      setMensaje(error instanceof ApiError ? error.message : "No se pudo guardar tu referencia");
+    }
+  }
+
+  const lectura = referencia
+    ? metasDesdeReferencia({
+        estaturaCm: me?.profile?.heightCm ?? null,
+        sexo: (me?.profile?.sex ?? null) as "FEMALE" | "MALE" | "OTHER" | null,
+        referencia,
+      })
+    : null;
+
+  return (
+    <Card>
+      <SectionLabel>Referencia con números</SectionLabel>
+
+      {referencia ? (
+        <>
+          <Text style={styles.refNombre}>{referencia.nombre}</Text>
+          <Text style={styles.refFuente}>
+            {referencia.estaturaCm} cm · {referencia.cinturaCm ?? "—"} cm de cintura
+            {referencia.grasaPct !== null ? ` · ${referencia.grasaPct} % de grasa` : ""}
+          </Text>
+          {referencia.fuente ? <Text style={styles.refFuente}>{referencia.fuente}</Text> : null}
+
+          <View style={styles.refMetas}>
+            {(lectura?.metas ?? []).map((meta) => (
+              <View key={meta.label} style={styles.refFila}>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.refZona}>{meta.label}</Text>
+                  <Text style={styles.refOrigen}>{meta.origen}</Text>
+                </View>
+                <Text style={styles.refValor}>{meta.metaCm} cm</Text>
+              </View>
+            ))}
+          </View>
+
+          {(lectura?.avisos ?? []).map((aviso) => (
+            <Text key={aviso} style={styles.refAviso}>
+              {aviso}
+            </Text>
+          ))}
+
+          <Pressable onPress={() => guardar(null)} hitSlop={8}>
+            <Text style={styles.refQuitar}>Quitar esta referencia</Text>
+          </Pressable>
+        </>
+      ) : (
+        <>
+          <Text style={styles.refIntro}>
+            Si tu referencia tiene medidas publicadas, aquí se convierten en metas por zona
+            escaladas a tu cuerpo. Sin ellas, la comparación se queda en la lectura de tus fotos.
+          </Text>
+
+          <Pressable onPress={() => setAbierto((valor) => !valor)} hitSlop={8}>
+            <Text style={styles.refQuitar}>
+              {abierto ? "Cerrar" : "Usar una referencia con medidas →"}
+            </Text>
+          </Pressable>
+
+          {abierto &&
+            REFERENCIAS_CONOCIDAS.map((conocida) => (
+              <Pressable
+                key={conocida.nombre}
+                onPress={() => guardar(conocida)}
+                style={styles.refOpcion}
+              >
+                <Text style={styles.refZona}>{conocida.nombre}</Text>
+                <Text style={styles.refOrigen}>{conocida.fuente}</Text>
+              </Pressable>
+            ))}
+        </>
+      )}
+
+      {mensaje && <Text style={styles.refAviso}>{mensaje}</Text>}
+    </Card>
+  );
+}
+
 const makeStyles = (colors: Palette) => StyleSheet.create({
+  refIntro: { fontFamily: fonts.sans, ...typeScale.bodySm, color: colors.paloRosa, marginTop: spacing.sm },
+  refNombre: { fontFamily: fonts.sansBold, ...typeScale.subheading, color: colors.marfil, marginTop: spacing.sm },
+  refFuente: { fontFamily: fonts.sans, ...typeScale.bodySm, color: colors.paloRosa },
+  refMetas: { marginTop: spacing.md, gap: spacing.sm },
+  refFila: { flexDirection: "row", alignItems: "center", gap: spacing.md },
+  refZona: { fontFamily: fonts.sansSemiBold, ...typeScale.body, color: colors.marfil },
+  refOrigen: { fontFamily: fonts.sans, ...typeScale.bodySm, color: colors.paloRosa },
+  refValor: { fontFamily: fonts.sansBold, ...typeScale.subheading, color: colors.champan },
+  refAviso: {
+    fontFamily: fonts.sans,
+    ...typeScale.bodySm,
+    color: colors.champan,
+    marginTop: spacing.md,
+  },
+  refQuitar: {
+    fontFamily: fonts.sansSemiBold,
+    ...typeScale.body,
+    color: colors.paloRosa,
+    marginTop: spacing.md,
+  },
+  refOpcion: {
+    marginTop: spacing.sm,
+    padding: spacing.md,
+    borderRadius: radius.xl,
+    borderWidth: 1,
+    borderColor: colors.cardBorder,
+    gap: 2,
+  },
   statusIntro: {
     fontFamily: fonts.sans,
     ...typeScale.body,

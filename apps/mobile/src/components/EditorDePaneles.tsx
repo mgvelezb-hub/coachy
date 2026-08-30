@@ -1,33 +1,48 @@
-import { ArrowDown, ArrowUp, Check, Eye, EyeOff, Maximize2, Plus, X } from "lucide-react-native";
-import { useMemo } from "react";
+import { GripVertical, Plus, RotateCcw, X } from "lucide-react-native";
+import { useMemo, useState } from "react";
 import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Gesture, GestureDetector, GestureHandlerRootView } from "react-native-gesture-handler";
+import Animated, {
+  runOnJS,
+  useAnimatedStyle,
+  useSharedValue,
+  withTiming,
+} from "react-native-reanimated";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import { useTheme } from "@/context/theme";
 import {
   ETIQUETA_ANCHO,
   ETIQUETA_VARIANTE,
-  alternarAncho,
+  MUESTRA_VARIANTE,
   definicionDe,
-  mover,
+  layoutPorDefecto,
+  moverA,
   panelesDisponibles,
-  siguienteVariante,
+  type Ancho,
   type PanelConfig,
+  type Variante,
 } from "@/lib/paneles";
 import { fonts, radius, spacing, type as typeScale, withAlpha, type Palette } from "@/lib/theme";
+
+/** Alto de cada fila del editor. Fijo, porque de él sale la posición al arrastrar. */
+const ALTO_FILA = 96;
 
 /**
  * El editor del Resumen.
  *
- * Reordena con flechas y no arrastrando. Arrastrar se ve mejor en un video y
- * es peor aquí: una lista larga obliga a sostener el dedo mientras la pantalla
- * se desplaza sola, y con guantes de gimnasio o el teléfono en una mano
- * simplemente no sale. Dos botones grandes nunca fallan y además funcionan con
- * lector de pantalla.
+ * Se arrastra para reordenar, como cualquier pantalla de widgets: el gesto ya
+ * está aprendido y nadie tiene que descubrir un par de flechas. La fila que se
+ * levanta sigue al dedo y las demás se recorren; al soltar, el acomodo se
+ * guarda.
  *
- * Cada panel se toca en tres cosas y se ven las tres a la vez: dónde va, con
- * cuánto detalle y de qué ancho. Nada de menús escondidos: si algo se puede
- * cambiar, se ve que se puede cambiar.
+ * Las filas miden lo mismo a propósito (`ALTO_FILA`): con alturas variables la
+ * posición de destino habría que medirla en tiempo real, y el cálculo se
+ * vuelve frágil justo mientras el dedo está encima.
+ *
+ * Abajo, los disponibles van como una lista de nombres y no como tarjetas de
+ * muestra: agregar es una decisión de una palabra, y seis previsualizaciones
+ * la vuelven una lectura larga.
  */
 export function EditorDePaneles({
   visible,
@@ -43,151 +58,225 @@ export function EditorDePaneles({
   const { colors } = useTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
   const disponibles = useMemo(() => panelesDisponibles(layout), [layout]);
+  const [abierto, setAbierto] = useState<string | null>(null);
 
   function quitar(id: string) {
     onChange(layout.filter((panel) => panel.id !== id));
+    if (abierto === id) setAbierto(null);
   }
 
   function agregar(id: string) {
     const def = definicionDe(id);
     if (!def) return;
     onChange([...layout, { id, variante: def.variantes[0]!, ancho: def.anchos[0]! }]);
+    setAbierto(id);
   }
 
-  function cambiarVariante(id: string) {
-    onChange(
-      layout.map((panel) => {
-        const def = definicionDe(panel.id);
-        if (panel.id !== id || !def) return panel;
-        return { ...panel, variante: siguienteVariante(def, panel.variante) };
-      }),
-    );
-  }
-
-  function cambiarAncho(id: string) {
-    onChange(
-      layout.map((panel) => {
-        const def = definicionDe(panel.id);
-        if (panel.id !== id || !def) return panel;
-        return { ...panel, ancho: alternarAncho(def, panel.ancho) };
-      }),
-    );
+  function aplicar(id: string, cambios: Partial<PanelConfig>) {
+    onChange(layout.map((panel) => (panel.id === id ? { ...panel, ...cambios } : panel)));
   }
 
   return (
     <Modal visible={visible} animationType="slide" onRequestClose={onClose}>
-      <SafeAreaView style={styles.screen} edges={["top", "bottom"]}>
-        <View style={styles.header}>
-          <Text style={styles.titulo}>Tu resumen</Text>
-          <Pressable onPress={onClose} hitSlop={10} style={styles.listo}>
-            <Check size={18} color={colors.pergamino} strokeWidth={2.5} />
-            <Text style={styles.listoTexto}>Listo</Text>
-          </Pressable>
-        </View>
+      <GestureHandlerRootView style={styles.raiz}>
+        {/* `edges` incluye arriba: sin eso el título y el botón quedaban debajo
+            de la hora y la batería, y "Listo" era casi intocable. */}
+        <SafeAreaView style={styles.screen} edges={["top", "bottom"]}>
+          <View style={styles.header}>
+            <Text style={styles.titulo}>Tu resumen</Text>
+            <View style={styles.headerBotones}>
+              <Pressable
+                onPress={() => onChange(layoutPorDefecto())}
+                hitSlop={8}
+                style={styles.restaurar}
+                accessibilityLabel="Restaurar el tablero de siempre"
+              >
+                <RotateCcw size={16} color={colors.paloRosa} strokeWidth={2} />
+                <Text style={styles.restaurarTexto}>Restaurar</Text>
+              </Pressable>
+              <Pressable onPress={() => onChange([])} hitSlop={8} style={styles.restaurar}>
+                <Text style={styles.restaurarTexto}>Limpiar todo</Text>
+              </Pressable>
+              <Pressable onPress={onClose} hitSlop={10} style={styles.listo}>
+                <Text style={styles.listoTexto}>Listo</Text>
+              </Pressable>
+            </View>
+          </View>
 
-        <ScrollView contentContainerStyle={styles.contenido}>
-          <Text style={styles.ayuda}>
-            Acomoda tu tablero: mueve los paneles, decide cuánto detalle quieres en cada uno y
-            quita los que no mires. Se guarda en tu cuenta, así que sobrevive a un cambio de
-            teléfono.
-          </Text>
-
-          <Text style={styles.seccion}>En tu resumen</Text>
-
-          {layout.map((panel, index) => {
-            const def = definicionDe(panel.id);
-            if (!def) return null;
-
-            return (
-              <View key={panel.id} style={styles.fila}>
-                <View style={styles.filaTexto}>
-                  <Text style={styles.filaNombre}>{def.nombre}</Text>
-                  <Text style={styles.filaPregunta}>{def.pregunta}</Text>
-
-                  <View style={styles.opciones}>
-                    <Pressable
-                      onPress={() => cambiarVariante(panel.id)}
-                      disabled={def.variantes.length < 2}
-                      style={[styles.opcion, def.variantes.length < 2 && styles.opcionMuda]}
-                    >
-                      <Eye size={14} color={colors.champan} strokeWidth={2} />
-                      <Text style={styles.opcionTexto}>{ETIQUETA_VARIANTE[panel.variante]}</Text>
-                    </Pressable>
-
-                    <Pressable
-                      onPress={() => cambiarAncho(panel.id)}
-                      disabled={def.anchos.length < 2}
-                      style={[styles.opcion, def.anchos.length < 2 && styles.opcionMuda]}
-                    >
-                      <Maximize2 size={14} color={colors.champan} strokeWidth={2} />
-                      <Text style={styles.opcionTexto}>{ETIQUETA_ANCHO[panel.ancho]}</Text>
-                    </Pressable>
-                  </View>
-                </View>
-
-                <View style={styles.controles}>
-                  <Pressable
-                    onPress={() => onChange(mover(layout, panel.id, -1))}
-                    disabled={index === 0}
-                    hitSlop={6}
-                    style={[styles.boton, index === 0 && styles.botonMudo]}
-                    accessibilityLabel={`Subir ${def.nombre}`}
-                  >
-                    <ArrowUp size={18} color={colors.marfil} strokeWidth={2} />
-                  </Pressable>
-                  <Pressable
-                    onPress={() => onChange(mover(layout, panel.id, 1))}
-                    disabled={index === layout.length - 1}
-                    hitSlop={6}
-                    style={[styles.boton, index === layout.length - 1 && styles.botonMudo]}
-                    accessibilityLabel={`Bajar ${def.nombre}`}
-                  >
-                    <ArrowDown size={18} color={colors.marfil} strokeWidth={2} />
-                  </Pressable>
-                  <Pressable
-                    onPress={() => quitar(panel.id)}
-                    hitSlop={6}
-                    style={styles.boton}
-                    accessibilityLabel={`Quitar ${def.nombre}`}
-                  >
-                    <EyeOff size={18} color={colors.paloRosa} strokeWidth={2} />
-                  </Pressable>
-                </View>
-              </View>
-            );
-          })}
-
-          {disponibles.length > 0 && (
-            <>
-              <Text style={styles.seccion}>Para agregar</Text>
-              {disponibles.map((def) => (
-                <Pressable
-                  key={def.id}
-                  onPress={() => agregar(def.id)}
-                  style={({ pressed }) => [styles.fila, pressed && styles.filaPresionada]}
-                >
-                  <View style={styles.filaTexto}>
-                    <Text style={styles.filaNombre}>{def.nombre}</Text>
-                    <Text style={styles.filaPregunta}>{def.pregunta}</Text>
-                    <Text style={styles.filaGrupo}>{def.grupo}</Text>
-                  </View>
-                  <View style={styles.boton}>
-                    <Plus size={18} color={colors.champan} strokeWidth={2.5} />
-                  </View>
-                </Pressable>
-              ))}
-            </>
-          )}
-
-          {layout.length === 0 && (
+          <ScrollView contentContainerStyle={styles.contenido}>
             <Text style={styles.ayuda}>
-              Tu resumen quedó vacío. Agrega al menos un panel o cierra y la app volverá a poner
-              el tablero de siempre.
+              Arrastra para acomodar. Toca un panel para elegir su tamaño y cuánto detalle
+              muestra. Se guarda en tu cuenta.
             </Text>
-          )}
-        </ScrollView>
-      </SafeAreaView>
+
+            <View style={{ height: layout.length * ALTO_FILA }}>
+              {layout.map((panel, index) => (
+                <FilaArrastrable
+                  key={panel.id}
+                  index={index}
+                  total={layout.length}
+                  panel={panel}
+                  abierto={abierto === panel.id}
+                  onAbrir={() => setAbierto(abierto === panel.id ? null : panel.id)}
+                  onQuitar={() => quitar(panel.id)}
+                  onAplicar={(cambios) => aplicar(panel.id, cambios)}
+                  onSoltar={(destino) => onChange(moverA(layout, panel.id, destino))}
+                />
+              ))}
+            </View>
+
+            {layout.length === 0 && (
+              <Text style={styles.ayuda}>
+                Tu resumen quedó vacío. Agrega los paneles que quieras de la lista de abajo.
+              </Text>
+            )}
+
+            {disponibles.length > 0 && (
+              <>
+                <Text style={styles.seccion}>Para agregar</Text>
+                <View style={styles.disponibles}>
+                  {disponibles.map((def) => (
+                    <Pressable
+                      key={def.id}
+                      onPress={() => agregar(def.id)}
+                      style={({ pressed }) => [styles.pastilla, pressed && styles.pastillaPresionada]}
+                    >
+                      <Plus size={14} color={colors.champan} strokeWidth={2.5} />
+                      <Text style={styles.pastillaTexto}>{def.nombre}</Text>
+                    </Pressable>
+                  ))}
+                </View>
+              </>
+            )}
+          </ScrollView>
+        </SafeAreaView>
+      </GestureHandlerRootView>
     </Modal>
+  );
+}
+
+/**
+ * Una fila del editor: se arrastra, se abre para configurar y se quita.
+ *
+ * El desplazamiento vive en un `SharedValue` para que el arrastre corra en el
+ * hilo de UI; solo al soltar se cruza a JS con `runOnJS`, que es donde vive el
+ * acomodo.
+ */
+function FilaArrastrable({
+  index,
+  total,
+  panel,
+  abierto,
+  onAbrir,
+  onQuitar,
+  onAplicar,
+  onSoltar,
+}: {
+  index: number;
+  total: number;
+  panel: PanelConfig;
+  abierto: boolean;
+  onAbrir: () => void;
+  onQuitar: () => void;
+  onAplicar: (cambios: Partial<PanelConfig>) => void;
+  onSoltar: (destino: number) => void;
+}) {
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
+  const def = definicionDe(panel.id);
+
+  const desplazamiento = useSharedValue(0);
+  const arrastrando = useSharedValue(false);
+
+  const gesto = Gesture.Pan()
+    .activateAfterLongPress(120)
+    .onStart(() => {
+      arrastrando.value = true;
+    })
+    .onUpdate((evento) => {
+      desplazamiento.value = evento.translationY;
+    })
+    .onEnd(() => {
+      const saltos = Math.round(desplazamiento.value / ALTO_FILA);
+      const destino = Math.max(0, Math.min(total - 1, index + saltos));
+      arrastrando.value = false;
+      desplazamiento.value = withTiming(0, { duration: 120 });
+      if (destino !== index) runOnJS(onSoltar)(destino);
+    });
+
+  const estilo = useAnimatedStyle(() => ({
+    transform: [{ translateY: desplazamiento.value }, { scale: arrastrando.value ? 1.03 : 1 }],
+    zIndex: arrastrando.value ? 10 : 1,
+    opacity: arrastrando.value ? 0.95 : 1,
+  }));
+
+  if (!def) return null;
+
+  return (
+    <Animated.View style={[styles.filaPosicion, { top: index * ALTO_FILA }, estilo]}>
+      <View style={styles.fila}>
+        <GestureDetector gesture={gesto}>
+          <View style={styles.asa} accessibilityLabel={`Arrastrar ${def.nombre}`}>
+            <GripVertical size={20} color={colors.paloRosa} strokeWidth={2} />
+          </View>
+        </GestureDetector>
+
+        <Pressable onPress={onAbrir} style={styles.filaTexto}>
+          <Text style={styles.filaNombre} numberOfLines={1}>
+            {def.nombre}
+          </Text>
+          <Text style={styles.filaPregunta} numberOfLines={1}>
+            {ETIQUETA_ANCHO[panel.ancho]} · {ETIQUETA_VARIANTE[panel.variante]}
+          </Text>
+        </Pressable>
+
+        {/* La tacha va arriba a la derecha, como en cualquier pantalla de
+            widgets: es el gesto que la gente ya trae aprendido. */}
+        <Pressable onPress={onQuitar} hitSlop={8} style={styles.tacha} accessibilityLabel={`Quitar ${def.nombre}`}>
+          <X size={14} color={colors.pergamino} strokeWidth={3} />
+        </Pressable>
+      </View>
+
+      {abierto && (
+        <View style={styles.opciones}>
+          <Text style={styles.opcionesTitulo}>Tamaño</Text>
+          <View style={styles.opcionesFila}>
+            {def.anchos.map((ancho: Ancho) => (
+              <Pressable
+                key={ancho}
+                onPress={() => onAplicar({ ancho })}
+                style={[styles.opcion, panel.ancho === ancho && styles.opcionActiva]}
+              >
+                <Text style={[styles.opcionTexto, panel.ancho === ancho && styles.opcionTextoActivo]}>
+                  {ETIQUETA_ANCHO[ancho]}
+                </Text>
+              </Pressable>
+            ))}
+          </View>
+
+          <Text style={styles.opcionesTitulo}>Qué muestra</Text>
+          {def.variantes.map((variante: Variante) => (
+            <Pressable
+              key={variante}
+              onPress={() => onAplicar({ variante })}
+              style={[styles.muestra, panel.variante === variante && styles.muestraActiva]}
+            >
+              <Text
+                style={[
+                  styles.muestraNombre,
+                  panel.variante === variante && styles.opcionTextoActivo,
+                ]}
+              >
+                {ETIQUETA_VARIANTE[variante]}
+              </Text>
+              {/* La muestra dice qué vas a ver antes de elegir: sin ella hay
+                  que salir, mirar y volver a entrar por cada opción. */}
+              <Text style={styles.muestraEjemplo}>{MUESTRA_VARIANTE[variante]}</Text>
+            </Pressable>
+          ))}
+        </View>
+      )}
+    </Animated.View>
   );
 }
 
@@ -202,19 +291,9 @@ export function BotonEditar({ onPress }: { onPress: () => void }) {
   );
 }
 
-/** La X que se pinta encima de un panel mientras el editor está abierto. */
-export function QuitarPanel({ onPress }: { onPress: () => void }) {
-  const { colors } = useTheme();
-  const styles = useMemo(() => makeStyles(colors), [colors]);
-  return (
-    <Pressable onPress={onPress} hitSlop={8} style={styles.quitar} accessibilityLabel="Quitar panel">
-      <X size={14} color={colors.pergamino} strokeWidth={3} />
-    </Pressable>
-  );
-}
-
 const makeStyles = (colors: Palette) =>
   StyleSheet.create({
+    raiz: { flex: 1, backgroundColor: colors.obsidiana },
     screen: { flex: 1, backgroundColor: colors.obsidiana },
     header: {
       flexDirection: "row",
@@ -224,19 +303,20 @@ const makeStyles = (colors: Palette) =>
       paddingVertical: spacing.md,
       borderBottomWidth: 1,
       borderBottomColor: colors.cardBorder,
+      gap: spacing.sm,
     },
     titulo: { fontFamily: fonts.sansBold, ...typeScale.heading, color: colors.marfil },
+    headerBotones: { flexDirection: "row", alignItems: "center", gap: spacing.sm },
+    restaurar: { flexDirection: "row", alignItems: "center", gap: 4, paddingVertical: 4 },
+    restaurarTexto: { fontFamily: fonts.sansMedium, ...typeScale.bodySm, color: colors.paloRosa },
     listo: {
-      flexDirection: "row",
-      alignItems: "center",
-      gap: spacing.xs,
       backgroundColor: colors.guinda,
       paddingHorizontal: spacing.lg,
       paddingVertical: spacing.sm,
       borderRadius: radius.full,
     },
     listoTexto: { fontFamily: fonts.sansSemiBold, ...typeScale.bodySm, color: colors.pergamino },
-    contenido: { padding: spacing.lg, gap: spacing.sm, paddingBottom: spacing.huge },
+    contenido: { padding: spacing.lg, gap: spacing.md, paddingBottom: spacing.huge },
     ayuda: { fontFamily: fonts.sans, ...typeScale.bodySm, color: colors.paloRosa },
     seccion: {
       fontFamily: fonts.sansSemiBold,
@@ -246,61 +326,81 @@ const makeStyles = (colors: Palette) =>
       color: colors.paloRosa,
       marginTop: spacing.lg,
     },
+    filaPosicion: { position: "absolute", left: 0, right: 0 },
     fila: {
       flexDirection: "row",
       alignItems: "center",
-      gap: spacing.md,
+      gap: spacing.sm,
       borderRadius: radius.xl,
       borderWidth: 1,
       borderColor: colors.cardBorder,
       backgroundColor: colors.cardBg,
-      padding: spacing.md,
+      paddingVertical: spacing.md,
+      paddingLeft: spacing.xs,
+      paddingRight: spacing.lg,
+      height: ALTO_FILA - spacing.md,
     },
-    filaPresionada: { opacity: 0.85 },
+    asa: { padding: spacing.sm },
     filaTexto: { flex: 1, gap: 2 },
     filaNombre: { fontFamily: fonts.sansSemiBold, ...typeScale.body, color: colors.marfil },
     filaPregunta: { fontFamily: fonts.sans, ...typeScale.bodySm, color: colors.paloRosa },
-    filaGrupo: {
-      fontFamily: fonts.sansMedium,
-      ...typeScale.label,
-      color: colors.paloRosaLight,
-      marginTop: 2,
-    },
-    opciones: { flexDirection: "row", flexWrap: "wrap", gap: spacing.sm, marginTop: spacing.sm },
-    opcion: {
-      flexDirection: "row",
-      alignItems: "center",
-      gap: 4,
-      borderRadius: radius.full,
-      borderWidth: 1,
-      borderColor: withAlpha(colors.champan, 0.4),
-      paddingHorizontal: spacing.md,
-      paddingVertical: 4,
-    },
-    opcionMuda: { opacity: 0.4 },
-    opcionTexto: { fontFamily: fonts.sansMedium, ...typeScale.label, color: colors.champan },
-    controles: { flexDirection: "row", gap: spacing.xs },
-    boton: {
-      width: 38,
-      height: 38,
-      borderRadius: radius.full,
-      alignItems: "center",
-      justifyContent: "center",
-      backgroundColor: withAlpha(colors.paloRosa, 0.12),
-    },
-    botonMudo: { opacity: 0.3 },
-    editar: { paddingHorizontal: spacing.md, paddingVertical: spacing.xs },
-    editarTexto: { fontFamily: fonts.sansSemiBold, ...typeScale.bodySm, color: colors.champan },
-    quitar: {
-      position: "absolute",
-      top: -6,
-      right: -6,
+    tacha: {
       width: 26,
       height: 26,
       borderRadius: radius.full,
       alignItems: "center",
       justifyContent: "center",
       backgroundColor: colors.error,
-      zIndex: 2,
     },
+    opciones: {
+      marginTop: -spacing.xs,
+      marginBottom: spacing.md,
+      padding: spacing.md,
+      borderRadius: radius.xl,
+      backgroundColor: withAlpha(colors.paloRosa, 0.08),
+      gap: spacing.sm,
+    },
+    opcionesTitulo: {
+      fontFamily: fonts.sansSemiBold,
+      ...typeScale.label,
+      letterSpacing: 1,
+      textTransform: "uppercase",
+      color: colors.paloRosa,
+    },
+    opcionesFila: { flexDirection: "row", gap: spacing.sm },
+    opcion: {
+      paddingHorizontal: spacing.md,
+      paddingVertical: spacing.sm,
+      borderRadius: radius.full,
+      borderWidth: 1,
+      borderColor: colors.cardBorder,
+    },
+    opcionActiva: { backgroundColor: colors.guinda, borderColor: colors.guindaLight },
+    opcionTexto: { fontFamily: fonts.sansMedium, ...typeScale.bodySm, color: colors.marfil },
+    opcionTextoActivo: { color: colors.pergamino },
+    muestra: {
+      borderRadius: radius.xl,
+      borderWidth: 1,
+      borderColor: colors.cardBorder,
+      padding: spacing.md,
+      gap: 2,
+    },
+    muestraActiva: { backgroundColor: colors.guinda, borderColor: colors.guindaLight },
+    muestraNombre: { fontFamily: fonts.sansSemiBold, ...typeScale.bodySm, color: colors.marfil },
+    muestraEjemplo: { fontFamily: fonts.sans, ...typeScale.bodySm, color: colors.paloRosa },
+    disponibles: { flexDirection: "row", flexWrap: "wrap", gap: spacing.sm },
+    pastilla: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 4,
+      borderRadius: radius.full,
+      borderWidth: 1,
+      borderColor: withAlpha(colors.champan, 0.45),
+      paddingHorizontal: spacing.md,
+      paddingVertical: spacing.sm,
+    },
+    pastillaPresionada: { opacity: 0.7 },
+    pastillaTexto: { fontFamily: fonts.sansMedium, ...typeScale.bodySm, color: colors.marfil },
+    editar: { paddingHorizontal: spacing.md, paddingVertical: spacing.xs },
+    editarTexto: { fontFamily: fonts.sansSemiBold, ...typeScale.bodySm, color: colors.champan },
   });

@@ -142,3 +142,165 @@ export function escalonesDe(plan: Glidepath, desde: Date, maxMeses = 24): Escalo
 
   return escalones;
 }
+
+// ---------------------------------------------------------------------------
+// Todo el objetivo, no solo la cintura
+// ---------------------------------------------------------------------------
+
+/**
+ * La proyección de una medida hacia su destino.
+ *
+ * El glidepath de arriba solo sabe de cintura, porque es la única medida con
+ * un destino anclado en un número (la mitad de tu estatura). El resto del
+ * objetivo —peso, brazos, piernas— tiene ritmo pero no destino fijo, y decirlo
+ * es parte del dato: una proyección con destino inventado se lee como promesa.
+ *
+ * Cada zona trae DOS lecturas: el ritmo que pide el plan y el ritmo que de
+ * verdad llevas. La diferencia entre las dos es la conversación honesta —"al
+ * plan llegas en marzo; a tu ritmo real, en junio"— y es la que ninguna barra
+ * de progreso puede tener.
+ */
+export type ProyeccionZona = {
+  label: string;
+  unidad: string;
+  actual: number;
+  /** Dónde arrancó todo, con su fecha. */
+  inicio: { valor: number; fecha: string };
+  /** El destino, cuando la medida tiene uno. `null` = se mide por ritmo. */
+  destino: number | null;
+  /** Lo que pide el plan cada mes. Negativo = bajar. */
+  ritmoMensualPlan: number;
+  /** Lo que de verdad se movió por mes, calculado del historial. */
+  ritmoMensualReal: number | null;
+  /** Meses al ritmo del plan hasta el destino. `null` si no hay destino. */
+  mesesAlPlan: number | null;
+  /** Meses al ritmo real. `null` si no hay destino o si no avanza. */
+  mesesReales: number | null;
+  /** 0 a 1 del camino total, cuando hay destino. */
+  avance: number | null;
+};
+
+const MESES_LARGO = MESES;
+
+/** "marzo de 2027" a partir de hoy más N meses. */
+export function fechaEnMeses(desde: Date, meses: number): string {
+  const fecha = new Date(desde.getFullYear(), desde.getMonth() + Math.ceil(meses), 1);
+  return `${MESES_LARGO[fecha.getMonth()]} de ${fecha.getFullYear()}`;
+}
+
+function ritmoObservado(
+  puntos: Array<{ date: string; valor: number }>,
+): number | null {
+  if (puntos.length < 2) return null;
+  const primero = puntos[0]!;
+  const ultimo = puntos[puntos.length - 1]!;
+  const dias =
+    (Date.parse(`${ultimo.date}T12:00:00.000Z`) - Date.parse(`${primero.date}T12:00:00.000Z`)) /
+    86_400_000;
+  if (dias < 14) return null; // Menos de dos semanas no es una tendencia.
+  return ((ultimo.valor - primero.valor) / dias) * 30;
+}
+
+/**
+ * Todas las zonas del objetivo, con su proyección.
+ *
+ * `ritmos` viene del mismo catálogo que usa `metasDelMes`, para que el plan
+ * del mes y la proyección a meses hablen del mismo ritmo. Si no coincidieran,
+ * la app se estaría contradiciendo a sí misma en dos pantallas.
+ */
+export function proyeccionDelObjetivo(input: {
+  points: CheckInPoint[] | undefined;
+  heightCm: number | null;
+  ritmos: { pesoPct: number; cinturaCm: number; brazoCm: number; piernaCm: number };
+}): ProyeccionZona[] {
+  const lista = [...(input.points ?? [])].sort((a, b) => a.date.localeCompare(b.date));
+  if (lista.length === 0) return [];
+
+  function serie(lectura: (punto: CheckInPoint) => number | null) {
+    return lista
+      .map((punto) => ({ date: punto.date, valor: lectura(punto) }))
+      .filter((entrada): entrada is { date: string; valor: number } => entrada.valor !== null);
+  }
+
+  function par(izq: number | null, der: number | null): number | null {
+    const valores = [izq, der].filter((valor): valor is number => valor !== null);
+    if (valores.length === 0) return null;
+    return Math.round((valores.reduce((suma, valor) => suma + valor, 0) / valores.length) * 10) / 10;
+  }
+
+  function zona(
+    label: string,
+    unidad: string,
+    puntos: Array<{ date: string; valor: number }>,
+    destino: number | null,
+    ritmoPlan: number,
+  ): ProyeccionZona | null {
+    if (puntos.length === 0) return null;
+
+    const primero = puntos[0]!;
+    const actual = puntos[puntos.length - 1]!.valor;
+    const real = ritmoObservado(puntos.slice(-4));
+
+    const falta = destino === null ? null : actual - destino;
+    const mesesAlPlan =
+      falta === null || ritmoPlan === 0 || falta / ritmoPlan < 0
+        ? null
+        : Math.ceil(Math.abs(falta / ritmoPlan));
+    const mesesReales =
+      falta === null || real === null || real === 0 || falta / real < 0
+        ? null
+        : Math.ceil(Math.abs(falta / real));
+
+    const total = destino === null ? null : primero.valor - destino;
+
+    return {
+      label,
+      unidad,
+      actual: Math.round(actual * 10) / 10,
+      inicio: { valor: Math.round(primero.valor * 10) / 10, fecha: primero.date },
+      destino,
+      ritmoMensualPlan: ritmoPlan,
+      ritmoMensualReal: real === null ? null : Math.round(real * 10) / 10,
+      mesesAlPlan,
+      mesesReales,
+      avance:
+        total === null || total === 0
+          ? null
+          : Math.max(0, Math.min(1, (primero.valor - actual) / total)),
+    };
+  }
+
+  const cinturaDestino =
+    input.heightCm && input.heightCm > 0
+      ? Math.round(input.heightCm * RAZON_CINTURA_ESTATURA * 10) / 10
+      : null;
+
+  const pesoInicial = serie((punto) => punto.weightKg)[0]?.valor ?? null;
+
+  return [
+    zona("Cintura", "cm", serie((punto) => punto.waistCm), cinturaDestino, -CORTE_MENSUAL_CM),
+    zona(
+      "Peso",
+      "kg",
+      serie((punto) => punto.weightKg),
+      // El peso no tiene destino propio: se mueve como consecuencia de lo
+      // demás. Se proyecta por ritmo y se dice que no hay meta fija.
+      null,
+      pesoInicial === null ? 0 : Math.round(((pesoInicial * input.ritmos.pesoPct) / 100) * 10) / 10,
+    ),
+    zona(
+      "Brazos",
+      "cm",
+      serie((punto) => par(punto.armLeftCm, punto.armRightCm)),
+      null,
+      input.ritmos.brazoCm,
+    ),
+    zona(
+      "Piernas",
+      "cm",
+      serie((punto) => par(punto.legLeftCm, punto.legRightCm)),
+      null,
+      input.ritmos.piernaCm,
+    ),
+  ].filter((zona): zona is ProyeccionZona => zona !== null);
+}

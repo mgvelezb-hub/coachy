@@ -229,6 +229,17 @@ model Profile {
    */
   summaryLayout Json? @map("summary_layout")
 
+  /**
+   * Referencia NUMÉRICA del objetivo: las medidas publicadas de la persona que
+   * se tomó como norte, con su estatura y su sexo.
+   *
+   * Las fotos de referencia dan una lectura ordinal —de una foto no salen
+   * centímetros—; esto da metas con número. No se copian tal cual: la app las
+   * escala por proporción y se niega a trasladar el porcentaje de grasa entre
+   * sexos (`apps/mobile/src/lib/referencia.ts`).
+   */
+  goalReference Json? @map("goal_reference")
+
   // -- Estilo de dieta (Fase 8) ---------------------------------------------
   /// Qué método sigue el plan. Se elige explícitamente: una IA que decide sola
   /// tu filosofía nutricional es justo la caja negra que este diseño evita.

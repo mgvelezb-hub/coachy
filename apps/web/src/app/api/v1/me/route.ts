@@ -58,6 +58,7 @@ export async function GET(request: Request): Promise<NextResponse> {
           // Cómo acomodó su Resumen. El servidor lo guarda tal cual; el
           // catálogo de paneles vive en la app.
           summaryLayout: profile.summaryLayout,
+          goalReference: profile.goalReference,
           fastingStartHour: profile.fastingStartHour,
           fastingEndHour: profile.fastingEndHour,
         }

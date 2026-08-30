@@ -21,8 +21,14 @@ import type { CheckInPoint } from "@/lib/api";
  * sin React.
  */
 
-/** Ritmos mensuales por objetivo. Signo negativo = bajar. */
-const RITMOS: Record<string, { pesoPct: number; cinturaCm: number; brazoCm: number; piernaCm: number }> = {
+/**
+ * Ritmos mensuales por objetivo. Signo negativo = bajar.
+ *
+ * Se exporta porque la proyección a meses (`glidepath.ts`) tiene que usar
+ * EXACTAMENTE el mismo ritmo que la meta del mes. Con dos tablas distintas la
+ * app se contradiría a sí misma en dos pantallas.
+ */
+export const RITMOS: Record<string, { pesoPct: number; cinturaCm: number; brazoCm: number; piernaCm: number }> = {
   // ~0.5 % de peso por semana, redondeado a la baja para el mes.
   PERDIDA_GRASA: { pesoPct: -2, cinturaCm: -2, brazoCm: 0, piernaCm: 0 },
   // Recomposición: la báscula se mueve poco y la cinta es la que manda.

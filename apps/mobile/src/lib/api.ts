@@ -58,6 +58,8 @@ export type MeResponse = {
     trainingTime?: "MANANA" | "MEDIODIA" | "TARDE" | "NOCHE";
     /** Cómo acomodó su Resumen. El catálogo de paneles vive en la app. */
     summaryLayout?: unknown;
+    /** Referencia numérica del objetivo, si capturó una. */
+    goalReference?: unknown;
     /** Ventana de alimentación del ayuno, en horas locales. */
     fastingStartHour?: number | null;
     fastingEndHour?: number | null;
@@ -666,6 +668,19 @@ export type PreferenciasEntrenamientoResponse = {
  * Va al servidor y no solo al teléfono para que sobreviva a un cambio de
  * aparato: rehacer el tablero a mano es justo el trabajo que nadie repite.
  */
+/**
+ * `PATCH /api/v1/me/referencia` — las medidas de la referencia del objetivo.
+ *
+ * El servidor solo guarda; las metas se derivan en la app escalando por
+ * proporción, que es donde viven los guardarraíles.
+ */
+export function patchReferencia(referencia: unknown): Promise<{ referencia: unknown }> {
+  return apiFetch<{ referencia: unknown }>("/api/v1/me/referencia", {
+    method: "PATCH",
+    body: { referencia },
+  });
+}
+
 export function patchResumen(
   paneles: Array<{ id: string; variante: string; ancho: string }>,
 ): Promise<{ paneles: unknown }> {

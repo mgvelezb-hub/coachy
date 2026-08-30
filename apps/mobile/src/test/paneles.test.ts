@@ -4,6 +4,7 @@ import {
   PANELES,
   layoutPorDefecto,
   mover,
+  moverA,
   panelesDisponibles,
   sanearLayout,
   siguienteVariante,
@@ -78,6 +79,17 @@ describe("edición", () => {
 
     expect(mover(layout, primero, -1)).toEqual(layout);
     expect(mover(layout, primero, 1)[1]!.id).toBe(primero);
+  });
+
+  it("arrastrar lleva un panel a la posición exacta", () => {
+    const layout = layoutPorDefecto();
+    const tercero = layout[2]!.id;
+
+    expect(moverA(layout, tercero, 0)[0]!.id).toBe(tercero);
+    expect(moverA(layout, tercero, layout.length - 1).at(-1)!.id).toBe(tercero);
+    // Fuera de rango se topa en el extremo, no rompe el acomodo.
+    expect(moverA(layout, tercero, 99).at(-1)!.id).toBe(tercero);
+    expect(moverA(layout, tercero, -5)[0]!.id).toBe(tercero);
   });
 
   it("las variantes rotan en ciclo", () => {

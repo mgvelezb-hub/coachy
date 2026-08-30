@@ -17,7 +17,14 @@ import {
   type CheckInPoint,
   type MeResponse,
 } from "@/lib/api";
-import { escalonesDe, glidepathDeCintura, textoDeGlidepath } from "@/lib/glidepath";
+import {
+  escalonesDe,
+  fechaEnMeses,
+  glidepathDeCintura,
+  proyeccionDelObjetivo,
+  textoDeGlidepath,
+} from "@/lib/glidepath";
+import { RITMOS } from "@/lib/metas";
 import {
   fonts,
   radius,
@@ -72,6 +79,11 @@ export default function GlidepathScreen() {
   if (!points && error) return <ErrorState message={error} onRetry={load} />;
 
   const plan = glidepathDeCintura(points ?? [], me?.profile?.heightCm ?? null);
+  const proyeccion = proyeccionDelObjetivo({
+    points: points ?? [],
+    heightCm: me?.profile?.heightCm ?? null,
+    ritmos: RITMOS[me?.profile?.goal ?? "SALUD"] ?? RITMOS.SALUD!,
+  });
   const escalones = plan ? escalonesDe(plan, new Date()) : [];
 
   // La línea junta lo vivido con lo proyectado: primero tus mediciones, luego
@@ -183,6 +195,52 @@ export default function GlidepathScreen() {
             </Card>
 
             <Card>
+              <SectionLabel>Todo el objetivo, zona por zona</SectionLabel>
+              <Text style={styles.aviso}>
+                La cintura es la que tiene destino anclado —la mitad de tu estatura, o lo que salga
+                de tu referencia—. Las demás se miden por ritmo: no hay un número al que "hay que
+                llegar", hay una dirección y una velocidad.
+              </Text>
+
+              <View style={styles.tabla}>
+                {proyeccion.map((zona) => (
+                  <View key={zona.label} style={styles.zonaBloque}>
+                    <View style={styles.zonaHead}>
+                      <Text style={styles.zonaLabel}>{zona.label}</Text>
+                      <Text style={styles.zonaValor}>
+                        {zona.actual} {zona.unidad}
+                        {zona.destino !== null ? ` → ${zona.destino} ${zona.unidad}` : ""}
+                      </Text>
+                    </View>
+
+                    <Text style={styles.zonaNota}>
+                      Desde {zona.inicio.valor} {zona.unidad} el {zona.inicio.fecha}. Al ritmo del
+                      plan ({zona.ritmoMensualPlan > 0 ? "+" : ""}
+                      {zona.ritmoMensualPlan} {zona.unidad} al mes)
+                      {zona.mesesAlPlan !== null
+                        ? `: ${fechaEnMeses(new Date(), zona.mesesAlPlan)}.`
+                        : " no hay una fecha que prometer, porque esta medida no tiene destino fijo."}
+                    </Text>
+
+                    <Text style={styles.zonaNota}>
+                      {zona.ritmoMensualReal === null
+                        ? "Todavía no hay suficientes mediciones para leer tu ritmo real."
+                        : zona.mesesReales !== null
+                          ? `A tu ritmo real de los últimos meses (${zona.ritmoMensualReal > 0 ? "+" : ""}${zona.ritmoMensualReal} ${zona.unidad} al mes): ${fechaEnMeses(new Date(), zona.mesesReales)}.`
+                          : `Tu ritmo real de los últimos meses: ${zona.ritmoMensualReal > 0 ? "+" : ""}${zona.ritmoMensualReal} ${zona.unidad} al mes.`}
+                    </Text>
+                  </View>
+                ))}
+              </View>
+
+              <Text style={styles.aviso}>
+                Las dos fechas están a propósito: la del plan es a lo que apunta el método, la tuya
+                es a lo que vas. Cuando se separan mucho, lo que hay que revisar es el ritmo, no la
+                fecha.
+              </Text>
+            </Card>
+
+            <Card>
               <SectionLabel>Cómo se recalcula</SectionLabel>
               <Text style={styles.aviso}>
                 Cada mes, cuando subes medidas y fotos, el escalón siguiente se calcula desde donde
@@ -255,6 +313,11 @@ const makeStyles = (colors: Palette) => StyleSheet.create({
     color: colors.paloRosaLight,
     marginTop: spacing.md,
   },
+  zonaBloque: { gap: 4, paddingVertical: spacing.sm },
+  zonaHead: { flexDirection: "row", alignItems: "baseline", justifyContent: "space-between", gap: spacing.sm },
+  zonaLabel: { fontFamily: fonts.sansSemiBold, ...typeScale.body, color: colors.marfil },
+  zonaValor: { fontFamily: fonts.sansSemiBold, ...typeScale.bodySm, color: colors.champan },
+  zonaNota: { fontFamily: fonts.sans, ...typeScale.bodySm, color: colors.paloRosa },
   tabla: { marginTop: spacing.md, gap: spacing.sm },
   fila: { flexDirection: "row", alignItems: "center", gap: spacing.md },
   filaMes: {
