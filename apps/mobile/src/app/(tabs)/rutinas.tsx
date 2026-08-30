@@ -1,9 +1,10 @@
 import NetInfo from "@react-native-community/netinfo";
+import { useRouter } from "expo-router";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 
 import { Chip } from "@/components/Chip";
-import { CalendarRange, Timer, Waves } from "lucide-react-native";
+import { CalendarRange, PlayCircle, Timer, Waves } from "lucide-react-native";
 import { Collapsible } from "@/components/Collapsible";
 import { ScoreCard } from "@/components/ScoreCard";
 import { ExerciseCapture } from "@/components/ExerciseCapture";
@@ -159,6 +160,7 @@ function weekWithSubstitute(
 }
 
 export default function GymScreen() {
+  const router = useRouter();
   const { colors } = useTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
   // Tocar esta pestaña estando en ella regresa el scroll hasta arriba.
@@ -408,6 +410,21 @@ export default function GymScreen() {
       )}
 
       {otraSesion && <OtraDisciplina session={otraSesion} isToday={isViewingToday} />}
+
+      {isViewingToday && session && session.completedAt === null && (
+        <Pressable
+          onPress={() => router.push({ pathname: "/en-vivo", params: { workoutId: session.workoutId } })}
+          style={styles.enVivo}
+        >
+          <PlayCircle size={22} color={colors.pergamino} strokeWidth={2} />
+          <View style={{ flex: 1 }}>
+            <Text style={styles.enVivoTitulo}>Empezar la sesión</Text>
+            <Text style={styles.enVivoDetalle}>
+              Serie por serie, con el descanso corriendo solo
+            </Text>
+          </View>
+        </Pressable>
+      )}
 
       {isViewingToday && session && session.completedAt === null && (
         <TiempoDeHoy
@@ -935,6 +952,16 @@ function SummaryModal({
 }
 
 const makeStyles = (colors: Palette) => StyleSheet.create({
+  enVivo: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.md,
+    backgroundColor: colors.guinda,
+    borderRadius: radius.xxl,
+    padding: spacing.lg,
+  },
+  enVivoTitulo: { fontFamily: fonts.sansBold, ...typeScale.heading, color: colors.pergamino },
+  enVivoDetalle: { fontFamily: fonts.sans, ...typeScale.bodySm, color: withAlpha(colors.pergamino, 0.85) },
   swimBlocks: { gap: spacing.md, marginTop: spacing.md },
   swimBlock: {
     borderRadius: radius.xl,
