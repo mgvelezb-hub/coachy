@@ -6,7 +6,13 @@
  * que solo se guarda es el que enseña a no confiar en los ajustes.
  */
 
-import { DISCIPLINE_LABELS, type Discipline, type MuscleGroup, type SwimLevel } from "@/lib/api";
+import {
+  DISCIPLINE_LABELS,
+  type Discipline,
+  type MuscleGroup,
+  type OtherSessionView,
+  type SwimLevel,
+} from "@/lib/api";
 
 /** El nombre de cada grupo en el vocabulario de la app. */
 export const GRUPOS: Array<{ valor: MuscleGroup; nombre: string }> = [
@@ -219,4 +225,56 @@ export const RECORTES: Array<{ minutos: number; nombre: string; detalle: string 
 export function nombreDelRecorte(minutos: number | null): string {
   if (minutos === null) return "Rutina completa";
   return RECORTES.find((opcion) => opcion.minutos === minutos)?.nombre ?? "Recortada";
+}
+
+// ---------------------------------------------------------------------------
+// Días combinados (Fase 7) — orden de los bloques de un día con hasta dos
+// compromisos: gym + disciplina, o disciplina + disciplina.
+// ---------------------------------------------------------------------------
+
+/** Un bloque del día, ya resuelto a su tipo: el de pesas o el de otra disciplina. */
+export type BloqueDelDia<T> = { tipo: "gym"; data: T } | { tipo: "otra"; data: OtherSessionView };
+
+/**
+ * Ordena los bloques de un día combinado.
+ *
+ * El servidor declara `orden` SOLO en las sesiones de otra disciplina — el
+ * gimnasio nunca compite consigo mismo por un lugar en el día. Cuando el día
+ * combina gym + una disciplina, el gym ocupa la posición que la otra NO usa:
+ * si la otra es `orden: 2` ("la alberca al final para soltar"), el gym va
+ * primero; si es `orden: 1` ("squash primero, con piernas frescas"), el gym
+ * va después. Con dos disciplinas y sin gym, se ordena solo por `orden`.
+ *
+ * `T` es genérico porque quien llama trae su propio tipo de sesión de
+ * gimnasio (`SessionView` en el detalle del día, `TodayCard` en "Hoy").
+ */
+export function ordenarBloquesDelDia<T>(
+  gym: T | null,
+  otras: OtherSessionView[],
+): Array<BloqueDelDia<T>> {
+  if (!gym) {
+    return [...otras]
+      .sort((a, b) => (a.orden ?? 2) - (b.orden ?? 2))
+      .map((data) => ({ tipo: "otra" as const, data }));
+  }
+  if (otras.length === 0) return [{ tipo: "gym", data: gym }];
+
+  // El gym solo comparte el día con UNA otra disciplina: dos disciplinas más
+  // gym en el mismo día no existe en el modelo actual.
+  const otra = otras[0]!;
+  const gymBloque: BloqueDelDia<T> = { tipo: "gym", data: gym };
+  const otraBloque: BloqueDelDia<T> = { tipo: "otra", data: otra };
+  return (otra.orden ?? 2) === 1 ? [otraBloque, gymBloque] : [gymBloque, otraBloque];
+}
+
+/** El nombre de un bloque: el grupo muscular si es gym, la disciplina si no. */
+export function etiquetaBloque<T extends { muscleGroup: string }>(bloque: BloqueDelDia<T>): string {
+  return bloque.tipo === "gym" ? bloque.data.muscleGroup : DISCIPLINE_LABELS[bloque.data.discipline];
+}
+
+/** "Squash → Natación" — los bloques del día, ya en su orden, unidos por flecha. */
+export function etiquetaDelDia<T extends { muscleGroup: string }>(
+  bloques: Array<BloqueDelDia<T>>,
+): string {
+  return bloques.map(etiquetaBloque).join(" → ");
 }

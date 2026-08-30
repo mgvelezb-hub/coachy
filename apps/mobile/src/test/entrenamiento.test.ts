@@ -1,0 +1,103 @@
+import { describe, expect, it } from "vitest";
+
+import type { OtherSessionView } from "@/lib/api";
+import { etiquetaDelDia, ordenarBloquesDelDia } from "@/lib/entrenamiento";
+
+/**
+ * Orden de los bloques de un día combinado (Fase 7).
+ *
+ * Lo que se cuida: que el gimnasio ocupe la posición que la otra disciplina
+ * no usa, y que dos disciplinas sin gym se ordenen solo por `orden`. Un error
+ * aquí no se ve en un día normal —solo en el que de verdad combina dos
+ * compromisos— así que la prueba es la única red antes de que alguien lo note
+ * en su teléfono.
+ */
+
+function otra(overrides: Partial<OtherSessionView> = {}): OtherSessionView {
+  return {
+    date: "2026-08-30",
+    weekday: "SAB",
+    discipline: "NATACION",
+    minutes: 45,
+    sesion: null,
+    note: "",
+    sharesDayWithGym: true,
+    orden: 2,
+    ...overrides,
+  };
+}
+
+const GYM = { muscleGroup: "Pierna" };
+
+describe("ordenarBloquesDelDia", () => {
+  it("un día sin nada regresa vacío", () => {
+    expect(ordenarBloquesDelDia(null, [])).toEqual([]);
+  });
+
+  it("solo gym: un bloque", () => {
+    expect(ordenarBloquesDelDia(GYM, [])).toEqual([{ tipo: "gym", data: GYM }]);
+  });
+
+  it("solo una disciplina, sin gym: un bloque", () => {
+    const s = otra({ discipline: "SQUASH" });
+    expect(ordenarBloquesDelDia(null, [s])).toEqual([{ tipo: "otra", data: s }]);
+  });
+
+  it("gym + disciplina con orden 2: el gym va primero", () => {
+    const s = otra({ discipline: "NATACION", orden: 2 });
+    const bloques = ordenarBloquesDelDia(GYM, [s]);
+    expect(bloques.map((b) => b.tipo)).toEqual(["gym", "otra"]);
+  });
+
+  it("gym + disciplina con orden 1 (ej. squash con piernas frescas): la otra va primero", () => {
+    const s = otra({ discipline: "SQUASH", orden: 1 });
+    const bloques = ordenarBloquesDelDia(GYM, [s]);
+    expect(bloques.map((b) => b.tipo)).toEqual(["otra", "gym"]);
+  });
+
+  it("dos disciplinas sin gym: se ordenan por `orden`", () => {
+    const primero = otra({ discipline: "SQUASH", orden: 1 });
+    const segundo = otra({ discipline: "NATACION", orden: 2 });
+    // Se pasan en el orden contrario a propósito: la función es la que ordena.
+    const bloques = ordenarBloquesDelDia(null, [segundo, primero]);
+    expect(bloques).toEqual([
+      { tipo: "otra", data: primero },
+      { tipo: "otra", data: segundo },
+    ]);
+  });
+
+  it("orden ausente (dato viejo cacheado) se trata como 2, no rompe", () => {
+    const s = { ...otra({ discipline: "SQUASH" }) } as OtherSessionView;
+    // @ts-expect-error — simula un registro cacheado antes de esta fase.
+    delete s.orden;
+    const bloques = ordenarBloquesDelDia(GYM, [s]);
+    expect(bloques.map((b) => b.tipo)).toEqual(["gym", "otra"]);
+  });
+});
+
+describe("etiquetaDelDia", () => {
+  it("un solo bloque: su propio nombre", () => {
+    expect(etiquetaDelDia([{ tipo: "gym", data: GYM }])).toBe("Pierna");
+  });
+
+  it("dos bloques: unidos por flecha, en el orden dado", () => {
+    const squash = otra({ discipline: "SQUASH" });
+    const natacion = otra({ discipline: "NATACION" });
+    expect(
+      etiquetaDelDia([
+        { tipo: "otra", data: squash },
+        { tipo: "otra", data: natacion },
+      ]),
+    ).toBe("Squash → Natación");
+  });
+
+  it("gym + disciplina: el grupo muscular junto al nombre de la disciplina", () => {
+    const natacion = otra({ discipline: "NATACION" });
+    expect(
+      etiquetaDelDia([
+        { tipo: "gym", data: GYM },
+        { tipo: "otra", data: natacion },
+      ]),
+    ).toBe("Pierna → Natación");
+  });
+});

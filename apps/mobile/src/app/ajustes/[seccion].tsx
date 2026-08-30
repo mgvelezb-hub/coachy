@@ -10,25 +10,18 @@ import { Explicacion, TextoExplicativo } from "@/components/Explicacion";
 import { ErrorState, LoadingState } from "@/components/States";
 import { PrimaryButton } from "@/components/PrimaryButton";
 import { SectionLabel } from "@/components/SectionLabel";
+import { SeccionEntrenamiento } from "@/components/ajustes/SeccionEntrenamiento";
 import { useTheme } from "@/context/theme";
 import type { ThemePreference } from "@/context/theme";
 import {
   ApiError,
   getActivities,
   getMe,
-  getTrainingWeek,
   patchCheckinSchedule,
-  patchEntrenamiento,
   patchNutricion,
   patchPresupuesto,
-  DISCIPLINE_LABELS,
-  type Discipline,
-  type DisciplineLoad,
   type MeResponse,
   type DietStyle,
-  type MuscleGroup,
-  type SwimLevel,
-  type WeekView,
 } from "@/lib/api";
 import {
   ESTILOS_DIETA,
@@ -38,15 +31,7 @@ import {
   avisoDeDieta,
 } from "@/lib/nutricion";
 import { estadoDelReloj } from "@/lib/reloj-nativo";
-import {
-  DISCIPLINAS,
-  GRUPOS,
-  NIVELES_POR_DISCIPLINA,
-  TIEMPOS_COCINA,
-  diasDeGimnasio,
-  listaDeAlimentos,
-} from "@/lib/entrenamiento";
-import { iconoDe } from "@/lib/disciplinas";
+import { TIEMPOS_COCINA, listaDeAlimentos } from "@/lib/entrenamiento";
 import {
   connectHealth,
   ensureCurrentPermissions,
@@ -373,127 +358,6 @@ export default function AjustesDetalleScreen() {
     }
   }
 
-  // Entrenamiento: los grupos que no se repiten y las disciplinas que gastan
-  // del presupuesto semanal.
-  const [sinRepetir, setSinRepetir] = useState<MuscleGroup[]>([]);
-  const [primaria, setPrimaria] = useState<Discipline>("PESAS");
-  const [otras, setOtras] = useState<DisciplineLoad[]>([]);
-  const [niveles, setNiveles] = useState<Partial<Record<Discipline, SwimLevel>>>({});
-  const [entrenoMsg, setEntrenoMsg] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (!me?.profile) return;
-    setSinRepetir(me.profile.avoidRepeatGroups ?? []);
-    setPrimaria(me.profile.primaryDiscipline ?? "PESAS");
-    setOtras(me.profile.otherDisciplines ?? []);
-    setNiveles({
-      NATACION: me.profile.swimLevel ?? "PRINCIPIANTE",
-      ...(me.profile.disciplineLevels ?? {}),
-    });
-  }, [me]);
-
-  const presupuestoSemanal = me?.profile?.trainingDaysPerWeek ?? 0;
-  const diasGym = diasDeGimnasio(presupuestoSemanal, otras, primaria);
-
-  /**
-   * La semana que de verdad quedó después de guardar.
-   *
-   * Un ajuste que dice "guardado" y no enseña qué cambió pide un acto de fe.
-   * Esto no simula el efecto: vuelve a pedir la semana al servidor y pinta lo
-   * que el generador armó, que es la única versión que importa.
-   */
-  const [semana, setSemana] = useState<WeekView | null>(null);
-
-  const cargarSemana = useCallback(async () => {
-    if (activa !== "entrenamiento") return;
-    try {
-      setSemana(await getTrainingWeek());
-    } catch {
-      // Sin semana no hay línea de consecuencia, y no pasa nada más: los
-      // ajustes se guardaron igual.
-    }
-  }, [activa]);
-
-  useEffect(() => {
-    void cargarSemana();
-  }, [cargarSemana]);
-
-  const consecuencia = useMemo(() => {
-    if (!semana) return null;
-    const pesas = semana.sessions.map((sesion) => sesion.muscleGroup);
-    const otrasSesiones = semana.otherSessions ?? [];
-    const partes = [
-      `${pesas.length} ${pesas.length === 1 ? "día" : "días"} de gimnasio`,
-      ...(otrasSesiones.length > 0
-        ? [`${otrasSesiones.length} de ${DISCIPLINE_LABELS[otrasSesiones[0]!.discipline].toLowerCase()}`]
-        : []),
-    ];
-    return { titular: `Tu semana: ${partes.join(" · ")}`, dias: pesas };
-  }, [semana]);
-
-  async function guardarSinRepetir(grupo: MuscleGroup) {
-    const siguiente = sinRepetir.includes(grupo)
-      ? sinRepetir.filter((valor) => valor !== grupo)
-      : [...sinRepetir, grupo];
-
-    setSinRepetir(siguiente);
-    setEntrenoMsg(null);
-    try {
-      await patchEntrenamiento({ avoidRepeatGroups: siguiente });
-      void cargarSemana();
-      setEntrenoMsg(
-        siguiente.length === 0
-          ? "Sin restricciones: la semana vuelve al split completo."
-          : "Guardado. Esos grupos se entrenan una vez y los días que los repetían pasan a otra cosa.",
-      );
-    } catch (error) {
-      setSinRepetir(sinRepetir);
-      setEntrenoMsg(error instanceof ApiError ? error.message : "No se pudo guardar tu preferencia");
-    }
-  }
-
-  async function guardarSesiones(disciplina: Discipline, sesiones: number) {
-    const limpio = Math.max(0, Math.min(7, sesiones));
-    const siguiente = [
-      ...otras.filter((carga) => carga.discipline !== disciplina),
-      ...(limpio > 0 ? [{ discipline: disciplina, sessionsPerWeek: limpio }] : []),
-    ];
-
-    setOtras(siguiente);
-    setEntrenoMsg(null);
-    try {
-      await patchEntrenamiento({ otherDisciplines: siguiente });
-      void cargarSemana();
-      const restantes = diasDeGimnasio(presupuestoSemanal, siguiente, primaria);
-      setEntrenoMsg(
-        `Guardado: te quedan ${restantes} ${restantes === 1 ? "día" : "días"} de gimnasio a la semana.`,
-      );
-    } catch (error) {
-      setOtras(otras);
-      setEntrenoMsg(error instanceof ApiError ? error.message : "No se pudo guardar tu disciplina");
-    }
-  }
-
-  async function guardarNivel(disciplina: Discipline, nivel: SwimLevel) {
-    const anterior = niveles;
-    const siguiente = { ...niveles, [disciplina]: nivel };
-    setNiveles(siguiente);
-    setEntrenoMsg(null);
-    try {
-      // Natación además mantiene `swimLevel`, que existía antes de que el
-      // nivel fuera por disciplina y sigue siendo su respaldo.
-      await patchEntrenamiento({
-        disciplineLevels: siguiente,
-        ...(disciplina === "NATACION" ? { swimLevel: nivel } : {}),
-      });
-      setEntrenoMsg("Guardado. Entra en tu siguiente sesión de esa disciplina.");
-      void cargarSemana();
-    } catch (error) {
-      setNiveles(anterior);
-      setEntrenoMsg(error instanceof ApiError ? error.message : "No se pudo guardar tu nivel");
-    }
-  }
-
   // Bóveda de fotos: clave propia del teléfono + biometría opcional.
   const [tieneClave, setTieneClave] = useState(false);
   const [biometria, setBiometria] = useState<"facial" | "huella" | null>(null);
@@ -738,214 +602,7 @@ export default function AjustesDetalleScreen() {
         </Card>
         )}
 
-        {activa === "entrenamiento" && (
-        <>
-        <Card>
-          <SectionLabel>Grupos que no quieres repetir</SectionLabel>
-          <Explicacion>
-            <TextoExplicativo>
-              El grupo que marques se entrena una vez a la semana. Los días que lo repetían no
-              desaparecen: pasan a trabajar otra cosa, así que sigues entrenando los mismos días.
-            </TextoExplicativo>
-          </Explicacion>
-
-          <View style={styles.cierreRow}>
-            {GRUPOS.map((grupo) => {
-              const activo = sinRepetir.includes(grupo.valor);
-              return (
-                <Pressable
-                  key={grupo.valor}
-                  onPress={() => guardarSinRepetir(grupo.valor)}
-                  style={[styles.cierreChip, activo && styles.cierreChipOn]}
-                >
-                  <Text style={[styles.cierreChipText, activo && styles.cierreChipTextOn]}>
-                    {grupo.nombre}
-                  </Text>
-                </Pressable>
-              );
-            })}
-          </View>
-
-          {consecuencia && (
-            <View style={styles.consecuencia}>
-              <Text style={styles.consecuenciaTitulo}>{consecuencia.titular}</Text>
-              <Text style={styles.consecuenciaDetalle}>{consecuencia.dias.join(" · ")}</Text>
-            </View>
-          )}
-        </Card>
-
-        <Card>
-          <SectionLabel>Otras disciplinas</SectionLabel>
-          <Text style={styles.vaultIntro}>
-            Tu semana tiene {presupuestoSemanal}{" "}
-            {presupuestoSemanal === 1 ? "sesión" : "sesiones"} de entrenamiento. Agregar una
-            disciplina gasta de ahí: no se suma encima. Hoy te quedan{" "}
-            <Text style={styles.entrenoDato}>
-              {diasGym} {diasGym === 1 ? "día" : "días"} de gimnasio
-            </Text>
-            .
-          </Text>
-
-          <View style={styles.presupuestoLista}>
-            {DISCIPLINAS.filter((disciplina) => disciplina.valor !== "PESAS").map((disciplina) => {
-              const carga =
-                otras.find((entrada) => entrada.discipline === disciplina.valor)?.sessionsPerWeek ?? 0;
-              const Icono = iconoDe(disciplina.valor);
-              return (
-                <View key={disciplina.valor} style={styles.entrenoFila}>
-                  <Icono size={20} color={carga === 0 ? colors.paloRosa : colors.champan} strokeWidth={2} />
-                  <View style={styles.textos}>
-                    <Text style={styles.presupuestoNombre}>{disciplina.nombre}</Text>
-                    <Text style={styles.presupuestoDetalle}>
-                      {carga === 0
-                        ? "Sin sesiones: no gasta nada"
-                        : `${carga} ${carga === 1 ? "sesión" : "sesiones"} a la semana`}
-                    </Text>
-                  </View>
-
-                  <View style={styles.entrenoStepper}>
-                    <Pressable
-                      onPress={() => guardarSesiones(disciplina.valor, carga - 1)}
-                      disabled={carga === 0}
-                      hitSlop={8}
-                      style={[styles.entrenoPaso, carga === 0 && styles.entrenoPasoOff]}
-                    >
-                      <Text style={styles.entrenoPasoText}>−</Text>
-                    </Pressable>
-                    <Text style={styles.entrenoCarga}>{carga}</Text>
-                    <Pressable
-                      onPress={() => guardarSesiones(disciplina.valor, carga + 1)}
-                      hitSlop={8}
-                      style={styles.entrenoPaso}
-                    >
-                      <Text style={styles.entrenoPasoText}>+</Text>
-                    </Pressable>
-                  </View>
-                </View>
-              );
-            })}
-          </View>
-
-          {entrenoMsg && <Text style={styles.vaultMsg}>{entrenoMsg}</Text>}
-
-          {consecuencia && (
-            <View style={styles.consecuencia}>
-              <Text style={styles.consecuenciaTitulo}>{consecuencia.titular}</Text>
-              <Text style={styles.consecuenciaDetalle}>{consecuencia.dias.join(" · ")}</Text>
-            </View>
-          )}
-
-          {/* Ajustar de a poco sirve cuando el plan ya es tuyo; cuando cambió
-              tu vida —otro horario, otra disciplina, otro objetivo— lo que hace
-              falta es rearmarlo, no moverle una pieza. */}
-          <Pressable onPress={() => router.push("/replantear")} style={styles.replantear}>
-            <RotateCcw size={18} color={colors.pergamino} strokeWidth={2} />
-            <View style={{ flex: 1 }}>
-              <Text style={styles.replantearTitulo}>Rearmar mi rutina</Text>
-              <Text style={styles.replantearDetalle}>
-                Cuatro preguntas y tu semana queda de nuevo. Lo entrenado no se toca.
-              </Text>
-            </View>
-          </Pressable>
-
-          {/* Mover el peso es lo que se quiere a las dos semanas; rearmar es
-              para cuando cambió la vida, no el gusto. */}
-          <Pressable onPress={() => router.push("/recalibrar")} style={styles.recalibrar}>
-            <Text style={styles.recalibrarTexto}>
-              Solo mover el peso entre disciplinas →
-            </Text>
-          </Pressable>
-
-          <Text style={styles.vaultIntro}>
-            Hoy la app te planea el gimnasio y te registra el resto: qué días y cómo entrenas las
-            otras lo eliges tú. La prescripción por disciplina llega una a una, empezando por
-            natación.
-          </Text>
-        </Card>
-
-        <Card>
-          <SectionLabel>Tu nivel en el gimnasio</SectionLabel>
-          <Explicacion>
-            <TextoExplicativo>
-              Acota qué ejercicios entran en tu rutina: el generador solo elige de tu nivel y de
-              los de abajo. Mandar una sentadilla frontal o un peso muerto a barra libre a quien
-              lleva dos semanas no es exigencia, es la forma más común de lesionarse.
-            </TextoExplicativo>
-          </Explicacion>
-
-          <View style={styles.presupuestoLista}>
-            {(NIVELES_POR_DISCIPLINA.PESAS ?? []).map((opcion) => {
-              const activo = (niveles.PESAS ?? "PRINCIPIANTE") === opcion.valor;
-              return (
-                <Pressable
-                  key={opcion.valor}
-                  onPress={() => guardarNivel("PESAS", opcion.valor)}
-                  style={[styles.presupuestoFila, activo && styles.presupuestoFilaOn]}
-                >
-                  <Text style={[styles.presupuestoNombre, activo && styles.presupuestoNombreOn]}>
-                    {opcion.nombre}
-                  </Text>
-                  <Text style={styles.presupuestoDetalle}>{opcion.detalle}</Text>
-                </Pressable>
-              );
-            })}
-          </View>
-        </Card>
-
-        {otras.length > 0 && (
-        <Card>
-          <SectionLabel>Tu nivel en las demás disciplinas</SectionLabel>
-          <Explicacion>
-            <TextoExplicativo>
-              Cada disciplina prescribe distinto según dónde estés: no es lo mismo la primera vez
-              en el agua que nadar 1 500 m. Se declara y no se adivina — el reloj sabe cuánto duró
-              tu sesión, no si sabes caer de una caja.
-            </TextoExplicativo>
-          </Explicacion>
-
-          {otras.map((carga) => {
-            const opciones = NIVELES_POR_DISCIPLINA[carga.discipline];
-            if (!opciones) return null;
-            const actual = niveles[carga.discipline] ?? "PRINCIPIANTE";
-
-            return (
-              <View key={carga.discipline} style={{ marginTop: spacing.lg }}>
-                <View style={styles.nivelTitulo}>
-                  {(() => {
-                    const Icono = iconoDe(carga.discipline);
-                    return <Icono size={18} color={colors.champan} strokeWidth={2} />;
-                  })()}
-                  <Text style={styles.cierreLabel}>{DISCIPLINE_LABELS[carga.discipline]}</Text>
-                </View>
-                <View style={styles.presupuestoLista}>
-                  {opciones.map((opcion) => (
-                    <Pressable
-                      key={opcion.valor}
-                      onPress={() => guardarNivel(carga.discipline, opcion.valor)}
-                      style={[
-                        styles.presupuestoFila,
-                        actual === opcion.valor && styles.presupuestoFilaOn,
-                      ]}
-                    >
-                      <Text
-                        style={[
-                          styles.presupuestoNombre,
-                          actual === opcion.valor && styles.presupuestoNombreOn,
-                        ]}
-                      >
-                        {opcion.nombre}
-                      </Text>
-                      <Text style={styles.presupuestoDetalle}>{opcion.detalle}</Text>
-                    </Pressable>
-                  ))}
-                </View>
-              </View>
-            );
-          })}
-        </Card>
-        )}
-        </>
-        )}
+        {activa === "entrenamiento" && <SeccionEntrenamiento me={me} />}
 
         {activa === "nutricion" && (
         <>
@@ -1483,9 +1140,6 @@ const swatchStyles = StyleSheet.create({
 
 const makeStyles = (colors: Palette) => StyleSheet.create({
   presupuestoLista: { gap: spacing.sm, marginTop: spacing.md },
-  textos: { flex: 1, gap: 2 },
-  entrenoDato: { fontFamily: fonts.sansSemiBold, color: colors.champan },
-  nivelTitulo: { flexDirection: "row", alignItems: "center", gap: spacing.xs },
   replantear: {
     flexDirection: "row",
     alignItems: "center",
@@ -1497,51 +1151,11 @@ const makeStyles = (colors: Palette) => StyleSheet.create({
     borderRadius: radius.xl,
     padding: spacing.lg,
   },
-  recalibrar: { paddingVertical: spacing.md, alignItems: "center" },
-  recalibrarTexto: { fontFamily: fonts.sansSemiBold, ...typeScale.body, color: colors.champan },
   replantearTitulo: { fontFamily: fonts.sansSemiBold, ...typeScale.body, color: colors.pergamino },
   replantearDetalle: {
     fontFamily: fonts.sans,
     ...typeScale.bodySm,
     color: withAlpha(colors.pergamino, 0.85),
-  },
-  consecuencia: {
-    marginTop: spacing.lg,
-    padding: spacing.md,
-    borderRadius: radius.xl,
-    backgroundColor: withAlpha(colors.champan, 0.12),
-    gap: 2,
-  },
-  consecuenciaTitulo: { fontFamily: fonts.sansSemiBold, ...typeScale.body, color: colors.marfil },
-  consecuenciaDetalle: { fontFamily: fonts.sans, ...typeScale.bodySm, color: colors.paloRosa },
-  entrenoFila: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: spacing.md,
-    borderRadius: radius.xl,
-    borderWidth: 1,
-    borderColor: colors.cardBorder,
-    backgroundColor: colors.cardBg,
-    paddingVertical: spacing.md,
-    paddingHorizontal: spacing.lg,
-  },
-  entrenoStepper: { flexDirection: "row", alignItems: "center", gap: spacing.md },
-  entrenoPaso: {
-    width: 32,
-    height: 32,
-    borderRadius: radius.full,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: colors.guinda,
-  },
-  entrenoPasoOff: { opacity: 0.35 },
-  entrenoPasoText: { fontFamily: fonts.sansSemiBold, ...typeScale.body, color: colors.pergamino },
-  entrenoCarga: {
-    minWidth: 18,
-    textAlign: "center",
-    fontFamily: fonts.sansSemiBold,
-    ...typeScale.body,
-    color: colors.marfil,
   },
   presupuestoFila: {
     borderRadius: radius.xl,

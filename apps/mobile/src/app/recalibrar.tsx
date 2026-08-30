@@ -55,15 +55,17 @@ export default function RecalibrarScreen() {
       const primaria = (perfil.profile?.primaryDiscipline as Discipline) ?? "PESAS";
       const otras = perfil.profile?.otherDisciplines ?? [];
 
-      // Se parte de lo que hay hoy: la importancia inicial sale de cuántas
-      // sesiones lleva cada una, no de un valor neutro que borraría el reparto
-      // actual en cuanto se toque cualquier cosa.
+      // Se parte de lo que hay hoy. Si la disciplina ya declaró propósito e
+      // importancia (Fase 7, vía la tarjeta de Ajustes) se usan tal cual; si
+      // no —un entry viejo, de antes de que existieran esos campos— se
+      // derivan de cuántas sesiones lleva, que es mejor que un valor neutro
+      // que borraría el reparto actual en cuanto se toque cualquier cosa.
       setPesos([
         { discipline: primaria, proposito: "ENTRENAMIENTO", importancia: 3 },
         ...otras.map((carga) => ({
           discipline: carga.discipline,
-          proposito: "COMPLEMENTO" as Proposito,
-          importancia: Math.max(1, Math.min(3, carga.sessionsPerWeek)),
+          proposito: carga.proposito ?? ("COMPLEMENTO" as Proposito),
+          importancia: carga.importancia ?? Math.max(1, Math.min(3, carga.sessionsPerWeek)),
         })),
       ]);
     } catch (err) {

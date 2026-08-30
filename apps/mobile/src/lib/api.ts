@@ -69,6 +69,13 @@ export type MeResponse = {
     /** Ventana de alimentación del ayuno, en horas locales. */
     fastingStartHour?: number | null;
     fastingEndHour?: number | null;
+    /**
+     * Minutos disponibles por día, declarados (Fase 7): `{"LUN":60,...}`.
+     * `null`/ausente = no declarado. Es lo que hace honesto el reparto de un
+     * día combinado — sin esto el generador no sabe si un "SÁB" con dos
+     * disciplinas de verdad tiene tiempo para las dos.
+     */
+    timePerDay?: Record<string, number> | null;
   } | null;
 };
 
@@ -89,7 +96,17 @@ export type MuscleGroup = (typeof MUSCLE_GROUPS)[number];
  * Una disciplina activa y cuántas veces por semana se practica. `Discipline`
  * y sus etiquetas viven abajo, con el contrato de `/api/v1/activities`.
  */
-export type DisciplineLoad = { discipline: Discipline; sessionsPerWeek: number };
+export type DisciplineLoad = {
+  discipline: Discipline;
+  sessionsPerWeek: number;
+  /**
+   * Para qué se entrena (Fase 7). Opcional: los registros viejos no lo
+   * traen y Ajustes deriva un valor a partir de las sesiones declaradas.
+   */
+  proposito?: "ENTRENAMIENTO" | "COMPLEMENTO" | "HOBBY";
+  /** 1-3: cuánto pesa esta disciplina al repartir el tiempo. Opcional por lo mismo. */
+  importancia?: number;
+};
 
 export type Decision = {
   id: string;
@@ -447,6 +464,13 @@ export type OtherSessionView = {
   sesion: SesionDisciplina | null;
   note: string;
   sharesDayWithGym: boolean;
+  /**
+   * Posición dentro del día (Fase 7): un día puede tener DOS bloques —gym +
+   * disciplina, o disciplina + disciplina— y `orden` dice cuál va primero.
+   * `note` explica el porqué ("la alberca al final para soltar"). El
+   * gimnasio no declara `orden`: ocupa la posición que la otra no usa.
+   */
+  orden: 1 | 2;
 };
 
 export const SWIM_LEVELS = ["PRINCIPIANTE", "INTERMEDIO", "AVANZADO"] as const;
@@ -682,6 +706,11 @@ export type PreferenciasEntrenamiento = {
   swimLevel?: SwimLevel;
   /** Nivel por disciplina. Se manda entero: el servidor guarda el mapa. */
   disciplineLevels?: Partial<Record<Discipline, SwimLevel>>;
+  /**
+   * Minutos por día (Fase 7), 0-300, `null` = sin declarar ese día. Se manda
+   * el mapa entero: el servidor lo guarda tal cual, igual que `disciplineLevels`.
+   */
+  timePerDay?: Record<string, number> | null;
 };
 
 export type PreferenciasEntrenamientoResponse = {

@@ -67,6 +67,19 @@ export default function ReplantearScreen() {
       const perfil = await getMe();
       setMe(perfil);
       setPrimaria((perfil.profile?.primaryDiscipline as Discipline) ?? "PESAS");
+
+      // El tiempo por día declarado en Ajustes (Fase 7) prellena este paso en
+      // vez de arrancar todo en cero: si ya se declaró una vez, repetirlo a
+      // mano cada vez que se rearma la rutina es el trabajo que este flujo
+      // debería evitar.
+      const declarado = perfil.profile?.timePerDay;
+      if (declarado) {
+        setTiempo(
+          Object.fromEntries(
+            DIAS_SEMANA.map((dia) => [dia.valor, declarado[dia.valor] ?? 0]),
+          ) as Record<WeekDay, number>,
+        );
+      }
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "No se pudo cargar tu perfil");
     }

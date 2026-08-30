@@ -1,6 +1,6 @@
 import NetInfo from "@react-native-community/netinfo";
 import { useRouter } from "expo-router";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { Fragment, useCallback, useEffect, useMemo, useState } from "react";
 import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 
 import { Chip } from "@/components/Chip";
@@ -24,7 +24,13 @@ import {
   trimSession,
 } from "@/lib/api";
 import { iconoDe } from "@/lib/disciplinas";
-import { RECORTES, nombreDelRecorte } from "@/lib/entrenamiento";
+import {
+  RECORTES,
+  etiquetaDelDia,
+  nombreDelRecorte,
+  ordenarBloquesDelDia,
+  type BloqueDelDia,
+} from "@/lib/entrenamiento";
 import { fonts, radius, spacing, withAlpha, type Palette, type as typeScale } from "@/lib/theme";
 import {
   getCachedWeek,
@@ -394,9 +400,147 @@ export default function GymScreen() {
     }
   }
 
-  // La sesión de otra disciplina del día que se está mirando. Va antes que el
-  // detalle del gimnasio: si hoy toca alberca, es lo primero que hay que saber.
-  const otraSesion = week?.otherSessions?.find((entry) => entry.date === selectedDate) ?? null;
+  // Las sesiones de otra disciplina del día que se está mirando. Un día puede
+  // traer hasta dos (Fase 7): gym + una, o dos sin gym. `ordenarBloquesDelDia`
+  // decide en qué posición va cada una respecto del gimnasio.
+  const otrasSeleccionadas = week?.otherSessions?.filter((entry) => entry.date === selectedDate) ?? [];
+  const bloquesSeleccionados = ordenarBloquesDelDia(viewedSession, otrasSeleccionadas);
+  const diaCombinado = bloquesSeleccionados.length === 2;
+
+  // El bloque de gimnasio es siempre el mismo trozo de UI (botón "empezar" +
+  // recorte + lista/captura); lo que cambia es DÓNDE cae respecto del bloque
+  // de la otra disciplina, y eso ya lo resolvió `ordenarBloquesDelDia`.
+  const bloqueNodos = bloquesSeleccionados.map((bloque, index) => {
+    if (bloque.tipo === "otra") {
+      return (
+        <OtraDisciplina
+          key={`otra-${bloque.data.discipline}-${index}`}
+          session={bloque.data}
+          isToday={isViewingToday}
+        />
+      );
+    }
+
+    return (
+      <Fragment key="gym">
+        {isViewingToday && session && session.completedAt === null && (
+          <Pressable
+            onPress={() => router.push({ pathname: "/en-vivo", params: { workoutId: session.workoutId } })}
+            style={styles.enVivo}
+          >
+            <PlayCircle size={22} color={colors.pergamino} strokeWidth={2} />
+            <View style={{ flex: 1 }}>
+              <Text style={styles.enVivoTitulo}>Empezar la sesión</Text>
+              <Text style={styles.enVivoDetalle}>
+                Serie por serie, con el descanso corriendo solo
+              </Text>
+            </View>
+          </Pressable>
+        )}
+
+        {isViewingToday && session && session.completedAt === null && (
+          <TiempoDeHoy
+            session={session}
+            working={trimming}
+            error={trimError}
+            onTrim={recortarSesion}
+          />
+        )}
+
+        {openIndex === null || !draft || !session ? (
+          <>
+            <View style={styles.header}>
+              <Text style={styles.title}>{viewedSession!.muscleGroup}</Text>
+              <Text style={styles.meta}>
+                {viewedSession!.schemeLabel} · {viewedSession!.exercises.length} ejercicios
+                {viewedSession!.cardioMinutes ? ` · ${viewedSession!.cardioMinutes} min de cardio al final` : ""}
+              </Text>
+              {viewedSession!.cycleNote && <Text style={styles.note}>{viewedSession!.cycleNote}</Text>}
+              {viewedSession!.readinessNote && <Text style={styles.note}>🌙 {viewedSession!.readinessNote}</Text>}
+            </View>
+
+            {!isViewingToday && (
+              <View style={styles.viewingNotice}>
+                <Text style={styles.viewingNoticeText}>
+                  Estás viendo el {weekdayLong(selectedDate)}; la captura solo se habilita en la sesión de hoy.
+                </Text>
+              </View>
+            )}
+
+            <View style={styles.list}>
+              {viewedSession!.exercises.map((exercise, exIndex) => {
+                const done = isViewingToday
+                  ? exercise.sets.filter((_, setIndex) =>
+                      draft?.sets.some(
+                        (set) => set.clientId === `${viewedSession!.workoutId}:${exIndex}:${setIndex}`,
+                      ),
+                    ).length
+                  : 0;
+                const complete = isViewingToday && done === exercise.sets.length;
+
+                return (
+                  <Pressable
+                    key={`${exercise.name}-${exIndex}`}
+                    onPress={() => {
+                      if (isViewingToday) setOpenIndex(exIndex);
+                    }}
+                    disabled={!isViewingToday}
+                    style={[styles.exerciseRow, !isViewingToday && styles.exerciseRowDisabled]}
+                  >
+                    <View style={[styles.exerciseDot, complete && styles.exerciseDotDone]}>
+                      <Text style={[styles.exerciseDotText, complete && styles.exerciseDotTextDone]}>
+                        {complete ? "✓" : "○"}
+                      </Text>
+                    </View>
+                    <View style={styles.exerciseInfo}>
+                      <Text style={styles.exerciseName}>{exercise.name}</Text>
+                      <Text style={styles.exerciseMeta}>
+                        {exercise.schemeLabel}
+                        {isViewingToday ? ` · ${done}/${exercise.sets.length} series` : ` · ${exercise.sets.length} series`}
+                      </Text>
+                    </View>
+                    {isViewingToday && <Text style={styles.chevron}>›</Text>}
+                  </Pressable>
+                );
+              })}
+            </View>
+
+            {isViewingToday && (
+              <Pressable
+                onPress={() => setSummaryOpen(true)}
+                disabled={totals.sets === 0}
+                style={[styles.finishButton, totals.sets === 0 && styles.finishButtonDisabled]}
+              >
+                <Text style={styles.finishButtonText}>
+                  TERMINAR SESIÓN ({exercisesDone}/{viewedSession!.exercises.length})
+                </Text>
+              </Pressable>
+            )}
+          </>
+        ) : (
+          <ExerciseCapture
+            key={`${openIndex}:${session.exercises[openIndex]?.name ?? ""}`}
+            exercise={session.exercises[openIndex]!}
+            exerciseIndex={openIndex}
+            workoutId={session.workoutId}
+            savedSets={draft.sets}
+            online={online}
+            onMarkSet={(setIndex, values) => handleMarkSet(openIndex, setIndex, values)}
+            onSubstitute={(alternative) => handleSubstitute(openIndex, alternative)}
+            onBack={() => setOpenIndex(null)}
+            onNext={() => {
+              if (openIndex + 1 < session.exercises.length) setOpenIndex(openIndex + 1);
+              else {
+                setOpenIndex(null);
+                setSummaryOpen(true);
+              }
+            }}
+            isLast={openIndex + 1 === session.exercises.length}
+          />
+        )}
+      </Fragment>
+    );
+  });
 
   return (
     <ScrollView ref={scrollRef} style={styles.screen} contentContainerStyle={styles.content}>
@@ -411,124 +555,15 @@ export default function GymScreen() {
         />
       )}
 
-      {otraSesion && <OtraDisciplina session={otraSesion} isToday={isViewingToday} />}
+      {diaCombinado && <OrdenDelDia bloques={bloquesSeleccionados} />}
 
-      {isViewingToday && session && session.completedAt === null && (
-        <Pressable
-          onPress={() => router.push({ pathname: "/en-vivo", params: { workoutId: session.workoutId } })}
-          style={styles.enVivo}
-        >
-          <PlayCircle size={22} color={colors.pergamino} strokeWidth={2} />
-          <View style={{ flex: 1 }}>
-            <Text style={styles.enVivoTitulo}>Empezar la sesión</Text>
-            <Text style={styles.enVivoDetalle}>
-              Serie por serie, con el descanso corriendo solo
-            </Text>
-          </View>
-        </Pressable>
-      )}
+      {bloqueNodos}
 
-      {isViewingToday && session && session.completedAt === null && (
-        <TiempoDeHoy
-          session={session}
-          working={trimming}
-          error={trimError}
-          onTrim={recortarSesion}
-        />
-      )}
-
-      {!viewedSession ? (
+      {/* Descanso de verdad: sin gym y sin ninguna otra disciplina ese día.
+          Con dos bloques la tarjeta de arriba y las de cada uno ya cuentan
+          toda la historia, así que este mensaje genérico no hace falta. */}
+      {!viewedSession && bloquesSeleccionados.length < 2 && (
         <RestDay week={week} selectedDate={selectedDate} isToday={isViewingToday} />
-      ) : openIndex === null || !draft || !session ? (
-        <>
-          <View style={styles.header}>
-            <Text style={styles.title}>{viewedSession.muscleGroup}</Text>
-            <Text style={styles.meta}>
-              {viewedSession.schemeLabel} · {viewedSession.exercises.length} ejercicios
-              {viewedSession.cardioMinutes ? ` · ${viewedSession.cardioMinutes} min de cardio al final` : ""}
-            </Text>
-            {viewedSession.cycleNote && <Text style={styles.note}>{viewedSession.cycleNote}</Text>}
-            {viewedSession.readinessNote && <Text style={styles.note}>🌙 {viewedSession.readinessNote}</Text>}
-          </View>
-
-          {!isViewingToday && (
-            <View style={styles.viewingNotice}>
-              <Text style={styles.viewingNoticeText}>
-                Estás viendo el {weekdayLong(selectedDate)}; la captura solo se habilita en la sesión de hoy.
-              </Text>
-            </View>
-          )}
-
-          <View style={styles.list}>
-            {viewedSession.exercises.map((exercise, index) => {
-              const done = isViewingToday
-                ? exercise.sets.filter((_, setIndex) =>
-                    draft?.sets.some(
-                      (set) => set.clientId === `${viewedSession.workoutId}:${index}:${setIndex}`,
-                    ),
-                  ).length
-                : 0;
-              const complete = isViewingToday && done === exercise.sets.length;
-
-              return (
-                <Pressable
-                  key={`${exercise.name}-${index}`}
-                  onPress={() => {
-                    if (isViewingToday) setOpenIndex(index);
-                  }}
-                  disabled={!isViewingToday}
-                  style={[styles.exerciseRow, !isViewingToday && styles.exerciseRowDisabled]}
-                >
-                  <View style={[styles.exerciseDot, complete && styles.exerciseDotDone]}>
-                    <Text style={[styles.exerciseDotText, complete && styles.exerciseDotTextDone]}>
-                      {complete ? "✓" : "○"}
-                    </Text>
-                  </View>
-                  <View style={styles.exerciseInfo}>
-                    <Text style={styles.exerciseName}>{exercise.name}</Text>
-                    <Text style={styles.exerciseMeta}>
-                      {exercise.schemeLabel}
-                      {isViewingToday ? ` · ${done}/${exercise.sets.length} series` : ` · ${exercise.sets.length} series`}
-                    </Text>
-                  </View>
-                  {isViewingToday && <Text style={styles.chevron}>›</Text>}
-                </Pressable>
-              );
-            })}
-          </View>
-
-          {isViewingToday && (
-            <Pressable
-              onPress={() => setSummaryOpen(true)}
-              disabled={totals.sets === 0}
-              style={[styles.finishButton, totals.sets === 0 && styles.finishButtonDisabled]}
-            >
-              <Text style={styles.finishButtonText}>
-                TERMINAR SESIÓN ({exercisesDone}/{viewedSession.exercises.length})
-              </Text>
-            </Pressable>
-          )}
-        </>
-      ) : (
-        <ExerciseCapture
-          key={`${openIndex}:${session.exercises[openIndex]?.name ?? ""}`}
-          exercise={session.exercises[openIndex]!}
-          exerciseIndex={openIndex}
-          workoutId={session.workoutId}
-          savedSets={draft.sets}
-          online={online}
-          onMarkSet={(setIndex, values) => handleMarkSet(openIndex, setIndex, values)}
-          onSubstitute={(alternative) => handleSubstitute(openIndex, alternative)}
-          onBack={() => setOpenIndex(null)}
-          onNext={() => {
-            if (openIndex + 1 < session.exercises.length) setOpenIndex(openIndex + 1);
-            else {
-              setOpenIndex(null);
-              setSummaryOpen(true);
-            }
-          }}
-          isLast={openIndex + 1 === session.exercises.length}
-        />
       )}
 
       {session && (
@@ -735,7 +770,12 @@ function OtraDisciplina({
       {isToday && (
         <Pressable
           onPress={() =>
-            router.push({ pathname: "/sesion-libre", params: { fecha: session.date } })
+            router.push({
+              pathname: "/sesion-libre",
+              // La disciplina va en el param: un día puede tener DOS sesiones
+              // con la misma fecha, y sin ella "empezar" siempre abriría la primera.
+              params: { fecha: session.date, discipline: session.discipline },
+            })
           }
           style={styles.enVivoOtra}
         >
@@ -816,7 +856,8 @@ function WeekOverview({
       <View style={styles.weekList}>
         {days.map((date) => {
           const daySession = week.sessions.find((entry) => entry.date === date) ?? null;
-          const dayOther = week.otherSessions?.find((entry) => entry.date === date) ?? null;
+          const dayOthers = week.otherSessions?.filter((entry) => entry.date === date) ?? [];
+          const bloques = ordenarBloquesDelDia(daySession, dayOthers);
           const isToday = date === today;
           const isSelected = date === selectedDate;
           const done = daySession?.completedAt != null;
@@ -837,34 +878,34 @@ function WeekOverview({
               </View>
 
               <View style={styles.weekInfo}>
-                {daySession ? (
+                {bloques.length === 0 ? (
+                  <Text style={styles.weekRest}>Descanso</Text>
+                ) : bloques.length === 2 ? (
+                  // Dos bloques: el título es el orden completo del día
+                  // ("Squash → Natación"), y el detalle de cada uno va junto,
+                  // en el mismo orden.
                   <>
-                    <Text style={styles.weekMuscle}>{daySession.muscleGroup}</Text>
+                    <Text style={styles.weekMuscle}>{etiquetaDelDia(bloques)}</Text>
                     <Text style={styles.weekMeta}>
-                      {daySession.exercises.length} ejercicios · {daySession.schemeLabel}
-                      {daySession.cardioMinutes ? ` · ${daySession.cardioMinutes} min cardio` : ""}
-                      {daySession.trimmedMinutes
-                        ? ` · ${nombreDelRecorte(daySession.trimmedMinutes).toLowerCase()}`
+                      {bloques.map((bloque) => detalleDeBloque(bloque)).join(" · ")}
+                    </Text>
+                  </>
+                ) : bloques[0]!.tipo === "gym" ? (
+                  <>
+                    <Text style={styles.weekMuscle}>{daySession!.muscleGroup}</Text>
+                    <Text style={styles.weekMeta}>
+                      {daySession!.exercises.length} ejercicios · {daySession!.schemeLabel}
+                      {daySession!.cardioMinutes ? ` · ${daySession!.cardioMinutes} min cardio` : ""}
+                      {daySession!.trimmedMinutes
+                        ? ` · ${nombreDelRecorte(daySession!.trimmedMinutes).toLowerCase()}`
                         : ""}
                     </Text>
                   </>
-                ) : dayOther ? (
-                  <>
-                    <Text style={styles.weekMuscle}>{DISCIPLINE_LABELS[dayOther.discipline]}</Text>
-                    <Text style={styles.weekMeta}>
-                      {dayOther.sesion
-                        ? `${dayOther.sesion.cargaTotal} ${dayOther.sesion.unidad} · ${dayOther.sesion.focus.toLowerCase()}`
-                        : `${dayOther.minutes} min`}
-                    </Text>
-                  </>
                 ) : (
-                  <Text style={styles.weekRest}>Descanso</Text>
-                )}
-
-                {daySession && dayOther && (
-                  <Text style={styles.weekMeta}>
-                    + {DISCIPLINE_LABELS[dayOther.discipline].toLowerCase()} el mismo día
-                  </Text>
+                  <>
+                    <Text style={styles.weekMuscle}>{DISCIPLINE_LABELS[bloques[0]!.data.discipline]}</Text>
+                    <Text style={styles.weekMeta}>{detalleDeBloque(bloques[0]!)}</Text>
+                  </>
                 )}
               </View>
 
@@ -877,6 +918,52 @@ function WeekOverview({
         })}
       </View>
     </ScoreCard>
+  );
+}
+
+/** El detalle corto de un bloque, para la fila de "Tu semana". */
+function detalleDeBloque(bloque: BloqueDelDia<SessionView>): string {
+  if (bloque.tipo === "gym") {
+    const sesion = bloque.data;
+    return `${sesion.exercises.length} ejercicios${
+      sesion.cardioMinutes ? ` · ${sesion.cardioMinutes} min cardio` : ""
+    }`;
+  }
+  const otra = bloque.data;
+  return otra.sesion
+    ? `${otra.sesion.cargaTotal} ${otra.sesion.unidad} · ${otra.sesion.focus.toLowerCase()}`
+    : `${otra.minutes} min`;
+}
+
+/**
+ * El orden del día completo, cuando hoy hay dos bloques.
+ *
+ * El PORQUÉ ya lo escribió el servidor en `note` de cada sesión de otra
+ * disciplina ("la alberca al final para soltar", "squash primero con piernas
+ * frescas"); esta tarjeta solo lo sube arriba, antes de que haya que abrir
+ * nada para saber en qué orden va el día.
+ */
+function OrdenDelDia({ bloques }: { bloques: Array<BloqueDelDia<SessionView>> }) {
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
+  const notas = Array.from(
+    new Set(
+      bloques
+        .filter((bloque): bloque is Extract<(typeof bloques)[number], { tipo: "otra" }> => bloque.tipo === "otra")
+        .map((bloque) => bloque.data.note)
+        .filter((nota) => nota.length > 0),
+    ),
+  );
+
+  return (
+    <View style={styles.ordenDelDia}>
+      <Text style={styles.ordenDelDiaTitulo}>Hoy en este orden: {etiquetaDelDia(bloques)}</Text>
+      {notas.map((nota) => (
+        <Text key={nota} style={styles.ordenDelDiaNota}>
+          {nota}
+        </Text>
+      ))}
+    </View>
   );
 }
 
@@ -1122,6 +1209,16 @@ const makeStyles = (colors: Palette) => StyleSheet.create({
     padding: spacing.sm,
   },
   viewingNoticeText: { fontFamily: fonts.sans, ...typeScale.label, color: colors.paloRosaLight },
+  ordenDelDia: {
+    gap: 4,
+    borderWidth: 1,
+    borderColor: colors.cardBorder,
+    backgroundColor: withAlpha(colors.paloRosa, 0.08),
+    borderRadius: radius.lg,
+    padding: spacing.md,
+  },
+  ordenDelDiaTitulo: { fontFamily: fonts.sansSemiBold, ...typeScale.body, color: colors.marfil },
+  ordenDelDiaNota: { fontFamily: fonts.sans, ...typeScale.bodySm, color: colors.paloRosaLight },
   header: { gap: spacing.xs },
   title: { fontFamily: fonts.sansSemiBold, ...typeScale.title, color: colors.marfil },
   meta: { fontFamily: fonts.sans, ...typeScale.bodySm, color: colors.paloRosaLight },

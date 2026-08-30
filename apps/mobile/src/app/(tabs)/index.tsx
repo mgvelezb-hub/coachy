@@ -23,6 +23,7 @@ import {
   getComidasLog,
   getNutrition,
   getTrainingToday,
+  getTrainingWeek,
   postComidaLog,
   markNotificationsRead,
   type Activity,
@@ -56,7 +57,7 @@ import {
   type Palette,
 } from "@/lib/theme";
 import { iconoDe } from "@/lib/disciplinas";
-import { nombreDelRecorte } from "@/lib/entrenamiento";
+import { nombreDelRecorte, ordenarBloquesDelDia } from "@/lib/entrenamiento";
 import { formatMealItem, pickNextMeal, syncWidgetData } from "@/lib/widget";
 import { enviarResumenAlReloj } from "@/lib/reloj-nativo";
 
@@ -75,8 +76,13 @@ type HomeData = {
   decision: Decision | null;
   nutrition: NutritionResponse | null;
   today: TodayCard | null;
-  /** La sesión de otra disciplina de hoy, si el día la trae (Fase 7). */
-  todayOther: OtherSessionView | null;
+  /**
+   * Las sesiones de otra disciplina de hoy (Fase 7): un día puede traer
+   * hasta dos (gym + una, o dos sin gym). `/training/today` solo declara la
+   * primera que encuentra, así que aquí se completa con la semana cuando esa
+   * carga sí tuvo éxito.
+   */
+  todayOthers: OtherSessionView[];
   notifications: Notification[];
   /**
    * Racha de entrenamiento. No se pinta en Hoy —vive en Resumen y en el
@@ -129,7 +135,7 @@ export default function HoyScreen() {
 
   const load = useCallback(async () => {
     try {
-      const [me, decisionRes, notificationsRes, nutrition, today, history, checkinsRes, healthRes, activitiesRes] =
+      const [me, decisionRes, notificationsRes, nutrition, today, week, history, checkinsRes, healthRes, activitiesRes] =
         await Promise.all([
           getMe(),
           getDecision(),
@@ -141,6 +147,10 @@ export default function HoyScreen() {
                 ? { today: null, otherSession: null }
                 : (Promise.reject(e) as never),
           ),
+          // `/training/today` solo trae UNA sesión de otra disciplina aunque
+          // el día tenga dos (Fase 7); la semana sí trae las dos, y por eso se
+          // pide aparte. Tolerante a fallar: sin ella se cae a la de `today`.
+          getTrainingWeek().catch(() => null),
           // Las fuentes de la racha son tolerantes a fallar por separado: un
           // endpoint caído no debe tumbar la pantalla de Hoy.
           getHistoryTraining().catch(() => null),
@@ -156,13 +166,20 @@ export default function HoyScreen() {
       const days = trainingDays(sources);
       const streak = currentStreak(days, todayISO());
       const todayCard = today?.today ?? null;
+      const hoy = todayISO();
+      const todayOthers = week
+        ? (week.otherSessions ?? []).filter((entry) => entry.date === hoy)
+        : today.otherSession
+          ? [today.otherSession]
+          : [];
+      const primeraOtra = todayOthers[0] ?? null;
 
       setData({
         me,
         decision: decisionRes.decision,
         nutrition,
         today: todayCard,
-        todayOther: today.otherSession ?? null,
+        todayOthers,
         notifications: notificationsRes.notificaciones,
         streak,
         healthDays: healthRes?.dias ?? [],
@@ -178,7 +195,7 @@ export default function HoyScreen() {
           mejorRacha: bestStreak(days),
           hoyGrupo:
             todayCard?.muscleGroup ??
-            (today.otherSession ? DISCIPLINE_LABELS[today.otherSession.discipline] : "Descanso"),
+            (primeraOtra ? DISCIPLINE_LABELS[primeraOtra.discipline] : "Descanso"),
           hoyEjercicios: todayCard?.exerciseCount ?? null,
           hoyEsquema: todayCard?.schemeLabel ?? null,
           hoyHecho: todayCard?.completed ?? false,
@@ -194,7 +211,7 @@ export default function HoyScreen() {
         enviarResumenAlReloj({
           hoy:
             todayCard?.muscleGroup ??
-            (today.otherSession ? DISCIPLINE_LABELS[today.otherSession.discipline] : "Descanso"),
+            (primeraOtra ? DISCIPLINE_LABELS[primeraOtra.discipline] : "Descanso"),
           ejercicios: todayCard?.exerciseCount ?? null,
           hecho: todayCard?.completed ?? false,
           comida: nextMeal?.label ?? null,
@@ -269,7 +286,7 @@ export default function HoyScreen() {
 
       <TodayTrainingCard
         today={today}
-        otherSession={data.todayOther}
+        otherSessions={data.todayOthers}
         onPress={() => router.push("/rutinas")}
       />
 
@@ -339,34 +356,18 @@ function NotificationBanner({
 
 function TodayTrainingCard({
   today,
-  otherSession,
+  otherSessions,
   onPress,
 }: {
   today: TodayCard | null;
-  otherSession: OtherSessionView | null;
+  /** Hasta dos (Fase 7), ya sin ordenar: `ordenarBloquesDelDia` decide el orden. */
+  otherSessions: OtherSessionView[];
   onPress: () => void;
 }) {
   const { colors } = useTheme();
+  const bloques = ordenarBloquesDelDia(today, otherSessions);
 
-  // Un día sin pesas pero con alberca NO es descanso. Decirlo así mandaría a
-  // descansar a quien tiene sesión programada.
-  if (!today && otherSession) {
-    const nombre = DISCIPLINE_LABELS[otherSession.discipline];
-    return (
-      <HeroCard
-        eyebrow="Hoy toca"
-        title={nombre}
-        subtitle={
-          otherSession.sesion
-            ? `${otherSession.sesion.cargaTotal} ${otherSession.sesion.unidad} · ${otherSession.sesion.focus} · ${otherSession.minutes} min`
-            : `${otherSession.minutes} min · tú eliges cómo la entrenas`
-        }
-        onPress={onPress}
-      />
-    );
-  }
-
-  if (!today) {
+  if (bloques.length === 0) {
     return (
       <HeroCard
         eyebrow="Hoy"
@@ -378,31 +379,46 @@ function TodayTrainingCard({
   }
 
   // Con dos sesiones el día tiene dos compromisos, no uno con nota al pie:
-  // cada uno lleva su tarjeta, en el orden en que se hacen.
+  // cada uno lleva su tarjeta, en el orden en que se hacen. La primera es
+  // siempre la protagonista (guinda); la que sigue es "también" (guindaDark).
   return (
     <>
-      <HeroCard
-        eyebrow={today.completed ? "Hoy · hecho" : "Hoy toca"}
-        title={today.muscleGroup}
-        subtitle={`${today.exerciseCount} ejercicios · ${today.schemeLabel}${
-          today.cardioMinutes ? ` · ${today.cardioMinutes} min cardio` : ""
-        }${today.trimmedMinutes ? ` · ${nombreDelRecorte(today.trimmedMinutes).toLowerCase()}` : ""}`}
-        onPress={onPress}
-      />
+      {bloques.map((bloque, index) => {
+        const esPrimera = index === 0;
+        const color = esPrimera ? undefined : colors.guindaDark;
 
-      {otherSession && (
-        <HeroCard
-          eyebrow="Hoy también"
-          title={DISCIPLINE_LABELS[otherSession.discipline]}
-          subtitle={
-            otherSession.sesion
-              ? `${otherSession.sesion.cargaTotal} ${otherSession.sesion.unidad} · ${otherSession.sesion.focus} · ${otherSession.minutes} min`
-              : `${otherSession.minutes} min · tú eliges cómo la entrenas`
-          }
-          color={colors.guindaDark}
-          onPress={onPress}
-        />
-      )}
+        if (bloque.tipo === "gym") {
+          const card = bloque.data;
+          return (
+            <HeroCard
+              key="gym"
+              eyebrow={esPrimera ? (card.completed ? "Hoy · hecho" : "Hoy toca") : "Hoy también"}
+              title={card.muscleGroup}
+              subtitle={`${card.exerciseCount} ejercicios · ${card.schemeLabel}${
+                card.cardioMinutes ? ` · ${card.cardioMinutes} min cardio` : ""
+              }${card.trimmedMinutes ? ` · ${nombreDelRecorte(card.trimmedMinutes).toLowerCase()}` : ""}`}
+              color={color}
+              onPress={onPress}
+            />
+          );
+        }
+
+        const otra = bloque.data;
+        return (
+          <HeroCard
+            key={`otra-${otra.discipline}-${index}`}
+            eyebrow={esPrimera ? "Hoy toca" : "Hoy también"}
+            title={DISCIPLINE_LABELS[otra.discipline]}
+            subtitle={
+              otra.sesion
+                ? `${otra.sesion.cargaTotal} ${otra.sesion.unidad} · ${otra.sesion.focus} · ${otra.minutes} min`
+                : `${otra.minutes} min · tú eliges cómo la entrenas`
+            }
+            color={color}
+            onPress={onPress}
+          />
+        );
+      })}
     </>
   );
 }

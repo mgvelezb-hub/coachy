@@ -73,7 +73,10 @@ function hoyISO(): string {
 }
 
 export default function SesionLibreScreen() {
-  const { fecha } = useLocalSearchParams<{ fecha: string }>();
+  // `discipline` es opcional: sin él (por ejemplo un enlace viejo) se toma la
+  // primera sesión de la fecha, igual que antes. Con dos sesiones el mismo
+  // día (Fase 7) es lo único que distingue cuál de las dos se quiere abrir.
+  const { fecha, discipline } = useLocalSearchParams<{ fecha: string; discipline?: string }>();
   const router = useRouter();
   const { colors } = useTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
@@ -91,7 +94,10 @@ export default function SesionLibreScreen() {
     try {
       const semana: WeekView | null = await getCachedWeek(mondayISO());
       const dia = fecha ?? hoyISO();
-      const encontrada = semana?.otherSessions?.find((entrada) => entrada.date === dia) ?? null;
+      const candidatas = semana?.otherSessions?.filter((entrada) => entrada.date === dia) ?? [];
+      const encontrada = discipline
+        ? (candidatas.find((entrada) => entrada.discipline === discipline) ?? candidatas[0] ?? null)
+        : (candidatas[0] ?? null);
 
       if (!encontrada) {
         setError("Esa sesión no está en el teléfono. Abre Rutinas una vez con señal.");
@@ -112,7 +118,7 @@ export default function SesionLibreScreen() {
     } catch {
       setError("No se pudo abrir tu sesión.");
     }
-  }, [fecha]);
+  }, [fecha, discipline]);
 
   useEffect(() => {
     void cargar();
