@@ -16,6 +16,7 @@ import {
   ApiError,
   getMe,
   getActivities,
+  getComidasLog,
   getHistoryMeasurements,
   getTrainingWeek,
   PHOTO_BUCKET,
@@ -156,6 +157,28 @@ export default function CheckinScreen() {
    * está registrado serie por serie es pedirle a la memoria lo que ya está
    * medido.
    */
+  /**
+   * El apego a la dieta ya no se pregunta desde cero: sale de las comidas que
+   * se confirmaron durante la semana. Se puede corregir —quien comió fuera y
+   * no lo marcó lo ajusta— pero el punto de partida es lo medido.
+   */
+  const [dietaAuto, setDietaAuto] = useState<{ apego: number; contestadas: number } | null>(null);
+  useEffect(() => {
+    let vivo = true;
+    getComidasLog()
+      .then((respuesta) => {
+        if (!vivo || respuesta.apego === null) return;
+        setDietaAuto({ apego: respuesta.apego, contestadas: respuesta.contestadas });
+        setDietCompliance(respuesta.apego);
+      })
+      .catch(() => {
+        // Sin comidas confirmadas se pregunta como siempre.
+      });
+    return () => {
+      vivo = false;
+    };
+  }, []);
+
   const [entrenoAuto, setEntrenoAuto] = useState<{ hechas: number; total: number } | null>(null);
   useEffect(() => {
     let vivo = true;
@@ -420,6 +443,12 @@ export default function CheckinScreen() {
         <SectionLabel>Cumplimiento</SectionLabel>
         <View style={styles.fieldGroup}>
           <PercentStepper label="Dieta" value={dietCompliance} onChange={setDietCompliance} />
+          {dietaAuto && (
+            <Text style={styles.autoNota}>
+              Prellenado con tus comidas confirmadas: {dietaAuto.contestadas}{" "}
+              {dietaAuto.contestadas === 1 ? "respondida" : "respondidas"} estos días.
+            </Text>
+          )}
           <PercentStepper label="Entreno" value={trainingCompliance} onChange={setTrainingCompliance} />
           {entrenoAuto && (
             <Text style={styles.autoNota}>

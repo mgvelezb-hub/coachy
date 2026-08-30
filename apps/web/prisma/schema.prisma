@@ -176,6 +176,7 @@ model User {
   healthDays         HealthDay[]
   activitySessions   ActivitySession[]
   labResults         LabResult[]
+  mealLogs           MealLog[]
   conversations      Conversation[]
   notifications      Notification[]
   trainingExamples   TrainingExample[] @relation("TrainingExampleAthlete")
@@ -656,6 +657,31 @@ model Food {
 
   @@index([role])
   @@map("foods")
+}
+
+/// Una comida del plan, confirmada o no por la atleta.
+///
+/// Existe para que el apego a la dieta deje de ser un número que se recuerda
+/// el domingo: cada comida se confirma en el momento, con un toque desde la
+/// notificación. El check-in llega prellenado con la cuenta real y la semana
+/// deja de depender de la memoria.
+model MealLog {
+  id     String @id @default(uuid()) @db.Uuid
+  userId String @map("user_id") @db.Uuid
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  /// Día de la comida, en la zona de la atleta.
+  date DateTime @db.Date
+  /// Qué comida del día: `PRE`, `POST`, `DESAYUNO`, `COMIDA`, `SNACK`, `CENA`.
+  slot String
+  /// `true` = la hizo como venía; `false` = la saltó o comió otra cosa.
+  taken Boolean
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@unique([userId, date, slot])
+  @@index([userId, date])
+  @@map("meal_logs")
 }
 
 /// Qué tipo de estudio se cargó.

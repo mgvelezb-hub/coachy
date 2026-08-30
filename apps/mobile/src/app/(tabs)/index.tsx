@@ -22,8 +22,10 @@ import {
   getHistoryTraining,
   getMe,
   getNotifications,
+  getComidasLog,
   getNutrition,
   getTrainingToday,
+  postComidaLog,
   markNotificationsRead,
   type Activity,
   type CheckInRow,
@@ -498,6 +500,45 @@ function ComidaDeHoy({ nutrition }: { nutrition: NutritionResponse | null }) {
   const styles = useMemo(() => makeStyles(colors), [colors]);
   const menu = nutrition?.menus[0] ?? null;
 
+  /**
+   * Lo confirmado de hoy.
+   *
+   * El apego a la dieta era el último número que dependía de la memoria del
+   * domingo. Confirmar en el momento cuesta un toque, y el check-in llega
+   * prellenado con la cuenta real.
+   */
+  const [registros, setRegistros] = useState<Record<string, boolean>>({});
+
+  useEffect(() => {
+    let vivo = true;
+    getComidasLog()
+      .then((respuesta) => {
+        if (!vivo) return;
+        const hoy = todayISO();
+        setRegistros(
+          Object.fromEntries(
+            respuesta.registros
+              .filter((registro) => registro.date === hoy)
+              .map((registro) => [registro.slot, registro.taken]),
+          ),
+        );
+      })
+      .catch(() => {
+        // Sin registros la tarjeta se pinta igual, solo sin marcar nada.
+      });
+    return () => {
+      vivo = false;
+    };
+  }, []);
+
+  function confirmar(slot: string, taken: boolean) {
+    setRegistros((previos) => ({ ...previos, [slot]: taken }));
+    void postComidaLog({ date: todayISO(), slot, taken }).catch(() => {
+      // Se reintenta la próxima vez que se toque: un error aquí no vale una
+      // alerta a media comida.
+    });
+  }
+
   if (!menu) {
     return (
       <Card>
@@ -519,23 +560,59 @@ function ComidaDeHoy({ nutrition }: { nutrition: NutritionResponse | null }) {
       title="Tu comida de hoy"
       summary={resumen}
     >
-      {menu.meals.map((meal) => (
-        <View key={meal.slot} style={styles.meal}>
-          <Text style={styles.mealLabel}>
-            {meal.label} · {meal.timeHint}
-          </Text>
-          {meal.items.map((item) => (
-            <Text key={item.name} style={styles.mealItem}>
-              · {item.name} {item.free ? "(libre)" : `— ${item.grams} g`}
+      {menu.meals.map((meal) => {
+        const respuesta = registros[meal.slot];
+        return (
+          <View key={meal.slot} style={styles.meal}>
+            <Text style={styles.mealLabel}>
+              {meal.label} · {meal.timeHint}
             </Text>
-          ))}
-        </View>
-      ))}
+            {meal.items.map((item) => (
+              <Text key={item.name} style={styles.mealItem}>
+                · {item.name} {item.free ? "(libre)" : `— ${item.grams} g`}
+              </Text>
+            ))}
+
+            {/* Dos botones y nada más: "la hice" o "no". Un deslizador de
+                porcentaje por comida sería precisión inventada. */}
+            <View style={styles.mealBotones}>
+              <Pressable
+                onPress={() => confirmar(meal.slot, true)}
+                style={[styles.mealBoton, respuesta === true && styles.mealBotonSi]}
+              >
+                <Text style={[styles.mealBotonTexto, respuesta === true && styles.mealBotonTextoOn]}>
+                  La hice
+                </Text>
+              </Pressable>
+              <Pressable
+                onPress={() => confirmar(meal.slot, false)}
+                style={[styles.mealBoton, respuesta === false && styles.mealBotonNo]}
+              >
+                <Text style={[styles.mealBotonTexto, respuesta === false && styles.mealBotonTextoOn]}>
+                  No
+                </Text>
+              </Pressable>
+            </View>
+          </View>
+        );
+      })}
     </ScoreCard>
   );
 }
 
 const makeStyles = (colors: Palette) => StyleSheet.create({
+  mealBotones: { flexDirection: "row", gap: spacing.sm, marginTop: spacing.sm },
+  mealBoton: {
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.sm,
+    borderRadius: radius.full,
+    borderWidth: 1,
+    borderColor: colors.cardBorder,
+  },
+  mealBotonSi: { backgroundColor: colors.guinda, borderColor: colors.guindaLight },
+  mealBotonNo: { backgroundColor: withAlpha(colors.error, 0.7), borderColor: colors.error },
+  mealBotonTexto: { fontFamily: fonts.sansMedium, ...typeScale.bodySm, color: colors.marfil },
+  mealBotonTextoOn: { color: colors.pergamino, fontFamily: fonts.sansSemiBold },
   screen: {
     flex: 1,
     backgroundColor: colors.obsidiana,

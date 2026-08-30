@@ -674,6 +674,37 @@ export type PreferenciasEntrenamientoResponse = {
  * El servidor solo guarda; las metas se derivan en la app escalando por
  * proporción, que es donde viven los guardarraíles.
  */
+/** Una comida del plan, confirmada o no. */
+export type RegistroComida = { date: string; slot: string; taken: boolean };
+
+export type ComidasResponse = {
+  registros: RegistroComida[];
+  /** Apego de los últimos 14 días, sobre lo contestado. `null` si no hay nada. */
+  apego: number | null;
+  contestadas: number;
+};
+
+export function getComidasLog(): Promise<ComidasResponse> {
+  return apiFetch<ComidasResponse>("/api/v1/meals/log");
+}
+
+/**
+ * Confirma (o desmiente) una comida del plan.
+ *
+ * Una comida sin responder NO cuenta como saltada: cuenta como no contestada,
+ * y por eso el apego se calcula sobre lo que sí se respondió.
+ */
+export function postComidaLog(input: {
+  date: string;
+  slot: string;
+  taken: boolean;
+}): Promise<{ registro: RegistroComida }> {
+  return apiFetch<{ registro: RegistroComida }>("/api/v1/meals/log", {
+    method: "POST",
+    body: input,
+  });
+}
+
 export function patchReferencia(referencia: unknown): Promise<{ referencia: unknown }> {
   return apiFetch<{ referencia: unknown }>("/api/v1/me/referencia", {
     method: "PATCH",

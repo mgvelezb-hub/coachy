@@ -28,6 +28,7 @@ import {
   type NutritionResponse,
 } from "@/lib/api";
 import { DIETA_ACTUAL, PORQUE_DEL_PLAN, PRESUPUESTOS, aguaDelDia } from "@/lib/nutricion";
+import { programarComidas } from "@/lib/recordatorio";
 import { fonts, spacing, type as typeScale, type Palette } from "@/lib/theme";
 
 /**
@@ -77,6 +78,24 @@ export default function NutricionScreen() {
       setError(e instanceof ApiError ? e.message : "No se pudo cargar tu alimentación");
     }
   }, []);
+
+  /**
+   * Los avisos por comida se programan con los horarios del menú vigente.
+   *
+   * Aquí y no en Hoy porque esta es la pantalla que ya tiene el menú completo
+   * cargado; Hoy solo conoce la siguiente comida.
+   */
+  useEffect(() => {
+    const comidas = data?.menus?.[0]?.meals ?? [];
+    if (comidas.length === 0) return;
+    void programarComidas(
+      comidas.map((comida) => ({
+        slot: comida.slot,
+        label: comida.label,
+        timeHint: comida.timeHint,
+      })),
+    );
+  }, [data?.menus]);
 
   useEffect(() => {
     load();

@@ -44,6 +44,7 @@ import {
   DISCIPLINE_LABELS,
   getActivities,
   getCheckins,
+  getComidasLog,
   getLabs,
   patchResumen,
   getDecision,
@@ -59,6 +60,7 @@ import {
   type Decision,
   type GoalResponse,
   type HealthDayPayload,
+  type ComidasResponse,
   type LabResult,
   type MeResponse,
   type PersonalRecord,
@@ -114,6 +116,7 @@ type ResumenData = {
   points: CheckInPoint[] | null;
   me: MeResponse | null;
   labs: LabResult[] | null;
+  comidas: ComidasResponse | null;
 };
 
 /** Cada fuente se tolera por separado: que una falle no tumba la pantalla entera. */
@@ -197,6 +200,7 @@ export default function ResumenScreen() {
       ]);
 
     const labsRes = await safeFetch(getLabs());
+    const comidasRes = await safeFetch(getComidasLog());
 
     const next: ResumenData = {
       sessions: historyRes?.sessions ?? null,
@@ -210,6 +214,7 @@ export default function ResumenScreen() {
       points: measurementsRes?.points ?? null,
       me,
       labs: labsRes?.labs ?? null,
+      comidas: comidasRes ?? null,
     };
 
     if (Object.values(next).every((value) => value === null)) {
@@ -359,9 +364,15 @@ export default function ResumenScreen() {
     return {
       rutina: total === 0 ? null : Math.round((hechas / total) * 100),
       rutinaDetalle: total === 0 ? null : `${hechas} de ${total} que ya tocaban`,
-      // El apego a la dieta viaja en el contrato de medidas, no en el de
-      // check-ins: por eso sale de `points` y no de `checkIns`.
-      dieta: [...(datos.points ?? [])].sort((a, b) => b.date.localeCompare(a.date))[0]?.dietCompliance ?? null,
+      // Primero lo medido: las comidas que se confirmaron durante la semana.
+      // Si todavía no hay ninguna, se cae a lo que se declaró en el último
+      // check-in, que es de donde salía antes.
+      dieta:
+        datos.comidas?.apego ??
+        [...(datos.points ?? [])].sort((a, b) => b.date.localeCompare(a.date))[0]?.dietCompliance ??
+        null,
+      dietaMedida: datos.comidas?.apego !== null && datos.comidas?.apego !== undefined,
+      dietaContestadas: datos.comidas?.contestadas ?? 0,
     };
   })();
 
@@ -792,13 +803,16 @@ export default function ResumenScreen() {
               <Text style={styles.filaSemanaGrupo}>Dieta</Text>
               <Text style={styles.filaSemanaEstado}>
                 {cumplimiento.dieta === null
-                  ? "sin check-in todavía"
-                  : `${cumplimiento.dieta} % en tu último check-in`}
+                  ? "sin datos todavía"
+                  : cumplimiento.dietaMedida
+                    ? `${cumplimiento.dieta} % · ${cumplimiento.dietaContestadas} comidas confirmadas`
+                    : `${cumplimiento.dieta} % en tu último check-in`}
               </Text>
             </View>
             <Text style={styles.panelNota}>
-              La rutina se cuenta sola con lo que cierras en la app y lo que sube el reloj. La
-              dieta todavía la reportas tú en el check-in.
+              {cumplimiento.dietaMedida
+                ? "Los dos se cuentan solos: la rutina con lo que cierras en la app y sube el reloj, y la dieta con las comidas que confirmas desde el aviso."
+                : "La rutina se cuenta sola. Para que la dieta también, confirma tus comidas desde Hoy o desde el aviso que llega a su hora."}
             </Text>
           </PanelGrande>
         );
