@@ -56,6 +56,7 @@ import {
   type Palette,
 } from "@/lib/theme";
 import { iconoDe } from "@/lib/disciplinas";
+import { nombreDelRecorte } from "@/lib/entrenamiento";
 import { formatMealItem, pickNextMeal, syncWidgetData } from "@/lib/widget";
 
 /**
@@ -369,7 +370,7 @@ function TodayTrainingCard({
         title={today.muscleGroup}
         subtitle={`${today.exerciseCount} ejercicios · ${today.schemeLabel}${
           today.cardioMinutes ? ` · ${today.cardioMinutes} min cardio` : ""
-        }${today.trimmedMinutes ? ` · recortada a ${today.trimmedMinutes} min` : ""}`}
+        }${today.trimmedMinutes ? ` · ${nombreDelRecorte(today.trimmedMinutes).toLowerCase()}` : ""}`}
         onPress={onPress}
       />
 

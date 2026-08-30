@@ -65,6 +65,26 @@ interface EligibleOptions {
   noSupplements?: boolean;
 }
 
+/**
+ * Minutos que ese alimento cuesta **el dia que te lo comes**.
+ *
+ * El arroz integral tarda 35 minutos, pero nadie cuece arroz para una comida:
+ * se hace la olla el domingo y entre semana se calienta la porcion. Castigarlo
+ * con sus 35 minutos saca del menu al carbohidrato base de media Mexico por un
+ * tiempo que no ocurre ese dia.
+ *
+ * Por eso lo que se mide es el tiempo del dia: para lo que aguanta cocinarse
+ * en lote y refrigerarse (`meal_prep`), eso es calentar y servir. La cuenta
+ * completa sigue existiendo —vive en `prepMin` y es la que se usa para armar
+ * el domingo—, solo deja de aplicarse al martes.
+ */
+const MINUTOS_CALENTAR = 6;
+
+export function prepMinDelDia(food: Food): number {
+  if (!food.tags.includes('meal_prep')) return food.prepMin;
+  return Math.min(food.prepMin, MINUTOS_CALENTAR);
+}
+
 function eligible(
   pool: Food[],
   profile: Profile,
@@ -103,7 +123,7 @@ function eligible(
   const quickEnough =
     profile.maxPrepMin === undefined
       ? filtered
-      : filtered.filter((f) => f.prepMin <= (profile.maxPrepMin as number));
+      : filtered.filter((f) => prepMinDelDia(f) <= (profile.maxPrepMin as number));
   const byPrep = quickEnough.length > 0 ? quickEnough : filtered;
 
   if (options.quickOnly) {

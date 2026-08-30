@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { generateMenu } from '../src/menu.js';
+import { generateMenu, prepMinDelDia } from '../src/menu.js';
 import { distribute } from '../src/meals.js';
 import { kcalForDeficit, macrosFor } from '../src/calc.js';
 import { DEFAULT_CONFIG, pickDeficit } from '../src/config.js';
@@ -210,15 +210,28 @@ describe('generador de menus (spec §6)', () => {
     expect(plan.shoppingList.every((i) => i.grams > 0)).toBe(true);
   });
 
-  it('respeta el tope de tiempo de cocina cuando hay con que', () => {
+  it('respeta el tope de tiempo de cocina, medido el dia que se come', () => {
     const profile: Profile = { ...P, maxPrepMin: 10 };
     const lentos = SEEDS.flatMap((seed) => {
       const { plan } = planFor(profile, 'BASE', seed);
       return plan.menus
         .flatMap((m) => m.meals.flatMap((meal) => meal.items.map((i) => findFood(i.foodId))))
-        .filter((food) => food !== undefined && food.prepMin > 10);
+        .filter((food) => food !== undefined && prepMinDelDia(food) > 10);
     });
     expect(lentos).toEqual([]);
+  });
+
+  it('lo que se cocina en lote SI entra con tope bajo: el arroz se hizo el domingo', () => {
+    const arroz = findFood('arroz_integral')!;
+
+    // 35 minutos de olla, pero el dia que te lo comes es calentar la porcion.
+    expect(arroz.prepMin).toBeGreaterThan(30);
+    expect(prepMinDelDia(arroz)).toBeLessThanOrEqual(10);
+  });
+
+  it('lo que no aguanta lote conserva su tiempo completo', () => {
+    const camaron = findFood('camaron')!;
+    expect(prepMinDelDia(camaron)).toBe(camaron.prepMin);
   });
 
   it('el tope de cocina no deja un rol sin comida: manda comer', () => {

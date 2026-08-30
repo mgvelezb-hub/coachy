@@ -994,24 +994,28 @@ export default function AjustesDetalleScreen() {
           <SectionLabel>Cuánto quieres cocinar</SectionLabel>
           <Explicacion>
             <TextoExplicativo>
-              El tope descarta ingredientes que tarden más que eso, no platillos completos: el
-              catálogo son alimentos, no recetas. Y es una preferencia, no una regla — si el tope
-              dejara una comida sin proteína, manda comer.
+              El tiempo se mide **el día que comes**, no el día que cocinas. El arroz tarda media
+              hora en la olla, pero si se hace el domingo y entre semana se calienta la porción,
+              cuenta como calentar — así que sigue entrando aunque elijas poco tiempo.
+              {"\n\n"}
+              Es una preferencia y no una regla: si el tope dejara una comida sin proteína, manda
+              comer.
             </TextoExplicativo>
           </Explicacion>
 
-          <View style={styles.cierreRow}>
+          <View style={styles.presupuestoLista}>
             {TIEMPOS_COCINA.map((opcion) => {
               const activo = tiempoCocina === opcion.valor;
               return (
                 <Pressable
                   key={opcion.nombre}
                   onPress={() => guardarTiempoCocina(opcion.valor)}
-                  style={[styles.cierreChip, activo && styles.cierreChipOn]}
+                  style={[styles.presupuestoFila, activo && styles.presupuestoFilaOn]}
                 >
-                  <Text style={[styles.cierreChipText, activo && styles.cierreChipTextOn]}>
+                  <Text style={[styles.presupuestoNombre, activo && styles.presupuestoNombreOn]}>
                     {opcion.nombre}
                   </Text>
+                  <Text style={styles.presupuestoDetalle}>{opcion.detalle}</Text>
                 </Pressable>
               );
             })}

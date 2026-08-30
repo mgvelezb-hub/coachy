@@ -171,6 +171,7 @@
     "prepMin": 15,
     "tags": [
       "favorito",
+      "meal_prep",
       "mexicano",
       "no_vegetariano"
     ],
@@ -413,6 +414,7 @@
     "costRel": 2,
     "prepMin": 25,
     "tags": [
+      "meal_prep",
       "mexicano",
       "no_vegetariano"
     ],
@@ -473,6 +475,7 @@
     "costRel": 2,
     "prepMin": 10,
     "tags": [
+      "meal_prep",
       "vegetariano"
     ],
     "servingG": 150,
@@ -633,6 +636,7 @@
     "prepMin": 20,
     "tags": [
       "favorito",
+      "meal_prep",
       "mexicano",
       "vegetariano"
     ],
@@ -653,6 +657,7 @@
     "prepMin": 25,
     "tags": [
       "favorito",
+      "meal_prep",
       "mexicano",
       "vegetariano"
     ],
@@ -693,6 +698,7 @@
     "costRel": 1,
     "prepMin": 25,
     "tags": [
+      "meal_prep",
       "mexicano",
       "vegetariano"
     ],
@@ -757,6 +763,7 @@
     "prepMin": 35,
     "tags": [
       "favorito",
+      "meal_prep",
       "mexicano",
       "vegetariano"
     ],
@@ -777,6 +784,7 @@
     "prepMin": 20,
     "tags": [
       "favorito",
+      "meal_prep",
       "vegetariano"
     ],
     "servingG": 180,
@@ -796,6 +804,7 @@
     "prepMin": 10,
     "tags": [
       "favorito",
+      "meal_prep",
       "mexicano",
       "vegetariano"
     ],
@@ -816,6 +825,7 @@
     "prepMin": 30,
     "tags": [
       "favorito",
+      "meal_prep",
       "mexicano",
       "vegetariano"
     ],
@@ -835,6 +845,7 @@
     "costRel": 1,
     "prepMin": 30,
     "tags": [
+      "meal_prep",
       "mexicano",
       "vegetariano"
     ],
@@ -854,6 +865,7 @@
     "costRel": 1,
     "prepMin": 30,
     "tags": [
+      "meal_prep",
       "mexicano",
       "vegetariano"
     ],
@@ -873,6 +885,7 @@
     "costRel": 2,
     "prepMin": 15,
     "tags": [
+      "meal_prep",
       "vegetariano"
     ],
     "servingG": 150,
@@ -912,6 +925,7 @@
     "costRel": 1,
     "prepMin": 15,
     "tags": [
+      "meal_prep",
       "mexicano",
       "vegetariano"
     ],
@@ -954,6 +968,7 @@
     "costRel": 1,
     "prepMin": 8,
     "tags": [
+      "meal_prep",
       "rapido",
       "vegetariano"
     ],
@@ -973,6 +988,7 @@
     "costRel": 2,
     "prepMin": 2,
     "tags": [
+      "meal_prep",
       "mexicano",
       "rapido",
       "vegetariano"
@@ -1261,6 +1277,7 @@
     "prepMin": 10,
     "tags": [
       "favorito",
+      "meal_prep",
       "vegetariano"
     ],
     "servingG": 200,
@@ -1345,6 +1362,7 @@
     "prepMin": 10,
     "tags": [
       "favorito",
+      "meal_prep",
       "mexicano",
       "vegetariano"
     ],
@@ -1365,6 +1383,7 @@
     "prepMin": 10,
     "tags": [
       "favorito",
+      "meal_prep",
       "mexicano",
       "vegetariano"
     ],
@@ -1385,6 +1404,7 @@
     "prepMin": 10,
     "tags": [
       "favorito",
+      "meal_prep",
       "vegetariano"
     ],
     "servingG": 150,
@@ -1404,6 +1424,7 @@
     "prepMin": 12,
     "tags": [
       "favorito",
+      "meal_prep",
       "vegetariano"
     ],
     "servingG": 200,
@@ -1580,6 +1601,7 @@
     "costRel": 1,
     "prepMin": 10,
     "tags": [
+      "meal_prep",
       "mexicano",
       "vegetariano"
     ],
@@ -1599,6 +1621,7 @@
     "costRel": 1,
     "prepMin": 10,
     "tags": [
+      "meal_prep",
       "mexicano",
       "vegetariano"
     ],
@@ -1639,6 +1662,7 @@
     "costRel": 1,
     "prepMin": 12,
     "tags": [
+      "meal_prep",
       "mexicano",
       "vegetariano"
     ],
@@ -1678,6 +1702,7 @@
     "costRel": 1,
     "prepMin": 25,
     "tags": [
+      "meal_prep",
       "mexicano",
       "vegetariano"
     ],

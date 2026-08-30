@@ -45,11 +45,37 @@ export const DISCIPLINAS: Array<{ valor: Discipline; nombre: string; planeada: b
 }));
 
 /** Topes de tiempo de cocina que se ofrecen, más "sin tope". */
-export const TIEMPOS_COCINA: Array<{ valor: number | null; nombre: string }> = [
-  { valor: 10, nombre: "10 min" },
-  { valor: 20, nombre: "20 min" },
-  { valor: 30, nombre: "30 min" },
-  { valor: null, nombre: "Sin tope" },
+/**
+ * Cuánto tiempo hay para cocinar, en frases y no en minutos.
+ *
+ * "10 min" invita a una cuenta que no se sostiene: el arroz tarda 35 y aun así
+ * cabe en una semana con prisa, porque se hace el domingo y entre semana se
+ * calienta. Un número exacto obliga a decidir sobre el tiempo de la olla; una
+ * frase describe la semana, que es lo que la persona sí sabe.
+ *
+ * Los minutos siguen existiendo por debajo —el motor filtra con ellos— y se
+ * miden el día que se come, no el día que se cocina.
+ */
+export const TIEMPOS_COCINA: Array<{
+  valor: number | null;
+  nombre: string;
+  detalle: string;
+}> = [
+  {
+    valor: 10,
+    nombre: "Poco tiempo",
+    detalle: "Calentar y servir. Lo que tarda se cocina antes y se guarda en porciones.",
+  },
+  {
+    valor: 20,
+    nombre: "Algo de tiempo",
+    detalle: "Alcanza para cocinar algo sencillo en el momento.",
+  },
+  {
+    valor: null,
+    nombre: "Sin restricción",
+    detalle: "Cocinas cuando toca, sin pensar en el reloj.",
+  },
 ];
 
 /**
@@ -172,3 +198,25 @@ export const NIVELES_POR_DISCIPLINA: Partial<
     { valor: "AVANZADO", nombre: "Avanzado", detalle: "WOD prescrito. Más rondas y más carga." },
   ],
 };
+
+/**
+ * Cuánta sesión hay hoy, en frases y no en minutos.
+ *
+ * Pedir minutos exactos suena preciso y no lo es: en un gimnasio real hay que
+ * relevar en una banca, la máquina está ocupada, alguien te saluda. Nadie sabe
+ * si le quedan 25 o 40 minutos, pero todo el mundo sabe si trae prisa.
+ *
+ * Los minutos siguen por debajo —el generador arma la sesión con ellos— y son
+ * lo que cada frase significa. Lo que se elimina es la falsa precisión.
+ */
+export const RECORTES: Array<{ minutos: number; nombre: string; detalle: string }> = [
+  { minutos: 20, nombre: "Poco tiempo", detalle: "Lo esencial: los compuestos y ya" },
+  { minutos: 30, nombre: "Con prisa", detalle: "Casi todo, sin los accesorios" },
+  { minutos: 45, nombre: "Casi completa", detalle: "Solo se suelta lo último" },
+];
+
+/** Cómo se llama el recorte guardado. `null` = la rutina como venía. */
+export function nombreDelRecorte(minutos: number | null): string {
+  if (minutos === null) return "Rutina completa";
+  return RECORTES.find((opcion) => opcion.minutos === minutos)?.nombre ?? "Recortada";
+}

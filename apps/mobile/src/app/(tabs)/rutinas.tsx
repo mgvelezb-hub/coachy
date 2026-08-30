@@ -24,6 +24,7 @@ import {
   trimSession,
 } from "@/lib/api";
 import { iconoDe } from "@/lib/disciplinas";
+import { RECORTES, nombreDelRecorte } from "@/lib/entrenamiento";
 import { fonts, radius, spacing, withAlpha, type Palette, type as typeScale } from "@/lib/theme";
 import {
   getCachedWeek,
@@ -580,9 +581,6 @@ function ConnectionBadge({
  * abajo es el terreno. Tocar una fila con sesión cambia `selectedDate`, y
  * la lista de ejercicios de abajo se redibuja para ese día.
  */
-/** Las duraciones que cubren casi todo, para no obligar a teclear. */
-const MINUTOS_RAPIDOS = [20, 30, 45] as const;
-
 /**
  * "Hoy tengo menos tiempo".
  *
@@ -613,48 +611,48 @@ function TiempoDeHoy({
       title={recortada ? "Sesión recortada" : "¿Cuánto tiempo tienes?"}
       summary={
         recortada
-          ? `Armada para ${session.trimmedMinutes} min · ${session.exercises.length} ejercicios`
+          ? `${nombreDelRecorte(session.trimmedMinutes)} · ${session.exercises.length} ejercicios`
           : `${session.exercises.length} ejercicios · si hoy no te da el tiempo, se reacomoda`
       }
       status={recortada ? { label: "Recortada", tone: "warn" } : null}
     >
-      <View style={styles.trimRow}>
-        {MINUTOS_RAPIDOS.map((minutos) => (
-          <Pressable
-            key={minutos}
-            disabled={working}
-            onPress={() => onTrim(minutos)}
-            style={[
-              styles.trimChip,
-              session.trimmedMinutes === minutos && styles.trimChipSelected,
-              working && styles.trimChipDisabled,
-            ]}
-          >
-            <Text
+      <View style={styles.trimLista}>
+        {RECORTES.map((opcion) => {
+          const activo = session.trimmedMinutes === opcion.minutos;
+          return (
+            <Pressable
+              key={opcion.nombre}
+              disabled={working}
+              onPress={() => onTrim(opcion.minutos)}
               style={[
-                styles.trimChipText,
-                session.trimmedMinutes === minutos && styles.trimChipTextSelected,
+                styles.trimOpcion,
+                activo && styles.trimOpcionOn,
+                working && styles.trimChipDisabled,
               ]}
             >
-              {minutos} min
-            </Text>
-          </Pressable>
-        ))}
+              <Text style={[styles.trimOpcionNombre, activo && styles.trimOpcionNombreOn]}>
+                {opcion.nombre}
+              </Text>
+              <Text style={styles.trimOpcionDetalle}>{opcion.detalle}</Text>
+            </Pressable>
+          );
+        })}
 
         {recortada && (
           <Pressable
             disabled={working}
             onPress={() => onTrim(null)}
-            style={[styles.trimChip, working && styles.trimChipDisabled]}
+            style={[styles.trimOpcion, working && styles.trimChipDisabled]}
           >
-            <Text style={styles.trimChipText}>Completa</Text>
+            <Text style={styles.trimOpcionNombre}>Rutina completa</Text>
+            <Text style={styles.trimOpcionDetalle}>Como venía en tu plan</Text>
           </Pressable>
         )}
       </View>
 
       <Text style={styles.trimNota}>
         Se queda lo compuesto y se suelta el accesorio. Queda marcada como recortada, no como
-        incompleta: cerrar bien 25 minutos es un día entrenado.
+        incompleta: cerrar bien una sesión corta es un día entrenado.
       </Text>
 
       {error && <Text style={styles.trimError}>{error}</Text>}
@@ -825,7 +823,9 @@ function WeekOverview({
                     <Text style={styles.weekMeta}>
                       {daySession.exercises.length} ejercicios · {daySession.schemeLabel}
                       {daySession.cardioMinutes ? ` · ${daySession.cardioMinutes} min cardio` : ""}
-                      {daySession.trimmedMinutes ? ` · recortada a ${daySession.trimmedMinutes} min` : ""}
+                      {daySession.trimmedMinutes
+                        ? ` · ${nombreDelRecorte(daySession.trimmedMinutes).toLowerCase()}`
+                        : ""}
                     </Text>
                   </>
                 ) : dayOther ? (
@@ -983,6 +983,19 @@ const makeStyles = (colors: Palette) => StyleSheet.create({
   },
   enVivoTitulo: { fontFamily: fonts.sansBold, ...typeScale.heading, color: colors.pergamino },
   enVivoDetalle: { fontFamily: fonts.sans, ...typeScale.bodySm, color: withAlpha(colors.pergamino, 0.85) },
+  trimLista: { gap: spacing.sm, marginTop: spacing.md },
+  trimOpcion: {
+    borderRadius: radius.xl,
+    borderWidth: 1,
+    borderColor: colors.cardBorder,
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.lg,
+    gap: 2,
+  },
+  trimOpcionOn: { backgroundColor: colors.guinda, borderColor: colors.guindaLight },
+  trimOpcionNombre: { fontFamily: fonts.sansSemiBold, ...typeScale.body, color: colors.marfil },
+  trimOpcionNombreOn: { color: colors.pergamino },
+  trimOpcionDetalle: { fontFamily: fonts.sans, ...typeScale.bodySm, color: colors.paloRosa },
   registrarOtra: {
     marginTop: spacing.md,
     paddingVertical: spacing.md,
