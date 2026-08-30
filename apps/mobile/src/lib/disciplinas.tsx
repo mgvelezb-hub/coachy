@@ -3,10 +3,10 @@ import type { ComponentType } from "react";
 
 import {
   GuantesBox,
-  JumpingJack,
   LevantamientoClean,
   PersonaCorriendo,
   RaquetaSquash,
+  ZancadaFuncional,
 } from "@/components/iconos/Disciplinas";
 import type { Discipline } from "@/lib/api";
 
@@ -18,9 +18,9 @@ import type { Discipline } from "@/lib/api";
  * en Actividad—. Un ícono que cambia de pantalla en pantalla deja de ser un
  * ícono y se vuelve decoración.
  *
- * Cuatro son dibujados a mano (`components/iconos/Disciplinas.tsx`) porque el
+ * Cinco son dibujados a mano (`components/iconos/Disciplinas.tsx`) porque el
  * set genérico no los tiene: una raqueta de squash, un par de guantes, la
- * silueta corriendo, la del jumping jack y la del clean. Los sustitutos
+ * silueta corriendo, la de la zancada con apoyo y la del clean. Los sustitutos
  * genéricos —una pelota cualquiera, un puño suelto, unas pisadas— no se
  * reconocen de un vistazo, que es lo único que un ícono tiene que hacer.
  *
@@ -35,7 +35,7 @@ export const DISCIPLINE_ICON: Record<Discipline, ComponentType<IconProps>> = {
   BOX: GuantesBox,
   SQUASH: RaquetaSquash,
   CARDIO: PersonaCorriendo,
-  FUNCIONAL: JumpingJack,
+  FUNCIONAL: ZancadaFuncional,
   CROSSFIT: LevantamientoClean,
   // La cubeta de lo que se registra pero no se planea.
   OTRO: Activity,

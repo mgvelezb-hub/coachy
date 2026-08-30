@@ -157,9 +157,9 @@ export const NIVELES_POR_DISCIPLINA: Partial<
     { valor: "AVANZADO", nombre: "Avanzado", detalle: "Entrenas seguido. Más asaltos y trabajo por intervalos." },
   ],
   FUNCIONAL: [
-    { valor: "PRINCIPIANTE", nombre: "Principiante", detalle: "Empiezas. Peso corporal y progresiones asistidas." },
-    { valor: "INTERMEDIO", nombre: "Intermedio", detalle: "Dominas los patrones. Circuitos por tiempo con carga ligera." },
-    { valor: "AVANZADO", nombre: "Avanzado", detalle: "Más rondas y menos descanso, sin subir el peso." },
+    { valor: "PRINCIPIANTE", nombre: "Principiante", detalle: "Empiezas con el equipo. Wall ball, trineo ligero y acarreos cortos." },
+    { valor: "INTERMEDIO", nombre: "Intermedio", detalle: "Dominas las estaciones. Trineo, saco y SkiErg por tiempo." },
+    { valor: "AVANZADO", nombre: "Avanzado", detalle: "Formato de carrera funcional: más rondas, menos descanso y carga alta." },
   ],
   CARDIO: [
     { valor: "PRINCIPIANTE", nombre: "Principiante", detalle: "Todavía no corres 10 min seguidos. Alternas correr y caminar." },

@@ -90,12 +90,36 @@ describe("los movimientos que la sesión pide por nombre", () => {
     }
   });
 
-  it("Funcional cubre fuerza y cardiovascular, no solo circuitos", () => {
+  it("Funcional es con equipo de gimnasio, no lo que se hace en casa", () => {
     const funcional = BIBLIOTECA_POR_DISCIPLINA.FUNCIONAL ?? [];
     const categorias = new Set(funcional.map((ejercicio) => ejercicio.categoria));
 
-    for (const categoria of ["Patrones", "Empuje", "Tirón", "Core", "Cardiovascular", "Acarreos"]) {
+    for (const categoria of ["Estaciones", "Fuerza", "Core", "Formato"]) {
       expect(categorias, categoria).toContain(categoria);
+    }
+
+    // Las estaciones del formato de carrera funcional: es la lista más honesta
+    // de lo que un gimnasio funcional bien equipado sabe entrenar.
+    const texto = nombres("FUNCIONAL");
+    for (const estacion of [
+      "wall ball",
+      "trineo",
+      "granjero",
+      "saco",
+      "remo",
+      "skierg",
+      "burpee",
+    ]) {
+      expect(texto, estacion).toContain(estacion);
+    }
+  });
+
+  it("Funcional no se llena de ejercicios sin equipo: para eso está En casa", () => {
+    const funcional = BIBLIOTECA_POR_DISCIPLINA.FUNCIONAL ?? [];
+    const texto = funcional.map((ejercicio) => ejercicio.nombre.toLowerCase()).join(" ");
+
+    for (const sinEquipo of ["flexión", "jumping jack", "escalador", "dead bug"]) {
+      expect(texto, sinEquipo).not.toContain(sinEquipo);
     }
   });
 
@@ -141,7 +165,7 @@ describe("cómo se presenta", () => {
 
   it("agrupar por categoría conserva el orden del catálogo", () => {
     const familias = porCategoria(BIBLIOTECA_POR_DISCIPLINA.FUNCIONAL ?? []);
-    expect(familias[0]!.categoria).toBe("Patrones");
+    expect(familias[0]!.categoria).toBe("Estaciones");
     expect(familias.every((familia) => familia.ejercicios.length > 0)).toBe(true);
   });
 });
