@@ -1,7 +1,16 @@
 import * as Haptics from "expo-haptics";
 import { useKeepAwake } from "expo-keep-awake";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { Check, ChevronLeft, Minus, Plus, SkipForward, Timer, Watch } from "lucide-react-native";
+import {
+  Check,
+  ChevronLeft,
+  HeartPulse,
+  Minus,
+  Plus,
+  SkipForward,
+  Timer,
+  Watch,
+} from "lucide-react-native";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AppState, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -32,6 +41,7 @@ import {
   type EjercicioVivo,
   type EstadoSesion,
 } from "@/lib/sesion-viva";
+import { pulsoEntre, type PulsoDeTramo } from "@/lib/health";
 import { fonts, radius, spacing, type as typeScale, withAlpha, type Palette } from "@/lib/theme";
 import { clientIdFor } from "@/lib/training-client-id";
 import { getCachedWeek, getPendingSession, upsertPendingSession } from "@/lib/training-db";
@@ -102,6 +112,16 @@ export default function EnVivoScreen() {
   // El intervalo se guarda en ref para poder apagarlo desde varios lugares sin
   // que el efecto se vuelva a montar en cada tick.
   const intervalo = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  /**
+   * Pulso por serie, leído del reloj al cerrarla.
+   *
+   * La llave es `ejercicio:serie` para que la retro quede pegada a la serie
+   * que la produjo y no a un promedio de la sesión, que no dice si la cuarta
+   * costó más que la primera.
+   */
+  const [pulsos, setPulsos] = useState<Record<string, PulsoDeTramo>>({});
+  const inicioDeSerie = useRef<Date>(new Date());
 
   // Hay un Apple Watch con la app puesta. Se resuelve una vez: emparejar un
   // reloj a media sesión no es un caso que valga la pena vigilar.
@@ -313,6 +333,20 @@ export default function EnVivoScreen() {
 
     void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
 
+    // El pulso de la serie: desde que terminó el descanso anterior (o desde
+    // que abrió la pantalla, en la primera) hasta ahora. Se pide al cerrar,
+    // no durante: la app lee lo que el reloj ya escribió en Salud, no hay
+    // canal en vivo sin una app en la muñeca.
+    const desde = inicioDeSerie.current;
+    const hasta = new Date();
+    inicioDeSerie.current = hasta;
+
+    const clave = `${ejercicioIndex}:${setIndex}`;
+    void pulsoEntre(desde, hasta).then((pulso) => {
+      if (pulso.promedio === null) return;
+      setPulsos((previos) => ({ ...previos, [clave]: pulso }));
+    });
+
     const { estado: siguiente } = cerrarSerie(estado, { reps, pesoKg: peso });
     setEstado(siguiente);
 
@@ -466,11 +500,23 @@ export default function EnVivoScreen() {
                   Serie {index + 1}
                   {serie.calentamiento ? " · calentamiento" : ""}
                 </Text>
-                <Text style={styles.listaValor}>
-                  {serie.hechas === null
-                    ? `${serie.objetivo} reps`
-                    : `${serie.hechas} × ${serie.pesoKg ?? "—"} kg`}
-                </Text>
+                <View style={styles.listaDerecha}>
+                  <Text style={styles.listaValor}>
+                    {serie.hechas === null
+                      ? `${serie.objetivo} reps`
+                      : `${serie.hechas} × ${serie.pesoKg ?? "—"} kg`}
+                  </Text>
+                  {(() => {
+                    const pulso = pulsos[`${estado.ejercicioActual}:${index}`];
+                    if (!pulso || pulso.promedio === null) return null;
+                    return (
+                      <View style={styles.listaPulso}>
+                        <HeartPulse size={13} color={colors.error} strokeWidth={2} />
+                        <Text style={styles.listaPulsoTexto}>{pulso.promedio}</Text>
+                      </View>
+                    );
+                  })()}
+                </View>
               </View>
             ))}
           </View>
@@ -639,6 +685,14 @@ const makeStyles = (colors: Palette) =>
     listaFilaActual: { backgroundColor: withAlpha(colors.champan, 0.12) },
     listaTexto: { fontFamily: fonts.sans, ...typeScale.bodySm, color: colors.paloRosa },
     listaValor: { fontFamily: fonts.sansSemiBold, ...typeScale.bodySm, color: colors.marfil },
+    listaDerecha: { flexDirection: "row", alignItems: "center", gap: spacing.sm },
+    listaPulso: { flexDirection: "row", alignItems: "center", gap: 3 },
+    listaPulsoTexto: {
+      fontFamily: fonts.sansSemiBold,
+      ...typeScale.bodySm,
+      color: colors.paloRosa,
+      fontVariant: ["tabular-nums"],
+    },
     nota: { fontFamily: fonts.sans, ...typeScale.bodySm, color: colors.paloRosaLight },
     tituloFin: { fontFamily: fonts.sansBold, ...typeScale.title, color: colors.marfil },
     subtituloFin: { fontFamily: fonts.sans, ...typeScale.body, color: colors.paloRosa },

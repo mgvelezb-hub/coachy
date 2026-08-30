@@ -4,6 +4,7 @@ import {
   CategoryValueSleepAnalysis,
   isHealthDataAvailable,
   queryCategorySamples,
+  queryQuantitySamples,
   queryStatisticsCollectionForQuantity,
   queryWorkoutSamples,
   requestAuthorization,
@@ -657,4 +658,60 @@ export async function getHealthSummary(): Promise<HealthSummary> {
   const avgSteps = steps.length > 0 ? Math.round(steps.reduce((sum, v) => sum + v, 0) / steps.length) : null;
 
   return { lastDate: dias[0]?.date ?? null, avgSteps };
+}
+
+// ---------------------------------------------------------------------------
+// Frecuencia cardiaca de un tramo de sesión
+// ---------------------------------------------------------------------------
+
+/** Lo que se puede decir de un tramo entrenado, leído del reloj. */
+export type PulsoDeTramo = {
+  /** Promedio de latidos por minuto en el tramo. `null` si no hubo muestras. */
+  promedio: number | null;
+  maximo: number | null;
+  /** Cuántas muestras entraron: sin esto, un promedio de un dato parece serio. */
+  muestras: number;
+};
+
+/**
+ * La frecuencia cardiaca que el reloj registró entre dos momentos.
+ *
+ * **Es post-hoc, no en vivo.** El reloj escribe en Salud y la app lee de ahí;
+ * no hay un canal que empuje latidos a la pantalla mientras entrenas — eso
+ * necesita una app en la muñeca. En la práctica, con un entrenamiento abierto
+ * en el reloj las muestras llegan en segundos y esta consulta al cerrar una
+ * serie ya trae datos; sin entrenamiento abierto, el reloj muestrea cada
+ * varios minutos y un tramo corto puede volver vacío.
+ *
+ * Por eso `muestras` viaja con el resultado: un promedio de una sola lectura
+ * no es un promedio, y la pantalla necesita poder decirlo.
+ */
+export async function pulsoEntre(desde: Date, hasta: Date): Promise<PulsoDeTramo> {
+  if (Platform.OS !== "ios" || !(await isHealthConnected())) {
+    return { promedio: null, maximo: null, muestras: 0 };
+  }
+
+  try {
+    const muestras = await queryQuantitySamples("HKQuantityTypeIdentifierHeartRate", {
+      filter: { date: { startDate: desde, endDate: hasta } },
+      unit: "count/min",
+      limit: 500,
+    });
+
+    const valores = (muestras ?? [])
+      .map((muestra) => Number(muestra.quantity))
+      .filter((valor) => Number.isFinite(valor) && valor > 20 && valor < 250);
+
+    if (valores.length === 0) return { promedio: null, maximo: null, muestras: 0 };
+
+    const suma = valores.reduce((total, valor) => total + valor, 0);
+    return {
+      promedio: Math.round(suma / valores.length),
+      maximo: Math.round(Math.max(...valores)),
+      muestras: valores.length,
+    };
+  } catch {
+    // Un tramo sin pulso no puede tumbar el cierre de una sesión.
+    return { promedio: null, maximo: null, muestras: 0 };
+  }
 }

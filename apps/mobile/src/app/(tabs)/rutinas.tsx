@@ -729,8 +729,26 @@ function OtraDisciplina({
         </Text>
       )}
 
-      {/* El ciclo se cierra aquí: la app la prescribe y aquí mismo se registra,
-          con la disciplina y los minutos ya puestos. */}
+      {/* Dos maneras de cerrar el ciclo, y el orden importa: entrenarla con el
+          cronómetro es lo que da duración real y pulso por tramo; registrarla a
+          mano es para cuando ya pasó. */}
+      {isToday && (
+        <Pressable
+          onPress={() =>
+            router.push({ pathname: "/sesion-libre", params: { fecha: session.date } })
+          }
+          style={styles.enVivoOtra}
+        >
+          <PlayCircle size={20} color={colors.pergamino} strokeWidth={2} />
+          <View style={{ flex: 1 }}>
+            <Text style={styles.enVivoTitulo}>Empezar la sesión</Text>
+            <Text style={styles.enVivoDetalle}>
+              Con cronómetro, tramo por tramo y el pulso de tu reloj
+            </Text>
+          </View>
+        </Pressable>
+      )}
+
       <Pressable
         onPress={() =>
           router.push({
@@ -740,7 +758,9 @@ function OtraDisciplina({
         }
         style={styles.registrarOtra}
       >
-        <Text style={styles.registrarOtraTexto}>Registrar esta sesión</Text>
+        <Text style={styles.registrarOtraTexto}>
+          {isToday ? "Ya la hice: registrarla a mano" : "Registrar esta sesión"}
+        </Text>
       </Pressable>
     </ScoreCard>
   );
@@ -996,6 +1016,17 @@ const makeStyles = (colors: Palette) => StyleSheet.create({
   trimOpcionNombre: { fontFamily: fonts.sansSemiBold, ...typeScale.body, color: colors.marfil },
   trimOpcionNombreOn: { color: colors.pergamino },
   trimOpcionDetalle: { fontFamily: fonts.sans, ...typeScale.bodySm, color: colors.paloRosa },
+  enVivoOtra: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.md,
+    marginTop: spacing.md,
+    backgroundColor: colors.guinda,
+    borderWidth: 1,
+    borderColor: colors.guindaLight,
+    borderRadius: radius.xxl,
+    padding: spacing.lg,
+  },
   registrarOtra: {
     marginTop: spacing.md,
     paddingVertical: spacing.md,
