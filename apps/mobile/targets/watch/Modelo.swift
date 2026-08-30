@@ -71,3 +71,22 @@ struct SerieCerrada: Codable {
     var muestra: [Double]
     let duracionSeg: Double
 }
+
+/**
+ Lo que el reloj enseña cuando no hay sesión abierta.
+
+ Es el mismo puñado de datos que alimenta el widget del teléfono, y por la
+ misma razón: son las cosas que se miran de reojo y no valen sacar nada del
+ bolsillo. Sin esto, la app en la muñeca solo sirve mientras entrenas y el
+ resto del día es un ícono muerto.
+ */
+struct ResumenDelDia: Codable {
+    /// "Pierna", "Natación", "Descanso".
+    let hoy: String
+    let ejercicios: Int?
+    let hecho: Bool
+    /// "Comida 2". `nil` si ya no queda ninguna hoy.
+    let comida: String?
+    let comidaHora: String?
+    let racha: Int
+}

@@ -13,9 +13,14 @@ import WatchConnectivity
 
  Dos canales, cada uno para lo suyo:
 
- - **`updateApplicationContext`** para mandar la sesión al reloj. Solo importa
-   el estado más reciente; si se pierden tres actualizaciones intermedias
-   porque el reloj estaba fuera de rango, da igual — la que llega es la buena.
+ - **`updateApplicationContext`** para mandar la sesión y el resumen del día al
+   reloj. Solo importa el estado más reciente; si se pierden tres
+   actualizaciones intermedias porque el reloj estaba fuera de rango, da igual
+   — la que llega es la buena.
+
+   Este canal **reemplaza** el contexto entero, no lo mezcla: mandar solo la
+   sesión borraría el resumen y al revés. Por eso los dos últimos valores se
+   guardan aquí y cada envío manda ambos.
  - **`transferUserInfo`** para recibir las series cerradas. Aquí sí importa
    cada una: una serie cerrada que se pierde es trabajo que el usuario hizo y
    la app no registró. Esta cola iOS la garantiza y la reintenta sola.
@@ -29,6 +34,10 @@ final class Puente: NSObject {
   var alLlegarSerie: (() -> Void)?
 
   private let llaveBuzon = "reloj.seriesCerradas"
+
+  /// Lo último que se mandó de cada cosa, para poder remandarlo junto.
+  private var ultimaSesion: String?
+  private var ultimoResumen: String?
 
   func activar() {
     guard WCSession.isSupported() else { return }
@@ -53,13 +62,31 @@ final class Puente: NSObject {
   /// Manda el estado de la sesión al reloj. `false` si no hay a quién mandarle.
   @discardableResult
   func enviarSesion(_ json: String) -> Bool {
+    ultimaSesion = json
+    return empujar()
+  }
+
+  /// Manda el resumen del día (qué toca, siguiente comida, racha).
+  @discardableResult
+  func enviarResumen(_ json: String) -> Bool {
+    ultimoResumen = json
+    return empujar()
+  }
+
+  private func empujar() -> Bool {
     guard WCSession.isSupported() else { return false }
     let sesion = WCSession.default
     guard sesion.activationState == .activated, sesion.isPaired, sesion.isWatchAppInstalled else {
       return false
     }
+
+    var contexto: [String: Any] = [:]
+    if let ultimaSesion { contexto["sesion"] = ultimaSesion }
+    if let ultimoResumen { contexto["resumen"] = ultimoResumen }
+    guard !contexto.isEmpty else { return false }
+
     do {
-      try sesion.updateApplicationContext(["sesion": json])
+      try sesion.updateApplicationContext(contexto)
       return true
     } catch {
       return false

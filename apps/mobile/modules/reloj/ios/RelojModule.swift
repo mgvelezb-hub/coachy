@@ -29,6 +29,10 @@ public class RelojModule: Module {
       Puente.compartido.enviarSesion(json)
     }
 
+    Function("enviarResumen") { (json: String) -> Bool in
+      Puente.compartido.enviarResumen(json)
+    }
+
     Function("drenar") { () -> [String] in
       Puente.compartido.drenar()
     }

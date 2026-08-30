@@ -23,6 +23,7 @@ final class Conectividad: NSObject, ObservableObject, WCSessionDelegate {
     static let shared = Conectividad()
 
     @Published var sesion: SesionEnVivo?
+    @Published var resumen: ResumenDelDia?
     @Published var alcanzable = false
 
     private override init() {
@@ -49,13 +50,26 @@ final class Conectividad: NSObject, ObservableObject, WCSessionDelegate {
         DispatchQueue.main.async { self.aplicar(contexto: contexto) }
     }
 
+    /// El contexto trae las dos cosas por separado y cada una se aplica sola:
+    /// un resumen mal formado no puede dejar sin sesión a quien está a media
+    /// serie.
     private func aplicar(contexto: [String: Any]) {
-        guard let json = contexto["sesion"] as? String,
-              let data = json.data(using: .utf8),
-              let sesion = try? JSONDecoder().decode(SesionEnVivo.self, from: data) else {
-            return
+        let decodificador = JSONDecoder()
+
+        if let json = contexto["sesion"] as? String,
+           let data = json.data(using: .utf8),
+           let sesion = try? decodificador.decode(SesionEnVivo.self, from: data) {
+            self.sesion = sesion
         }
-        self.sesion = sesion
+
+        if let json = contexto["resumen"] as? String,
+           let data = json.data(using: .utf8),
+           let resumen = try? decodificador.decode(ResumenDelDia.self, from: data) {
+            self.resumen = resumen
+            // La complicación es otro proceso y no ve esta propiedad: hay que
+            // dejarle el dato por escrito.
+            Compartido.guardar(resumen)
+        }
     }
 
     // MARK: - Mandar al teléfono

@@ -32,11 +32,16 @@ module.exports = (config) => ({
   // equivoca, el plugin no falla: escribe "Skipping icon generation" en medio
   // del prebuild y sigue, y el reloj se queda con el círculo gris.
   icon: "../../assets/images/icon.png",
-  frameworks: ["SwiftUI", "WatchConnectivity", "CoreMotion", "HealthKit"],
+  frameworks: ["SwiftUI", "WatchConnectivity", "CoreMotion", "HealthKit", "WidgetKit"],
   colors: {
     $accent: "#C9A961",
   },
   entitlements: {
     "com.apple.developer.healthkit": true,
+    // El mismo grupo que usa el teléfono, pero el contenedor es otro: vive en
+    // el reloj. Sirve para hablarle a la complicación, que es un proceso
+    // aparte y no ve la memoria de esta app.
+    "com.apple.security.application-groups":
+      config.ios.entitlements["com.apple.security.application-groups"],
   },
 });

@@ -26,6 +26,7 @@ type Suscripcion = { remove(): void };
 type NativoReloj = {
   estado(): EstadoReloj;
   enviarSesion(json: string): boolean;
+  enviarResumen(json: string): boolean;
   drenar(): string[];
   addListener(evento: "onSerieCerrada", oyente: () => void): Suscripcion;
 };
@@ -92,6 +93,37 @@ export function drenarSeriesCerradas<T>(): T[] {
     }
   }
   return salida;
+}
+
+/**
+ * Lo que el reloj enseña cuando NO hay sesión abierta.
+ *
+ * Es el mismo puñado de datos que alimenta el widget del teléfono, y por la
+ * misma razón: son las cosas que se miran de reojo y no valen sacar nada del
+ * bolsillo. Qué toca hoy, cuál es la siguiente comida y cómo va la racha.
+ */
+export type ResumenParaReloj = {
+  /** "Pierna", "Natación", "Descanso". */
+  hoy: string;
+  /** Cuántos ejercicios trae la sesión de hoy, si trae. */
+  ejercicios: number | null;
+  /** La sesión de hoy ya se cerró. */
+  hecho: boolean;
+  /** "Comida 2". `null` si ya no queda ninguna hoy. */
+  comida: string | null;
+  /** "14:00". */
+  comidaHora: string | null;
+  racha: number;
+};
+
+/** Manda el resumen del día. Va por el mismo canal que la sesión. */
+export function enviarResumenAlReloj(resumen: ResumenParaReloj): boolean {
+  if (!nativo) return false;
+  try {
+    return nativo.enviarResumen(JSON.stringify(resumen));
+  } catch {
+    return false;
+  }
 }
 
 /** Avisa que hay algo nuevo que recoger. No trae los datos: llama a drenar. */

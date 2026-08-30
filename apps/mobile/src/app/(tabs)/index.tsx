@@ -58,6 +58,7 @@ import {
 import { iconoDe } from "@/lib/disciplinas";
 import { nombreDelRecorte } from "@/lib/entrenamiento";
 import { formatMealItem, pickNextMeal, syncWidgetData } from "@/lib/widget";
+import { enviarResumenAlReloj } from "@/lib/reloj-nativo";
 
 /**
  * "Hoy" — la pantalla de lo que se hace en las próximas horas.
@@ -185,8 +186,23 @@ export default function HoyScreen() {
           comidaHora: nextMeal?.timeHint ?? null,
           comidaItems: nextMeal ? nextMeal.items.slice(0, 3).map(formatMealItem) : null,
         });
+
+        // El reloj recibe lo mismo, por el otro canal. Se manda desde aquí y
+        // no desde una pantalla propia porque Hoy es la que siempre se abre:
+        // colgarlo de Resumen dejaría la muñeca con datos de la semana pasada
+        // para quien no entra ahí.
+        enviarResumenAlReloj({
+          hoy:
+            todayCard?.muscleGroup ??
+            (today.otherSession ? DISCIPLINE_LABELS[today.otherSession.discipline] : "Descanso"),
+          ejercicios: todayCard?.exerciseCount ?? null,
+          hecho: todayCard?.completed ?? false,
+          comida: nextMeal?.label ?? null,
+          comidaHora: nextMeal?.timeHint ?? null,
+          racha: streak,
+        });
       } catch {
-        // Sincronizar el widget nunca debe tumbar la pantalla de Hoy.
+        // Sincronizar el widget o el reloj nunca debe tumbar la pantalla de Hoy.
       }
     } catch (e) {
       setError(e instanceof ApiError ? e.message : "No se pudo cargar tu información");
