@@ -175,17 +175,35 @@ export function metasDelMes(
   return { medidas, desde: inicio.date };
 }
 
-/** Las metas del mes en el formato del riel, con lo que falta como nota. */
+/** Medidas de cinta: se toman una vez al mes, no cada semana. */
+const MENSUALES = new Set(["Brazos", "Piernas"]);
+
+/**
+ * Las metas del mes en el formato del riel, con números y **con dirección**.
+ *
+ * Lo que falta se dice con verbo, no solo con cifra. "3.4 kg más" en un plan
+ * de pérdida de grasa se lee como que hay que subir 3.4 kg —lo contrario de lo
+ * que el plan pide—, y ese malentendido lo reportó la primera persona que vio
+ * la tarjeta. Con "3.4 kg por bajar" el signo deja de ser una adivinanza.
+ */
 export function brechasDelMes(metas: MetaMedida[]): Brecha[] {
   return metas.map((medida) => {
     const falta = Math.round((medida.meta - medida.actual) * 10) / 10;
+    const magnitud = Math.abs(falta);
+    const sostener = Math.abs(medida.meta - medida.inicio) < 0.05;
+
     return {
       label: medida.label,
       avance: medida.progreso,
+      actual: `${medida.actual} ${medida.unidad}`,
+      meta: `${medida.meta} ${medida.unidad}`,
+      cadencia: MENSUALES.has(medida.label) ? "mensual" : "semanal",
       nota:
         medida.progreso >= 1
           ? "cumplida"
-          : `${Math.abs(falta)} ${medida.unidad} más`,
+          : sostener
+            ? `sostener alrededor de ${medida.meta} ${medida.unidad}`
+            : `faltan ${magnitud} ${medida.unidad} ${falta < 0 ? "por bajar" : "por subir"}`,
     };
   });
 }

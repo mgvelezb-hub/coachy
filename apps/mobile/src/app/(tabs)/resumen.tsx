@@ -290,6 +290,7 @@ export default function ResumenScreen() {
     healthDays: dias,
     week: data.week,
     points: data.points ?? [],
+    hoy: todayISO(),
   });
 
   const rings: Ring[] = [

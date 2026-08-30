@@ -25,6 +25,7 @@ import {
   type WeekView,
 } from "@/lib/api";
 import type { Brecha } from "@/components/GapChart";
+import { brechasDelMes, type MetaMedida } from "@/lib/metas";
 import { EJERCICIO_META_MIN, PASOS_META, SUENO_META_MIN } from "@/lib/insights";
 import type { Eje } from "@/components/RadarChart";
 
@@ -68,6 +69,11 @@ export type PerfilInput = {
    * `/checkins`: el apego a la dieta viaja en ese contrato y no en el otro.
    */
   points: CheckInPoint[] | undefined;
+  /**
+   * Hoy en ISO. Con él, el eje de rutina se compara contra las sesiones que ya
+   * tocaban en lugar de contra la semana entera; sin él, contra la semana.
+   */
+  hoy?: string;
 };
 
 /**
@@ -85,22 +91,70 @@ export function perfilDeEjes(input: PerfilInput): Eje[] {
   const ejercicio = promedio(ventana(dias, "exerciseMin", DIAS_RECIENTES));
   const sueno = promedio(ventana(dias, "sleepMin", DIAS_RECIENTES));
 
-  const sesionesTotal = input.week?.sessions?.length ?? 0;
-  const sesionesHechas =
-    input.week?.sessions?.filter((session) => session.completedAt !== null).length ?? 0;
+  /**
+   * Sesiones que YA TOCABAN, no las de toda la semana.
+   *
+   * Este era el engaño: el eje comparaba lo hecho contra el total del lunes al
+   * domingo, así que el martes con dos de cinco el polígono se veía chico
+   * aunque fueras al corriente — y en cuanto el reloj llenaba los otros ejes,
+   * la telaraña completa se leía como "voy bien". Comparado contra lo que
+   * tocaba hasta HOY, el número dice lo que pasó de verdad.
+   */
+  const sesiones = input.week?.sessions ?? [];
+  const hoy = input.hoy ?? null;
+  const yaTocaban = hoy === null ? sesiones : sesiones.filter((sesion) => sesion.date <= hoy);
+  const hechas = yaTocaban.filter((sesion) => sesion.completedAt !== null).length;
 
   const ultimoPunto = recientesPrimero(input.points ?? [])[0] ?? null;
+  const recuperacionValor = recuperacion(dias);
 
   return [
-    { label: "Movimiento", value: fraccion(pasos, PASOS_META) },
-    { label: "Ejercicio", value: fraccion(ejercicio, EJERCICIO_META_MIN) },
-    { label: "Descanso", value: fraccion(sueno, SUENO_META_MIN) },
-    { label: "Recuperación", value: recuperacion(dias) },
+    {
+      label: "Movimiento",
+      value: fraccion(pasos, PASOS_META),
+      esperado: 1,
+      detalle: pasos === null ? null : `${Math.round(pasos).toLocaleString("es-MX")} pasos`,
+      referencia: `meta ${PASOS_META.toLocaleString("es-MX")}`,
+    },
+    {
+      label: "Ejercicio",
+      value: fraccion(ejercicio, EJERCICIO_META_MIN),
+      esperado: 1,
+      detalle: ejercicio === null ? null : `${Math.round(ejercicio)} min al día`,
+      referencia: `meta ${EJERCICIO_META_MIN} min`,
+    },
+    {
+      label: "Descanso",
+      value: fraccion(sueno, SUENO_META_MIN),
+      esperado: 1,
+      detalle: sueno === null ? null : `${(sueno / 60).toFixed(1)} h por noche`,
+      referencia: `meta ${(SUENO_META_MIN / 60).toFixed(1)} h`,
+    },
+    {
+      label: "Recuperación",
+      value: recuperacionValor,
+      esperado: 1,
+      detalle:
+        recuperacionValor === null
+          ? null
+          : `${Math.round(recuperacionValor * 100)} % de tu normal`,
+      referencia: "tus últimas 4 semanas",
+    },
     {
       label: "Rutina",
-      value: sesionesTotal === 0 ? null : fraccion(sesionesHechas, sesionesTotal),
+      value: yaTocaban.length === 0 ? null : fraccion(hechas, yaTocaban.length),
+      esperado: 1,
+      detalle:
+        yaTocaban.length === 0 ? null : `${hechas} de ${yaTocaban.length} que ya tocaban`,
+      referencia: `${sesiones.length} en la semana`,
     },
-    { label: "Dieta", value: ultimoPunto ? fraccion(ultimoPunto.dietCompliance, 100) : null },
+    {
+      label: "Dieta",
+      value: ultimoPunto ? fraccion(ultimoPunto.dietCompliance, 100) : null,
+      esperado: 0.9,
+      detalle: ultimoPunto ? `${ultimoPunto.dietCompliance} % de apego` : null,
+      referencia: "esperado 90 %",
+    },
   ];
 }
 
@@ -144,11 +198,24 @@ const AVANCE_POR_BRECHA: Record<GoalGap, number> = {
   lejos: 0.2,
 };
 
-/** Cómo se dice el movimiento de la quincena, en una o dos palabras. */
+/**
+ * Cómo se dice el movimiento entre un análisis y el anterior.
+ *
+ * Decía "igual" a secas, y la pregunta que eso deja es "¿igual a qué?". La
+ * respuesta —igual que la última vez que se compararon tus fotos— es lo que
+ * convierte una palabra suelta en un dato.
+ */
 const NOTA_POR_TENDENCIA: Record<GoalTrend, string> = {
-  "acercándose": "se acerca",
-  igual: "igual",
-  "alejándose": "se aleja",
+  "acercándose": "más cerca que en tu análisis anterior",
+  igual: "sin cambio desde tu análisis anterior",
+  "alejándose": "más lejos que en tu análisis anterior",
+};
+
+/** Cómo se lee cada peldaño ordinal, en palabras de la persona. */
+const TEXTO_POR_BRECHA: Record<GoalGap, string> = {
+  cerca: "cerca de tu referencia",
+  media: "a medio camino",
+  lejos: "lejos todavía",
 };
 
 /** Las brechas del análisis, listas para `GapChart`. */
@@ -159,8 +226,24 @@ export function brechasDeObjetivo(readings: GoalZoneReading[] | undefined): Brec
   return (readings ?? []).map((reading) => ({
     label: GOAL_ZONE_LABEL[reading.zona],
     avance: AVANCE_POR_BRECHA[reading.brecha],
+    // Sin cifras a propósito: esta lectura sale de comparar fotos, y estimar
+    // centímetros de una foto sería inventar precisión. Lo que sí se puede
+    // decir es en qué peldaño estás y cómo te moviste desde la vez pasada.
+    actual: TEXTO_POR_BRECHA[reading.brecha],
     nota: NOTA_POR_TENDENCIA[reading.tendencia],
   }));
+}
+
+/**
+ * Las medidas de cinta contra el escalón del periodo, con número.
+ *
+ * Es el complemento honesto de `brechasDeObjetivo`: donde hay cinta hay
+ * centímetros, y ahí sí se puede decir "94.6 → 93 cm, faltan 1.6 por bajar".
+ * Donde solo hay foto, se queda la lectura ordinal. Mezclarlas sin decir cuál
+ * es cuál sería prestarle a la foto una precisión que no tiene.
+ */
+export function medidasContraObjetivo(metas: MetaMedida[]): Brecha[] {
+  return brechasDelMes(metas);
 }
 
 /**
@@ -174,6 +257,9 @@ export function enfasisDeObjetivo(readings: GoalDirectionReading[] | undefined):
   return (readings ?? []).map((reading) => ({
     label: GOAL_ZONE_LABEL[reading.zona],
     avance: AVANCE_POR_ENFASIS[reading.enfasis],
-    nota: `énfasis ${reading.enfasis}`,
+    actual: `énfasis ${reading.enfasis}`,
+    // Sin fotos tuyas no hay brecha que medir: esto es lo que tu referencia
+    // pide trabajar, no qué tan lejos estás de ella.
+    nota: "sale de tu referencia, no de tus fotos",
   }));
 }
