@@ -43,6 +43,8 @@ const makeStyles = (colors: Palette) => StyleSheet.create({
   button: {
     backgroundColor: colors.guinda,
     borderRadius: radius.lg,
+    borderWidth: 1,
+    borderColor: colors.guindaLight,
     paddingVertical: spacing.lg,
     alignItems: "center",
     justifyContent: "center",

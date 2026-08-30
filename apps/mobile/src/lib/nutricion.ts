@@ -137,3 +137,35 @@ export function avisoDeDieta(
   }
   return null;
 }
+
+/**
+ * Los suplementos que la app sabe incluir en el plan.
+ *
+ * La lista es corta a propósito: son los tres que cambian algo con evidencia
+ * razonable y que además se consiguen. Un catálogo largo de suplementos deja
+ * de ser un plan y se vuelve una tienda.
+ *
+ * Se pregunta qué TIENES, no qué deberías comprar: si no lo marcas, no
+ * aparece — ni como sugerencia ni como carencia.
+ */
+export const SUPLEMENTOS: Array<{
+  valor: "WHEY" | "CREATINA" | "OMEGA3";
+  nombre: string;
+  detalle: string;
+}> = [
+  {
+    valor: "WHEY",
+    nombre: "Proteína en polvo",
+    detalle: "Entra al menú como un alimento más cuando llegar a tu proteína con comida cuesta.",
+  },
+  {
+    valor: "CREATINA",
+    nombre: "Creatina monohidratada",
+    detalle: "5 g al día, a cualquier hora. Funciona por acumulación, no por el momento.",
+  },
+  {
+    valor: "OMEGA3",
+    nombre: "Omega-3 (aceite de pescado)",
+    detalle: "Con una comida que tenga grasa: en ayunas se aprovecha menos y suele repetir.",
+  },
+];

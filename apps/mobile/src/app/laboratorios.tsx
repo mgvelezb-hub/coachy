@@ -404,6 +404,8 @@ const makeStyles = (colors: Palette) =>
       paddingVertical: spacing.md,
       borderRadius: radius.full,
       backgroundColor: colors.guinda,
+      borderWidth: 1,
+      borderColor: colors.guindaLight,
       alignItems: "center",
     },
     botonOff: { opacity: 0.5 },

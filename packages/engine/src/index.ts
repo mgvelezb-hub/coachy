@@ -38,4 +38,11 @@ export { decide, decideAll, weeksBetween, type DecideOptions } from './adjust.js
 export { NO_DENSE_CARB_PHASES, distribute } from './meals.js';
 export { generateMenu, prepMinDelDia, type MenuOptions } from './menu.js';
 export { FOODS, findFood, foodsByRole, matchesAny, normalize } from './foods.js';
+export {
+  SUPPLEMENTS,
+  pautasDeSuplementos,
+  permitePolvos,
+  type PautaSuplemento,
+  type Supplement,
+} from './suplementos.js';
 export { runBacktest, type BacktestReport, type BacktestWeek } from './backtest.js';

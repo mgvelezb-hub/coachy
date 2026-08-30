@@ -245,6 +245,13 @@ model Profile {
   /// Qué método sigue el plan. Se elige explícitamente: una IA que decide sola
   /// tu filosofía nutricional es justo la caja negra que este diseño evita.
   dietStyle        DietStyle @default(ESTANDAR) @map("diet_style")
+  /// Suplementos que la persona TIENE: `WHEY`, `CREATINA`, `OMEGA3`.
+  ///
+  /// No es una lista de recomendaciones. El plan solo sugiere lo que ya se
+  /// puede tomar, y el menú no reparte polvos de proteína a quien no los
+  /// declaró — un menú con 30 g de whey para quien no tiene whey no se puede
+  /// seguir.
+  supplements      String[]
   /// Ventana de alimentación para el ayuno, en horas locales (0-23).
   /// `null` = 12:00-20:00, el 16/8 de uso más común.
   fastingStartHour Int?      @map("fasting_start_hour")

@@ -90,6 +90,87 @@ export async function recordatorioActivo(): Promise<boolean> {
 const COMIDA_PREFIJO = "holygains-comida-";
 
 /**
+ * La categoría que le pone botones al aviso de comida.
+ *
+ * Es lo que convierte el recordatorio en algo que se puede contestar desde
+ * donde llega —incluida la muñeca— en vez de un empujón para abrir la app. La
+ * diferencia no es de comodidad: "¿ya comiste?" contestado en el momento vale;
+ * contestado tres horas después es adivinar.
+ *
+ * Los botones se registran en el **teléfono** y el Apple Watch los pinta solo
+ * en la notificación reflejada, sin una línea de código de watchOS.
+ *
+ * Ninguna acción abre la app (`opensAppToForeground: false`): abrir la app
+ * para contestar un sí o un no es exactamente la fricción que se está
+ * quitando. La respuesta se atiende en `_layout.tsx` y se guarda antes de
+ * intentar mandarla.
+ */
+export const CATEGORIA_COMIDA = "holygains-comida";
+
+export const ACCION_COMIDA_SI = "comida-si";
+export const ACCION_COMIDA_NO = "comida-no";
+export const ACCION_COMIDA_DESPUES = "comida-despues";
+
+/** Cuánto se pospone el aviso al elegir "En 30 min". */
+export const POSPONER_MINUTOS = 30;
+
+/**
+ * Registra los botones. Es idempotente: volver a llamarla reemplaza la
+ * categoría con el mismo contenido.
+ */
+export async function registrarAccionesDeComida(): Promise<void> {
+  if (Platform.OS === "web") return;
+
+  await Notifications.setNotificationCategoryAsync(CATEGORIA_COMIDA, [
+    {
+      identifier: ACCION_COMIDA_SI,
+      buttonTitle: "Sí",
+      options: { opensAppToForeground: false },
+    },
+    {
+      identifier: ACCION_COMIDA_NO,
+      buttonTitle: "No",
+      // Destructiva para que se pinte en rojo y no se toque por error: es la
+      // que ensucia el apego.
+      options: { opensAppToForeground: false, isDestructive: true },
+    },
+    {
+      identifier: ACCION_COMIDA_DESPUES,
+      buttonTitle: `En ${POSPONER_MINUTOS} min`,
+      options: { opensAppToForeground: false },
+    },
+  ]).catch(() => {
+    // Sin categoría el aviso sigue llegando, solo que sin botones.
+  });
+}
+
+/**
+ * Vuelve a preguntar por una comida más tarde.
+ *
+ * Con identificador propio y por una sola vez: el aviso diario sigue siendo el
+ * del plan, y este es el eco de hoy. Sin identificador aparte, posponer
+ * borraría el recordatorio permanente de esa comida.
+ */
+export async function posponerComida(slot: string, minutos = POSPONER_MINUTOS): Promise<void> {
+  if (Platform.OS === "web") return;
+
+  await Notifications.scheduleNotificationAsync({
+    identifier: `${COMIDA_PREFIJO}${slot}-eco`,
+    content: {
+      title: "Volvemos a lo de tu comida",
+      body: "¿La hiciste como venía en tu plan?",
+      categoryIdentifier: CATEGORIA_COMIDA,
+      data: { ruta: "/", comidaSlot: slot },
+    },
+    trigger: {
+      type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL,
+      seconds: minutos * 60,
+      repeats: false,
+    },
+  }).catch(() => {});
+}
+
+/**
  * Un aviso por comida, a la hora que dice el plan.
  *
  * Por qué diarios y locales: los horarios del menú se conocen de antemano, así
@@ -118,6 +199,8 @@ export async function programarComidas(
   if (comidas.length === 0) return false;
   if (!(await pedirPermisoNotificaciones())) return false;
 
+  await registrarAccionesDeComida();
+
   for (const comida of comidas) {
     const [hora, minuto] = comida.timeHint.split(":").map((parte) => Number(parte));
     if (!Number.isFinite(hora)) continue;
@@ -127,6 +210,7 @@ export async function programarComidas(
       content: {
         title: comida.label,
         body: "¿La hiciste como venía en tu plan?",
+        categoryIdentifier: CATEGORIA_COMIDA,
         data: { ruta: "/", comidaSlot: comida.slot },
       },
       trigger: {

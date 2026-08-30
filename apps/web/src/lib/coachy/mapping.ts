@@ -1,5 +1,5 @@
 import type { CheckIn, Profile } from "@prisma/client";
-import { DEFAULT_CONFIG, loadConfig } from "engine";
+import { DEFAULT_CONFIG, SUPPLEMENTS, loadConfig } from "engine";
 
 import { decimalToNumber } from "@/lib/format";
 import { palAdjustment, type ActivityWindow, type PalAdjustment } from "@/lib/health/activity";
@@ -9,6 +9,7 @@ import type {
   EngineConfig,
   EngineCyclePhase,
   EngineDietStyle,
+  EngineSupplement,
   EngineProfile,
   EngineStrengthTrend,
 } from "@/lib/engine-types";
@@ -109,6 +110,11 @@ export function toEngineProfile(profile: Profile, latestWeightKg?: number | null
     ...(profile.maxPrepMin !== null ? { maxPrepMin: profile.maxPrepMin } : {}),
     // Estilo de dieta (Fase 8). El motor solo conoce minúsculas.
     diet: DIET_STYLE_TO_ENGINE[profile.dietStyle],
+    // Lo que la persona TIENE. El motor no reparte polvos a quien no los
+    // declaró, y las pautas solo cubren lo marcado.
+    supplements: profile.supplements.filter((valor): valor is EngineSupplement =>
+      (SUPPLEMENTS as readonly string[]).includes(valor),
+    ),
     ...(profile.fastingStartHour !== null && profile.fastingEndHour !== null
       ? {
           fastingWindow: {

@@ -59,7 +59,11 @@ export type Palette = {
 export const paletteDark: Palette = {
   guinda: "#6B1F2E",
   guindaDark: "#4A1320",
-  guindaLight: "#8B2D3F",
+  // Aclarado el 30/08 a 3.42 sobre el fondo: es el rol del BORDE de las
+  // superficies de acento, y en oscuro un botón guinda sobre obsidiana da 1.66
+  // de contraste de superficie — el texto se lee, la forma no. El borde es lo
+  // que lo hace visible como botón sin tocar el guinda de marca.
+  guindaLight: "#B24358",
   paloRosa: "#D4A5A5",
   paloRosaLight: "#E8CFCF",
   marfil: "#F5EDE4",
@@ -68,7 +72,10 @@ export const paletteDark: Palette = {
   obsidiana: "#1A0F12",
   champan: "#C9A961",
   champanSoft: "#D4B777",
-  error: "#C24A2E",
+  // Aclarado el 30/08: #C24A2E daba 3.85 sobre el fondo oscuro, por debajo del
+  // 4.5 que pide el texto normal — y este rol carga avisos, que son justo lo
+  // que hay que poder leer.
+  error: "#E0765C",
   cardBg: "rgba(255,255,255,0.05)",
   cardBorder: "rgba(255,255,255,0.08)",
 } as const;
@@ -135,7 +142,8 @@ export const paletteChampan: Palette = {
   obsidiana: "#0C0C0E",
   champan: "#C0994F",
   champanSoft: "#D2B378",
-  error: "#D4503F",
+  // Mismo caso que en Oscuro: 4.39 se quedaba corto para texto pequeño.
+  error: "#E0765C",
   cardBg: "#141417",
   cardBorder: "rgba(255,255,255,0.10)",
 } as const;

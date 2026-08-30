@@ -102,11 +102,18 @@ export interface Profile {
    */
   diet?: DietStyle;
   /**
+   * Suplementos que la persona TIENE. No es una lista de deseos ni de
+   * recomendaciones: el plan solo sugiere lo que ya se puede tomar.
+   */
+  supplements?: Supplement[];
+  /**
    * Ventana de alimentacion para `ayuno`: hora de inicio y de fin, 0-23.
    * Sin ella, el ayuno usa 12:00-20:00, que es el 16/8 mas comun.
    */
   fastingWindow?: { startHour: number; endHour: number };
 }
+
+import type { Supplement } from './suplementos.js';
 
 export const DIET_STYLES = ['estandar', 'ayuno', 'vegetariana', 'keto'] as const;
 export type DietStyle = (typeof DIET_STYLES)[number];

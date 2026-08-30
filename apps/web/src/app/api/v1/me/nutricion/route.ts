@@ -47,6 +47,8 @@ const schema = z
     /** Ventana de alimentación del ayuno, en horas locales. */
     fastingStartHour: z.number().int().min(0).max(23).nullable().optional(),
     fastingEndHour: z.number().int().min(0).max(23).nullable().optional(),
+    /** Lo que la persona tiene, no lo que le recomendamos comprar. */
+    supplements: z.array(z.enum(["WHEY", "CREATINA", "OMEGA3"])).max(3).optional(),
   })
   .refine((value) => Object.keys(value).length > 0, { message: "no hay nada que guardar" })
   .refine(
@@ -81,8 +83,16 @@ export async function PATCH(request: Request): Promise<NextResponse> {
     );
   }
 
-  const { budget, maxPrepMin, favoriteFoods, excludedFoods, dietStyle, fastingStartHour, fastingEndHour } =
-    parsed.data;
+  const {
+    budget,
+    maxPrepMin,
+    favoriteFoods,
+    excludedFoods,
+    dietStyle,
+    fastingStartHour,
+    fastingEndHour,
+    supplements,
+  } = parsed.data;
 
   const profile = await prisma.profile.update({
     where: { userId: user.id },
@@ -94,6 +104,7 @@ export async function PATCH(request: Request): Promise<NextResponse> {
       ...(dietStyle !== undefined ? { dietStyle } : {}),
       ...(fastingStartHour !== undefined ? { fastingStartHour } : {}),
       ...(fastingEndHour !== undefined ? { fastingEndHour } : {}),
+      ...(supplements !== undefined ? { supplements: [...new Set(supplements)] } : {}),
     },
     select: {
       budget: true,
@@ -103,6 +114,7 @@ export async function PATCH(request: Request): Promise<NextResponse> {
       dietStyle: true,
       fastingStartHour: true,
       fastingEndHour: true,
+      supplements: true,
     },
   });
 

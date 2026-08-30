@@ -460,6 +460,8 @@ const makeStyles = (colors: Palette) => StyleSheet.create({
     paddingVertical: spacing.md,
     borderRadius: 999,
     backgroundColor: colors.guinda,
+    borderWidth: 1,
+    borderColor: colors.guindaLight,
     alignItems: "center",
   },
   consultaBotonOff: { opacity: 0.5 },

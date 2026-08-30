@@ -591,6 +591,8 @@ const makeStyles = (colors: Palette) =>
       justifyContent: "center",
       gap: spacing.sm,
       backgroundColor: colors.guinda,
+      borderWidth: 1,
+      borderColor: colors.guindaLight,
       borderRadius: radius.xxl,
       paddingVertical: spacing.xl,
     },

@@ -171,8 +171,8 @@ struct SesionView: View {
             entrenamiento.empezar()
             preparar(serie: serie)
         }
-        .onChange(of: pendiente.serie) { _ in preparar(serie: serie) }
-        .onChange(of: pendiente.ejercicio) { _ in preparar(serie: serie) }
+        .onChange(of: pendiente.serie) { preparar(serie: serie) }
+        .onChange(of: pendiente.ejercicio) { preparar(serie: serie) }
     }
 
     // MARK: - Acciones

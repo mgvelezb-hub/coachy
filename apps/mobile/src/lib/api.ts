@@ -56,6 +56,8 @@ export type MeResponse = {
     disciplineLevels?: Partial<Record<Discipline, SwimLevel>>;
     /** Estilo de dieta elegido. */
     dietStyle?: DietStyle;
+    /** Suplementos que tiene. El plan solo sugiere lo declarado. */
+    supplements?: string[];
     /** Momento del día en que entrena. */
     trainingTime?: "MANANA" | "MEDIODIA" | "TARDE" | "NOCHE";
     /** Cómo acomodó su Resumen. El catálogo de paneles vive en la app. */
@@ -637,6 +639,7 @@ export type PreferenciasNutricion = {
   dietStyle?: DietStyle;
   fastingStartHour?: number | null;
   fastingEndHour?: number | null;
+  supplements?: Array<"WHEY" | "CREATINA" | "OMEGA3">;
 };
 
 export type PreferenciasNutricionResponse = {

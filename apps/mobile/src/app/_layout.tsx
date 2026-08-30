@@ -12,37 +12,101 @@ import { Stack, router } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import { StatusBar } from "expo-status-bar";
 import { useEffect, useState } from "react";
-import { StyleSheet, View } from "react-native";
+import { AppState, StyleSheet, View } from "react-native";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 
 import { OpeningSequence } from "@/components/OpeningSequence";
 import { SessionProvider, useSession } from "@/context/session";
 import { ThemeProvider, useTheme } from "@/context/theme";
+import { drenarComidas, responderComida } from "@/lib/comidas-pendientes";
+import {
+  ACCION_COMIDA_DESPUES,
+  ACCION_COMIDA_NO,
+  ACCION_COMIDA_SI,
+  posponerComida,
+  registrarAccionesDeComida,
+} from "@/lib/recordatorio";
 import { paletteLight } from "@/lib/theme";
 
 SplashScreen.preventAutoHideAsync().catch(() => {
   // Puede fallar si ya se ocultó (fast refresh); no es un error real.
 });
 
+/** Hoy en local, que es la fecha con la que se registra una comida. */
+function hoyISO(): string {
+  const ahora = new Date();
+  const mes = String(ahora.getMonth() + 1).padStart(2, "0");
+  return `${ahora.getFullYear()}-${mes}-${String(ahora.getDate()).padStart(2, "0")}`;
+}
+
 /**
- * Tocar el recordatorio abre directo el check-in.
+ * Qué pasa cuando se contesta una notificación.
  *
- * El `data.ruta` lo pone `lib/recordatorio.ts` al programar la notificación —
- * es el único contrato entre las dos piezas—. Se escucha aquí, en la raíz,
- * porque la notificación puede llegar con cualquier pestaña abierta.
+ * Dos caminos distintos y no conviene confundirlos:
+ *
+ * - **Con botón** (Sí / No / En 30 min, incluido desde el Apple Watch): se
+ *   registra la respuesta y la app NO se abre. Abrirla para contestar un sí o
+ *   un no es justo la fricción que los botones quitan.
+ * - **Tocando el aviso**: se abre la ruta que traiga en `data.ruta`. Es el
+ *   único contrato entre esta pantalla y `lib/recordatorio.ts`.
+ *
+ * Se escucha en la raíz porque la respuesta puede llegar con cualquier pestaña
+ * abierta —y también con la app cerrada, en cuyo caso iOS la entrega en cuanto
+ * arranca—.
  */
-function useAbrirDesdeNotificacion() {
+function useResponderNotificacion() {
   useEffect(() => {
     const sub = Notifications.addNotificationResponseReceivedListener((respuesta) => {
-      const ruta = respuesta.notification.request.content.data?.ruta;
+      const contenido = respuesta.notification.request.content;
+      const slot = contenido.data?.comidaSlot;
+      const accion = respuesta.actionIdentifier;
+
+      if (typeof slot === "string") {
+        if (accion === ACCION_COMIDA_SI || accion === ACCION_COMIDA_NO) {
+          void responderComida({
+            date: hoyISO(),
+            slot,
+            taken: accion === ACCION_COMIDA_SI,
+          });
+          return;
+        }
+        if (accion === ACCION_COMIDA_DESPUES) {
+          void posponerComida(slot);
+          return;
+        }
+      }
+
+      const ruta = contenido.data?.ruta;
       if (typeof ruta === "string" && ruta.startsWith("/")) router.push(ruta as never);
     });
     return () => sub.remove();
   }, []);
 }
 
+/**
+ * Lo que se contestó sin señal sale en cuanto la hay.
+ *
+ * Al abrir y al volver del segundo plano: contestar desde la muñeca en un
+ * sótano y que la respuesta se quede ahí para siempre sería peor que no haber
+ * preguntado.
+ */
+function useDrenarComidas() {
+  useEffect(() => {
+    // Los botones se registran al arrancar y no solo al programar las
+    // comidas: los avisos que ya estaban puestos por una versión anterior
+    // apuntan a esta categoría, y sin registrarla llegarían pelones.
+    void registrarAccionesDeComida();
+    void drenarComidas();
+    const sub = AppState.addEventListener("change", (estado) => {
+      if (estado === "active") void drenarComidas();
+    });
+    return () => sub.remove();
+  }, []);
+}
+
 function RootNavigator() {
-  useAbrirDesdeNotificacion();
+  useResponderNotificacion();
+  useDrenarComidas();
   const { session, loading } = useSession();
   const { colors } = useTheme();
 

@@ -30,7 +30,13 @@ import {
   type SwimLevel,
   type WeekView,
 } from "@/lib/api";
-import { ESTILOS_DIETA, PRESUPUESTOS, VENTANAS_AYUNO, avisoDeDieta } from "@/lib/nutricion";
+import {
+  ESTILOS_DIETA,
+  PRESUPUESTOS,
+  SUPLEMENTOS,
+  VENTANAS_AYUNO,
+  avisoDeDieta,
+} from "@/lib/nutricion";
 import { estadoDelReloj } from "@/lib/reloj-nativo";
 import {
   DISCIPLINAS,
@@ -253,6 +259,43 @@ export default function AjustesDetalleScreen() {
     setExcluidos((me.profile.excludedFoods ?? []).join(", "));
   }, [me]);
 
+  /**
+   * Lo que la persona tiene en la alacena.
+   *
+   * Se pregunta qué TIENES, no qué deberías comprar: la app no recomienda
+   * productos. Lo marcado entra al plan —el polvo como alimento del menú, la
+   * creatina y el omega como pauta diaria— y lo no marcado no existe.
+   */
+  const [suplementos, setSuplementos] = useState<Array<"WHEY" | "CREATINA" | "OMEGA3">>([]);
+  const [suplementosMsg, setSuplementosMsg] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!me?.profile) return;
+    setSuplementos(
+      ((me.profile.supplements ?? []) as Array<"WHEY" | "CREATINA" | "OMEGA3">).filter((valor) =>
+        SUPLEMENTOS.some((opcion) => opcion.valor === valor),
+      ),
+    );
+  }, [me]);
+
+  async function alternarSuplemento(valor: "WHEY" | "CREATINA" | "OMEGA3") {
+    const siguiente = suplementos.includes(valor)
+      ? suplementos.filter((entrada) => entrada !== valor)
+      : [...suplementos, valor];
+
+    setSuplementos(siguiente);
+    setSuplementosMsg(null);
+    try {
+      await patchNutricion({ supplements: siguiente });
+      setSuplementosMsg("Guardado. Entra en tu siguiente menú y en tus pautas del día.");
+    } catch (error) {
+      setSuplementos(suplementos);
+      setSuplementosMsg(
+        error instanceof ApiError ? error.message : "No se pudo guardar tus suplementos",
+      );
+    }
+  }
+
   async function guardarTiempoCocina(minutos: number | null) {
     setTiempoCocina(minutos);
     setAlimentosMsg(null);
@@ -260,8 +303,8 @@ export default function AjustesDetalleScreen() {
       await patchNutricion({ maxPrepMin: minutos });
       setAlimentosMsg(
         minutos === null
-          ? "Sin tope: el menú puede pedir cocinar."
-          : `Listo: nada que pida más de ${minutos} minutos, salvo que te dejara sin proteína.`,
+          ? "Sin tope: el menú puede pedir cocinar en el momento."
+          : "Listo. Lo que se cocina en lote sigue entrando: cuenta como calentar.",
       );
     } catch (error) {
       setAlimentosMsg(
@@ -1020,6 +1063,38 @@ export default function AjustesDetalleScreen() {
               );
             })}
           </View>
+        </Card>
+
+        <Card>
+          <SectionLabel>Lo que tienes en la alacena</SectionLabel>
+          <Explicacion>
+            <TextoExplicativo>
+              Se pregunta qué tienes, no qué deberías comprar: la app no recomienda productos. Lo
+              que marques entra a tu plan —el polvo como un alimento más del menú, la creatina y el
+              omega como pauta del día— y lo que no, simplemente no aparece.
+            </TextoExplicativo>
+          </Explicacion>
+
+          <View style={styles.presupuestoLista}>
+            {SUPLEMENTOS.map((opcion) => {
+              const activo = suplementos.includes(opcion.valor);
+              return (
+                <Pressable
+                  key={opcion.valor}
+                  onPress={() => alternarSuplemento(opcion.valor)}
+                  style={[styles.presupuestoFila, activo && styles.presupuestoFilaOn]}
+                >
+                  <Text style={[styles.presupuestoNombre, activo && styles.presupuestoNombreOn]}>
+                    {activo ? "✓ " : ""}
+                    {opcion.nombre}
+                  </Text>
+                  <Text style={styles.presupuestoDetalle}>{opcion.detalle}</Text>
+                </Pressable>
+              );
+            })}
+          </View>
+
+          {suplementosMsg && <Text style={styles.vaultMsg}>{suplementosMsg}</Text>}
         </Card>
 
         <Card>

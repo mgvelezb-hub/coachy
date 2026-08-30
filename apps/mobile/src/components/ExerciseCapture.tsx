@@ -347,7 +347,9 @@ const makeStyles = (colors: Palette) => StyleSheet.create({
   headerRow: { flexDirection: "row", alignItems: "flex-start", justifyContent: "space-between", gap: spacing.sm },
   title: { flex: 1, fontFamily: fonts.display, ...typeScale.heading, color: colors.marfil },
   subtitle: { fontFamily: fonts.sans, ...typeScale.bodySm, color: colors.paloRosaLight },
-  note: { fontFamily: fonts.sans, ...typeScale.bodySm, color: colors.guindaLight },
+  // `guindaLight` es relleno de acento, no color de texto: sobre el fondo
+  // oscuro daba 2.27 y la nota del ejercicio no se leía.
+  note: { fontFamily: fonts.sans, ...typeScale.bodySm, color: colors.paloRosa },
   swapButton: {
     borderWidth: 1,
     borderColor: colors.cardBorder,

@@ -1,4 +1,5 @@
 import { DEFAULT_CONFIG, type EngineConfig } from './config.js';
+import { permitePolvos } from './suplementos.js';
 import { roundTo } from './calc.js';
 import { FOODS, matchesAny } from './foods.js';
 import type {
@@ -97,6 +98,9 @@ function eligible(
     if (food.role !== role) return false;
     if (options.freeVegetable && food.carbPer100 > config.freeVegetableMaxCarbPer100) return false;
     if (options.noSupplements && food.tags.includes('suplemento')) return false;
+    // Un menú que pide 30 g de whey a quien no tiene whey es un menú que no se
+    // puede seguir. Los polvos entran solo si la persona los declaró.
+    if (food.tags.includes('suplemento') && !permitePolvos(profile)) return false;
     if (matchesAny(food, excluded)) return false;
     // Vegetariana es ovolactovegetariana: sale la carne, el pollo y el
     // pescado; el huevo y los lacteos se quedan. El catalogo trae la etiqueta
