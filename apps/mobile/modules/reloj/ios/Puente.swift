@@ -73,6 +73,17 @@ final class Puente: NSObject {
     return empujar()
   }
 
+  /**
+   Manda lo que haya. `false` si en este momento no hay a quién mandarle.
+
+   Ese `false` **no** pierde el dato: lo último de cada cosa se queda guardado
+   arriba y se vuelve a empujar en cuanto la sesión se activa o el reloj
+   aparece. Sin eso había una carrera silenciosa y muy fácil de tener: al
+   arrancar en frío, `activate()` tarda, la pantalla de Hoy carga antes, manda
+   el resumen contra una sesión todavía no activada y ese resumen no llegaba
+   nunca — el reloj se quedaba en blanco hasta el siguiente arranque.
+   */
+  @discardableResult
   private func empujar() -> Bool {
     guard WCSession.isSupported() else { return false }
     let sesion = WCSession.default
@@ -111,7 +122,20 @@ final class Puente: NSObject {
 }
 
 extension Puente: WCSessionDelegate {
-  func session(_ session: WCSession, activationDidCompleteWith state: WCSessionActivationState, error: Error?) {}
+  func session(_ session: WCSession, activationDidCompleteWith state: WCSessionActivationState, error: Error?) {
+    // Lo que se intentó mandar antes de que la sesión estuviera lista sale
+    // ahora.
+    empujar()
+  }
+
+  /// El reloj se emparejó, o le acaban de instalar la app.
+  func sessionWatchStateDidChange(_ session: WCSession) {
+    empujar()
+  }
+
+  func sessionReachabilityDidChange(_ session: WCSession) {
+    empujar()
+  }
 
   // Las dos de abajo son obligatorias en iOS aunque no haya varios relojes:
   // sin ellas no compila. Al desactivarse hay que reactivar para seguir
