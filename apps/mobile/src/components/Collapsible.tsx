@@ -12,19 +12,43 @@ type CollapsibleProps = {
   subtitle?: string;
   /** Va montado sobre una tarjeta de acento: el texto invierte a `pergamino`. */
   onAccent?: boolean;
+  /**
+   * Qué tan adentro está en un acordeón anidado: 0 es el primer nivel.
+   *
+   * La biblioteca llega a tres —zona, nivel, ejercicio— y sin diferencia
+   * visual los tres se ven igual: no se sabe qué contiene qué. Cada escalón
+   * mete sangría y baja un punto la jerarquía del título.
+   */
+  depth?: number;
 };
 
 /** Acordeón simple: título tocable que muestra/oculta su contenido. */
-export function Collapsible({ title, children, defaultOpen = false, subtitle, onAccent = false }: CollapsibleProps) {
+export function Collapsible({
+  title,
+  children,
+  defaultOpen = false,
+  subtitle,
+  onAccent = false,
+  depth = 0,
+}: CollapsibleProps) {
   const [open, setOpen] = useState(defaultOpen);
   const { colors } = useTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, depth > 0 && { paddingLeft: spacing.md }]}>
       <Pressable onPress={() => setOpen((value) => !value)} style={styles.header}>
         <View style={styles.headerText}>
-          <Text style={[styles.title, onAccent && { color: colors.pergamino }]}>{title}</Text>
+          <Text
+            style={[
+              styles.title,
+              depth === 1 && styles.titleNested,
+              depth >= 2 && styles.titleDeep,
+              onAccent && { color: colors.pergamino },
+            ]}
+          >
+            {title}
+          </Text>
           {subtitle && (
             <Text style={[styles.subtitle, onAccent && { color: colors.pergaminoSoft }]}>{subtitle}</Text>
           )}
@@ -51,6 +75,10 @@ const makeStyles = (colors: Palette) => StyleSheet.create({
     flex: 1,
     gap: 2,
   },
+  // El segundo escalón baja de peso y de tono; el tercero además reduce el
+  // espacio vertical, porque a esa profundidad hay muchas filas seguidas.
+  titleNested: { fontFamily: fonts.sansMedium, color: colors.paloRosa },
+  titleDeep: { fontFamily: fonts.sans, color: colors.paloRosa },
   title: {
     fontFamily: fonts.sansMedium,
     ...typeScale.body,

@@ -348,9 +348,14 @@ export default function BibliotecaScreen() {
                   }`}
                 >
                   {nivelesDeZona(zona.ejercicios).map((grupo) => (
-                    <View key={grupo.nivel} style={styles.familia}>
-                      <Text style={styles.familiaTitulo}>{NIVEL_LABEL[grupo.nivel]}</Text>
-
+                    <Collapsible
+                      key={grupo.nivel}
+                      depth={1}
+                      title={NIVEL_LABEL[grupo.nivel]}
+                      subtitle={`${grupo.ejercicios.length} ${
+                        grupo.ejercicios.length === 1 ? "ejercicio" : "ejercicios"
+                      }`}
+                    >
                       {grupo.ejercicios.map((ejercicio) => (
                         <EjercicioGymRow
                           key={ejercicio.id}
@@ -387,7 +392,7 @@ export default function BibliotecaScreen() {
                           }
                         />
                       ))}
-                    </View>
+                    </Collapsible>
                   ))}
                 </Collapsible>
               );
@@ -427,11 +432,16 @@ export default function BibliotecaScreen() {
                 }`}
               >
                 {porCategoria(grupo.ejercicios).map((familia) => (
-                  <View key={familia.categoria} style={styles.familia}>
-                    <Text style={styles.familiaTitulo}>{familia.categoria}</Text>
-
+                  <Collapsible
+                    key={familia.categoria}
+                    depth={1}
+                    title={familia.categoria}
+                    subtitle={`${familia.ejercicios.length} ${
+                      familia.ejercicios.length === 1 ? "ejercicio" : "ejercicios"
+                    }`}
+                  >
                     {familia.ejercicios.map((ejercicio) => (
-                      <Collapsible key={ejercicio.id} title={ejercicio.nombre}>
+                      <Collapsible key={ejercicio.id} depth={2} title={ejercicio.nombre}>
                         <Text style={styles.fichaLinea}>
                           <Text style={styles.fichaEtiqueta}>Cómo: </Text>
                           {ejercicio.como}
@@ -446,7 +456,7 @@ export default function BibliotecaScreen() {
                         </Text>
                       </Collapsible>
                     ))}
-                  </View>
+                  </Collapsible>
                 ))}
               </Collapsible>
             ))}
@@ -683,16 +693,8 @@ const makeStyles = (colors: Palette) => StyleSheet.create({
     marginBottom: spacing.sm,
   },
   fichaLinea: { fontFamily: fonts.sans, ...typeScale.bodySm, color: colors.paloRosa },
-  familia: { marginTop: spacing.md, gap: spacing.xs },
   enSemana: { fontFamily: fonts.sansSemiBold, color: colors.champan },
   fichaCuerpo: { gap: spacing.xs, paddingBottom: spacing.sm },
-  familiaTitulo: {
-    fontFamily: fonts.sansSemiBold,
-    ...typeScale.label,
-    letterSpacing: 1,
-    textTransform: "uppercase",
-    color: colors.champan,
-  },
   fichaEtiqueta: { fontFamily: fonts.sansSemiBold, color: colors.marfil },
 
   screen: { flex: 1, backgroundColor: colors.obsidiana },
