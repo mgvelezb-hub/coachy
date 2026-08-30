@@ -33,6 +33,7 @@ const panelSchema = z
       .max(40)
       .regex(/^[a-z0-9_]+$/, "el id va en minúsculas, sin espacios"),
     tamano: z.enum(["mini", "compacta", "completa"]).optional(),
+    vista: z.enum(["dato", "meta", "tendencia", "desglose"]).optional(),
     variante: z.enum(["compacto", "normal", "detallado"]).optional(),
     ancho: z.enum(["medio", "ancho"]).optional(),
   })

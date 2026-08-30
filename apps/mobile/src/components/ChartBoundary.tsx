@@ -59,6 +59,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
     lineHeight: 20,
     color: paletteDark.paloRosa,
-    textAlign: "center",
+
   },
 });

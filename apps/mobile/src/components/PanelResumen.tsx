@@ -208,9 +208,22 @@ export function PanelResumen({
     router.push(ruta as never);
   }
 
-  const { id, tamano } = config;
+  // `vista` (el objeto con los datos) y `vista` (la del panel) colisionaban:
+  // la del panel se llama `estilo` aquí adentro.
+  const { id, tamano, vista: estilo } = config;
   const mini = tamano === "mini";
   const completa = tamano === "completa";
+
+  /**
+   * Las dos preguntas del panel, separadas: el TAMAÑO dice cuánto espacio
+   * ocupa y la VISTA qué se dibuja dentro. Un `compacta` con vista de
+   * tendencia trae su chispa; el mismo `compacta` con vista de desglose trae
+   * sus partes. Antes las dos cosas iban en un solo eje y varias
+   * combinaciones daban la misma tarjeta.
+   */
+  const conTendencia = estilo === "tendencia";
+  const conDesglose = estilo === "desglose";
+  const conMeta = estilo === "meta" || estilo === "desglose";
 
   /**
    * El cuadro chico. Todos los `mini` se ven igual: un dato, una línea y su
@@ -223,17 +236,20 @@ export function PanelResumen({
     value: string;
     detail?: string | null;
     status?: { label: string; tone: "ok" | "warn" | "alto" | "neutral" } | null;
+    serie?: number[];
     onPress?: () => void;
   }) {
     return (
       <ScoreTile
-        mini
         icon={props.icon}
         tint={props.tint}
         title={props.title}
         value={props.value}
-        detail={props.detail ?? null}
+        // Con vista "solo el número" el cuadro se queda con el número: es lo
+        // que se pidió y es lo que se entrega.
+        detail={estilo === "dato" ? null : (props.detail ?? null)}
         status={props.status ?? null}
+        serie={conTendencia ? props.serie : undefined}
         onPress={props.onPress}
       />
     );
@@ -252,19 +268,44 @@ export function PanelResumen({
     detail?: string | null;
     status?: { label: string; tone: "ok" | "warn" | "alto" | "neutral" } | null;
     onPress?: () => void;
+    /** El desglose: la lista, los macros, los valores. */
     children?: React.ReactNode;
+    /** La serie, para la vista de tendencia. */
+    serie?: number[];
+    puntos?: Array<{ date: string; value: number | null }>;
+    formato?: (valor: number) => string;
+    /** Meta a marcar en la gráfica, si la hay. */
+    meta?: number | null;
   }) {
+    const cuerpo = conDesglose
+      ? props.children
+      : conTendencia && props.puntos && completa
+        ? (
+            <ChartBoundary label="La tendencia no se pudo dibujar.">
+              <LineChart
+                points={props.puntos}
+                color={props.tint}
+                goal={props.meta ?? null}
+                format={props.formato}
+              />
+            </ChartBoundary>
+          )
+        : null;
+
     return (
       <PanelGrande
         icon={props.icon}
         tint={props.tint}
         title={props.title}
         value={props.value}
-        detail={props.detail ?? null}
+        detail={estilo === "dato" ? null : (props.detail ?? null)}
         status={props.status ?? null}
         onPress={props.onPress}
+        // En compacta la tendencia cabe como chispa; la gráfica grande es de
+        // la completa.
+        serie={conTendencia && !completa ? props.serie : undefined}
       >
-        {completa ? props.children : null}
+        {cuerpo}
       </PanelGrande>
     );
   }
@@ -290,7 +331,7 @@ export function PanelResumen({
           <View style={styles.heroBody}>
             <ActivityRings rings={rings} size={completa ? 132 : 96} />
 
-            {completa ? (
+            {conMeta ? (
               <View style={styles.leyendas}>
                 <Leyenda
                   icon={Footprints}
@@ -327,7 +368,7 @@ export function PanelResumen({
             )}
           </View>
 
-          {completa && (
+          {conDesglose && completa && (
             <View style={styles.extras}>
               <Leyenda
                 icon={HeartPulse}
@@ -362,14 +403,14 @@ export function PanelResumen({
         <View style={styles.perfil}>
           <Text style={styles.heroTitle}>Tu semana vs. lo esperado</Text>
 
-          {completa ? (
+          {conDesglose ? (
             <>
               <Text style={styles.heroCaption}>
                 Cada eje contra lo que tocaba a estas alturas
                 {objetivoLabel ? `, para tu objetivo de ${objetivoLabel}` : ""}.
               </Text>
               <ChartBoundary label="La telaraña no se pudo dibujar.">
-                <RadarChart ejes={ejes} size={260} />
+                <RadarChart ejes={ejes} size={completa ? 260 : 220} />
               </ChartBoundary>
             </>
           ) : (
@@ -428,13 +469,13 @@ export function PanelResumen({
 
           <View style={{ marginTop: spacing.md }}>
             <ChartBoundary label="Las metas del mes no se pudieron dibujar.">
-              <GapChart brechas={completa ? rieles : rieles.slice(0, 2)} />
+              <GapChart brechas={conDesglose ? rieles : rieles.slice(0, 2)} />
             </ChartBoundary>
           </View>
 
           <Pressable onPress={() => navegar("/glidepath")} hitSlop={6}>
             <Text style={styles.glidepathLink}>
-              {completa ? "Ver todo el camino al objetivo →" : `Ver las ${rieles.length} medidas →`}
+              {conDesglose ? "Ver todo el camino al objetivo →" : `Ver las ${rieles.length} medidas →`}
             </Text>
           </Pressable>
         </View>
@@ -467,7 +508,7 @@ export function PanelResumen({
           </Text>
           <View style={{ marginTop: spacing.md }}>
             <ChartBoundary label="La brecha no se pudo dibujar.">
-              <GapChart brechas={completa ? brechas : brechas.slice(0, 3)} />
+              <GapChart brechas={conDesglose ? brechas : brechas.slice(0, 3)} />
             </ChartBoundary>
           </View>
         </View>
@@ -481,13 +522,16 @@ export function PanelResumen({
         ? `${datos.checkIns?.length ?? 0} check-ins · ${formatDateEs(ultimoCheckIn.date)}`
         : "Tu primer check-in arranca el historial";
 
+      const contexto = conMeta && plan ? `meta del mes ${plan.meta} cm` : detalle;
+
       if (mini) {
         return cuadro({
           icon: TrendingUp,
           tint: colors.champan,
           title: "Cintura",
           value: valor,
-          detail: plan ? `meta del mes ${plan.meta} cm` : detalle,
+          detail: contexto,
+          serie: serieDe("waistCm"),
           onPress: () => navegar("/salud/medidas"),
         });
       }
@@ -497,24 +541,15 @@ export function PanelResumen({
         tint: colors.champan,
         title: "Cintura",
         value: valor,
-        detail: plan ? `${detalle} · meta del mes ${plan.meta} cm` : detalle,
+        detail: conMeta && plan ? `${detalle} · meta del mes ${plan.meta} cm` : detalle,
         onPress: () => navegar("/salud/medidas"),
-        children: (
-          <>
-            <ChartBoundary label="La tendencia no se pudo dibujar.">
-              <LineChart
-                points={(datos.points ?? []).slice(-10).map((punto) => ({
-                  date: punto.date,
-                  value: punto.waistCm,
-                }))}
-                color={colors.champan}
-                goal={plan?.meta ?? null}
-                format={(valor) => `${valor} cm`}
-              />
-            </ChartBoundary>
-            {plan && <Text style={styles.panelNota}>{textoDeGlidepath(plan)}</Text>}
-          </>
-        ),
+        serie: serieDe("waistCm"),
+        puntos: (datos.points ?? [])
+          .slice(-10)
+          .map((punto) => ({ date: punto.date, value: punto.waistCm })),
+        formato: (valor: number) => `${valor} cm`,
+        meta: plan?.meta ?? null,
+        children: plan ? <Text style={styles.panelNota}>{textoDeGlidepath(plan)}</Text> : null,
       });
     }
 
@@ -547,7 +582,11 @@ export function PanelResumen({
         tint: colors.guindaLight,
         title: "Check-in",
         value: valor,
-        detail: `${diasCheckIn === null ? "Nunca has hecho uno" : "desde el último"} · ${cierre}`,
+        detail: conMeta
+          ? `${diasCheckIn === null ? "Nunca has hecho uno" : "desde el último"} · ${cierre}`
+          : diasCheckIn === null
+            ? "Nunca has hecho uno"
+            : "desde el último",
         status: estado,
         onPress: () => navegar("/checkin"),
         children: (
@@ -587,11 +626,12 @@ export function PanelResumen({
         tint: colors.paloRosa,
         title: "Esta semana",
         value: valor,
-        detail: proxima
-          ? `sigue ${proxima.muscleGroup.toLowerCase()} · ${proxima.date.slice(8)}/${proxima.date.slice(5, 7)}`
-          : sesionesTotal === 0
-            ? "Sin semana generada"
-            : "todo cerrado",
+        detail:
+          conMeta && proxima
+            ? `sigue ${proxima.muscleGroup.toLowerCase()} · ${proxima.date.slice(8)}/${proxima.date.slice(5, 7)}`
+            : sesionesTotal === 0
+              ? "Sin semana generada"
+              : "sesiones cerradas",
         onPress: () => navegar("/rutinas"),
         children: (
           <>
@@ -737,7 +777,12 @@ export function PanelResumen({
           tint: colors.champan,
           title: "Racha",
           value: `${streak}`,
-          detail: streak === 0 ? "hoy cuenta para empezar" : "días seguidos",
+          detail:
+            streak === 0
+              ? "hoy cuenta para empezar"
+              : conMeta && best > streak
+                ? `días · tu mejor: ${best}`
+                : "días seguidos",
         });
       }
 
@@ -749,9 +794,11 @@ export function PanelResumen({
         detail:
           streak === 0
             ? "Hoy cuenta para empezar"
-            : best > streak
-              ? `días seguidos · tu mejor: ${best}`
-              : "días seguidos, y es tu mejor marca",
+            : conMeta
+              ? best > streak
+                ? `días seguidos · tu mejor: ${best}`
+                : "días seguidos, y es tu mejor marca"
+              : "días seguidos",
       });
     }
 
@@ -1008,26 +1055,22 @@ export function PanelResumen({
         title: props.title,
         value: props.value,
         detail: props.detail,
+        serie: props.serie,
         onPress: () => navegar(props.ruta),
       });
     }
 
-    return (
-      <PanelGrande
-        icon={props.icon}
-        tint={props.tint}
-        title={props.title}
-        value={props.value}
-        detail={props.detail}
-        onPress={() => navegar(props.ruta)}
-      >
-        {completa ? (
-          <ChartBoundary label="La tendencia no se pudo dibujar.">
-            <LineChart points={props.puntos} color={props.tint} format={props.formato} />
-          </ChartBoundary>
-        ) : null}
-      </PanelGrande>
-    );
+    return renglon({
+      icon: props.icon,
+      tint: props.tint,
+      title: props.title,
+      value: props.value,
+      detail: props.detail,
+      onPress: () => navegar(props.ruta),
+      serie: props.serie,
+      puntos: props.puntos,
+      formato: props.formato,
+    });
   }
 }
 

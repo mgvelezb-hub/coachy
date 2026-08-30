@@ -15,12 +15,16 @@ import { useTheme } from "@/context/theme";
 import {
   DESCRIPCION_TAMANO,
   ETIQUETA_TAMANO,
+  conTamano,
   definicionDe,
+  etiquetaDeVista,
   layoutPorDefecto,
   moverA,
   panelesDisponibles,
+  vistasPara,
   type PanelConfig,
   type Tamano,
+  type Vista,
 } from "@/lib/paneles";
 import { fonts, radius, spacing, type as typeScale, withAlpha, type Palette } from "@/lib/theme";
 
@@ -68,12 +72,23 @@ export function EditorDePaneles({
   function agregar(id: string) {
     const def = definicionDe(id);
     if (!def) return;
-    onChange([...layout, { id, tamano: def.porDefecto?.tamano ?? def.tamanos[0]! }]);
+    onChange([
+      ...layout,
+      {
+        id,
+        tamano: def.porDefecto?.tamano ?? def.tamanos[0]!,
+        vista: def.porDefecto?.vista ?? def.vistas[0]!,
+      },
+    ]);
     setAbierto(id);
   }
 
-  function aplicar(id: string, cambios: Partial<PanelConfig>) {
-    onChange(layout.map((panel) => (panel.id === id ? { ...panel, ...cambios } : panel)));
+  function aplicarTamano(id: string, tamano: Tamano) {
+    onChange(conTamano(layout, id, tamano));
+  }
+
+  function aplicarVista(id: string, vista: Vista) {
+    onChange(layout.map((panel) => (panel.id === id ? { ...panel, vista } : panel)));
   }
 
   return (
@@ -116,7 +131,8 @@ export function EditorDePaneles({
               abierto={abierto === panel.id}
               onAbrir={() => setAbierto(abierto === panel.id ? null : panel.id)}
               onQuitar={() => quitar(panel.id)}
-              onAplicar={(cambios) => aplicar(panel.id, cambios)}
+              onTamano={(tamano) => aplicarTamano(panel.id, tamano)}
+              onVista={(vista) => aplicarVista(panel.id, vista)}
               onSoltar={(destino) => onChange(moverA(layout, panel.id, destino))}
             />
           ))}
@@ -170,7 +186,8 @@ function PanelEditable({
   abierto,
   onAbrir,
   onQuitar,
-  onAplicar,
+  onTamano,
+  onVista,
   onSoltar,
 }: {
   index: number;
@@ -180,7 +197,8 @@ function PanelEditable({
   abierto: boolean;
   onAbrir: () => void;
   onQuitar: () => void;
-  onAplicar: (cambios: Partial<PanelConfig>) => void;
+  onTamano: (tamano: Tamano) => void;
+  onVista: (vista: Vista) => void;
   onSoltar: (destino: number) => void;
 }) {
   const { colors } = useTheme();
@@ -245,19 +263,16 @@ function PanelEditable({
 
       {abierto && (
         <View style={styles.opciones}>
-          <Text style={styles.opcionesTitulo}>Tamaño de esta tarjeta</Text>
+          <Text style={styles.opcionesTitulo}>Tamaño</Text>
           {def.tamanos.map((tamano: Tamano) => (
             <Pressable
               key={tamano}
-              onPress={() => onAplicar({ tamano })}
+              onPress={() => onTamano(tamano)}
               style={[styles.opcionFila, panel.tamano === tamano && styles.opcionActiva]}
             >
               <View style={{ flex: 1 }}>
                 <Text
-                  style={[
-                    styles.opcionTexto,
-                    panel.tamano === tamano && styles.opcionTextoActivo,
-                  ]}
+                  style={[styles.opcionTexto, panel.tamano === tamano && styles.opcionTextoActivo]}
                 >
                   {ETIQUETA_TAMANO[tamano]}
                 </Text>
@@ -276,9 +291,39 @@ function PanelEditable({
             </Pressable>
           ))}
 
-          {def.tamanos.length === 1 && (
+          {/* Las vistas se nombran EN ESTE panel: "con su desglose" no dice
+              nada, "día por día" sí. Y solo aparecen las que caben en el
+              tamaño elegido — ofrecer una que se degrada sola enseña a
+              desconfiar del editor. */}
+          {vistasPara(def, panel.tamano).length > 1 && (
+            <>
+              <Text style={styles.opcionesTitulo}>Qué muestra</Text>
+              {vistasPara(def, panel.tamano).map((opcion: Vista) => (
+                <Pressable
+                  key={opcion}
+                  onPress={() => onVista(opcion)}
+                  style={[styles.opcionFila, panel.vista === opcion && styles.opcionActiva]}
+                >
+                  <Text
+                    style={[
+                      styles.opcionTexto,
+                      { flex: 1 },
+                      panel.vista === opcion && styles.opcionTextoActivo,
+                    ]}
+                  >
+                    {etiquetaDeVista(def, opcion)}
+                  </Text>
+                  {panel.vista === opcion && (
+                    <Check size={16} color={colors.pergamino} strokeWidth={3} />
+                  )}
+                </Pressable>
+              ))}
+            </>
+          )}
+
+          {def.tamanos.length === 1 && vistasPara(def, panel.tamano).length === 1 && (
             <Text style={styles.opcionDescripcion}>
-              Este panel solo existe en un tamaño: en otro no enseñaría nada distinto.
+              Este panel existe en una sola forma: en otra no enseñaría nada distinto.
             </Text>
           )}
         </View>

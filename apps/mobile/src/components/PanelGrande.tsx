@@ -30,6 +30,7 @@ export function PanelGrande({
   status = null,
   onPress,
   children,
+  serie,
 }: {
   icon: ComponentType<IconProps>;
   tint?: string;
@@ -42,6 +43,11 @@ export function PanelGrande({
   onPress?: () => void;
   /** El detalle que solo cabe a ancho completo. */
   children?: ReactNode;
+  /**
+   * Los últimos valores, para la chispa de tendencia del renglón bajo. La
+   * gráfica completa vive en `children`; esto es lo que cabe sin crecer.
+   */
+  serie?: number[];
 }) {
   const { colors } = useTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
@@ -97,10 +103,46 @@ export function PanelGrande({
         cabecera
       )}
 
+      {serie && serie.length >= 2 && <Chispa valores={serie} color={color} />}
+
       {children ? <View style={styles.cuerpo}>{children}</View> : null}
     </View>
   );
 }
+
+/**
+ * Tendencia mínima del renglón bajo: barras, sin ejes ni etiquetas.
+ *
+ * Con vistas se dibuja aquí y no con SVG por lo mismo de siempre: un SVG por
+ * panel multiplica el costo de pintar el Resumen entero.
+ */
+function Chispa({ valores, color }: { valores: number[]; color: string }) {
+  const max = Math.max(...valores);
+  const min = Math.min(...valores);
+  const rango = max - min || 1;
+
+  return (
+    <View style={chispaStyles.wrap}>
+      {valores.map((valor, index) => (
+        <View
+          key={`${index}-${valor}`}
+          style={[
+            chispaStyles.barra,
+            {
+              backgroundColor: withAlpha(color, index === valores.length - 1 ? 1 : 0.45),
+              height: 5 + ((valor - min) / rango) * 22,
+            },
+          ]}
+        />
+      ))}
+    </View>
+  );
+}
+
+const chispaStyles = StyleSheet.create({
+  wrap: { flexDirection: "row", alignItems: "flex-end", gap: 4, height: 28 },
+  barra: { flex: 1, borderRadius: 2, minWidth: 3 },
+});
 
 const makeStyles = (colors: Palette) =>
   StyleSheet.create({

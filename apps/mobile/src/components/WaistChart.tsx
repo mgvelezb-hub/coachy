@@ -123,7 +123,7 @@ const makeStyles = (colors: Palette) => StyleSheet.create({
     fontFamily: fonts.serifItalic,
     ...typeScale.body,
     color: colors.paloRosaLight,
-    textAlign: "center",
+
   },
   legend: {
     flexDirection: "row",

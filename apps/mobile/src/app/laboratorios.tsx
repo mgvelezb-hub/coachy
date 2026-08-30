@@ -386,7 +386,7 @@ const makeStyles = (colors: Palette) =>
     fechaBotonTexto: { fontFamily: fonts.sansMedium, ...typeScale.bodySm, color: colors.marfil },
     fechaValor: {
       flex: 1,
-      textAlign: "center",
+
       fontFamily: fonts.sansSemiBold,
       ...typeScale.body,
       color: colors.marfil,

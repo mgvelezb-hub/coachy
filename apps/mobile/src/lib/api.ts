@@ -713,7 +713,7 @@ export function patchReferencia(referencia: unknown): Promise<{ referencia: unkn
 }
 
 export function patchResumen(
-  paneles: Array<{ id: string; tamano: string }>,
+  paneles: Array<{ id: string; tamano: string; vista: string }>,
 ): Promise<{ paneles: unknown }> {
   return apiFetch<{ paneles: unknown }>("/api/v1/me/resumen", {
     method: "PATCH",

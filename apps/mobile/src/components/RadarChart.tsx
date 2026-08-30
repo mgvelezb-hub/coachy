@@ -85,7 +85,12 @@ export function RadarChart({ ejes, size = 240 }: { ejes: Eje[] | undefined; size
 
   return (
     <View style={styles.wrap}>
-      <Svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
+      <Svg
+        width={size}
+        height={size}
+        viewBox={`0 0 ${size} ${size}`}
+        style={styles.grafico}
+      >
         {anillos.map((anillo) => (
           <Circle
             key={anillo}
@@ -229,17 +234,22 @@ export function RadarChart({ ejes, size = 240 }: { ejes: Eje[] | undefined; size
 }
 
 const makeStyles = (colors: Palette) => StyleSheet.create({
-  wrap: { alignItems: "center", gap: spacing.sm },
+  // El gráfico se centra solo; el texto de abajo se alinea a la izquierda como
+  // el resto de la tarjeta. Con `alignItems: center` en el contenedor, los
+  // párrafos quedaban colgando al centro y se leían como pie de foto.
+  wrap: { gap: spacing.sm, alignSelf: "stretch" },
+  grafico: { alignSelf: "center" },
+  // El pie del gráfico se lee como texto, no como etiqueta: alineado a la
+  // izquierda, igual que el resto de la tarjeta. Centrado se ve como si
+  // perteneciera al dibujo y no a la explicación.
   pie: {
     fontFamily: fonts.sans,
     ...typeScale.bodySm,
     color: colors.paloRosaLight,
-    textAlign: "center",
   },
   nota: {
     fontFamily: fonts.sans,
     ...typeScale.bodySm,
     color: colors.paloRosaLight,
-    textAlign: "center",
   },
 });
