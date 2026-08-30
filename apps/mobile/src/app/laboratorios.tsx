@@ -36,6 +36,34 @@ import { fonts, radius, spacing, type as typeScale, withAlpha, type Palette } fr
  * perfil.
  */
 
+/** "2026-03-02" → "2 de marzo de 2026". Se lee, no se teclea. */
+function fechaLarga(iso: string): string {
+  const [year, month, day] = iso.split("-").map(Number) as [number, number, number];
+  const fecha = new Date(Date.UTC(year, month - 1, day));
+  return fecha.toLocaleDateString("es-MX", {
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+    timeZone: "UTC",
+  });
+}
+
+/** Un día antes o después, sin cruzar de mes a la brava. */
+function desplazarISO(iso: string, dias: number): string {
+  const [year, month, day] = iso.split("-").map(Number) as [number, number, number];
+  const fecha = new Date(Date.UTC(year, month - 1, day));
+  fecha.setUTCDate(fecha.getUTCDate() + dias);
+  return fecha.toISOString().slice(0, 10);
+}
+
+/** Texto a número, con vacío como `null`: un rango no capturado no es cero. */
+function numeroONull(texto: string | undefined): number | null {
+  const limpio = (texto ?? "").trim().replace(",", ".");
+  if (limpio === "") return null;
+  const valor = Number(limpio);
+  return Number.isFinite(valor) ? valor : null;
+}
+
 function hoyISO(): string {
   const now = new Date();
   const mes = String(now.getMonth() + 1).padStart(2, "0");
@@ -56,6 +84,7 @@ export default function LaboratoriosScreen() {
   const [tipo, setTipo] = useState<"INBODY" | "QUIMICA">("INBODY");
   const [fecha, setFecha] = useState(hoyISO());
   const [valores, setValores] = useState<Record<string, string>>({});
+  const [rangos, setRangos] = useState<Record<string, string>>({});
   const [guardando, setGuardando] = useState(false);
   const [mensaje, setMensaje] = useState<string | null>(null);
 
@@ -88,8 +117,8 @@ export default function LaboratoriosScreen() {
           label: entry.campo.label,
           value: Number(entry.raw.replace(",", ".")),
           unit: entry.campo.unit,
-          refLow: entry.campo.refLow,
-          refHigh: entry.campo.refHigh,
+          refLow: numeroONull(rangos[`${entry.campo.key}_low`]),
+          refHigh: numeroONull(rangos[`${entry.campo.key}_high`]),
         }))
         .filter((value) => Number.isFinite(value.value));
 
@@ -100,6 +129,7 @@ export default function LaboratoriosScreen() {
 
       const { lab } = await postLab({ kind: tipo, takenOn: fecha, values });
       setValores({});
+      setRangos({});
       setMensaje(
         lab.coherence.coherent
           ? "Guardado. Queda en tu historial y en la gráfica."
@@ -184,14 +214,18 @@ export default function LaboratoriosScreen() {
           </Text>
 
           <Text style={styles.campoLabel}>Fecha del estudio</Text>
-          <TextInput
-            value={fecha}
-            onChangeText={setFecha}
-            placeholder="2026-03-02"
-            placeholderTextColor={colors.paloRosaLight}
-            autoCapitalize="none"
-            style={styles.input}
-          />
+          <View style={styles.fechaFila}>
+            <Pressable onPress={() => setFecha(desplazarISO(fecha, -1))} hitSlop={8} style={styles.fechaBoton}>
+              <Text style={styles.fechaBotonTexto}>−1 día</Text>
+            </Pressable>
+            <Text style={styles.fechaValor}>{fechaLarga(fecha)}</Text>
+            <Pressable onPress={() => setFecha(desplazarISO(fecha, 1))} hitSlop={8} style={styles.fechaBoton}>
+              <Text style={styles.fechaBotonTexto}>+1 día</Text>
+            </Pressable>
+          </View>
+          <Pressable onPress={() => setFecha(hoyISO())} hitSlop={8}>
+            <Text style={styles.fechaHoy}>Hoy</Text>
+          </Pressable>
 
           {campos.map((campo) => (
             <View key={campo.key}>
@@ -206,6 +240,34 @@ export default function LaboratoriosScreen() {
                 placeholderTextColor={colors.paloRosaLight}
                 style={styles.input}
               />
+
+              {/* El rango es el que imprimió TU laboratorio. Sin él nadie
+                  opina sobre el número, y por eso se puede capturar: sin esta
+                  fila, la mitad útil de la pantalla estaba apagada. */}
+              {(valores[campo.key] ?? "") !== "" && (
+                <View style={styles.rangoFila}>
+                  <TextInput
+                    value={rangos[`${campo.key}_low`] ?? ""}
+                    onChangeText={(text) =>
+                      setRangos((prev) => ({ ...prev, [`${campo.key}_low`]: text }))
+                    }
+                    keyboardType="decimal-pad"
+                    placeholder="ref. mín."
+                    placeholderTextColor={colors.paloRosaLight}
+                    style={[styles.input, styles.rangoInput]}
+                  />
+                  <TextInput
+                    value={rangos[`${campo.key}_high`] ?? ""}
+                    onChangeText={(text) =>
+                      setRangos((prev) => ({ ...prev, [`${campo.key}_high`]: text }))
+                    }
+                    keyboardType="decimal-pad"
+                    placeholder="ref. máx."
+                    placeholderTextColor={colors.paloRosaLight}
+                    style={[styles.input, styles.rangoInput]}
+                  />
+                </View>
+              )}
             </View>
           ))}
 
@@ -308,6 +370,35 @@ const makeStyles = (colors: Palette) =>
       ...typeScale.body,
       color: colors.marfil,
     },
+    fechaFila: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "space-between",
+      gap: spacing.sm,
+    },
+    fechaBoton: {
+      paddingHorizontal: spacing.md,
+      paddingVertical: spacing.sm,
+      borderRadius: radius.full,
+      borderWidth: 1,
+      borderColor: colors.cardBorder,
+    },
+    fechaBotonTexto: { fontFamily: fonts.sansMedium, ...typeScale.bodySm, color: colors.marfil },
+    fechaValor: {
+      flex: 1,
+      textAlign: "center",
+      fontFamily: fonts.sansSemiBold,
+      ...typeScale.body,
+      color: colors.marfil,
+    },
+    fechaHoy: {
+      fontFamily: fonts.sansSemiBold,
+      ...typeScale.bodySm,
+      color: colors.champan,
+      marginTop: spacing.xs,
+    },
+    rangoFila: { flexDirection: "row", gap: spacing.sm, marginTop: spacing.xs },
+    rangoInput: { flex: 1, ...typeScale.bodySm },
     boton: {
       marginTop: spacing.lg,
       paddingVertical: spacing.md,

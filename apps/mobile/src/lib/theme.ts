@@ -73,19 +73,36 @@ export const paletteDark: Palette = {
   cardBorder: "rgba(255,255,255,0.08)",
 } as const;
 
-/** Claro — derivado de `:root` en globals.css: fondo pergamino claro, texto guinda oscuro, acento champán. */
+/**
+ * Claro — derivado de `:root` en globals.css: fondo pergamino claro, texto
+ * guinda oscuro, acento champán.
+ *
+ * Dos tonos se corrigieron el 30/08 por CONTRASTE, no por gusto. Medidos con
+ * la fórmula de WCAG contra la tarjeta (`cardBg` #FAF6F1) y contra el fondo de
+ * pantalla (#F3EDE6), los originales quedaban por debajo del 4.5:1 que pide
+ * el texto normal:
+ *
+ * - `paloRosaLight` #9D7D7E daba 3.44 y es el rol del texto terciario, que en
+ *   esta app carga explicaciones enteras. Ahora #836062 → 5.12 / 4.74.
+ * - `champan` #AE8D44 daba 2.92 y se usa para mensajes de confirmación y
+ *   avisos, no solo para adorno. Ahora #7D5D2A → 5.62 / 5.20.
+ *
+ * En los temas Oscuro y Champán los mismos roles ya pasaban de 6:1; ahí no se
+ * tocó nada. Un token de rol se arregla una vez y arregla las noventa y seis
+ * pantallas que lo usan.
+ */
 export const paletteLight: Palette = {
   guinda: "#73202E",
   guindaDark: "#5A041A",
   guindaLight: "#8C3843",
   paloRosa: "#7B595B",
-  paloRosaLight: "#9D7D7E",
+  paloRosaLight: "#836062",
   marfil: "#3C161C",
   pergamino: "#F3EDE6",
   pergaminoSoft: "#D9B978",
   obsidiana: "#F3EDE6",
-  champan: "#AE8D44",
-  champanSoft: "#C5A767",
+  champan: "#7D5D2A",
+  champanSoft: "#9A7A3C",
   error: "#D41101",
   cardBg: "#FAF6F1",
   cardBorder: "#DECEC1",

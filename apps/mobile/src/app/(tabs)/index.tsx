@@ -284,12 +284,15 @@ export default function HoyScreen() {
 
       <ComidaDeHoy nutrition={nutrition} />
 
+      <DecisionCard decision={decision} />
+
+      {/* Registrar a mano es la excepción desde que el reloj sube los
+          entrenamientos solo: va al final, debajo de lo que sí hay que hacer
+          hoy. */}
       <ActivitiesCard
         activities={data.activities}
         onAdd={() => router.push("/actividad")}
       />
-
-      <DecisionCard decision={decision} />
     </ScrollView>
   );
 }
@@ -356,17 +359,33 @@ function TodayTrainingCard({
     );
   }
 
+  // Con dos sesiones el día tiene dos compromisos, no uno con nota al pie:
+  // cada uno lleva su tarjeta, en el orden en que se hacen.
   return (
-    <HeroCard
-      eyebrow={today.completed ? "Hoy · hecho" : "Hoy toca"}
-      title={today.muscleGroup}
-      subtitle={`${today.exerciseCount} ejercicios · ${today.schemeLabel}${
-        today.cardioMinutes ? ` · ${today.cardioMinutes} min cardio` : ""
-      }${today.trimmedMinutes ? ` · recortada a ${today.trimmedMinutes} min` : ""}${
-        otherSession ? ` · + ${DISCIPLINE_LABELS[otherSession.discipline].toLowerCase()}` : ""
-      }`}
-      onPress={onPress}
-    />
+    <>
+      <HeroCard
+        eyebrow={today.completed ? "Hoy · hecho" : "Hoy toca"}
+        title={today.muscleGroup}
+        subtitle={`${today.exerciseCount} ejercicios · ${today.schemeLabel}${
+          today.cardioMinutes ? ` · ${today.cardioMinutes} min cardio` : ""
+        }${today.trimmedMinutes ? ` · recortada a ${today.trimmedMinutes} min` : ""}`}
+        onPress={onPress}
+      />
+
+      {otherSession && (
+        <HeroCard
+          eyebrow="Hoy también"
+          title={DISCIPLINE_LABELS[otherSession.discipline]}
+          subtitle={
+            otherSession.swim
+              ? `${otherSession.swim.totalMeters} m · ${otherSession.swim.focus} · ${otherSession.minutes} min`
+              : `${otherSession.minutes} min · tú eliges cómo la entrenas`
+          }
+          color={colors.guindaDark}
+          onPress={onPress}
+        />
+      )}
+    </>
   );
 }
 

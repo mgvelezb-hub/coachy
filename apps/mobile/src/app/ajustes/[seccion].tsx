@@ -1139,6 +1139,14 @@ export default function AjustesDetalleScreen() {
             poder verlas.
           </Text>
 
+          {/* Se dice ANTES de crearla, no después de olvidarla: la diferencia
+              entre una decisión informada y una sorpresa. */}
+          <Text style={styles.vaultAviso}>
+            Si la olvidas no hay manera de recuperarla. Tus fotos siguen guardadas en el servidor,
+            pero esta pantalla no las va a poder abrir: habría que poner una clave nueva y perder
+            el acceso a las anteriores.
+          </Text>
+
           <View style={styles.vaultRow}>
             <TextInput
               value={claveNueva}
@@ -1327,6 +1335,15 @@ const makeStyles = (colors: Palette) => StyleSheet.create({
   cierreChipOn: { backgroundColor: colors.guinda, borderColor: colors.guindaLight },
   cierreChipText: { fontFamily: fonts.sansMedium, ...typeScale.bodySm, color: colors.marfil },
   cierreChipTextOn: { color: colors.pergamino },
+  vaultAviso: {
+    fontFamily: fonts.sansMedium,
+    ...typeScale.bodySm,
+    color: colors.champan,
+    backgroundColor: withAlpha(colors.champan, 0.12),
+    borderRadius: radius.md,
+    padding: spacing.md,
+    marginBottom: spacing.md,
+  },
   vaultIntro: {
     fontFamily: fonts.sans,
     ...typeScale.bodySm,

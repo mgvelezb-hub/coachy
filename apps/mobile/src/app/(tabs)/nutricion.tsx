@@ -128,10 +128,6 @@ export default function NutricionScreen() {
         )}
       </ScoreCard>
 
-      <PreguntaAlPlan />
-
-      <EstudiosCard />
-
       <ScoreCard
         icon={Salad}
         tint={colors.paloRosa}
@@ -217,6 +213,11 @@ export default function NutricionScreen() {
           ))
         )}
       </ScoreCard>
+      {/* Abajo lo excepcional: preguntar y cargar estudios se hace de vez en
+          cuando; el menú de la semana se abre a diario. */}
+      <PreguntaAlPlan />
+
+      <EstudiosCard />
     </ScrollView>
   );
 }

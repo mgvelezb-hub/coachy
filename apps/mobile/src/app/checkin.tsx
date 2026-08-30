@@ -16,6 +16,7 @@ import {
   ApiError,
   getMe,
   getActivities,
+  getHistoryMeasurements,
   getTrainingWeek,
   PHOTO_BUCKET,
   PHOTO_VIEWS,
@@ -89,7 +90,43 @@ export default function CheckinScreen() {
    * dejan de ser campos semanales: se abren a mano, o solos cuando ya pasó un
    * mes desde la última vez que se midieron.
    */
+  /**
+   * Brazos y piernas van una vez al mes, y la app sabe cuándo fue la última:
+   * cuando toca, la sección se abre sola y lo dice. Dejar la cadencia solo en
+   * la copia obliga a la persona a llevar la cuenta, que es justo lo que la
+   * app puede hacer por ella.
+   */
   const [mostrarMensuales, setMostrarMensuales] = useState(false);
+  const [ultimaMensual, setUltimaMensual] = useState<string | null>(null);
+
+  useEffect(() => {
+    let vivo = true;
+    getHistoryMeasurements()
+      .then((historial) => {
+        if (!vivo) return;
+        const conMedidas = [...historial.points]
+          .filter((punto) => punto.armLeftCm !== null || punto.legLeftCm !== null)
+          .sort((a, b) => b.date.localeCompare(a.date));
+
+        const ultima = conMedidas[0]?.date ?? null;
+        setUltimaMensual(ultima);
+
+        const dias =
+          ultima === null
+            ? Infinity
+            : Math.round(
+                (Date.parse(`${todayISO()}T12:00:00.000Z`) - Date.parse(`${ultima}T12:00:00.000Z`)) /
+                  86_400_000,
+              );
+        if (dias >= 28) setMostrarMensuales(true);
+      })
+      .catch(() => {
+        // Sin historial se queda cerrado y con su enlace, como antes.
+      });
+    return () => {
+      vivo = false;
+    };
+  }, []);
   const [symptoms, setSymptoms] = useState<Set<Symptom>>(new Set());
   const [comment, setComment] = useState("");
   const [periodStarted, setPeriodStarted] = useState(false);
@@ -347,7 +384,9 @@ export default function CheckinScreen() {
           ) : (
             <Pressable onPress={() => setMostrarMensuales(true)} hitSlop={8}>
               <Text style={styles.mensualesLink}>
-                Agregar brazos y piernas (van una vez al mes) →
+                {ultimaMensual
+                  ? `Agregar brazos y piernas · las últimas fueron el ${ultimaMensual.slice(8)}/${ultimaMensual.slice(5, 7)} →`
+                  : "Agregar brazos y piernas (van una vez al mes) →"}
               </Text>
             </Pressable>
           )}
