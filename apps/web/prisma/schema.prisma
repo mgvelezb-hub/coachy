@@ -194,6 +194,14 @@ model Profile {
   displayName String    @map("display_name")
   sex         Sex
   birthDate   DateTime? @map("birth_date") @db.Date
+  /**
+   * Rango de edad, para quien no quiere dar su fecha exacta: `25_34`.
+   *
+   * El motor necesita una edad para el gasto basal. Sin fecha ni rango usa 30
+   * años, que es una suposición; con el rango usa su punto medio, que sigue
+   * siendo aproximado pero es lo que la persona sí declaró.
+   */
+  ageRange    String?   @map("age_range")
   heightCm    Decimal   @map("height_cm") @db.Decimal(5, 1)
   weightKg    Decimal?  @map("weight_kg") @db.Decimal(5, 1)
   leanMassKg  Decimal?  @map("lean_mass_kg") @db.Decimal(5, 1)

@@ -55,8 +55,34 @@ function yearsSince(date: Date | null): number | null {
   return Math.floor(ms / (365.25 * 24 * 60 * 60 * 1000));
 }
 
-/** Edad por defecto cuando el onboarding no pidió fecha de nacimiento. */
+/** Edad por defecto cuando no hay ni fecha de nacimiento ni rango. */
 const DEFAULT_AGE_YEARS = 30;
+
+/**
+ * Punto medio de cada rango de edad.
+ *
+ * Es una aproximación, sí — pero es la que la persona declaró, y eso la hace
+ * mejor que suponer 30 años para todo el mundo. El gasto basal de Mifflin-St
+ * Jeor se mueve poco dentro de un rango de diez años; entre 25 y 55 sí se
+ * mueve.
+ */
+const EDAD_POR_RANGO: Record<string, number> = {
+  "18_24": 21,
+  "25_34": 29,
+  "35_44": 39,
+  "45_54": 49,
+  "55_64": 59,
+  "65_MAS": 68,
+};
+
+function edadDeclarada(profile: Profile): number {
+  const exacta = yearsSince(profile.birthDate);
+  if (exacta !== null) return exacta;
+  if (profile.ageRange && EDAD_POR_RANGO[profile.ageRange] !== undefined) {
+    return EDAD_POR_RANGO[profile.ageRange]!;
+  }
+  return DEFAULT_AGE_YEARS;
+}
 
 /** El enum del schema, en el vocabulario del motor. */
 const DIET_STYLE_TO_ENGINE: Record<DietStyle, EngineDietStyle> = {
@@ -85,7 +111,7 @@ export function toEngineProfile(profile: Profile, latestWeightKg?: number | null
     // El motor solo modela `female` y `male` porque Mifflin-St Jeor solo tiene
     // esas dos constantes. `OTHER` toma la estimación más conservadora.
     sex: profile.sex === "MALE" ? "male" : "female",
-    ageYears: yearsSince(profile.birthDate) ?? DEFAULT_AGE_YEARS,
+    ageYears: edadDeclarada(profile),
     heightCm,
     weightKg,
     ...(decimalToNumber(profile.leanMassKg) !== null

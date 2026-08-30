@@ -58,6 +58,8 @@ export type MeResponse = {
     dietStyle?: DietStyle;
     /** Suplementos que tiene. El plan solo sugiere lo declarado. */
     supplements?: string[];
+    /** Rango de edad declarado, si no dio fecha de nacimiento. */
+    ageRange?: string | null;
     /** Momento del día en que entrena. */
     trainingTime?: "MANANA" | "MEDIODIA" | "TARDE" | "NOCHE";
     /** Cómo acomodó su Resumen. El catálogo de paneles vive en la app. */
@@ -730,6 +732,37 @@ export function postComidaLog(input: {
     method: "POST",
     body: input,
   });
+}
+
+/** Lo que devuelve `POST /api/v1/training/replan`. */
+export type ReplanResponse = {
+  asignadas: Array<{
+    weekday: string;
+    discipline: Discipline;
+    minutos: number;
+    esPrimaria: boolean;
+  }>;
+  cargas: Array<{ discipline: Discipline; sessionsPerWeek: number }>;
+  diasActivos: string[];
+  /** Lo que no cupo, dicho con todas sus letras. */
+  avisos: string[];
+  sesionesDePesas: number;
+};
+
+/**
+ * Rearma la semana desde cero con lo que la persona contestó.
+ *
+ * El servidor reparte y guarda; lo ya entrenado no se toca — solo se rehacen
+ * los días de hoy en adelante que no tengan series capturadas.
+ */
+export function postReplan(input: {
+  tiempo: Record<string, number>;
+  primaria: Discipline;
+  sesionesPrimaria: number;
+  secundarias: Array<{ discipline: Discipline; proposito: string; importancia: number }>;
+  ageRange?: string | null;
+}): Promise<ReplanResponse> {
+  return apiFetch<ReplanResponse>("/api/v1/training/replan", { method: "POST", body: input });
 }
 
 export function patchReferencia(referencia: unknown): Promise<{ referencia: unknown }> {

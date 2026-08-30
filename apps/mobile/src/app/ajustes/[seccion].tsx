@@ -1,6 +1,6 @@
 import Constants from "expo-constants";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { Check } from "lucide-react-native";
+import { Check, RotateCcw } from "lucide-react-native";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Alert, Platform, Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -835,6 +835,19 @@ export default function AjustesDetalleScreen() {
             </View>
           )}
 
+          {/* Ajustar de a poco sirve cuando el plan ya es tuyo; cuando cambió
+              tu vida —otro horario, otra disciplina, otro objetivo— lo que hace
+              falta es rearmarlo, no moverle una pieza. */}
+          <Pressable onPress={() => router.push("/replantear")} style={styles.replantear}>
+            <RotateCcw size={18} color={colors.pergamino} strokeWidth={2} />
+            <View style={{ flex: 1 }}>
+              <Text style={styles.replantearTitulo}>Rearmar mi rutina</Text>
+              <Text style={styles.replantearDetalle}>
+                Cuatro preguntas y tu semana queda de nuevo. Lo entrenado no se toca.
+              </Text>
+            </View>
+          </Pressable>
+
           <Text style={styles.vaultIntro}>
             Hoy la app te planea el gimnasio y te registra el resto: qué días y cómo entrenas las
             otras lo eliges tú. La prescripción por disciplina llega una a una, empezando por
@@ -1446,6 +1459,23 @@ const makeStyles = (colors: Palette) => StyleSheet.create({
   textos: { flex: 1, gap: 2 },
   entrenoDato: { fontFamily: fonts.sansSemiBold, color: colors.champan },
   nivelTitulo: { flexDirection: "row", alignItems: "center", gap: spacing.xs },
+  replantear: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.md,
+    marginTop: spacing.lg,
+    backgroundColor: colors.guinda,
+    borderWidth: 1,
+    borderColor: colors.guindaLight,
+    borderRadius: radius.xl,
+    padding: spacing.lg,
+  },
+  replantearTitulo: { fontFamily: fonts.sansSemiBold, ...typeScale.body, color: colors.pergamino },
+  replantearDetalle: {
+    fontFamily: fonts.sans,
+    ...typeScale.bodySm,
+    color: withAlpha(colors.pergamino, 0.85),
+  },
   consecuencia: {
     marginTop: spacing.lg,
     padding: spacing.md,
