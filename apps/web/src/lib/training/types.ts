@@ -134,7 +134,7 @@ export type OtherSessionPlan = {
   weekday: string;
   discipline: Discipline;
   minutes: number;
-  swim: unknown | null;
+  sesion: unknown | null;
   note: string;
   sharesDayWithGym: boolean;
 };
@@ -190,8 +190,10 @@ export type TrainingProfile = {
   primaryDiscipline: Discipline;
   /** Las demás disciplinas activas, con su carga semanal. */
   otherDisciplines: DisciplineLoad[];
-  /** Nivel en el agua; ordena el volumen de la sesión de natación. */
-  swimLevel: SwimLevel;
+  /** Nivel declarado por disciplina. Lo que falte arranca en principiante. */
+  disciplineLevels: Partial<Record<Discipline, SwimLevel>>;
+  /** El objetivo del perfil: modula el volumen de las otras disciplinas. */
+  goal: string;
 };
 
 /** Una serie ya ejecutada, tal como la devuelve el historial. */

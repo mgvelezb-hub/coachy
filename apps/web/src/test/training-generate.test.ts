@@ -36,7 +36,8 @@ function profile(overrides: Partial<TrainingProfile> = {}): TrainingProfile {
     avoidRepeatGroups: [],
     primaryDiscipline: "PESAS",
     otherDisciplines: [],
-    swimLevel: "INTERMEDIO",
+    disciplineLevels: { NATACION: "INTERMEDIO" },
+    goal: "RECOMPOSICION",
     ...overrides,
   };
 }

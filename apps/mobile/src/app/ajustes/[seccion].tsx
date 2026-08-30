@@ -34,7 +34,7 @@ import { ESTILOS_DIETA, PRESUPUESTOS, VENTANAS_AYUNO, avisoDeDieta } from "@/lib
 import {
   DISCIPLINAS,
   GRUPOS,
-  NIVELES_NATACION,
+  NIVELES_POR_DISCIPLINA,
   TIEMPOS_COCINA,
   diasDeGimnasio,
   listaDeAlimentos,
@@ -329,7 +329,7 @@ export default function AjustesDetalleScreen() {
   const [sinRepetir, setSinRepetir] = useState<MuscleGroup[]>([]);
   const [primaria, setPrimaria] = useState<Discipline>("PESAS");
   const [otras, setOtras] = useState<DisciplineLoad[]>([]);
-  const [nivelNatacion, setNivelNatacion] = useState<SwimLevel>("PRINCIPIANTE");
+  const [niveles, setNiveles] = useState<Partial<Record<Discipline, SwimLevel>>>({});
   const [entrenoMsg, setEntrenoMsg] = useState<string | null>(null);
 
   useEffect(() => {
@@ -337,7 +337,10 @@ export default function AjustesDetalleScreen() {
     setSinRepetir(me.profile.avoidRepeatGroups ?? []);
     setPrimaria(me.profile.primaryDiscipline ?? "PESAS");
     setOtras(me.profile.otherDisciplines ?? []);
-    setNivelNatacion(me.profile.swimLevel ?? "PRINCIPIANTE");
+    setNiveles({
+      NATACION: me.profile.swimLevel ?? "PRINCIPIANTE",
+      ...(me.profile.disciplineLevels ?? {}),
+    });
   }, [me]);
 
   const presupuestoSemanal = me?.profile?.trainingDaysPerWeek ?? 0;
@@ -422,15 +425,22 @@ export default function AjustesDetalleScreen() {
     }
   }
 
-  async function guardarNivelNatacion(nivel: SwimLevel) {
-    const anterior = nivelNatacion;
-    setNivelNatacion(nivel);
+  async function guardarNivel(disciplina: Discipline, nivel: SwimLevel) {
+    const anterior = niveles;
+    const siguiente = { ...niveles, [disciplina]: nivel };
+    setNiveles(siguiente);
     setEntrenoMsg(null);
     try {
-      await patchEntrenamiento({ swimLevel: nivel });
-      setEntrenoMsg("Guardado. Entra en tu siguiente sesión de alberca.");
+      // Natación además mantiene `swimLevel`, que existía antes de que el
+      // nivel fuera por disciplina y sigue siendo su respaldo.
+      await patchEntrenamiento({
+        disciplineLevels: siguiente,
+        ...(disciplina === "NATACION" ? { swimLevel: nivel } : {}),
+      });
+      setEntrenoMsg("Guardado. Entra en tu siguiente sesión de esa disciplina.");
+      void cargarSemana();
     } catch (error) {
-      setNivelNatacion(anterior);
+      setNiveles(anterior);
       setEntrenoMsg(error instanceof ApiError ? error.message : "No se pudo guardar tu nivel");
     }
   }
@@ -781,38 +791,50 @@ export default function AjustesDetalleScreen() {
           </Text>
         </Card>
 
-        {otras.some((carga) => carga.discipline === "NATACION") && (
+        {otras.length > 0 && (
         <Card>
-          <SectionLabel>Tu nivel en el agua</SectionLabel>
+          <SectionLabel>Tu nivel en cada disciplina</SectionLabel>
           <Explicacion>
             <TextoExplicativo>
-              Ordena cuánto nadas y cuánto descansas entre series. No se adivina: quien no lo elige
-              arranca en principiante, que es la sesión con más técnica y más descanso.
+              Cada disciplina prescribe distinto según dónde estés: no es lo mismo la primera vez
+              en el agua que nadar 1 500 m. Se declara y no se adivina — el reloj sabe cuánto duró
+              tu sesión, no si sabes caer de una caja.
             </TextoExplicativo>
           </Explicacion>
 
-          <View style={styles.presupuestoLista}>
-            {NIVELES_NATACION.map((nivel) => (
-              <Pressable
-                key={nivel.valor}
-                onPress={() => guardarNivelNatacion(nivel.valor)}
-                style={[
-                  styles.presupuestoFila,
-                  nivelNatacion === nivel.valor && styles.presupuestoFilaOn,
-                ]}
-              >
-                <Text
-                  style={[
-                    styles.presupuestoNombre,
-                    nivelNatacion === nivel.valor && styles.presupuestoNombreOn,
-                  ]}
-                >
-                  {nivel.nombre}
-                </Text>
-                <Text style={styles.presupuestoDetalle}>{nivel.detalle}</Text>
-              </Pressable>
-            ))}
-          </View>
+          {otras.map((carga) => {
+            const opciones = NIVELES_POR_DISCIPLINA[carga.discipline];
+            if (!opciones) return null;
+            const actual = niveles[carga.discipline] ?? "PRINCIPIANTE";
+
+            return (
+              <View key={carga.discipline} style={{ marginTop: spacing.lg }}>
+                <Text style={styles.cierreLabel}>{DISCIPLINE_LABELS[carga.discipline]}</Text>
+                <View style={styles.presupuestoLista}>
+                  {opciones.map((opcion) => (
+                    <Pressable
+                      key={opcion.valor}
+                      onPress={() => guardarNivel(carga.discipline, opcion.valor)}
+                      style={[
+                        styles.presupuestoFila,
+                        actual === opcion.valor && styles.presupuestoFilaOn,
+                      ]}
+                    >
+                      <Text
+                        style={[
+                          styles.presupuestoNombre,
+                          actual === opcion.valor && styles.presupuestoNombreOn,
+                        ]}
+                      >
+                        {opcion.nombre}
+                      </Text>
+                      <Text style={styles.presupuestoDetalle}>{opcion.detalle}</Text>
+                    </Pressable>
+                  ))}
+                </View>
+              </View>
+            );
+          })}
         </Card>
         )}
         </>

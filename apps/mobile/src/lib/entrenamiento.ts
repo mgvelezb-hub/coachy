@@ -112,3 +112,46 @@ export const NIVELES_NATACION: Array<{ valor: SwimLevel; nombre: string; detalle
     detalle: "Más de 1500 m por sesión. Más volumen y menos descanso.",
   },
 ];
+
+/**
+ * Los niveles de cada disciplina, con qué significa cada uno.
+ *
+ * Es el espejo de lo que declara cada prescriptor en el servidor
+ * (`apps/web/src/lib/training/disciplinas/`). Vive aquí para que Ajustes
+ * pueda explicarlos sin pedir una llamada más, y se declara —no se infiere—:
+ * el reloj sabe cuánto duró tu sesión, no si sabes caer de una caja.
+ */
+export const NIVELES_POR_DISCIPLINA: Partial<
+  Record<Discipline, Array<{ valor: SwimLevel; nombre: string; detalle: string }>>
+> = {
+  NATACION: [
+    { valor: "PRINCIPIANTE", nombre: "Principiante", detalle: "Todavía no nadas de corrido. Técnica, tabla y descansos largos." },
+    { valor: "INTERMEDIO", nombre: "Intermedio", detalle: "Nadas 400-800 m sin parar. Series de resistencia y de velocidad." },
+    { valor: "AVANZADO", nombre: "Avanzado", detalle: "Más de 1500 m por sesión. Más volumen y menos descanso." },
+  ],
+  SQUASH: [
+    { valor: "PRINCIPIANTE", nombre: "Principiante", detalle: "Peloteas pero el punto se te va pronto. Desplazamiento y drive." },
+    { valor: "INTERMEDIO", nombre: "Intermedio", detalle: "Juegas partidos completos. Patrones de dos y precisión." },
+    { valor: "AVANZADO", nombre: "Avanzado", detalle: "Compites o juegas liga. Fantasmas y condicionados con presión." },
+  ],
+  BOX: [
+    { valor: "PRINCIPIANTE", nombre: "Principiante", detalle: "Empiezas. Guardia, desplazamiento, jab y directo al saco." },
+    { valor: "INTERMEDIO", nombre: "Intermedio", detalle: "Tienes combinaciones y aguantas asaltos. Sombra y saco técnico." },
+    { valor: "AVANZADO", nombre: "Avanzado", detalle: "Entrenas seguido. Más asaltos y trabajo por intervalos." },
+  ],
+  FUNCIONAL: [
+    { valor: "PRINCIPIANTE", nombre: "Principiante", detalle: "Empiezas. Peso corporal y progresiones asistidas." },
+    { valor: "INTERMEDIO", nombre: "Intermedio", detalle: "Dominas los patrones. Circuitos por tiempo con carga ligera." },
+    { valor: "AVANZADO", nombre: "Avanzado", detalle: "Más rondas y menos descanso, sin subir el peso." },
+  ],
+  CARDIO: [
+    { valor: "PRINCIPIANTE", nombre: "Principiante", detalle: "Todavía no corres 10 min seguidos. Alternas correr y caminar." },
+    { valor: "INTERMEDIO", nombre: "Intermedio", detalle: "Corres 30-40 min seguidos. Rodajes y series." },
+    { valor: "AVANZADO", nombre: "Avanzado", detalle: "Corres varias veces por semana. Más volumen e intervalos." },
+  ],
+  CROSSFIT: [
+    { valor: "PRINCIPIANTE", nombre: "Principiante", detalle: "Primeros meses. Peso corporal, progresiones y nada de olímpicos." },
+    { valor: "INTERMEDIO", nombre: "Intermedio", detalle: "Escalas los WOD. Barra ligera y metcons completos." },
+    { valor: "AVANZADO", nombre: "Avanzado", detalle: "WOD prescrito. Más rondas y más carga." },
+  ],
+};

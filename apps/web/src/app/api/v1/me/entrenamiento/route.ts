@@ -27,6 +27,12 @@ const schema = z
     primaryDiscipline: z.enum(DISCIPLINES).optional(),
     /** Nivel en el agua: ordena volumen y descansos de la sesión de natación. */
     swimLevel: z.enum(SWIM_LEVELS).optional(),
+    /**
+     * Nivel declarado por disciplina. Se manda el mapa entero: es lo que la
+     * pantalla tiene en la mano, y parcharlo llave por llave abriría la puerta
+     * a que dos ediciones seguidas se pisen.
+     */
+    disciplineLevels: z.record(z.enum(DISCIPLINES), z.enum(SWIM_LEVELS)).optional(),
     otherDisciplines: z
       .array(
         z.object({
@@ -69,7 +75,8 @@ export async function PATCH(request: Request): Promise<NextResponse> {
     );
   }
 
-  const { avoidRepeatGroups, primaryDiscipline, otherDisciplines, swimLevel } = parsed.data;
+  const { avoidRepeatGroups, primaryDiscipline, otherDisciplines, swimLevel, disciplineLevels } =
+    parsed.data;
 
   // La primaria no puede estar además en la lista de secundarias: se cobraría
   // dos veces del mismo presupuesto.
@@ -83,12 +90,14 @@ export async function PATCH(request: Request): Promise<NextResponse> {
       ...(primaryDiscipline !== undefined ? { primaryDiscipline } : {}),
       ...(others !== undefined ? { otherDisciplines: others } : {}),
       ...(swimLevel !== undefined ? { swimLevel } : {}),
+      ...(disciplineLevels !== undefined ? { disciplineLevels } : {}),
     },
     select: {
       avoidRepeatGroups: true,
       primaryDiscipline: true,
       otherDisciplines: true,
       swimLevel: true,
+      disciplineLevels: true,
     },
   });
 

@@ -93,8 +93,31 @@ export function toTrainingProfile(profile: Profile): TrainingProfile {
     avoidRepeatGroups: parseMuscleGroups(profile.avoidRepeatGroups),
     primaryDiscipline: profile.primaryDiscipline as Discipline,
     otherDisciplines: parseDisciplineLoads(profile.otherDisciplines),
-    swimLevel: profile.swimLevel as SwimLevel,
+    disciplineLevels: parseNiveles(profile.disciplineLevels, profile.swimLevel as SwimLevel),
+    goal: profile.goal,
   };
+}
+
+/**
+ * Los niveles declarados por disciplina.
+ *
+ * `swimLevel` sigue siendo el respaldo de natación: existía antes de que el
+ * nivel fuera por disciplina, y quien ya lo había elegido no tiene por qué
+ * volver a hacerlo.
+ */
+export function parseNiveles(
+  raw: unknown,
+  swimLevel: SwimLevel,
+): Partial<Record<Discipline, SwimLevel>> {
+  const niveles: Partial<Record<Discipline, SwimLevel>> = { NATACION: swimLevel };
+  if (raw === null || typeof raw !== "object" || Array.isArray(raw)) return niveles;
+
+  for (const [clave, valor] of Object.entries(raw as Record<string, unknown>)) {
+    if (!(DISCIPLINES as readonly string[]).includes(clave)) continue;
+    if (valor !== "PRINCIPIANTE" && valor !== "INTERMEDIO" && valor !== "AVANZADO") continue;
+    niveles[clave as Discipline] = valor;
+  }
+  return niveles;
 }
 
 export async function loadCatalog(): Promise<ExerciseOption[]> {
@@ -248,7 +271,8 @@ export function otherSessionsFor(
     weekStart: monday,
     otherDisciplines: training.otherDisciplines,
     gymByDay,
-    swimLevel: training.swimLevel,
+    niveles: training.disciplineLevels,
+    objetivo: training.goal as never,
     isoWeek: isoWeekNumber(monday),
   }).sessions;
 }

@@ -50,8 +50,10 @@ export type MeResponse = {
     primaryDiscipline?: Discipline;
     /** Las demás disciplinas activas, con su carga semanal. */
     otherDisciplines?: DisciplineLoad[];
-    /** Nivel en el agua; ordena el volumen de la sesión de natación. */
+    /** Nivel en el agua. Respaldo del nivel por disciplina. */
     swimLevel?: SwimLevel;
+    /** Nivel declarado por disciplina: `{ "BOX": "PRINCIPIANTE" }`. */
+    disciplineLevels?: Partial<Record<Discipline, SwimLevel>>;
     /** Estilo de dieta elegido. */
     dietStyle?: DietStyle;
     /** Momento del día en que entrena. */
@@ -390,21 +392,31 @@ export type SessionView = {
   exercises: SessionExerciseView[];
 };
 
-/** Un bloque de la sesión de natación: calentamiento, técnica, principal... */
-export type SwimBlock = {
+/** Un bloque de una sesión de disciplina: calentamiento, técnica, principal... */
+export type BloqueSesion = {
   title: string;
   detail: string;
-  meters: number;
+  /** La carga en la unidad de la disciplina. `null` si ese bloque no se mide. */
+  carga: number | null;
   restSeconds: number | null;
   note: string;
 };
 
-export type SwimPlan = {
-  level: SwimLevel;
+/**
+ * Una sesión prescrita de una disciplina que no es pesas.
+ *
+ * La unidad cambia por disciplina —metros, rondas, asaltos, minutos— porque
+ * traducirlo todo a series y repeticiones fue lo que hizo que el registro de
+ * pesas no supiera guardar una sesión de alberca.
+ */
+export type SesionDisciplina = {
+  discipline: Discipline;
+  nivel: SwimLevel;
   focus: string;
-  totalMeters: number;
+  unidad: string;
+  cargaTotal: number;
   minutes: number;
-  blocks: SwimBlock[];
+  blocks: BloqueSesion[];
   deload: boolean;
   notes: string[];
 };
@@ -418,7 +430,8 @@ export type OtherSessionView = {
   weekday: string;
   discipline: Discipline;
   minutes: number;
-  swim: SwimPlan | null;
+  /** El plan, si esa disciplina ya se prescribe. `null` = solo reserva el día. */
+  sesion: SesionDisciplina | null;
   note: string;
   sharesDayWithGym: boolean;
 };
@@ -653,6 +666,8 @@ export type PreferenciasEntrenamiento = {
   primaryDiscipline?: Discipline;
   otherDisciplines?: DisciplineLoad[];
   swimLevel?: SwimLevel;
+  /** Nivel por disciplina. Se manda entero: el servidor guarda el mapa. */
+  disciplineLevels?: Partial<Record<Discipline, SwimLevel>>;
 };
 
 export type PreferenciasEntrenamientoResponse = {

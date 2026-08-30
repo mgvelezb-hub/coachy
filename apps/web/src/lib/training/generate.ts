@@ -181,7 +181,8 @@ export function generateWeek(
     weekStart,
     otherDisciplines: profile.otherDisciplines,
     gymByDay,
-    swimLevel: profile.swimLevel,
+    niveles: profile.disciplineLevels,
+    objetivo: profile.goal as never,
     isoWeek,
   });
   const crowded = new Set(disciplines.crowdedDates);

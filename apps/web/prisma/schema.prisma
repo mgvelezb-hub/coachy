@@ -266,10 +266,18 @@ model Profile {
   /// generador; las demás se registran y gastan presupuesto, y su prescripción
   /// llega una a una (Fase 7, natación primero).
   primaryDiscipline Discipline @default(PESAS) @map("primary_discipline")
-  /// Nivel en el agua, para prescribir natación (Fase 7). No se infiere de la
-  /// nada: quien no lo declara arranca en `PRINCIPIANTE`, que es la sesión con
-  /// más técnica, más descanso y menos volumen.
+  /// Nivel en el agua. Queda por compatibilidad: el nivel de cada disciplina
+  /// vive en `disciplineLevels`, y natación lee de ahí con esto como respaldo.
   swimLevel         SwimLevel  @default(PRINCIPIANTE) @map("swim_level")
+  /**
+   * Nivel declarado por disciplina:
+   * `{ "NATACION": "INTERMEDIO", "BOX": "PRINCIPIANTE" }`.
+   *
+   * Se declara y no se infiere: el reloj sabe cuánto duró tu sesión, no si
+   * sabes caer de una caja o respirar de tres. Prescribir por encima del nivel
+   * real es como se lesiona la gente.
+   */
+  disciplineLevels  Json?      @map("discipline_levels")
   /// Disciplinas además de la primaria, con cuántas sesiones a la semana:
   /// `[{ "discipline": "NATACION", "sessionsPerWeek": 2 }]`. Gastan del
   /// presupuesto semanal: agregar una no suma días encima, se los quita a las

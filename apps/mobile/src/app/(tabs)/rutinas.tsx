@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 
 import { Chip } from "@/components/Chip";
-import { CalendarRange, PlayCircle, Timer, Waves } from "lucide-react-native";
+import { CalendarRange, PlayCircle, Timer } from "lucide-react-native";
 import { Collapsible } from "@/components/Collapsible";
 import { ScoreCard } from "@/components/ScoreCard";
 import { ExerciseCapture } from "@/components/ExerciseCapture";
@@ -23,6 +23,7 @@ import {
   type WorkoutSetInput,
   trimSession,
 } from "@/lib/api";
+import { iconoDe } from "@/lib/disciplinas";
 import { fonts, radius, spacing, withAlpha, type Palette, type as typeScale } from "@/lib/theme";
 import {
   getCachedWeek,
@@ -680,28 +681,33 @@ function OtraDisciplina({
   const { colors } = useTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
   const nombre = DISCIPLINE_LABELS[session.discipline];
+  const Icono = iconoDe(session.discipline);
 
   return (
     <ScoreCard
-      icon={Waves}
+      icon={Icono}
       tint={colors.paloRosa}
       title={isToday ? `Hoy también: ${nombre.toLowerCase()}` : nombre}
       summary={
-        session.swim
-          ? `${session.swim.totalMeters} m · ${session.swim.focus} · ${session.minutes} min`
+        session.sesion
+          ? `${session.sesion.cargaTotal} ${session.sesion.unidad} · ${session.sesion.focus} · ${session.minutes} min`
           : `${session.minutes} min · la app registra la sesión, no la prescribe`
       }
-      status={session.swim?.deload ? { label: "Descarga", tone: "warn" } : null}
+      status={session.sesion?.deload ? { label: "Descarga", tone: "warn" } : null}
     >
       <Text style={styles.swimNote}>{session.note}</Text>
 
-      {session.swim ? (
+      {session.sesion ? (
         <View style={styles.swimBlocks}>
-          {session.swim.blocks.map((block) => (
+          {session.sesion.blocks.map((block) => (
             <View key={block.title} style={styles.swimBlock}>
               <View style={styles.swimBlockHead}>
                 <Text style={styles.swimBlockTitle}>{block.title}</Text>
-                <Text style={styles.swimBlockMeters}>{block.meters} m</Text>
+                {block.carga !== null && (
+                  <Text style={styles.swimBlockMeters}>
+                    {block.carga} {session.sesion!.unidad}
+                  </Text>
+                )}
               </View>
               <Text style={styles.swimBlockDetail}>
                 {block.detail}
@@ -711,7 +717,7 @@ function OtraDisciplina({
             </View>
           ))}
 
-          {session.swim.notes.map((note) => (
+          {session.sesion.notes.map((note) => (
             <Text key={note} style={styles.swimNote}>
               {note}
             </Text>
@@ -826,8 +832,8 @@ function WeekOverview({
                   <>
                     <Text style={styles.weekMuscle}>{DISCIPLINE_LABELS[dayOther.discipline]}</Text>
                     <Text style={styles.weekMeta}>
-                      {dayOther.swim
-                        ? `${dayOther.swim.totalMeters} m · ${dayOther.swim.focus.toLowerCase()}`
+                      {dayOther.sesion
+                        ? `${dayOther.sesion.cargaTotal} ${dayOther.sesion.unidad} · ${dayOther.sesion.focus.toLowerCase()}`
                         : `${dayOther.minutes} min`}
                     </Text>
                   </>

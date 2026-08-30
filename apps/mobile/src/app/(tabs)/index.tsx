@@ -341,8 +341,8 @@ function TodayTrainingCard({
         eyebrow="Hoy toca"
         title={nombre}
         subtitle={
-          otherSession.swim
-            ? `${otherSession.swim.totalMeters} m · ${otherSession.swim.focus} · ${otherSession.minutes} min`
+          otherSession.sesion
+            ? `${otherSession.sesion.cargaTotal} ${otherSession.sesion.unidad} · ${otherSession.sesion.focus} · ${otherSession.minutes} min`
             : `${otherSession.minutes} min · tú eliges cómo la entrenas`
         }
         onPress={onPress}
@@ -379,8 +379,8 @@ function TodayTrainingCard({
           eyebrow="Hoy también"
           title={DISCIPLINE_LABELS[otherSession.discipline]}
           subtitle={
-            otherSession.swim
-              ? `${otherSession.swim.totalMeters} m · ${otherSession.swim.focus} · ${otherSession.minutes} min`
+            otherSession.sesion
+              ? `${otherSession.sesion.cargaTotal} ${otherSession.sesion.unidad} · ${otherSession.sesion.focus} · ${otherSession.minutes} min`
               : `${otherSession.minutes} min · tú eliges cómo la entrenas`
           }
           color={colors.guindaDark}

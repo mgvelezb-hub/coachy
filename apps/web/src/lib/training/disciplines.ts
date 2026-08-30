@@ -1,5 +1,10 @@
 import { DAY_GROUPS, WEEK_DAYS, type WeekDay } from "@/lib/training/split";
-import { swimSessionFor, type SwimPlan, type SwimLevel } from "@/lib/training/swim";
+import {
+  prescribirSesion,
+  type NivelDisciplina,
+  type ObjetivoAtleta,
+  type SesionDisciplina,
+} from "@/lib/training/disciplinas";
 import type { DayKind, Discipline, DisciplineLoad } from "@/lib/training/types";
 
 /**
@@ -18,9 +23,10 @@ import type { DayKind, Discipline, DisciplineLoad } from "@/lib/training/types";
  *    una sesión secundaria pierde un accesorio.
  *
  * Lo que NO hace: inventar sesiones de disciplinas que no sabemos prescribir.
- * De momento solo la natación trae plan; el resto reserva el día y dice para
- * qué es. Prometer un WOD generado por reglas que nadie validó sería
- * exactamente lo que el motor determinista evita.
+ * Las que tienen prescriptor traen su plan (`lib/training/disciplinas/`); el
+ * resto reserva el día y dice para qué es. Cada disciplina entró con su propia
+ * investigación —niveles, estructura y riesgos—, que es la razón de haberlas
+ * hecho una por una en vez de las siete de golpe.
  */
 
 /** Disciplinas de alto impacto: pisan fuerte y compiten con la pierna. */
@@ -44,8 +50,12 @@ export type OtherSession = {
   weekday: WeekDay;
   discipline: Discipline;
   minutes: number;
-  /** El plan de la sesión, si la disciplina ya tiene generador. */
-  swim: SwimPlan | null;
+  /**
+   * El plan de la sesión, si la disciplina ya tiene prescriptor. `null` en las
+   * que solo reservan el día: decirlo es más honesto que inventar un circuito
+   * que nadie diseñó para esa disciplina.
+   */
+  sesion: SesionDisciplina | null;
   /** Por qué cayó en ese día. La regla se dice, no se adivina. */
   note: string;
   /** Comparte día con una sesión de pesas: ese día de gimnasio se recorta. */
@@ -118,10 +128,13 @@ export function planDisciplines(input: {
   weekStart: Date;
   otherDisciplines: DisciplineLoad[];
   gymByDay: Map<WeekDay, DayKind>;
-  swimLevel: SwimLevel;
+  /** El nivel declarado de cada disciplina. Lo que falte arranca en principiante. */
+  niveles: Partial<Record<Discipline, NivelDisciplina>>;
+  /** El objetivo del perfil: modula el volumen, no la técnica. */
+  objetivo: ObjetivoAtleta;
   isoWeek: number;
 }): DisciplinePlan {
-  const { weekStart, otherDisciplines, gymByDay, swimLevel, isoWeek } = input;
+  const { weekStart, otherDisciplines, gymByDay, niveles, objetivo, isoWeek } = input;
 
   // Las de alto impacto se colocan primero: son las que tienen restricciones
   // duras. Si se colocan al final, se quedan con los días que nadie quiso.
@@ -133,7 +146,7 @@ export function planDisciplines(input: {
 
   const taken = new Set<WeekDay>();
   const sessions: OtherSession[] = [];
-  const swimCount = new Map<Discipline, number>();
+  const cuenta = new Map<Discipline, number>();
 
   for (const discipline of queue) {
     const candidates = WEEK_DAYS.filter((day) => !taken.has(day)).sort(
@@ -147,18 +160,22 @@ export function planDisciplines(input: {
 
     taken.add(weekday);
     const sharesDayWithGym = gymByDay.has(weekday);
-    const ordinal = (swimCount.get(discipline) ?? 0) + 1;
-    swimCount.set(discipline, ordinal);
+    const ordinal = (cuenta.get(discipline) ?? 0) + 1;
+    cuenta.set(discipline, ordinal);
 
     sessions.push({
       date: dateOf(weekStart, weekday),
       weekday,
       discipline,
       minutes: DEFAULT_MINUTES[discipline],
-      swim:
-        discipline === "NATACION"
-          ? swimSessionFor({ level: swimLevel, isoWeek, ordinal, minutes: DEFAULT_MINUTES.NATACION })
-          : null,
+      sesion: prescribirSesion({
+        discipline,
+        nivel: niveles[discipline] ?? "PRINCIPIANTE",
+        isoWeek,
+        ordinal,
+        minutes: DEFAULT_MINUTES[discipline],
+        objetivo,
+      }),
       note: noteFor(discipline, weekday, gymByDay, sharesDayWithGym),
       sharesDayWithGym,
     });
@@ -188,10 +205,13 @@ function noteFor(
   if (discipline === "NATACION" && kindYesterday && isLegDay(kindYesterday)) {
     return "Va después de pierna: bajo impacto y tren superior, ayuda a soltar.";
   }
+  if (discipline === "CROSSFIT") {
+    return "Ocupa el lugar de un día de gimnasio, no se suma: un metcon con sentadilla es un día de pierna con otro nombre.";
+  }
   if (HIGH_IMPACT.includes(discipline)) {
     return "Colocada lejos de la víspera de pierna, que es donde más estorba.";
   }
   return "Cae en un día libre de pesas.";
 }
 
-export type { SwimLevel, SwimPlan };
+export type { NivelDisciplina, SesionDisciplina };

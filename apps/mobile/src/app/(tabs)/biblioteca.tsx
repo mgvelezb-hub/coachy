@@ -19,7 +19,9 @@ import { EmptyState, ErrorState, LoadingState } from "@/components/States";
 import { useTheme } from "@/context/theme";
 import { useScrollTop } from "@/lib/scroll-top";
 import { ApiError, getTrainingWeek, type SessionExerciseView, type WeekView } from "@/lib/api";
-import { TECNICA_NATACION } from "@/lib/natacion";
+import { iconoDe } from "@/lib/disciplinas";
+import { TECNICA_POR_DISCIPLINA } from "@/lib/tecnica";
+import { DISCIPLINE_LABELS, type Discipline } from "@/lib/api";
 import { fonts, radius, spacing, type Palette, type as typeScale } from "@/lib/theme";
 import { getCachedWeek, saveWeek } from "@/lib/training-db";
 import {
@@ -52,21 +54,6 @@ import {
  * resuelven el mismo problema para las series, aquí es el mismo patrón
  * aplicado a los archivos de video.
  */
-
-/**
- * Las disciplinas que ya tienen lugar en la app pero todavía no contenido.
- * `orden` es la fila real de trabajo: natación primero por ser la que menos
- * interfiere con la planeación de fuerza.
- */
-const DISCIPLINAS = [
-  { label: "Natación", icon: Waves, nota: "Técnica, series y progresión por nivel", orden: 1 },
-  { label: "Squash", icon: Target, nota: "Movimiento en cancha y acondicionamiento", orden: 2 },
-  { label: "Box", icon: Hand, nota: "Fundamentos, combinaciones y trabajo de saco", orden: 3 },
-  { label: "Funcional", icon: Layers, nota: "Circuitos de cuerpo completo", orden: 4 },
-  { label: "Running", icon: Footprints, nota: "Rodajes, series y ritmo", orden: 5 },
-  { label: "CrossFit", icon: Flame, nota: "WODs y movimientos olímpicos", orden: 6 },
-  { label: "En casa", icon: Home, nota: "Sin equipo o con lo mínimo", orden: 7 },
-] as const;
 
 const MUSCLE_GROUP_ORDER = ["PIERNA", "HOMBRO", "PECHO", "ESPALDA", "BICEP", "TRICEP", "ABDOMEN"] as const;
 const OTHER_GROUP = "OTROS";
@@ -277,49 +264,57 @@ export default function BibliotecaScreen() {
         )}
       </ScoreCard>
 
-      {/* Natación ya no es una promesa: la sesión está prescrita y pide estos
-          ejercicios por nombre. Aquí están explicados, aunque el video no
-          exista todavía — pedir algo que no se enseña sería peor. */}
+      {/* Cada disciplina con prescripción trae sus fichas de técnica. La sesión
+          las pide por nombre —"patada con tabla", "vuelta a la T", "guardia"—
+          y pedir algo que no se enseña en ningún lado es lo que en pesas sería
+          impensable: ahí cada ejercicio tiene su video. */}
+      {(Object.keys(TECNICA_POR_DISCIPLINA) as Discipline[]).map((disciplina) => {
+        const fichas = TECNICA_POR_DISCIPLINA[disciplina] ?? [];
+        const Icono = iconoDe(disciplina);
+
+        return (
+          <ScoreCard
+            key={disciplina}
+            icon={Icono}
+            tint={colors.paloRosa}
+            title={DISCIPLINE_LABELS[disciplina]}
+            summary={`${fichas.length} ejercicios de técnica · sin video todavía`}
+            status={{ label: "Ya se prescribe", tone: "ok" }}
+          >
+            <Text style={styles.disciplinaIntro}>
+              Estos son los que aparecen en el bloque de técnica de tu sesión. Todavía sin video:
+              lo que hay es cómo se hace, para qué sirve y el error más común.
+            </Text>
+
+            {fichas.map((ficha) => (
+              <Collapsible key={ficha.id} title={ficha.nombre}>
+                <Text style={styles.fichaLinea}>
+                  <Text style={styles.fichaEtiqueta}>Cómo: </Text>
+                  {ficha.como}
+                </Text>
+                <Text style={styles.fichaLinea}>
+                  <Text style={styles.fichaEtiqueta}>Para qué: </Text>
+                  {ficha.para}
+                </Text>
+                <Text style={styles.fichaLinea}>
+                  <Text style={styles.fichaEtiqueta}>Ojo con: </Text>
+                  {ficha.ojo}
+                </Text>
+              </Collapsible>
+            ))}
+          </ScoreCard>
+        );
+      })}
+
+      {/* Lo único que queda sin prescripción: entrenar en casa es un contexto
+          —dónde entrenas—, no una disciplina, y por eso no tiene sesión propia. */}
       <ScoreCard
-        icon={Waves}
+        icon={Home}
         tint={colors.paloRosa}
-        title="Natación"
-        summary={`${TECNICA_NATACION.length} ejercicios de técnica · sin video todavía`}
-        status={{ label: "Ya se prescribe", tone: "ok" }}
-      >
-        <Text style={styles.disciplinaIntro}>
-          Estos son los ejercicios que aparecen en el bloque de técnica de tu sesión. Todavía no
-          hay video: lo que hay es cómo se hace, para qué sirve y el error más común.
-        </Text>
-
-        {TECNICA_NATACION.map((ficha) => (
-          <Collapsible key={ficha.id} title={ficha.nombre}>
-            <Text style={styles.fichaLinea}>
-              <Text style={styles.fichaEtiqueta}>Cómo: </Text>
-              {ficha.como}
-            </Text>
-            <Text style={styles.fichaLinea}>
-              <Text style={styles.fichaEtiqueta}>Para qué: </Text>
-              {ficha.para}
-            </Text>
-            <Text style={styles.fichaLinea}>
-              <Text style={styles.fichaEtiqueta}>Ojo con: </Text>
-              {ficha.ojo}
-            </Text>
-          </Collapsible>
-        ))}
-      </ScoreCard>
-
-      {DISCIPLINAS.filter((disciplina) => disciplina.label !== "Natación").map((disciplina) => (
-        <ScoreCard
-          key={disciplina.label}
-          icon={disciplina.icon}
-          tint={colors.paloRosa}
-          title={disciplina.label}
-          summary={disciplina.nota}
-          status={{ label: "Próximamente", tone: "neutral" }}
-        />
-      ))}
+        title="En casa"
+        summary="Sin equipo o con lo mínimo"
+        status={{ label: "Próximamente", tone: "neutral" }}
+      />
 
     </ScrollView>
   );

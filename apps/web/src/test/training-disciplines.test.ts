@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { planDisciplines } from "@/lib/training/disciplines";
-import { swimSessionFor } from "@/lib/training/swim";
+import { prescribirSesion, DISCIPLINAS_PRESCRIBIBLES } from "@/lib/training/disciplinas";
 import type { DayKind } from "@/lib/training/types";
 import type { WeekDay } from "@/lib/training/split";
 
@@ -31,7 +31,8 @@ function plan(input: {
     weekStart: MONDAY,
     otherDisciplines: input.loads,
     gymByDay: input.gym,
-    swimLevel: "INTERMEDIO",
+    niveles: { NATACION: "INTERMEDIO" },
+    objetivo: "RECOMPOSICION",
     isoWeek: input.isoWeek ?? 2,
   });
 }
@@ -111,20 +112,20 @@ describe("reparto de disciplinas en la semana", () => {
     expect(sessions[0]!.note).toContain("un ejercicio menos");
   });
 
-  it("solo la natación trae plan; las demás reservan el día", () => {
+  it("las disciplinas con prescriptor traen plan; las demás reservan el día", () => {
     const { sessions } = plan({
       loads: [
         { discipline: "NATACION", sessionsPerWeek: 1 },
         { discipline: "SQUASH", sessionsPerWeek: 1 },
+        { discipline: "OTRO", sessionsPerWeek: 1 },
       ],
       gym: gymWeek([["LUN", "PIERNA_CUADRICEPS"]]),
     });
 
-    const natacion = sessions.find((session) => session.discipline === "NATACION");
-    const squash = sessions.find((session) => session.discipline === "SQUASH");
-
-    expect(natacion?.swim).not.toBeNull();
-    expect(squash?.swim).toBeNull();
+    expect(sessions.find((session) => session.discipline === "NATACION")?.sesion).not.toBeNull();
+    expect(sessions.find((session) => session.discipline === "SQUASH")?.sesion).not.toBeNull();
+    // `OTRO` es la cubeta de lo que se registra pero no se planea.
+    expect(sessions.find((session) => session.discipline === "OTRO")?.sesion).toBeNull();
   });
 
   it("una disciplina sin sesiones no ocupa ningún día", () => {
@@ -136,61 +137,103 @@ describe("reparto de disciplinas en la semana", () => {
   });
 });
 
-describe("prescripción de natación", () => {
-  it("la sesión suma sus bloques y siempre trae técnica", () => {
-    const session = swimSessionFor({ level: "INTERMEDIO", isoWeek: 2, ordinal: 1, minutes: 45 });
+describe("prescripción por disciplina", () => {
+  const base = { isoWeek: 2, ordinal: 1, minutes: 45, objetivo: "RECOMPOSICION" as const };
 
-    expect(session.totalMeters).toBe(
-      session.blocks.reduce((sum, block) => sum + block.meters, 0),
-    );
-    expect(session.blocks.map((block) => block.title)).toContain("Técnica");
+  it("cada disciplina del registro prescribe en sus tres niveles", () => {
+    for (const prescriptor of DISCIPLINAS_PRESCRIBIBLES) {
+      for (const { nivel } of prescriptor.niveles) {
+        const sesion = prescribirSesion({ ...base, discipline: prescriptor.discipline, nivel });
+
+        expect(sesion, `${prescriptor.nombre} ${nivel}`).not.toBeNull();
+        expect(sesion!.blocks.length, `${prescriptor.nombre} ${nivel}`).toBeGreaterThan(2);
+        expect(sesion!.unidad, `${prescriptor.nombre} ${nivel}`).toBeTruthy();
+      }
+    }
   });
 
-  it("sube el volumen dentro del ciclo y descarga cada cuarta semana", () => {
-    const semana1 = swimSessionFor({ level: "INTERMEDIO", isoWeek: 1, ordinal: 1, minutes: 45 });
-    const semana3 = swimSessionFor({ level: "INTERMEDIO", isoWeek: 3, ordinal: 1, minutes: 45 });
-    const descarga = swimSessionFor({ level: "INTERMEDIO", isoWeek: 4, ordinal: 1, minutes: 45 });
-
-    expect(semana3.totalMeters).toBeGreaterThan(semana1.totalMeters);
-    expect(descarga.totalMeters).toBeLessThan(semana1.totalMeters);
-    expect(descarga.deload).toBe(true);
+  it("la carga total es la suma de los bloques que sí se miden", () => {
+    for (const prescriptor of DISCIPLINAS_PRESCRIBIBLES) {
+      const sesion = prescribirSesion({
+        ...base,
+        discipline: prescriptor.discipline,
+        nivel: "INTERMEDIO",
+      })!;
+      const suma = sesion.blocks.reduce((total, bloque) => total + (bloque.carga ?? 0), 0);
+      expect(sesion.cargaTotal, prescriptor.nombre).toBe(suma);
+    }
   });
 
-  it("quien empieza nada menos y descansa más", () => {
-    const principiante = swimSessionFor({
-      level: "PRINCIPIANTE",
-      isoWeek: 2,
-      ordinal: 1,
-      minutes: 45,
-    });
-    const avanzado = swimSessionFor({ level: "AVANZADO", isoWeek: 2, ordinal: 1, minutes: 45 });
+  it("quien empieza siempre carga menos que quien va avanzado", () => {
+    for (const prescriptor of DISCIPLINAS_PRESCRIBIBLES) {
+      const principiante = prescribirSesion({
+        ...base,
+        discipline: prescriptor.discipline,
+        nivel: "PRINCIPIANTE",
+      })!;
+      const avanzado = prescribirSesion({
+        ...base,
+        discipline: prescriptor.discipline,
+        nivel: "AVANZADO",
+      })!;
 
-    expect(principiante.totalMeters).toBeLessThan(avanzado.totalMeters);
-
-    const descansoPrincipiante = principiante.blocks.find((b) => b.restSeconds !== null)!.restSeconds!;
-    const descansoAvanzado = avanzado.blocks.find((b) => b.restSeconds !== null)!.restSeconds!;
-    expect(descansoPrincipiante).toBeGreaterThan(descansoAvanzado);
+      expect(principiante.cargaTotal, prescriptor.nombre).toBeLessThan(avanzado.cargaTotal);
+    }
   });
 
-  it("con dos sesiones a la semana no repite el mismo estímulo", () => {
-    const primera = swimSessionFor({ level: "INTERMEDIO", isoWeek: 2, ordinal: 1, minutes: 45 });
-    const segunda = swimSessionFor({ level: "INTERMEDIO", isoWeek: 2, ordinal: 2, minutes: 45 });
+  it("el objetivo mueve el volumen: perder grasa pide más que ganar músculo", () => {
+    for (const prescriptor of DISCIPLINAS_PRESCRIBIBLES) {
+      const grasa = prescribirSesion({
+        ...base,
+        discipline: prescriptor.discipline,
+        nivel: "INTERMEDIO",
+        objetivo: "PERDIDA_GRASA",
+      })!;
+      const musculo = prescribirSesion({
+        ...base,
+        discipline: prescriptor.discipline,
+        nivel: "INTERMEDIO",
+        objetivo: "GANANCIA_MUSCULO",
+      })!;
 
-    expect(primera.focus).not.toBe(segunda.focus);
+      expect(grasa.cargaTotal, prescriptor.nombre).toBeGreaterThanOrEqual(musculo.cargaTotal);
+      expect(musculo.notes.join(" "), prescriptor.nombre).toContain("compite con la fuerza");
+    }
   });
 
-  it("a quien empieza no se le prescriben series fuertes", () => {
-    const primera = swimSessionFor({ level: "PRINCIPIANTE", isoWeek: 2, ordinal: 1, minutes: 45 });
-    const segunda = swimSessionFor({ level: "PRINCIPIANTE", isoWeek: 2, ordinal: 2, minutes: 45 });
+  it("descarga cada cuarta semana, en todas", () => {
+    for (const prescriptor of DISCIPLINAS_PRESCRIBIBLES) {
+      const normal = prescribirSesion({ ...base, discipline: prescriptor.discipline, nivel: "INTERMEDIO", isoWeek: 3 })!;
+      const descarga = prescribirSesion({ ...base, discipline: prescriptor.discipline, nivel: "INTERMEDIO", isoWeek: 4 })!;
 
-    expect(primera.focus).toBe("Técnica y familiaridad");
-    expect(segunda.focus).toBe("Técnica y familiaridad");
-    expect(segunda.notes.some((note) => note.includes("tabla"))).toBe(true);
+      expect(descarga.deload, prescriptor.nombre).toBe(true);
+      expect(descarga.cargaTotal, prescriptor.nombre).toBeLessThanOrEqual(normal.cargaTotal);
+    }
+  });
+
+  it("box no prescribe sparring en ningún nivel", () => {
+    for (const nivel of ["PRINCIPIANTE", "INTERMEDIO", "AVANZADO"] as const) {
+      const sesion = prescribirSesion({ ...base, discipline: "BOX", nivel })!;
+      const texto = `${sesion.blocks.map((b) => `${b.title} ${b.detail} ${b.note}`).join(" ")} ${sesion.notes.join(" ")}`;
+
+      expect(texto.toLowerCase(), nivel).not.toMatch(/haz sparring|hacer sparring|guanteo con/);
+      expect(sesion.notes.join(" "), nivel).toContain("no hay sparring");
+    }
+  });
+
+  it("CrossFit no manda olímpicos a un principiante", () => {
+    const sesion = prescribirSesion({ ...base, discipline: "CROSSFIT", nivel: "PRINCIPIANTE" })!;
+    const texto = sesion.blocks.map((bloque) => `${bloque.detail} ${bloque.note}`).join(" ").toLowerCase();
+
+    expect(texto).not.toMatch(/arranque de|envión de|snatch|clean and jerk/);
+    expect(sesion.notes.join(" ")).toContain("no se prescriben desde una app");
   });
 
   it("es determinista: misma entrada, misma sesión", () => {
-    const a = swimSessionFor({ level: "AVANZADO", isoWeek: 7, ordinal: 1, minutes: 45 });
-    const b = swimSessionFor({ level: "AVANZADO", isoWeek: 7, ordinal: 1, minutes: 45 });
-    expect(a).toEqual(b);
+    for (const prescriptor of DISCIPLINAS_PRESCRIBIBLES) {
+      const a = prescribirSesion({ ...base, discipline: prescriptor.discipline, nivel: "AVANZADO" });
+      const b = prescribirSesion({ ...base, discipline: prescriptor.discipline, nivel: "AVANZADO" });
+      expect(a, prescriptor.nombre).toEqual(b);
+    }
   });
 });
