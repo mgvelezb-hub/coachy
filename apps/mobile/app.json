@@ -64,7 +64,8 @@
         {
           "faceIDPermission": "Holy Gains usa Face ID para abrir tus fotos de progreso, que están guardadas detrás de tu clave."
         }
-      ]
+      ],
+      "./plugins/sin-push"
     ],
     "experiments": {
       "typedRoutes": true,
