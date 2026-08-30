@@ -56,6 +56,8 @@ export type MeResponse = {
     dietStyle?: DietStyle;
     /** Momento del día en que entrena. */
     trainingTime?: "MANANA" | "MEDIODIA" | "TARDE" | "NOCHE";
+    /** Cómo acomodó su Resumen. El catálogo de paneles vive en la app. */
+    summaryLayout?: unknown;
     /** Ventana de alimentación del ayuno, en horas locales. */
     fastingStartHour?: number | null;
     fastingEndHour?: number | null;
@@ -657,6 +659,21 @@ export type PreferenciasEntrenamientoResponse = {
   otherDisciplines: DisciplineLoad[];
   swimLevel: SwimLevel;
 };
+
+/**
+ * `PATCH /api/v1/me/resumen` — el acomodo del tablero.
+ *
+ * Va al servidor y no solo al teléfono para que sobreviva a un cambio de
+ * aparato: rehacer el tablero a mano es justo el trabajo que nadie repite.
+ */
+export function patchResumen(
+  paneles: Array<{ id: string; variante: string; ancho: string }>,
+): Promise<{ paneles: unknown }> {
+  return apiFetch<{ paneles: unknown }>("/api/v1/me/resumen", {
+    method: "PATCH",
+    body: { paneles },
+  });
+}
 
 export function patchEntrenamiento(
   cambios: PreferenciasEntrenamiento,

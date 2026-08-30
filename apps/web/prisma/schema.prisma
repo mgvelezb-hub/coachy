@@ -217,6 +217,18 @@ model Profile {
   /// deje un rol sin con qué comer (ahí manda comer, no el tope).
   maxPrepMin    Int?     @map("max_prep_min")
 
+  /**
+   * Cómo quiere ver su Resumen: qué paneles, en qué orden, con cuánto detalle
+   * y de qué ancho.
+   *
+   * `[{ "id": "cintura", "variante": "normal", "ancho": "medio" }]` — el orden
+   * del arreglo ES el orden en pantalla, y lo que no aparece está oculto. Vive
+   * en el perfil y no solo en el teléfono para que sobreviva a un cambio de
+   * aparato: reconstruir el tablero a mano es justo el trabajo que nadie
+   * repite.
+   */
+  summaryLayout Json? @map("summary_layout")
+
   // -- Estilo de dieta (Fase 8) ---------------------------------------------
   /// Qué método sigue el plan. Se elige explícitamente: una IA que decide sola
   /// tu filosofía nutricional es justo la caja negra que este diseño evita.

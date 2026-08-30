@@ -55,6 +55,9 @@ export async function GET(request: Request): Promise<NextResponse> {
           // A qué hora entrena: la pantalla de dieta lo necesita para avisar
           // cuando la ventana del ayuno deja el entrenamiento fuera.
           trainingTime: profile.trainingTime,
+          // Cómo acomodó su Resumen. El servidor lo guarda tal cual; el
+          // catálogo de paneles vive en la app.
+          summaryLayout: profile.summaryLayout,
           fastingStartHour: profile.fastingStartHour,
           fastingEndHour: profile.fastingEndHour,
         }
