@@ -1,0 +1,7 @@
+{
+  "name": "reloj",
+  "version": "1.0.0",
+  "description": "Puente WatchConnectivity entre la app y el Apple Watch.",
+  "main": "index.ts",
+  "private": true
+}

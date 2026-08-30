@@ -50,7 +50,7 @@ const ENTRADAS: Entrada[] = [
   { seccion: "perfil", icon: User, detalle: "Tus datos y tu fase actual" },
   { seccion: "apariencia", icon: PaletteIcon, detalle: "Claro, oscuro o champán" },
   { seccion: "fotos", icon: Images, detalle: "Tu clave, Face ID y tu bóveda" },
-  { seccion: "reloj", icon: Watch, detalle: "Apple Salud y sincronización", soloIOS: true },
+  { seccion: "reloj", icon: Watch, detalle: "Apple Salud y la app del reloj", soloIOS: true },
   { seccion: "telefono", icon: Smartphone, detalle: "Cola offline, videos y espacio" },
   { seccion: "sesion", icon: LogOut, detalle: "Cerrar sesión" },
 ];

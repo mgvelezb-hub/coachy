@@ -1,0 +1,102 @@
+import Foundation
+import WatchConnectivity
+
+/**
+ El lado del teléfono de la conversación con el reloj.
+
+ Vive fuera del módulo de Expo por una razón concreta: `WCSession` tiene un
+ solo delegado por proceso y iOS puede despertar la app en segundo plano para
+ entregar lo que el reloj mandó, con el motor de JavaScript todavía apagado. Si
+ el delegado fuera el módulo, ese mensaje se perdería. Aquí es un singleton que
+ existe desde que arranca el proceso y **guarda en disco** lo que llega; la
+ pantalla lo recoge cuando despierta.
+
+ Dos canales, cada uno para lo suyo:
+
+ - **`updateApplicationContext`** para mandar la sesión al reloj. Solo importa
+   el estado más reciente; si se pierden tres actualizaciones intermedias
+   porque el reloj estaba fuera de rango, da igual — la que llega es la buena.
+ - **`transferUserInfo`** para recibir las series cerradas. Aquí sí importa
+   cada una: una serie cerrada que se pierde es trabajo que el usuario hizo y
+   la app no registró. Esta cola iOS la garantiza y la reintenta sola.
+ */
+final class Puente: NSObject {
+  static let compartido = Puente()
+
+  /// Se avisa cuando llegó algo nuevo. No lleva los datos: quien escuche debe
+  /// llamar a `drenar()`, para que haya una sola fuente de verdad y nada se
+  /// entregue dos veces.
+  var alLlegarSerie: (() -> Void)?
+
+  private let llaveBuzon = "reloj.seriesCerradas"
+
+  func activar() {
+    guard WCSession.isSupported() else { return }
+    let sesion = WCSession.default
+    sesion.delegate = self
+    sesion.activate()
+  }
+
+  func estado() -> [String: Any] {
+    guard WCSession.isSupported() else {
+      return ["soportado": false, "emparejado": false, "appInstalada": false, "alcanzable": false]
+    }
+    let sesion = WCSession.default
+    return [
+      "soportado": true,
+      "emparejado": sesion.isPaired,
+      "appInstalada": sesion.isWatchAppInstalled,
+      "alcanzable": sesion.isReachable,
+    ]
+  }
+
+  /// Manda el estado de la sesión al reloj. `false` si no hay a quién mandarle.
+  @discardableResult
+  func enviarSesion(_ json: String) -> Bool {
+    guard WCSession.isSupported() else { return false }
+    let sesion = WCSession.default
+    guard sesion.activationState == .activated, sesion.isPaired, sesion.isWatchAppInstalled else {
+      return false
+    }
+    do {
+      try sesion.updateApplicationContext(["sesion": json])
+      return true
+    } catch {
+      return false
+    }
+  }
+
+  /// Devuelve lo que el reloj mandó y vacía el buzón.
+  func drenar() -> [String] {
+    let buzon = UserDefaults.standard.stringArray(forKey: llaveBuzon) ?? []
+    if !buzon.isEmpty {
+      UserDefaults.standard.removeObject(forKey: llaveBuzon)
+    }
+    return buzon
+  }
+
+  private func guardar(_ json: String) {
+    var buzon = UserDefaults.standard.stringArray(forKey: llaveBuzon) ?? []
+    buzon.append(json)
+    UserDefaults.standard.set(buzon, forKey: llaveBuzon)
+    DispatchQueue.main.async { [weak self] in self?.alLlegarSerie?() }
+  }
+}
+
+extension Puente: WCSessionDelegate {
+  func session(_ session: WCSession, activationDidCompleteWith state: WCSessionActivationState, error: Error?) {}
+
+  // Las dos de abajo son obligatorias en iOS aunque no haya varios relojes:
+  // sin ellas no compila. Al desactivarse hay que reactivar para seguir
+  // hablando con el reloj que quedó emparejado.
+  func sessionDidBecomeInactive(_ session: WCSession) {}
+
+  func sessionDidDeactivate(_ session: WCSession) {
+    WCSession.default.activate()
+  }
+
+  func session(_ session: WCSession, didReceiveUserInfo userInfo: [String: Any] = [:]) {
+    guard let json = userInfo["serieCerrada"] as? String else { return }
+    guardar(json)
+  }
+}

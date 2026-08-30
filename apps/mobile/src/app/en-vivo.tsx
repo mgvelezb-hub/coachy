@@ -1,14 +1,25 @@
 import * as Haptics from "expo-haptics";
 import { useKeepAwake } from "expo-keep-awake";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { Check, ChevronLeft, Minus, Plus, SkipForward, Timer } from "lucide-react-native";
+import { Check, ChevronLeft, Minus, Plus, SkipForward, Timer, Watch } from "lucide-react-native";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { AppState, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import { ErrorState, LoadingState } from "@/components/States";
 import { useTheme } from "@/context/theme";
 import { type SessionSyncInput, type SessionView, type WeekView } from "@/lib/api";
+import {
+  alCerrarSerieEnElReloj,
+  drenarSeriesCerradas,
+  enviarSesionAlReloj,
+  estadoDelReloj,
+} from "@/lib/reloj-nativo";
+import {
+  aplicarDelReloj,
+  paraElReloj,
+  type SerieCerradaEnReloj,
+} from "@/lib/reloj-sesion";
 import {
   ajustarDescanso,
   cerrarSerie,
@@ -44,12 +55,15 @@ import { refreshPendingCount, syncAndNotify } from "@/lib/training-sync";
  * pasan dos minutos, y desbloquear con las manos llenas de magnesio es
  * exactamente el tipo de fricción que hace que la gente deje de registrar.
  *
- * **Con reloj**: hoy el conteo de repeticiones sigue siendo tuyo. Contar reps
- * por movimiento necesita una app en la muñeca —código nativo de watchOS, que
- * Expo no compila— y un algoritmo validado contra sesiones reales; prometerlo
- * sin eso daría un contador que cuenta mal, que es peor que no tenerlo. Lo que
- * sí entra solo desde el reloj es la sesión completa (duración y frecuencia
- * cardiaca) por Apple Salud.
+ * **Con Apple Watch**: la misma sesión se ve en la muñeca y la serie se puede
+ * cerrar desde ahí, sin sacar el teléfono. Lo que el reloj cierra llega por
+ * `WatchConnectivity` y entra aquí; lo que ya estaba cerrado en el teléfono no
+ * se pisa nunca, porque el peso solo se teclea de este lado.
+ *
+ * Lo que el reloj **todavía no** hace es contar las repeticiones solo. Graba el
+ * movimiento de cada serie y lo manda con ella, que es el dato con el que ese
+ * conteo se va a poder calibrar; escribirlo antes daría umbrales inventados y
+ * un contador que cuenta mal, que es peor que no tenerlo.
  */
 
 /** Cada cuánto baja el descanso. Un segundo, como cualquier cronómetro. */
@@ -88,6 +102,23 @@ export default function EnVivoScreen() {
   // El intervalo se guarda en ref para poder apagarlo desde varios lugares sin
   // que el efecto se vuelva a montar en cada tick.
   const intervalo = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  // Hay un Apple Watch con la app puesta. Se resuelve una vez: emparejar un
+  // reloj a media sesión no es un caso que valga la pena vigilar.
+  const [conReloj] = useState(() => {
+    const reloj = estadoDelReloj();
+    return reloj.soportado && reloj.emparejado && reloj.appInstalada;
+  });
+
+  // Lo que llega del reloj puede llegar con la pantalla en segundo plano, o
+  // entre renders. Estas referencias son para leer el estado de ahora sin
+  // volver a montar la suscripción cada vez que cambia algo.
+  const estadoRef = useRef<EstadoSesion | null>(null);
+  const draftRef = useRef<SessionSyncInput | null>(null);
+  const sesionRef = useRef<SessionView | null>(null);
+  estadoRef.current = estado;
+  draftRef.current = draft;
+  sesionRef.current = sesion;
 
   const cargar = useCallback(async () => {
     try {
@@ -189,6 +220,88 @@ export default function EnVivoScreen() {
     void syncAndNotify();
   }, []);
 
+  /**
+   * Manda a la muñeca el estado de la sesión.
+   *
+   * Depende de `estado.ejercicios` y no de `estado`: durante el descanso el
+   * estado cambia cada segundo, y mandar el espejo entero una vez por segundo
+   * sería gastar batería del reloj para no decirle nada nuevo. La lista de
+   * ejercicios solo cambia cuando una serie se cierra, que es justo cuando el
+   * reloj necesita enterarse.
+   */
+  useEffect(() => {
+    if (!conReloj || !sesion || !estado) return;
+    enviarSesionAlReloj(paraElReloj(sesion.workoutId, sesion.muscleGroup, estado));
+  }, [conReloj, sesion?.workoutId, estado?.ejercicios]);
+
+  /**
+   * Recoge las series que se cerraron desde la muñeca.
+   *
+   * El teléfono manda sobre el reloj en los conflictos —eso lo resuelve
+   * `aplicarDelReloj`— y aquí solo se escribe lo que de verdad se aplicó: meter
+   * en el borrador una serie que la pantalla descartó dejaría la base local
+   * diciendo algo distinto de lo que se ve.
+   */
+  const recogerDelReloj = useCallback(async () => {
+    const actual = estadoRef.current;
+    const borrador = draftRef.current;
+    const abierta = sesionRef.current;
+    if (!actual || !borrador || !abierta) return;
+
+    const cerradas = drenarSeriesCerradas<SerieCerradaEnReloj>();
+    if (cerradas.length === 0) return;
+
+    const { estado: siguiente, aplicadas } = aplicarDelReloj(actual, cerradas, abierta.workoutId);
+    if (aplicadas.length === 0) return;
+
+    setEstado(siguiente);
+    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+
+    const nuevos = aplicadas.map((cerrada) => {
+      const ejercicio = siguiente.ejercicios[cerrada.ejercicioIndice]!;
+      const serie = ejercicio.series[cerrada.serieIndice]!;
+      return {
+        clientId: clientIdFor(abierta.workoutId, cerrada.ejercicioIndice, cerrada.serieIndice),
+        exerciseId: abierta.exercises[cerrada.ejercicioIndice]?.exerciseId ?? null,
+        exerciseName: ejercicio.nombre,
+        setIndex: cerrada.serieIndice,
+        targetReps: serie.objetivo,
+        reps: cerrada.reps,
+        weightKg: serie.pesoKg,
+        rpe: null,
+        warmup: serie.calentamiento,
+        performedAt: cerrada.cerradaEn,
+      };
+    });
+
+    const escritos = new Set(nuevos.map((set) => set.clientId));
+    await persistir({
+      ...borrador,
+      sets: [...borrador.sets.filter((set) => !escritos.has(set.clientId)), ...nuevos],
+    });
+  }, [persistir]);
+
+  /**
+   * Cuándo se recoge: al abrir, cuando el reloj avisa, y al volver del segundo
+   * plano. Lo último importa porque iOS entrega lo que el reloj mandó aunque la
+   * app esté dormida, y ese aviso puede llegar sin nadie escuchando.
+   */
+  useEffect(() => {
+    if (!conReloj) return;
+
+    void recogerDelReloj();
+
+    const suscripcion = alCerrarSerieEnElReloj(() => void recogerDelReloj());
+    const appState = AppState.addEventListener("change", (siguiente) => {
+      if (siguiente === "active") void recogerDelReloj();
+    });
+
+    return () => {
+      suscripcion?.remove();
+      appState.remove();
+    };
+  }, [conReloj, recogerDelReloj]);
+
   function marcarSerie() {
     if (!estado || !draft || !sesion || estado.terminada) return;
 
@@ -247,9 +360,17 @@ export default function EnVivoScreen() {
           <ChevronLeft size={22} color={colors.paloRosa} strokeWidth={2} />
           <Text style={styles.salirTexto}>Salir</Text>
         </Pressable>
-        <Text style={styles.progresoTexto}>
-          {avance.hechas} de {avance.total} series · {volumenKg(estado)} kg
-        </Text>
+        <View style={styles.barraDerecha}>
+          {conReloj ? (
+            <View style={styles.relojChip}>
+              <Watch size={13} color={colors.champan} strokeWidth={2} />
+              <Text style={styles.relojChipTexto}>Reloj</Text>
+            </View>
+          ) : null}
+          <Text style={styles.progresoTexto}>
+            {avance.hechas} de {avance.total} series · {volumenKg(estado)} kg
+          </Text>
+        </View>
       </View>
 
       <View style={styles.barraProgreso}>
@@ -355,9 +476,9 @@ export default function EnVivoScreen() {
           </View>
 
           <Text style={styles.nota}>
-            Las repeticiones las cuentas tú. Contarlas desde el reloj necesita una app en la
-            muñeca y un algoritmo probado con sesiones reales: cuando exista, este mismo botón se
-            va a marcar solo.
+            {conReloj
+              ? "Esta misma serie está en tu reloj y la puedes cerrar desde ahí. Las repeticiones todavía las cuentas tú: el reloj está grabando el movimiento de cada serie para poder contarlas solo más adelante."
+              : "Las repeticiones las cuentas tú. Con un Apple Watch con Holy Gains puesto, la serie se cierra desde la muñeca sin sacar el teléfono."}
           </Text>
         </ScrollView>
       )}
@@ -408,6 +529,17 @@ const makeStyles = (colors: Palette) =>
     salir: { flexDirection: "row", alignItems: "center", gap: 2 },
     salirTexto: { fontFamily: fonts.sansMedium, ...typeScale.body, color: colors.paloRosa },
     progresoTexto: { fontFamily: fonts.sansMedium, ...typeScale.bodySm, color: colors.paloRosa },
+    barraDerecha: { flexDirection: "row", alignItems: "center", gap: spacing.sm },
+    relojChip: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 4,
+      paddingHorizontal: spacing.sm,
+      paddingVertical: 3,
+      borderRadius: radius.full,
+      backgroundColor: withAlpha(colors.champan, 0.14),
+    },
+    relojChipTexto: { fontFamily: fonts.sansMedium, ...typeScale.label, color: colors.champan },
     barraProgreso: {
       height: 4,
       backgroundColor: withAlpha(colors.paloRosa, 0.15),

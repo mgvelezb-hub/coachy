@@ -31,6 +31,7 @@ import {
   type WeekView,
 } from "@/lib/api";
 import { ESTILOS_DIETA, PRESUPUESTOS, VENTANAS_AYUNO, avisoDeDieta } from "@/lib/nutricion";
+import { estadoDelReloj } from "@/lib/reloj-nativo";
 import {
   DISCIPLINAS,
   GRUPOS,
@@ -134,6 +135,10 @@ export default function AjustesDetalleScreen() {
 
   const [me, setMe] = useState<MeResponse | null>(null);
   const [meError, setMeError] = useState<string | null>(null);
+
+  // Emparejar un reloj o instalarle la app son cosas que se hacen fuera de
+  // aquí; se lee una vez al abrir Ajustes y no se vigila.
+  const [reloj] = useState(estadoDelReloj);
 
   const [pendingCount, setPendingCount] = useState(0);
   const [syncing, setSyncing] = useState(false);
@@ -1178,6 +1183,42 @@ export default function AjustesDetalleScreen() {
               </View>
             )}
             {healthMessage && <Text style={styles.syncMessage}>{healthMessage}</Text>}
+          </Card>
+        )}
+
+        {/* La app de la muñeca es lo que hace que una sesión no se registre a
+            medias: entre serie y serie, sacar el teléfono es la fricción que
+            hace que la gente deje de anotar. Aquí se dice qué hace hoy y qué
+            todavía no, porque prometer conteo automático antes de tenerlo es
+            la forma más rápida de que alguien deje de confiar en el número. */}
+        {activa === "reloj" && Platform.OS === "ios" && reloj.soportado && (
+          <Card>
+            <SectionLabel>Holy Gains en tu muñeca</SectionLabel>
+
+            <InfoRow
+              label="Apple Watch emparejado"
+              value={reloj.emparejado ? "Sí" : "No"}
+              styles={styles}
+            />
+            <InfoRow
+              label="App instalada en el reloj"
+              value={reloj.appInstalada ? "Sí" : "No"}
+              styles={styles}
+            />
+
+            <Text style={styles.profileNote}>
+              {reloj.appInstalada
+                ? "Durante una sesión en vivo, la serie que te toca aparece en el reloj y la puedes cerrar desde ahí sin sacar el teléfono. Si el teléfono está lejos, lo que cierres se guarda y se manda cuando vuelva a estar cerca."
+                : reloj.emparejado
+                  ? "Tu reloj está emparejado pero todavía no tiene la app. Instálala desde la app de Apple Watch en tu teléfono, en Apps disponibles."
+                  : "Con un Apple Watch emparejado, la serie que te toca se ve en la muñeca y se cierra desde ahí."}
+            </Text>
+
+            <Text style={styles.profileNote}>
+              Las repeticiones todavía las cuentas tú. El reloj graba el movimiento de cada serie
+              para poder contarlas solo más adelante; hasta que ese conteo esté probado contra
+              sesiones reales, el número que se guarda es el que tú pones.
+            </Text>
           </Card>
         )}
 
