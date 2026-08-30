@@ -6,6 +6,7 @@ import { Alert, Platform, Pressable, ScrollView, StyleSheet, Switch, Text, TextI
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import { Card } from "@/components/Card";
+import { Explicacion, TextoExplicativo } from "@/components/Explicacion";
 import { ErrorState, LoadingState } from "@/components/States";
 import { PrimaryButton } from "@/components/PrimaryButton";
 import { SectionLabel } from "@/components/SectionLabel";
@@ -15,16 +16,19 @@ import {
   ApiError,
   getActivities,
   getMe,
+  getTrainingWeek,
   patchCheckinSchedule,
   patchEntrenamiento,
   patchNutricion,
   patchPresupuesto,
+  DISCIPLINE_LABELS,
   type Discipline,
   type DisciplineLoad,
   type MeResponse,
   type DietStyle,
   type MuscleGroup,
   type SwimLevel,
+  type WeekView,
 } from "@/lib/api";
 import { ESTILOS_DIETA, PRESUPUESTOS, VENTANAS_AYUNO, avisoDeDieta } from "@/lib/nutricion";
 import {
@@ -46,6 +50,7 @@ import {
 } from "@/lib/health";
 import {
   fonts,
+  withAlpha,
   paletteChampan,
   paletteDark,
   paletteLight,
@@ -338,6 +343,42 @@ export default function AjustesDetalleScreen() {
   const presupuestoSemanal = me?.profile?.trainingDaysPerWeek ?? 0;
   const diasGym = diasDeGimnasio(presupuestoSemanal, otras, primaria);
 
+  /**
+   * La semana que de verdad quedó después de guardar.
+   *
+   * Un ajuste que dice "guardado" y no enseña qué cambió pide un acto de fe.
+   * Esto no simula el efecto: vuelve a pedir la semana al servidor y pinta lo
+   * que el generador armó, que es la única versión que importa.
+   */
+  const [semana, setSemana] = useState<WeekView | null>(null);
+
+  const cargarSemana = useCallback(async () => {
+    if (activa !== "entrenamiento") return;
+    try {
+      setSemana(await getTrainingWeek());
+    } catch {
+      // Sin semana no hay línea de consecuencia, y no pasa nada más: los
+      // ajustes se guardaron igual.
+    }
+  }, [activa]);
+
+  useEffect(() => {
+    void cargarSemana();
+  }, [cargarSemana]);
+
+  const consecuencia = useMemo(() => {
+    if (!semana) return null;
+    const pesas = semana.sessions.map((sesion) => sesion.muscleGroup);
+    const otrasSesiones = semana.otherSessions ?? [];
+    const partes = [
+      `${pesas.length} ${pesas.length === 1 ? "día" : "días"} de gimnasio`,
+      ...(otrasSesiones.length > 0
+        ? [`${otrasSesiones.length} de ${DISCIPLINE_LABELS[otrasSesiones[0]!.discipline].toLowerCase()}`]
+        : []),
+    ];
+    return { titular: `Tu semana: ${partes.join(" · ")}`, dias: pesas };
+  }, [semana]);
+
   async function guardarSinRepetir(grupo: MuscleGroup) {
     const siguiente = sinRepetir.includes(grupo)
       ? sinRepetir.filter((valor) => valor !== grupo)
@@ -347,6 +388,7 @@ export default function AjustesDetalleScreen() {
     setEntrenoMsg(null);
     try {
       await patchEntrenamiento({ avoidRepeatGroups: siguiente });
+      void cargarSemana();
       setEntrenoMsg(
         siguiente.length === 0
           ? "Sin restricciones: la semana vuelve al split completo."
@@ -369,6 +411,7 @@ export default function AjustesDetalleScreen() {
     setEntrenoMsg(null);
     try {
       await patchEntrenamiento({ otherDisciplines: siguiente });
+      void cargarSemana();
       const restantes = diasDeGimnasio(presupuestoSemanal, siguiente, primaria);
       setEntrenoMsg(
         `Guardado: te quedan ${restantes} ${restantes === 1 ? "día" : "días"} de gimnasio a la semana.`,
@@ -584,11 +627,13 @@ export default function AjustesDetalleScreen() {
         {activa === "checkin" && (
         <Card>
           <SectionLabel>Cuándo cierras tu semana</SectionLabel>
-          <Text style={styles.vaultIntro}>
-            El día que elijas es el que la app espera tu check-in, y a esa hora te manda un
-            recordatorio que abre el formulario. El aviso lo programa tu teléfono: funciona sin
-            señal y sin servidor.
-          </Text>
+          <Explicacion>
+            <TextoExplicativo>
+              El día que elijas es el que la app espera tu check-in, y a esa hora te manda un
+              recordatorio que abre el formulario. El aviso lo programa tu teléfono: funciona sin
+              señal y sin servidor.
+            </TextoExplicativo>
+          </Explicacion>
 
           <Text style={styles.cierreLabel}>Día</Text>
           <View style={styles.cierreRow}>
@@ -638,10 +683,12 @@ export default function AjustesDetalleScreen() {
         <>
         <Card>
           <SectionLabel>Grupos que no quieres repetir</SectionLabel>
-          <Text style={styles.vaultIntro}>
-            El grupo que marques se entrena una vez a la semana. Los días que lo repetían no
-            desaparecen: pasan a trabajar otra cosa, así que sigues entrenando los mismos días.
-          </Text>
+          <Explicacion>
+            <TextoExplicativo>
+              El grupo que marques se entrena una vez a la semana. Los días que lo repetían no
+              desaparecen: pasan a trabajar otra cosa, así que sigues entrenando los mismos días.
+            </TextoExplicativo>
+          </Explicacion>
 
           <View style={styles.cierreRow}>
             {GRUPOS.map((grupo) => {
@@ -659,6 +706,13 @@ export default function AjustesDetalleScreen() {
               );
             })}
           </View>
+
+          {consecuencia && (
+            <View style={styles.consecuencia}>
+              <Text style={styles.consecuenciaTitulo}>{consecuencia.titular}</Text>
+              <Text style={styles.consecuenciaDetalle}>{consecuencia.dias.join(" · ")}</Text>
+            </View>
+          )}
         </Card>
 
         <Card>
@@ -713,6 +767,13 @@ export default function AjustesDetalleScreen() {
 
           {entrenoMsg && <Text style={styles.vaultMsg}>{entrenoMsg}</Text>}
 
+          {consecuencia && (
+            <View style={styles.consecuencia}>
+              <Text style={styles.consecuenciaTitulo}>{consecuencia.titular}</Text>
+              <Text style={styles.consecuenciaDetalle}>{consecuencia.dias.join(" · ")}</Text>
+            </View>
+          )}
+
           <Text style={styles.vaultIntro}>
             Hoy la app te planea el gimnasio y te registra el resto: qué días y cómo entrenas las
             otras lo eliges tú. La prescripción por disciplina llega una a una, empezando por
@@ -723,10 +784,12 @@ export default function AjustesDetalleScreen() {
         {otras.some((carga) => carga.discipline === "NATACION") && (
         <Card>
           <SectionLabel>Tu nivel en el agua</SectionLabel>
-          <Text style={styles.vaultIntro}>
-            Ordena cuánto nadas y cuánto descansas entre series. No se adivina: quien no lo elige
-            arranca en principiante, que es la sesión con más técnica y más descanso.
-          </Text>
+          <Explicacion>
+            <TextoExplicativo>
+              Ordena cuánto nadas y cuánto descansas entre series. No se adivina: quien no lo elige
+              arranca en principiante, que es la sesión con más técnica y más descanso.
+            </TextoExplicativo>
+          </Explicacion>
 
           <View style={styles.presupuestoLista}>
             {NIVELES_NATACION.map((nivel) => (
@@ -759,10 +822,12 @@ export default function AjustesDetalleScreen() {
         <>
         <Card>
           <SectionLabel>Tu tipo de dieta</SectionLabel>
-          <Text style={styles.vaultIntro}>
-            Cada estilo cambia una cosa y nada más. Lo eliges tú: la app no decide sola qué
-            filosofía sigues, y te dice qué implica cada una antes de cambiar.
-          </Text>
+          <Explicacion>
+            <TextoExplicativo>
+              Cada estilo cambia una cosa y nada más. Lo eliges tú: la app no decide sola qué
+              filosofía sigues, y te dice qué implica cada una antes de cambiar.
+            </TextoExplicativo>
+          </Explicacion>
 
           <View style={styles.presupuestoLista}>
             {ESTILOS_DIETA.map((estilo) => (
@@ -821,11 +886,13 @@ export default function AjustesDetalleScreen() {
 
         <Card>
           <SectionLabel>Presupuesto de despensa</SectionLabel>
-          <Text style={styles.vaultIntro}>
-            Acota con qué alimentos se arma tu menú. Los tres niveles cubren proteína,
-            carbohidrato, grasa y vegetales: ninguno te deja sin con qué comer, cambian la variedad
-            y el precio.
-          </Text>
+          <Explicacion>
+            <TextoExplicativo>
+              Acota con qué alimentos se arma tu menú. Los tres niveles cubren proteína,
+              carbohidrato, grasa y vegetales: ninguno te deja sin con qué comer, cambian la
+              variedad y el precio.
+            </TextoExplicativo>
+          </Explicacion>
 
           <View style={styles.presupuestoLista}>
             {PRESUPUESTOS.map((opcion) => (
@@ -860,10 +927,13 @@ export default function AjustesDetalleScreen() {
 
         <Card>
           <SectionLabel>Cuánto quieres cocinar</SectionLabel>
-          <Text style={styles.vaultIntro}>
-            El tope descarta del catálogo lo que tarde más que eso. Es una preferencia, no una
-            regla: si el tope dejara una comida sin proteína, manda comer.
-          </Text>
+          <Explicacion>
+            <TextoExplicativo>
+              El tope descarta ingredientes que tarden más que eso, no platillos completos: el
+              catálogo son alimentos, no recetas. Y es una preferencia, no una regla — si el tope
+              dejara una comida sin proteína, manda comer.
+            </TextoExplicativo>
+          </Explicacion>
 
           <View style={styles.cierreRow}>
             {TIEMPOS_COCINA.map((opcion) => {
@@ -885,11 +955,13 @@ export default function AjustesDetalleScreen() {
 
         <Card>
           <SectionLabel>Lo que sí y lo que no</SectionLabel>
-          <Text style={styles.vaultIntro}>
-            Separa con comas. Lo que te gusta aparece más seguido; lo que no comes sale del menú y
-            de la lista de súper. Las alergias no se editan aquí: esas las lleva tu perfil y nunca
-            entran, ni por equivalencia.
-          </Text>
+          <Explicacion>
+            <TextoExplicativo>
+              Separa con comas. Lo que te gusta aparece más seguido; lo que no comes sale del menú
+              y de la lista de súper. Las alergias no se editan aquí: esas las lleva tu perfil y
+              nunca entran, ni por equivalencia.
+            </TextoExplicativo>
+          </Explicacion>
 
           <Text style={styles.cierreLabel}>Lo que sí te gusta</Text>
           <TextInput
@@ -1185,6 +1257,15 @@ const makeStyles = (colors: Palette) => StyleSheet.create({
   presupuestoLista: { gap: spacing.sm, marginTop: spacing.md },
   textos: { flex: 1, gap: 2 },
   entrenoDato: { fontFamily: fonts.sansSemiBold, color: colors.champan },
+  consecuencia: {
+    marginTop: spacing.lg,
+    padding: spacing.md,
+    borderRadius: radius.xl,
+    backgroundColor: withAlpha(colors.champan, 0.12),
+    gap: 2,
+  },
+  consecuenciaTitulo: { fontFamily: fonts.sansSemiBold, ...typeScale.body, color: colors.marfil },
+  consecuenciaDetalle: { fontFamily: fonts.sans, ...typeScale.bodySm, color: colors.paloRosa },
   entrenoFila: {
     flexDirection: "row",
     alignItems: "center",

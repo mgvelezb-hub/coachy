@@ -182,15 +182,24 @@ export const type = {
   /** Título de pantalla / dato grande secundario. */
   title: { fontSize: 28, lineHeight: 34 },
   /** Encabezado de tarjeta ("Hoy toca", "Pierna · cuádriceps"). */
-  heading: { fontSize: 21, lineHeight: 27 },
+  heading: { fontSize: 22, lineHeight: 28 },
   /** Subtítulo de tarjeta. */
-  subheading: { fontSize: 17, lineHeight: 23 },
-  /** Cuerpo por defecto. Nada de texto largo por debajo de esto. */
-  body: { fontSize: 16, lineHeight: 24 },
+  subheading: { fontSize: 18, lineHeight: 25 },
+  /**
+   * Cuerpo por defecto. Nada de texto largo por debajo de esto.
+   *
+   * Subió de 16 a 17 el 30/08: la app se lee de pie, con el teléfono a un
+   * brazo de distancia y a veces con el pulso alto. El tamaño cómodo sentado
+   * en un escritorio no es el mismo que en la banca del gimnasio.
+   */
+  body: { fontSize: 17, lineHeight: 26 },
   /** Cuerpo secundario (metadatos de una tarjeta). */
-  bodySm: { fontSize: 14, lineHeight: 20 },
-  /** Etiqueta de sección / chip. */
-  label: { fontSize: 12, lineHeight: 16 },
+  bodySm: { fontSize: 15, lineHeight: 22 },
+  /**
+   * Etiqueta de sección / chip. 13 es el piso: nada por debajo de esto lleva
+   * texto que alguien tenga que leer para decidir algo.
+   */
+  label: { fontSize: 13, lineHeight: 18 },
 } as const;
 
 /**

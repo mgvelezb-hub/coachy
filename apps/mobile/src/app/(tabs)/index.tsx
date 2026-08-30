@@ -351,7 +351,7 @@ function TodayTrainingCard({
         eyebrow="Hoy"
         title="Descanso"
         subtitle="Sin sesión programada. Si te moviste por tu cuenta, regístralo abajo."
-        colorsOverride={[colors.guindaDark, colors.obsidiana]}
+        color={colors.guindaDark}
       />
     );
   }

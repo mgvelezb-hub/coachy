@@ -1,4 +1,3 @@
-import { LinearGradient } from "expo-linear-gradient";
 import { ChevronRight } from "lucide-react-native";
 import type { ReactNode } from "react";
 import { useMemo } from "react";
@@ -14,18 +13,19 @@ type HeroCardProps = {
   /** Contenido extra debajo del subtítulo (chips, macros, lo que sea). */
   children?: ReactNode;
   onPress?: () => void;
-  /** Gradiente de la tarjeta. Por defecto guinda → guindaDark (el acento de marca). */
-  colorsOverride?: [string, string];
+  /** Fondo de la tarjeta. Por defecto guinda, el acento de marca. */
+  color?: string;
   style?: StyleProp<ViewStyle>;
 };
 
 /**
- * Tarjeta protagonista: degradado a sangre y el título grande. Es la que abre
- * cada bloque de la pantalla.
+ * Tarjeta protagonista: color a sangre y el título grande. Es la que abre cada
+ * bloque de la pantalla.
  *
- * Sin marca de agua: se probó con las ondas del monograma de fondo y competían
- * con el texto en vez de acompañarlo. El degradado solo ya distingue esta
- * tarjeta de las demás, que es todo lo que tenía que hacer.
+ * Sin marca de agua y **sin degradado**. Las dos se probaron y las dos hacían
+ * lo mismo: competir con el texto. Un color plano separa esta tarjeta de las
+ * demás igual de bien, y el subtítulo se lee sobre un fondo parejo en vez de
+ * sobre uno que se aclara justo donde termina la línea.
  */
 export function HeroCard({
   title,
@@ -33,20 +33,14 @@ export function HeroCard({
   eyebrow,
   children,
   onPress,
-  colorsOverride,
+  color,
   style,
 }: HeroCardProps) {
   const { colors } = useTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
-  const gradient = colorsOverride ?? [colors.guinda, colors.guindaDark];
 
   const content = (
-    <LinearGradient
-      colors={gradient}
-      start={{ x: 0, y: 0 }}
-      end={{ x: 1, y: 1 }}
-      style={[styles.card, style]}
-    >
+    <View style={[styles.card, { backgroundColor: color ?? colors.guinda }, style]}>
       <View style={styles.body}>
         {eyebrow ? <Text style={styles.eyebrow}>{eyebrow.toUpperCase()}</Text> : null}
         <Text style={styles.title}>{title}</Text>
@@ -59,7 +53,7 @@ export function HeroCard({
           <ChevronRight size={26} color={colors.pergamino} strokeWidth={2} />
         </View>
       ) : null}
-    </LinearGradient>
+    </View>
   );
 
   if (!onPress) return content;

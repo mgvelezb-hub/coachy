@@ -1,4 +1,3 @@
-import { LinearGradient } from "expo-linear-gradient";
 import { ChevronRight } from "lucide-react-native";
 import type { ComponentType } from "react";
 import { useMemo } from "react";
@@ -37,12 +36,7 @@ export function StatRow({ icon: Icon, label, value, unit, tint, onPress }: StatR
 
   return (
     <Pressable onPress={onPress} disabled={!onPress} style={({ pressed }) => [pressed && styles.pressed]}>
-      <LinearGradient
-        colors={[withAlpha(tint, 0.02), withAlpha(tint, 0.22)]}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 0 }}
-        style={styles.row}
-      >
+      <View style={[styles.row, { backgroundColor: withAlpha(tint, 0.12) }]}>
         <View style={[styles.iconWrap, { backgroundColor: withAlpha(tint, 0.18) }]}>
           <Icon size={24} color={tint} strokeWidth={2} />
         </View>
@@ -57,7 +51,7 @@ export function StatRow({ icon: Icon, label, value, unit, tint, onPress }: StatR
         </View>
 
         {onPress ? <ChevronRight size={22} color={colors.paloRosa} strokeWidth={2} /> : null}
-      </LinearGradient>
+      </View>
     </Pressable>
   );
 }
