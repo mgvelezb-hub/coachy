@@ -791,9 +791,38 @@ export default function AjustesDetalleScreen() {
           </Text>
         </Card>
 
+        <Card>
+          <SectionLabel>Tu nivel en el gimnasio</SectionLabel>
+          <Explicacion>
+            <TextoExplicativo>
+              Acota qué ejercicios entran en tu rutina: el generador solo elige de tu nivel y de
+              los de abajo. Mandar una sentadilla frontal o un peso muerto a barra libre a quien
+              lleva dos semanas no es exigencia, es la forma más común de lesionarse.
+            </TextoExplicativo>
+          </Explicacion>
+
+          <View style={styles.presupuestoLista}>
+            {(NIVELES_POR_DISCIPLINA.PESAS ?? []).map((opcion) => {
+              const activo = (niveles.PESAS ?? "PRINCIPIANTE") === opcion.valor;
+              return (
+                <Pressable
+                  key={opcion.valor}
+                  onPress={() => guardarNivel("PESAS", opcion.valor)}
+                  style={[styles.presupuestoFila, activo && styles.presupuestoFilaOn]}
+                >
+                  <Text style={[styles.presupuestoNombre, activo && styles.presupuestoNombreOn]}>
+                    {opcion.nombre}
+                  </Text>
+                  <Text style={styles.presupuestoDetalle}>{opcion.detalle}</Text>
+                </Pressable>
+              );
+            })}
+          </View>
+        </Card>
+
         {otras.length > 0 && (
         <Card>
-          <SectionLabel>Tu nivel en cada disciplina</SectionLabel>
+          <SectionLabel>Tu nivel en las demás disciplinas</SectionLabel>
           <Explicacion>
             <TextoExplicativo>
               Cada disciplina prescribe distinto según dónde estés: no es lo mismo la primera vez

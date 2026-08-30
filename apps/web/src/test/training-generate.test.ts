@@ -37,6 +37,7 @@ function profile(overrides: Partial<TrainingProfile> = {}): TrainingProfile {
     primaryDiscipline: "PESAS",
     otherDisciplines: [],
     disciplineLevels: { NATACION: "INTERMEDIO" },
+    gymLevel: "AVANZADO",
     goal: "RECOMPOSICION",
     ...overrides,
   };
@@ -89,6 +90,35 @@ describe("split semanal", () => {
       }),
     );
     expect(week.workouts.map((w) => w.date)).toEqual(["2026-01-05", "2026-01-07", "2026-01-09"]);
+  });
+});
+
+describe("nivel en el gimnasio", () => {
+  it("a quien empieza no le manda ejercicios de nivel avanzado", () => {
+    const week = generate(profile({ liftingDays: 5, gymLevel: "PRINCIPIANTE" }));
+    const nombres = week.workouts.flatMap((w) => w.exercises.map((e) => e.name));
+    const usados = CATALOG.filter((ejercicio) => nombres.includes(ejercicio.name));
+
+    expect(usados.length).toBeGreaterThan(0);
+    expect(usados.every((ejercicio) => ejercicio.level === "PRINCIPIANTE")).toBe(true);
+  });
+
+  it("quien va intermedio usa lo suyo y lo de principiante, nunca lo avanzado", () => {
+    const week = generate(profile({ liftingDays: 5, gymLevel: "INTERMEDIO" }));
+    const nombres = week.workouts.flatMap((w) => w.exercises.map((e) => e.name));
+    const usados = CATALOG.filter((ejercicio) => nombres.includes(ejercicio.name));
+
+    expect(usados.every((ejercicio) => ejercicio.level !== "AVANZADO")).toBe(true);
+  });
+
+  it("la semana se arma completa en cualquier nivel", () => {
+    for (const nivel of ["PRINCIPIANTE", "INTERMEDIO", "AVANZADO"] as const) {
+      const week = generate(profile({ liftingDays: 5, gymLevel: nivel }));
+      expect(week.workouts, nivel).toHaveLength(5);
+      for (const dia of week.workouts) {
+        expect(dia.exercises.length, `${nivel} ${dia.dayKind}`).toBeGreaterThanOrEqual(4);
+      }
+    }
   });
 });
 

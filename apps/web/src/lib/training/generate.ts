@@ -83,6 +83,19 @@ function chooseSlots(slots: Slot[], count: number): Slot[] {
   return ranked.sort((a, b) => a.index - b.index).map((entry) => entry.slot);
 }
 
+/**
+ * Qué niveles puede elegir alguien.
+ *
+ * Hacia abajo siempre: quien va avanzado sigue usando la prensa, y quien
+ * empieza no toca la sentadilla frontal. El generador nunca sube de nivel
+ * solo — eso lo declara la persona en Ajustes.
+ */
+const NIVELES_PERMITIDOS: Record<string, string[]> = {
+  PRINCIPIANTE: ["PRINCIPIANTE"],
+  INTERMEDIO: ["PRINCIPIANTE", "INTERMEDIO"],
+  AVANZADO: ["PRINCIPIANTE", "INTERMEDIO", "AVANZADO"],
+};
+
 type PickContext = {
   catalog: ExerciseOption[];
   usedToday: Set<string>;
@@ -90,6 +103,8 @@ type PickContext = {
   noImpact: boolean;
   /** Grupos donde hoy no se admite nada pesado (día de rehabilitación). */
   lightOnly: MuscleGroup[];
+  /** Nivel de la atleta en el gimnasio. */
+  gymLevel: string;
   seed: number;
 };
 
@@ -102,8 +117,11 @@ type PickContext = {
  * sin dejar de ser determinista.
  */
 function pickExercise(slot: Slot, context: PickContext): ExerciseOption | null {
+  const permitidos = NIVELES_PERMITIDOS[context.gymLevel] ?? NIVELES_PERMITIDOS.PRINCIPIANTE!;
+
   const candidates = context.catalog.filter(
     (exercise) =>
+      permitidos.includes(exercise.level) &&
       slot.groups.includes(exercise.muscleGroup as MuscleGroup) &&
       slot.roles.includes(exercise.poolRole) &&
       !context.usedToday.has(exercise.id) &&
@@ -228,6 +246,7 @@ export function generateWeek(
         lastWeekNames,
         noImpact: injury.active,
         lightOnly: rehabDay ? injury.zones : [],
+        gymLevel: profile.gymLevel,
         seed: isoWeek + slotIndex + index * 3,
       });
       if (!option) return;

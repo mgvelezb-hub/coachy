@@ -1,73 +1,1543 @@
 [
-  { "name": "Extensión de pierna (leg extension)", "muscleGroup": "PIERNA", "poolRole": "cuadriceps_aislado", "isTracker": true, "substitutes": ["Prensa", "Hack squat"] },
-  { "name": "Prensa de pierna", "muscleGroup": "PIERNA", "poolRole": "cuadriceps_compuesto", "isTracker": true, "substitutes": ["Hack squat", "Back squat en Smith"] },
-  { "name": "Back squat en Smith", "muscleGroup": "PIERNA", "poolRole": "cuadriceps_compuesto", "isTracker": false, "substitutes": ["Hack squat", "Prensa de pierna"] },
-  { "name": "Hack squat", "muscleGroup": "PIERNA", "poolRole": "cuadriceps_compuesto", "isTracker": true, "substitutes": ["Prensa de pierna", "Back squat en Smith"] },
-  { "name": "Sentadilla búlgara", "muscleGroup": "PIERNA", "poolRole": "unilateral", "isTracker": false, "substitutes": ["Desplantes", "Zancada en Smith"] },
-  { "name": "Desplantes caminando", "muscleGroup": "PIERNA", "poolRole": "unilateral", "isTracker": false, "substitutes": ["Sentadilla búlgara"] },
-  { "name": "Sentadilla sumo", "muscleGroup": "PIERNA", "poolRole": "aductor_gluteo", "isTracker": false, "substitutes": ["Aductores en máquina"] },
-  { "name": "Peso muerto Jefferson", "muscleGroup": "PIERNA", "poolRole": "cadena_posterior", "isTracker": false, "substitutes": ["Peso muerto rumano"] },
-  { "name": "Peso muerto", "muscleGroup": "PIERNA", "poolRole": "cadena_posterior", "isTracker": true, "substitutes": ["Peso muerto rumano", "Peso muerto Jefferson"] },
-  { "name": "Peso muerto rumano", "muscleGroup": "PIERNA", "poolRole": "cadena_posterior", "isTracker": false, "substitutes": ["Peso muerto", "Curl femoral acostado"] },
-  { "name": "Curl femoral acostado", "muscleGroup": "PIERNA", "poolRole": "femoral", "isTracker": false, "substitutes": ["Curl femoral sentado", "Curl femoral parado"] },
-  { "name": "Curl femoral sentado", "muscleGroup": "PIERNA", "poolRole": "femoral", "isTracker": false, "substitutes": ["Curl femoral acostado"] },
-  { "name": "Curl femoral parado", "muscleGroup": "PIERNA", "poolRole": "femoral", "isTracker": false, "substitutes": ["Curl femoral acostado"] },
-  { "name": "Hip thrust", "muscleGroup": "PIERNA", "poolRole": "gluteo", "isTracker": true, "substitutes": ["Puente de glúteo", "Patada trasera en polea"] },
-  { "name": "Patada trasera en polea", "muscleGroup": "PIERNA", "poolRole": "gluteo", "isTracker": false, "substitutes": ["Hip thrust"] },
-  { "name": "Costurera (abductores)", "muscleGroup": "PIERNA", "poolRole": "abductor", "isTracker": false, "substitutes": ["Abductores en máquina"] },
-  { "name": "Aductores en máquina", "muscleGroup": "PIERNA", "poolRole": "aductor", "isTracker": false, "substitutes": ["Sentadilla sumo"] },
-  { "name": "Abductores en máquina", "muscleGroup": "PIERNA", "poolRole": "abductor", "isTracker": false, "substitutes": ["Costurera (abductores)"] },
-  { "name": "Press de pantorrilla", "muscleGroup": "PIERNA", "poolRole": "pantorrilla", "isTracker": false, "substitutes": ["Elevación de talones de pie"] },
-
-  { "name": "Elevación lateral en polea", "muscleGroup": "HOMBRO", "poolRole": "deltoide_lateral", "isTracker": false, "substitutes": ["Elevación lateral con mancuernas"] },
-  { "name": "Elevación lateral con mancuernas", "muscleGroup": "HOMBRO", "poolRole": "deltoide_lateral", "isTracker": false, "substitutes": ["Elevación lateral en polea"] },
-  { "name": "Press militar con mancuernas", "muscleGroup": "HOMBRO", "poolRole": "empuje_vertical", "isTracker": true, "substitutes": ["Press de hombro en Smith", "Press trasnuca"] },
-  { "name": "Press de hombro en Smith", "muscleGroup": "HOMBRO", "poolRole": "empuje_vertical", "isTracker": false, "substitutes": ["Press militar con mancuernas"] },
-  { "name": "Press trasnuca", "muscleGroup": "HOMBRO", "poolRole": "empuje_vertical", "isTracker": true, "substitutes": ["Press militar con mancuernas"] },
-  { "name": "Jalón a la barbilla (upright row)", "muscleGroup": "HOMBRO", "poolRole": "deltoide_lateral", "isTracker": true, "substitutes": ["Elevación lateral en polea"] },
-  { "name": "Elevación frontal con disco", "muscleGroup": "HOMBRO", "poolRole": "deltoide_frontal", "isTracker": false, "substitutes": ["Elevación frontal con mancuernas"] },
-  { "name": "Encogimientos de trapecio (shrugs)", "muscleGroup": "HOMBRO", "poolRole": "trapecio", "isTracker": false, "substitutes": ["Jalón a la barbilla (upright row)"] },
-  { "name": "Pájaros (deltoide posterior)", "muscleGroup": "HOMBRO", "poolRole": "deltoide_posterior", "isTracker": false, "substitutes": ["Polea baja posterior"] },
-  { "name": "Polea baja posterior", "muscleGroup": "HOMBRO", "poolRole": "deltoide_posterior", "isTracker": false, "substitutes": ["Pájaros (deltoide posterior)"] },
-  { "name": "3 Motion de hombro", "muscleGroup": "HOMBRO", "poolRole": "complejo", "isTracker": false, "substitutes": ["Elevación lateral con mancuernas"] },
-
-  { "name": "Lagartijas", "muscleGroup": "PECHO", "poolRole": "calentamiento_empuje", "isTracker": false, "substitutes": ["Press en aparato de pecho"] },
-  { "name": "Press en aparato de pecho", "muscleGroup": "PECHO", "poolRole": "empuje_horizontal", "isTracker": false, "substitutes": ["Bench press"] },
-  { "name": "Bench press", "muscleGroup": "PECHO", "poolRole": "empuje_horizontal", "isTracker": true, "substitutes": ["Press en aparato de pecho", "Bench press inclinado"] },
-  { "name": "Bench press inclinado", "muscleGroup": "PECHO", "poolRole": "empuje_inclinado", "isTracker": true, "substitutes": ["Bench press", "Cristos inclinados"] },
-  { "name": "Cristos plano", "muscleGroup": "PECHO", "poolRole": "apertura", "isTracker": true, "substitutes": ["Peck deck", "Crossover"] },
-  { "name": "Cristos inclinados", "muscleGroup": "PECHO", "poolRole": "apertura", "isTracker": false, "substitutes": ["Cristos plano"] },
-  { "name": "Peck deck", "muscleGroup": "PECHO", "poolRole": "apertura", "isTracker": false, "substitutes": ["Cristos plano", "Crossover"] },
-  { "name": "Crossover en poleas", "muscleGroup": "PECHO", "poolRole": "apertura", "isTracker": false, "substitutes": ["Peck deck"] },
-  { "name": "Fondos en paralelas", "muscleGroup": "PECHO", "poolRole": "empuje_vertical", "isTracker": false, "substitutes": ["Fondos en banco"] },
-
-  { "name": "Jalón frontal", "muscleGroup": "ESPALDA", "poolRole": "jalon_vertical", "isTracker": true, "substitutes": ["Jalón neutro", "Dominadas asistidas"] },
-  { "name": "Jalón neutro", "muscleGroup": "ESPALDA", "poolRole": "jalon_vertical", "isTracker": true, "substitutes": ["Jalón frontal"] },
-  { "name": "Jalón trasnuca", "muscleGroup": "ESPALDA", "poolRole": "jalon_vertical", "isTracker": false, "substitutes": ["Jalón frontal"] },
-  { "name": "Remo con mancuerna", "muscleGroup": "ESPALDA", "poolRole": "jalon_horizontal", "isTracker": true, "substitutes": ["T-bar row", "Remo abierto"] },
-  { "name": "T-bar row", "muscleGroup": "ESPALDA", "poolRole": "jalon_horizontal", "isTracker": false, "substitutes": ["Remo con mancuerna"] },
-  { "name": "Remo abierto", "muscleGroup": "ESPALDA", "poolRole": "jalon_horizontal", "isTracker": false, "substitutes": ["Remo con mancuerna"] },
-  { "name": "Pullover", "muscleGroup": "ESPALDA", "poolRole": "dorsal_aislado", "isTracker": false, "substitutes": ["Jalón neutro"] },
-  { "name": "Dominadas asistidas", "muscleGroup": "ESPALDA", "poolRole": "jalon_vertical", "isTracker": false, "substitutes": ["Jalón frontal"] },
-
-  { "name": "Curl predicador", "muscleGroup": "BICEP", "poolRole": "bicep_aislado", "isTracker": true, "substitutes": ["Curl en banco inclinado", "Curl Scott"] },
-  { "name": "Curl con barra Z", "muscleGroup": "BICEP", "poolRole": "bicep_compuesto", "isTracker": true, "substitutes": ["Curl en polea"] },
-  { "name": "Curl en polea", "muscleGroup": "BICEP", "poolRole": "bicep_compuesto", "isTracker": false, "substitutes": ["Curl con barra Z"] },
-  { "name": "Curl en banco inclinado", "muscleGroup": "BICEP", "poolRole": "bicep_aislado", "isTracker": false, "substitutes": ["Curl predicador"] },
-  { "name": "Curl martillo", "muscleGroup": "BICEP", "poolRole": "braquial", "isTracker": true, "substitutes": ["Curl con barra Z"] },
-  { "name": "Curl Scott", "muscleGroup": "BICEP", "poolRole": "bicep_aislado", "isTracker": false, "substitutes": ["Curl predicador"] },
-
-  { "name": "Jalón de tríceps con cuerda", "muscleGroup": "TRICEP", "poolRole": "extension_polea", "isTracker": false, "substitutes": ["Jalón de tríceps con barra V"] },
-  { "name": "Jalón de tríceps con barra V", "muscleGroup": "TRICEP", "poolRole": "extension_polea", "isTracker": false, "substitutes": ["Jalón de tríceps con cuerda"] },
-  { "name": "Extensión de tríceps en polea baja", "muscleGroup": "TRICEP", "poolRole": "extension_polea", "isTracker": false, "substitutes": ["Jalón de tríceps con cuerda"] },
-  { "name": "Press California", "muscleGroup": "TRICEP", "poolRole": "empuje_cerrado", "isTracker": true, "substitutes": ["Press francés"] },
-  { "name": "Press francés", "muscleGroup": "TRICEP", "poolRole": "extension_libre", "isTracker": true, "substitutes": ["Press francés inclinado", "Press California"] },
-  { "name": "Press francés inclinado", "muscleGroup": "TRICEP", "poolRole": "extension_libre", "isTracker": false, "substitutes": ["Press francés"] },
-  { "name": "Press de tríceps en aparato", "muscleGroup": "TRICEP", "poolRole": "extension_maquina", "isTracker": false, "substitutes": ["Jalón de tríceps con barra V"] },
-  { "name": "Fondos en banco", "muscleGroup": "TRICEP", "poolRole": "empuje_cerrado", "isTracker": false, "substitutes": ["Fondos en paralelas"] },
-
-  { "name": "Abdomen en máquina", "muscleGroup": "ABDOMEN", "poolRole": "flexion_tronco", "isTracker": false, "substitutes": ["Crunch en colchoneta"] },
-  { "name": "Crunch en colchoneta", "muscleGroup": "ABDOMEN", "poolRole": "flexion_tronco", "isTracker": false, "substitutes": ["Abdomen en máquina"] },
-  { "name": "Elevación de piernas colgado", "muscleGroup": "ABDOMEN", "poolRole": "flexion_cadera", "isTracker": false, "substitutes": ["Crunch en colchoneta"] },
-  { "name": "Plancha", "muscleGroup": "ABDOMEN", "poolRole": "antiextension", "isTracker": false, "substitutes": ["Crunch en colchoneta"] }
+  {
+    "name": "Extensión de pierna (leg extension)",
+    "muscleGroup": "PIERNA",
+    "poolRole": "cuadriceps_aislado",
+    "isTracker": true,
+    "substitutes": [
+      "Prensa de pierna",
+      "Hack squat"
+    ],
+    "level": "PRINCIPIANTE",
+    "equipment": "MAQUINA",
+    "howTo": "Sentado con la espalda pegada al respaldo, extiende las rodillas hasta casi bloquear y baja controlando.",
+    "whyFor": "Aísla el cuádriceps sin exigir equilibrio ni técnica: el primer ejercicio de pierna de cualquiera.",
+    "watchOut": "Soltar el peso de golpe al bajar. La bajada controlada es la mitad del trabajo."
+  },
+  {
+    "name": "Prensa de pierna",
+    "muscleGroup": "PIERNA",
+    "poolRole": "cuadriceps_compuesto",
+    "isTracker": true,
+    "substitutes": [
+      "Hack squat",
+      "Back squat en Smith"
+    ],
+    "level": "PRINCIPIANTE",
+    "equipment": "MAQUINA",
+    "howTo": "Pies al ancho de hombros en la plataforma, baja hasta que la rodilla llegue a 90 grados y empuja sin bloquear.",
+    "whyFor": "Carga mucho peso con la espalda apoyada: es la forma más segura de entrenar pierna pesado.",
+    "watchOut": "Bajar tanto que la cadera se despegue del respaldo. Ahí la lumbar se redondea con todo el peso encima."
+  },
+  {
+    "name": "Back squat en Smith",
+    "muscleGroup": "PIERNA",
+    "poolRole": "cuadriceps_compuesto",
+    "isTracker": false,
+    "substitutes": [
+      "Hack squat",
+      "Prensa de pierna"
+    ],
+    "level": "PRINCIPIANTE",
+    "equipment": "MAQUINA",
+    "howTo": "Barra sobre los trapecios en la guía, pies ligeramente adelantados, baja hasta pasar la paralela.",
+    "whyFor": "La sentadilla con recorrido guiado: deja aprender el patrón sin pelear con el equilibrio.",
+    "watchOut": "Adelantar demasiado los pies. La rodilla queda sin trabajo y el peso se va a la lumbar."
+  },
+  {
+    "name": "Hack squat",
+    "muscleGroup": "PIERNA",
+    "poolRole": "cuadriceps_compuesto",
+    "isTracker": true,
+    "substitutes": [
+      "Prensa de pierna",
+      "Back squat en Smith"
+    ],
+    "level": "INTERMEDIO",
+    "equipment": "MAQUINA",
+    "howTo": "Espalda contra el respaldo, pies al centro de la plataforma, baja profundo y empuja con el talón.",
+    "whyFor": "Carga el cuádriceps más que ninguna otra máquina y respeta la espalda.",
+    "watchOut": "Levantar el talón al bajar. Si pasa, sube los pies en la plataforma."
+  },
+  {
+    "name": "Sentadilla búlgara",
+    "muscleGroup": "PIERNA",
+    "poolRole": "unilateral",
+    "isTracker": false,
+    "substitutes": [
+      "Desplantes caminando",
+      "Zancada estática"
+    ],
+    "level": "INTERMEDIO",
+    "equipment": "MANCUERNA",
+    "howTo": "Pie de atrás sobre un banco, baja recto hasta que la rodilla de atrás casi toque, empuja con la de adelante.",
+    "whyFor": "El ejercicio unilateral que más equilibra las diferencias entre piernas.",
+    "watchOut": "Dar un paso demasiado corto: la rodilla de adelante se va muy por delante del pie."
+  },
+  {
+    "name": "Desplantes caminando",
+    "muscleGroup": "PIERNA",
+    "poolRole": "unilateral",
+    "isTracker": false,
+    "substitutes": [
+      "Sentadilla búlgara"
+    ],
+    "level": "INTERMEDIO",
+    "equipment": "MANCUERNA",
+    "howTo": "Pasos largos alternando pierna, tronco vertical, rodilla de atrás cerca del suelo.",
+    "whyFor": "Trabaja pierna y equilibrio en movimiento, que es como se usa fuera del gimnasio.",
+    "watchOut": "Inclinar el tronco al frente. La zancada se hace con el cuerpo erguido."
+  },
+  {
+    "name": "Sentadilla sumo",
+    "muscleGroup": "PIERNA",
+    "poolRole": "aductor_gluteo",
+    "isTracker": false,
+    "substitutes": [
+      "Aductores en máquina"
+    ],
+    "level": "INTERMEDIO",
+    "equipment": "MANCUERNA",
+    "howTo": "Pies más anchos que los hombros y punteras abiertas, baja entre las piernas manteniendo el tronco vertical.",
+    "whyFor": "Reparte más trabajo al aductor y al glúteo, y exige menos movilidad de tobillo.",
+    "watchOut": "Abrir tanto que la rodilla no siga la línea del pie."
+  },
+  {
+    "name": "Peso muerto Jefferson",
+    "muscleGroup": "PIERNA",
+    "poolRole": "cadena_posterior",
+    "isTracker": false,
+    "substitutes": [
+      "Peso muerto rumano"
+    ],
+    "level": "AVANZADO",
+    "equipment": "BARRA",
+    "howTo": "De pie a horcajadas sobre la barra, un pie adelante y otro atrás, levanta manteniendo el tronco vertical.",
+    "whyFor": "Variante que reparte la carga de forma asimétrica y trabaja el core en rotación resistida.",
+    "watchOut": "Hacerlo pesado sin dominar antes el peso muerto convencional."
+  },
+  {
+    "name": "Peso muerto",
+    "muscleGroup": "PIERNA",
+    "poolRole": "cadena_posterior",
+    "isTracker": true,
+    "substitutes": [
+      "Peso muerto rumano",
+      "Peso muerto Jefferson"
+    ],
+    "level": "INTERMEDIO",
+    "equipment": "BARRA",
+    "howTo": "Barra pegada a la espinilla, cadera arriba de la rodilla, espalda neutra. Empuja el piso y cierra cadera arriba.",
+    "whyFor": "El ejercicio que más masa muscular total involucra y la base de toda la cadena posterior.",
+    "watchOut": "Lumbar redondeada al despegar. Cuando la espalda se redondea, ese fue el último set válido."
+  },
+  {
+    "name": "Peso muerto rumano",
+    "muscleGroup": "PIERNA",
+    "poolRole": "cadena_posterior",
+    "isTracker": false,
+    "substitutes": [
+      "Peso muerto",
+      "Curl femoral acostado"
+    ],
+    "level": "INTERMEDIO",
+    "equipment": "BARRA",
+    "howTo": "Desde arriba, cadera atrás con las rodillas casi rectas, baja la barra pegada al muslo hasta sentir el isquio.",
+    "whyFor": "El mejor estímulo de isquiotibial y glúteo con carga.",
+    "watchOut": "Bajar doblando la espalda en vez de llevar la cadera atrás."
+  },
+  {
+    "name": "Curl femoral acostado",
+    "muscleGroup": "PIERNA",
+    "poolRole": "femoral",
+    "isTracker": false,
+    "substitutes": [
+      "Curl femoral sentado",
+      "Curl femoral parado"
+    ],
+    "level": "PRINCIPIANTE",
+    "equipment": "MAQUINA",
+    "howTo": "Boca abajo, lleva los talones al glúteo sin despegar la cadera del banco.",
+    "whyFor": "Aísla el isquiotibial en su función de flexionar la rodilla.",
+    "watchOut": "Levantar la cadera para completar el recorrido."
+  },
+  {
+    "name": "Curl femoral sentado",
+    "muscleGroup": "PIERNA",
+    "poolRole": "femoral",
+    "isTracker": false,
+    "substitutes": [
+      "Curl femoral acostado"
+    ],
+    "level": "PRINCIPIANTE",
+    "equipment": "MAQUINA",
+    "howTo": "Sentado con el rodillo sobre los muslos, flexiona las rodillas hasta el tope y regresa lento.",
+    "whyFor": "Con la cadera flexionada el isquio trabaja en más estiramiento que acostado.",
+    "watchOut": "Deslizarse en el asiento. Ajusta el rodillo hasta que te sostenga."
+  },
+  {
+    "name": "Curl femoral parado",
+    "muscleGroup": "PIERNA",
+    "poolRole": "femoral",
+    "isTracker": false,
+    "substitutes": [
+      "Curl femoral acostado"
+    ],
+    "level": "PRINCIPIANTE",
+    "equipment": "MAQUINA",
+    "howTo": "De pie, flexiona una rodilla a la vez llevando el talón al glúteo.",
+    "whyFor": "Permite trabajar una pierna a la vez y detectar diferencias.",
+    "watchOut": "Balancear el cuerpo para ayudarse."
+  },
+  {
+    "name": "Hip thrust",
+    "muscleGroup": "PIERNA",
+    "poolRole": "gluteo",
+    "isTracker": true,
+    "substitutes": [
+      "Hip thrust en máquina",
+      "Patada trasera en polea"
+    ],
+    "level": "PRINCIPIANTE",
+    "equipment": "BARRA",
+    "howTo": "Espalda apoyada en un banco, barra sobre la cadera, sube hasta alinear tronco y muslos apretando el glúteo.",
+    "whyFor": "El ejercicio con más activación de glúteo que existe con carga.",
+    "watchOut": "Hiperextender la espalda arriba en vez de cerrar la cadera con el glúteo."
+  },
+  {
+    "name": "Patada trasera en polea",
+    "muscleGroup": "PIERNA",
+    "poolRole": "gluteo",
+    "isTracker": false,
+    "substitutes": [
+      "Hip thrust"
+    ],
+    "level": "PRINCIPIANTE",
+    "equipment": "POLEA",
+    "howTo": "Tobillera en la polea baja, lleva la pierna atrás con la rodilla casi recta, sin arquear la espalda.",
+    "whyFor": "Aísla el glúteo mayor con tensión constante.",
+    "watchOut": "Arquear la lumbar para llegar más atrás."
+  },
+  {
+    "name": "Costurera (abductores)",
+    "muscleGroup": "PIERNA",
+    "poolRole": "abductor",
+    "isTracker": false,
+    "substitutes": [
+      "Abductores en máquina"
+    ],
+    "level": "PRINCIPIANTE",
+    "equipment": "MAQUINA",
+    "howTo": "Sentado, abre las piernas contra la resistencia y cierra despacio.",
+    "whyFor": "Trabaja el glúteo medio, que es el que estabiliza la cadera al caminar y al correr.",
+    "watchOut": "Usar el impulso del tronco para abrir."
+  },
+  {
+    "name": "Aductores en máquina",
+    "muscleGroup": "PIERNA",
+    "poolRole": "aductor",
+    "isTracker": false,
+    "substitutes": [
+      "Sentadilla sumo"
+    ],
+    "level": "PRINCIPIANTE",
+    "equipment": "MAQUINA",
+    "howTo": "Sentado, cierra las piernas contra la resistencia y abre controlando.",
+    "whyFor": "El aductor es de los músculos que más se lesionan en deportes de cambio de dirección y casi nadie entrena.",
+    "watchOut": "Abrir de golpe al soltar."
+  },
+  {
+    "name": "Abductores en máquina",
+    "muscleGroup": "PIERNA",
+    "poolRole": "abductor",
+    "isTracker": false,
+    "substitutes": [
+      "Costurera (abductores)"
+    ],
+    "level": "PRINCIPIANTE",
+    "equipment": "MAQUINA",
+    "howTo": "Sentado, separa las piernas contra la resistencia manteniendo la espalda apoyada.",
+    "whyFor": "Glúteo medio y estabilidad de cadera.",
+    "watchOut": "Inclinar el tronco hacia atrás para abrir más."
+  },
+  {
+    "name": "Press de pantorrilla",
+    "muscleGroup": "PIERNA",
+    "poolRole": "pantorrilla",
+    "isTracker": false,
+    "substitutes": [
+      "Elevación de talón de pie"
+    ],
+    "level": "PRINCIPIANTE",
+    "equipment": "MAQUINA",
+    "howTo": "En la prensa, apoya la punta del pie y empuja extendiendo el tobillo a recorrido completo.",
+    "whyFor": "La pantorrilla aguanta varias veces tu peso en cada paso: es fuerza que previene lesiones.",
+    "watchOut": "Rebotar sin llegar al estiramiento completo abajo."
+  },
+  {
+    "name": "Elevación lateral en polea",
+    "muscleGroup": "HOMBRO",
+    "poolRole": "deltoide_lateral",
+    "isTracker": false,
+    "substitutes": [
+      "Elevación lateral con mancuernas"
+    ],
+    "level": "PRINCIPIANTE",
+    "equipment": "POLEA",
+    "howTo": "Polea baja por detrás del cuerpo, sube el brazo al lado hasta la altura del hombro.",
+    "whyFor": "Tensión constante en el deltoide lateral, que es el que da anchura.",
+    "watchOut": "Subir por encima del hombro y encoger el trapecio."
+  },
+  {
+    "name": "Elevación lateral con mancuernas",
+    "muscleGroup": "HOMBRO",
+    "poolRole": "deltoide_lateral",
+    "isTracker": false,
+    "substitutes": [
+      "Elevación lateral en polea"
+    ],
+    "level": "PRINCIPIANTE",
+    "equipment": "MANCUERNA",
+    "howTo": "Codos ligeramente flexionados, sube al lado hasta la altura del hombro y baja lento.",
+    "whyFor": "El aislado clásico del deltoide lateral.",
+    "watchOut": "Balancear el cuerpo para subir el peso. Si necesitas impulso, sobra peso."
+  },
+  {
+    "name": "Press militar con mancuernas",
+    "muscleGroup": "HOMBRO",
+    "poolRole": "empuje_vertical",
+    "isTracker": true,
+    "substitutes": [
+      "Press de hombro en Smith",
+      "Press trasnuca"
+    ],
+    "level": "PRINCIPIANTE",
+    "equipment": "MANCUERNA",
+    "howTo": "Sentado con respaldo, empuja las mancuernas arriba sin bloquear del todo.",
+    "whyFor": "Empuje vertical con más libertad de trayectoria que la barra.",
+    "watchOut": "Arquear la espalda para sacar el peso."
+  },
+  {
+    "name": "Press de hombro en Smith",
+    "muscleGroup": "HOMBRO",
+    "poolRole": "empuje_vertical",
+    "isTracker": false,
+    "substitutes": [
+      "Press militar con mancuernas"
+    ],
+    "level": "PRINCIPIANTE",
+    "equipment": "MAQUINA",
+    "howTo": "Barra guiada al frente de la cabeza, empuja vertical con el core apretado.",
+    "whyFor": "Permite cargar el empuje vertical sin estabilizar la barra.",
+    "watchOut": "Bajar la barra por detrás de la cabeza en la guía."
+  },
+  {
+    "name": "Press trasnuca",
+    "muscleGroup": "HOMBRO",
+    "poolRole": "empuje_vertical",
+    "isTracker": true,
+    "substitutes": [
+      "Press militar con mancuernas"
+    ],
+    "level": "AVANZADO",
+    "equipment": "BARRA",
+    "howTo": "Barra por detrás de la cabeza, empuja arriba con el tronco vertical.",
+    "whyFor": "Enfatiza el deltoide medio y posterior, solo con movilidad de hombro completa.",
+    "watchOut": "Hacerlo sin movilidad suficiente: es de los movimientos con más riesgo del gimnasio."
+  },
+  {
+    "name": "Jalón a la barbilla (upright row)",
+    "muscleGroup": "HOMBRO",
+    "poolRole": "deltoide_lateral",
+    "isTracker": true,
+    "substitutes": [
+      "Elevación lateral en polea"
+    ],
+    "level": "INTERMEDIO",
+    "equipment": "BARRA",
+    "howTo": "Agarre al ancho de hombros, sube la barra pegada al cuerpo llevando los codos arriba.",
+    "whyFor": "Trabaja deltoide lateral y trapecio a la vez.",
+    "watchOut": "Subir más arriba del pecho con agarre cerrado: ahí es donde pinza el hombro."
+  },
+  {
+    "name": "Elevación frontal con disco",
+    "muscleGroup": "HOMBRO",
+    "poolRole": "deltoide_frontal",
+    "isTracker": false,
+    "substitutes": [
+      "Press militar con mancuernas"
+    ],
+    "level": "PRINCIPIANTE",
+    "equipment": "MANCUERNA",
+    "howTo": "Sujeta el disco con las dos manos y súbelo al frente hasta la altura de los ojos.",
+    "whyFor": "Deltoide frontal, que ya recibe mucho de todo empuje: se entrena poco y al final.",
+    "watchOut": "Usar impulso de cadera."
+  },
+  {
+    "name": "Encogimientos de trapecio (shrugs)",
+    "muscleGroup": "HOMBRO",
+    "poolRole": "trapecio",
+    "isTracker": false,
+    "substitutes": [
+      "Jalón a la barbilla (upright row)"
+    ],
+    "level": "PRINCIPIANTE",
+    "equipment": "MANCUERNA",
+    "howTo": "Sube los hombros hacia las orejas y baja despacio, sin rotarlos.",
+    "whyFor": "Trapecio superior, que sostiene la postura de la cabeza.",
+    "watchOut": "Rotar los hombros en círculo. Sube y baja, nada más."
+  },
+  {
+    "name": "Pájaros (deltoide posterior)",
+    "muscleGroup": "HOMBRO",
+    "poolRole": "deltoide_posterior",
+    "isTracker": false,
+    "substitutes": [
+      "Polea baja posterior"
+    ],
+    "level": "PRINCIPIANTE",
+    "equipment": "MANCUERNA",
+    "howTo": "Inclinado hacia adelante, abre los brazos al lado con los codos casi rectos.",
+    "whyFor": "El deltoide posterior equilibra todo el empuje y mejora la postura.",
+    "watchOut": "Usar peso de más y convertirlo en remo."
+  },
+  {
+    "name": "Polea baja posterior",
+    "muscleGroup": "HOMBRO",
+    "poolRole": "deltoide_posterior",
+    "isTracker": false,
+    "substitutes": [
+      "Pájaros (deltoide posterior)"
+    ],
+    "level": "INTERMEDIO",
+    "equipment": "POLEA",
+    "howTo": "Cruzando los cables, abre los brazos hacia atrás a la altura de los ojos.",
+    "whyFor": "Deltoide posterior con tensión constante y en el ángulo correcto.",
+    "watchOut": "Tirar con los codos doblados: eso ya es un remo."
+  },
+  {
+    "name": "3 Motion de hombro",
+    "muscleGroup": "HOMBRO",
+    "poolRole": "complejo",
+    "isTracker": false,
+    "substitutes": [
+      "Elevación lateral con mancuernas"
+    ],
+    "level": "INTERMEDIO",
+    "equipment": "MANCUERNA",
+    "howTo": "Serie encadenada de tres movimientos de hombro sin soltar el peso.",
+    "whyFor": "Trabaja las tres porciones del deltoide en una sola serie continua.",
+    "watchOut": "Escoger un peso pensando en el primer movimiento y no en el tercero."
+  },
+  {
+    "name": "Lagartijas",
+    "muscleGroup": "PECHO",
+    "poolRole": "calentamiento_empuje",
+    "isTracker": false,
+    "substitutes": [
+      "Press en aparato de pecho"
+    ],
+    "level": "PRINCIPIANTE",
+    "equipment": "PESO_CORPORAL",
+    "howTo": "Manos bajo los hombros, cuerpo en línea, codos a 45 grados al bajar.",
+    "whyFor": "El empuje horizontal sin equipo y el que delata si el core aguanta.",
+    "watchOut": "Cadera hundida o levantada: si la línea se rompe, hazlas inclinadas."
+  },
+  {
+    "name": "Press en aparato de pecho",
+    "muscleGroup": "PECHO",
+    "poolRole": "empuje_horizontal",
+    "isTracker": false,
+    "substitutes": [
+      "Bench press"
+    ],
+    "level": "PRINCIPIANTE",
+    "equipment": "MAQUINA",
+    "howTo": "Espalda apoyada, empuja al frente sin bloquear el codo y regresa controlando.",
+    "whyFor": "Permite cargar el pecho sin necesidad de estabilizar la barra.",
+    "watchOut": "Subir los hombros hacia las orejas al empujar."
+  },
+  {
+    "name": "Bench press",
+    "muscleGroup": "PECHO",
+    "poolRole": "empuje_horizontal",
+    "isTracker": true,
+    "substitutes": [
+      "Press en aparato de pecho",
+      "Bench press inclinado"
+    ],
+    "level": "INTERMEDIO",
+    "equipment": "BARRA",
+    "howTo": "Escápulas juntas y apoyadas, baja la barra al pecho con los codos a 45 grados y empuja.",
+    "whyFor": "El ejercicio de empuje con más carga y el que más se usa para medir fuerza de tren superior.",
+    "watchOut": "Rebotar la barra en el pecho o abrir los codos a 90 grados: ahí es donde se lesiona el hombro."
+  },
+  {
+    "name": "Bench press inclinado",
+    "muscleGroup": "PECHO",
+    "poolRole": "empuje_inclinado",
+    "isTracker": true,
+    "substitutes": [
+      "Bench press",
+      "Cristos inclinados"
+    ],
+    "level": "INTERMEDIO",
+    "equipment": "BARRA",
+    "howTo": "Banco a 30-45 grados, misma técnica que el plano.",
+    "whyFor": "Enfatiza la porción clavicular del pecho, que es la que más cuesta desarrollar.",
+    "watchOut": "Inclinar demasiado el banco: arriba de 45 grados el trabajo se va al hombro."
+  },
+  {
+    "name": "Cristos plano",
+    "muscleGroup": "PECHO",
+    "poolRole": "apertura",
+    "isTracker": true,
+    "substitutes": [
+      "Peck deck",
+      "Crossover en poleas"
+    ],
+    "level": "INTERMEDIO",
+    "equipment": "MANCUERNA",
+    "howTo": "Codos ligeramente flexionados y fijos, abre en arco hasta sentir el estiramiento y cierra.",
+    "whyFor": "Aísla el pecho en su función de aducción, sin la ayuda del tríceps.",
+    "watchOut": "Convertirlo en press doblando los codos. El ángulo del codo no cambia."
+  },
+  {
+    "name": "Cristos inclinados",
+    "muscleGroup": "PECHO",
+    "poolRole": "apertura",
+    "isTracker": false,
+    "substitutes": [
+      "Cristos plano"
+    ],
+    "level": "INTERMEDIO",
+    "equipment": "MANCUERNA",
+    "howTo": "Igual que el plano pero con el banco inclinado.",
+    "whyFor": "Aducción con énfasis en la parte alta del pecho.",
+    "watchOut": "Bajar más allá del punto donde el hombro se siente cómodo."
+  },
+  {
+    "name": "Peck deck",
+    "muscleGroup": "PECHO",
+    "poolRole": "apertura",
+    "isTracker": false,
+    "substitutes": [
+      "Cristos plano",
+      "Crossover en poleas"
+    ],
+    "level": "PRINCIPIANTE",
+    "equipment": "MAQUINA",
+    "howTo": "Sentado, junta los brazos al frente con el pecho, sin soltar la espalda del respaldo.",
+    "whyFor": "La versión guiada de la apertura: fácil de sentir y difícil de hacer mal.",
+    "watchOut": "Empujar con las manos en vez de juntar con los codos."
+  },
+  {
+    "name": "Crossover en poleas",
+    "muscleGroup": "PECHO",
+    "poolRole": "apertura",
+    "isTracker": false,
+    "substitutes": [
+      "Peck deck"
+    ],
+    "level": "INTERMEDIO",
+    "equipment": "POLEA",
+    "howTo": "De pie entre dos poleas altas, junta las manos al frente y abajo describiendo un arco.",
+    "whyFor": "Tensión constante en todo el recorrido, cosa que la mancuerna no da arriba.",
+    "watchOut": "Usar el peso del cuerpo para cerrar."
+  },
+  {
+    "name": "Fondos en paralelas",
+    "muscleGroup": "PECHO",
+    "poolRole": "empuje_vertical",
+    "isTracker": false,
+    "substitutes": [
+      "Fondos en banco"
+    ],
+    "level": "AVANZADO",
+    "equipment": "PESO_CORPORAL",
+    "howTo": "En paralelas, baja con el tronco ligeramente inclinado hasta que el hombro quede a la altura del codo.",
+    "whyFor": "Empuje vertical con el propio peso: de los ejercicios más completos de pecho y tríceps.",
+    "watchOut": "Bajar más de lo que el hombro aguanta. Es la lesión clásica de este ejercicio."
+  },
+  {
+    "name": "Jalón frontal",
+    "muscleGroup": "ESPALDA",
+    "poolRole": "jalon_vertical",
+    "isTracker": true,
+    "substitutes": [
+      "Jalón neutro",
+      "Dominadas asistidas"
+    ],
+    "level": "PRINCIPIANTE",
+    "equipment": "POLEA",
+    "howTo": "Sentado, tira de la barra al pecho llevando los codos abajo y atrás, sin echarte hacia atrás.",
+    "whyFor": "El tirón vertical con carga graduable: la puerta de entrada a la dominada.",
+    "watchOut": "Tirar con los brazos. El movimiento empieza bajando el hombro, no doblando el codo."
+  },
+  {
+    "name": "Jalón neutro",
+    "muscleGroup": "ESPALDA",
+    "poolRole": "jalon_vertical",
+    "isTracker": true,
+    "substitutes": [
+      "Jalón frontal"
+    ],
+    "level": "PRINCIPIANTE",
+    "equipment": "POLEA",
+    "howTo": "Agarre paralelo, tira al pecho con los codos pegados al cuerpo.",
+    "whyFor": "El agarre neutro es el más amable con el hombro y el codo.",
+    "watchOut": "Balancear el tronco para ayudarse."
+  },
+  {
+    "name": "Jalón trasnuca",
+    "muscleGroup": "ESPALDA",
+    "poolRole": "jalon_vertical",
+    "isTracker": false,
+    "substitutes": [
+      "Jalón frontal"
+    ],
+    "level": "AVANZADO",
+    "equipment": "POLEA",
+    "howTo": "Tira de la barra por detrás de la cabeza con el tronco vertical.",
+    "whyFor": "Variante que enfatiza el dorsal alto, solo si hay movilidad de hombro suficiente.",
+    "watchOut": "Forzarlo sin movilidad: es de los movimientos con más riesgo de pinzamiento de hombro."
+  },
+  {
+    "name": "Remo con mancuerna",
+    "muscleGroup": "ESPALDA",
+    "poolRole": "jalon_horizontal",
+    "isTracker": true,
+    "substitutes": [
+      "T-bar row",
+      "Remo abierto"
+    ],
+    "level": "PRINCIPIANTE",
+    "equipment": "MANCUERNA",
+    "howTo": "Apoyo en banca, tira del codo pegado al cuerpo hasta la cadera sin girar el tronco.",
+    "whyFor": "Tirón horizontal unilateral: equilibra los lados y respeta la espalda baja.",
+    "watchOut": "Rotar el tronco para subir más. Eso no es rango, es trampa."
+  },
+  {
+    "name": "T-bar row",
+    "muscleGroup": "ESPALDA",
+    "poolRole": "jalon_horizontal",
+    "isTracker": false,
+    "substitutes": [
+      "Remo con mancuerna"
+    ],
+    "level": "INTERMEDIO",
+    "equipment": "BARRA",
+    "howTo": "Inclinado sobre la barra en punto fijo, tira hacia el abdomen con la espalda neutra.",
+    "whyFor": "Permite mucha carga en tirón horizontal con la espalda apoyada por la posición.",
+    "watchOut": "Subir el tronco al tirar. Si el ángulo cambia, la espalda baja recibe."
+  },
+  {
+    "name": "Remo abierto",
+    "muscleGroup": "ESPALDA",
+    "poolRole": "jalon_horizontal",
+    "isTracker": false,
+    "substitutes": [
+      "Remo con mancuerna"
+    ],
+    "level": "INTERMEDIO",
+    "equipment": "BARRA",
+    "howTo": "Agarre ancho, tira hacia la parte alta del abdomen con los codos abiertos.",
+    "whyFor": "Enfatiza la espalda alta y el deltoide posterior más que el dorsal.",
+    "watchOut": "Redondear la espalda al final de la serie."
+  },
+  {
+    "name": "Pullover",
+    "muscleGroup": "ESPALDA",
+    "poolRole": "dorsal_aislado",
+    "isTracker": false,
+    "substitutes": [
+      "Jalón neutro"
+    ],
+    "level": "INTERMEDIO",
+    "equipment": "MANCUERNA",
+    "howTo": "Acostado, baja la mancuerna por detrás de la cabeza con los codos casi rectos y regresa.",
+    "whyFor": "Estira el dorsal en un ángulo que ningún remo alcanza.",
+    "watchOut": "Bajar más allá de la movilidad del hombro."
+  },
+  {
+    "name": "Dominadas asistidas",
+    "muscleGroup": "ESPALDA",
+    "poolRole": "jalon_vertical",
+    "isTracker": false,
+    "substitutes": [
+      "Jalón frontal"
+    ],
+    "level": "PRINCIPIANTE",
+    "equipment": "MAQUINA",
+    "howTo": "Con la asistencia de la máquina o una banda, sube hasta pasar la barbilla con los hombros abajo.",
+    "whyFor": "La progresión directa a la dominada estricta.",
+    "watchOut": "Encoger los hombros al colgar. El movimiento empieza deprimiendo la escápula."
+  },
+  {
+    "name": "Curl predicador",
+    "muscleGroup": "BICEP",
+    "poolRole": "bicep_aislado",
+    "isTracker": true,
+    "substitutes": [
+      "Curl en banco inclinado",
+      "Curl Scott"
+    ],
+    "level": "PRINCIPIANTE",
+    "equipment": "BARRA",
+    "howTo": "Brazos apoyados en el atril, sube sin despegar el codo y baja hasta casi extender.",
+    "whyFor": "El apoyo elimina el impulso: es el aislado más estricto del bíceps.",
+    "watchOut": "Extender de golpe abajo. El codo se cuida bajando controlado."
+  },
+  {
+    "name": "Curl con barra Z",
+    "muscleGroup": "BICEP",
+    "poolRole": "bicep_compuesto",
+    "isTracker": true,
+    "substitutes": [
+      "Curl en polea"
+    ],
+    "level": "PRINCIPIANTE",
+    "equipment": "BARRA",
+    "howTo": "De pie, codos pegados al cuerpo, sube la barra sin mover los hombros.",
+    "whyFor": "El básico de bíceps, y la barra Z respeta más la muñeca que la recta.",
+    "watchOut": "Balancear la espalda para subir. Si el tronco se mueve, sobra peso."
+  },
+  {
+    "name": "Curl en polea",
+    "muscleGroup": "BICEP",
+    "poolRole": "bicep_compuesto",
+    "isTracker": false,
+    "substitutes": [
+      "Curl con barra Z"
+    ],
+    "level": "PRINCIPIANTE",
+    "equipment": "POLEA",
+    "howTo": "Polea baja, sube con los codos fijos manteniendo la tensión arriba y abajo.",
+    "whyFor": "Tensión constante, que la mancuerna pierde en la parte alta.",
+    "watchOut": "Dejar que el codo se vaya adelante al subir."
+  },
+  {
+    "name": "Curl en banco inclinado",
+    "muscleGroup": "BICEP",
+    "poolRole": "bicep_aislado",
+    "isTracker": false,
+    "substitutes": [
+      "Curl predicador"
+    ],
+    "level": "INTERMEDIO",
+    "equipment": "MANCUERNA",
+    "howTo": "Sentado en banco inclinado con los brazos colgando atrás, sube sin mover el hombro.",
+    "whyFor": "Trabaja el bíceps en estiramiento, que es donde más crece.",
+    "watchOut": "Adelantar el hombro para ayudarse: ahí se pierde el estiramiento que es todo el punto."
+  },
+  {
+    "name": "Curl martillo",
+    "muscleGroup": "BICEP",
+    "poolRole": "braquial",
+    "isTracker": true,
+    "substitutes": [
+      "Curl con barra Z"
+    ],
+    "level": "PRINCIPIANTE",
+    "equipment": "MANCUERNA",
+    "howTo": "Agarre neutro, sube sin girar la muñeca, codos pegados.",
+    "whyFor": "Trabaja el braquial y el braquiorradial, que dan grosor al brazo.",
+    "watchOut": "Girar la muñeca al subir: eso ya es un curl normal."
+  },
+  {
+    "name": "Curl Scott",
+    "muscleGroup": "BICEP",
+    "poolRole": "bicep_aislado",
+    "isTracker": false,
+    "substitutes": [
+      "Curl predicador"
+    ],
+    "level": "PRINCIPIANTE",
+    "equipment": "BARRA",
+    "howTo": "En el banco Scott, sube con los brazos apoyados y baja hasta casi extender.",
+    "whyFor": "Aislado con apoyo total: imposible hacer trampa con el tronco.",
+    "watchOut": "Bajar hasta bloquear el codo con peso alto."
+  },
+  {
+    "name": "Jalón de tríceps con cuerda",
+    "muscleGroup": "TRICEP",
+    "poolRole": "extension_polea",
+    "isTracker": false,
+    "substitutes": [
+      "Jalón de tríceps con barra V"
+    ],
+    "level": "PRINCIPIANTE",
+    "equipment": "POLEA",
+    "howTo": "Codos pegados al cuerpo, extiende abriendo la cuerda al final.",
+    "whyFor": "El aislado más usado de tríceps y el más fácil de sentir.",
+    "watchOut": "Separar los codos del cuerpo y convertirlo en empuje de pecho."
+  },
+  {
+    "name": "Jalón de tríceps con barra V",
+    "muscleGroup": "TRICEP",
+    "poolRole": "extension_polea",
+    "isTracker": false,
+    "substitutes": [
+      "Jalón de tríceps con cuerda"
+    ],
+    "level": "PRINCIPIANTE",
+    "equipment": "POLEA",
+    "howTo": "Igual que con cuerda pero con barra fija, codos quietos.",
+    "whyFor": "Permite más carga que la cuerda por el agarre firme.",
+    "watchOut": "Inclinarse sobre la barra para empujar con el peso del cuerpo."
+  },
+  {
+    "name": "Extensión de tríceps en polea baja",
+    "muscleGroup": "TRICEP",
+    "poolRole": "extension_polea",
+    "isTracker": false,
+    "substitutes": [
+      "Jalón de tríceps con cuerda"
+    ],
+    "level": "INTERMEDIO",
+    "equipment": "POLEA",
+    "howTo": "Polea baja por detrás de la cabeza, extiende arriba con los codos apuntando al frente.",
+    "whyFor": "Trabaja la cabeza larga del tríceps, que solo se estira con el brazo arriba.",
+    "watchOut": "Abrir los codos hacia los lados."
+  },
+  {
+    "name": "Press California",
+    "muscleGroup": "TRICEP",
+    "poolRole": "empuje_cerrado",
+    "isTracker": true,
+    "substitutes": [
+      "Press francés"
+    ],
+    "level": "INTERMEDIO",
+    "equipment": "BARRA",
+    "howTo": "Acostado, agarre cerrado, baja la barra a la parte baja del pecho y empuja.",
+    "whyFor": "Empuje con énfasis en tríceps y mucha carga posible.",
+    "watchOut": "Cerrar demasiado el agarre: la muñeca paga."
+  },
+  {
+    "name": "Press francés",
+    "muscleGroup": "TRICEP",
+    "poolRole": "extension_libre",
+    "isTracker": true,
+    "substitutes": [
+      "Press francés inclinado",
+      "Press California"
+    ],
+    "level": "INTERMEDIO",
+    "equipment": "BARRA",
+    "howTo": "Acostado, baja la barra a la frente flexionando solo el codo y extiende.",
+    "whyFor": "El aislado de tríceps con más carga.",
+    "watchOut": "Mover los hombros para ayudarse. El codo se queda apuntando arriba."
+  },
+  {
+    "name": "Press francés inclinado",
+    "muscleGroup": "TRICEP",
+    "poolRole": "extension_libre",
+    "isTracker": false,
+    "substitutes": [
+      "Press francés"
+    ],
+    "level": "INTERMEDIO",
+    "equipment": "MANCUERNA",
+    "howTo": "En banco inclinado, baja tras la cabeza y extiende.",
+    "whyFor": "La inclinación aumenta el estiramiento de la cabeza larga.",
+    "watchOut": "Bajar más allá de lo que el hombro permite."
+  },
+  {
+    "name": "Press de tríceps en aparato",
+    "muscleGroup": "TRICEP",
+    "poolRole": "extension_maquina",
+    "isTracker": false,
+    "substitutes": [
+      "Jalón de tríceps con barra V"
+    ],
+    "level": "PRINCIPIANTE",
+    "equipment": "MAQUINA",
+    "howTo": "Sentado, empuja hacia abajo con los codos fijos en el apoyo.",
+    "whyFor": "Aislado guiado: útil para empezar o para terminar la sesión cansado.",
+    "watchOut": "Ayudarse con el peso del tronco."
+  },
+  {
+    "name": "Fondos en banco",
+    "muscleGroup": "TRICEP",
+    "poolRole": "empuje_cerrado",
+    "isTracker": false,
+    "substitutes": [
+      "Fondos en paralelas"
+    ],
+    "level": "PRINCIPIANTE",
+    "equipment": "PESO_CORPORAL",
+    "howTo": "Manos en el borde del banco detrás de ti, baja flexionando el codo hasta 90 grados.",
+    "whyFor": "Empuje de tríceps con el propio peso, escalable moviendo los pies.",
+    "watchOut": "Bajar de más y llevar el hombro a rotación forzada."
+  },
+  {
+    "name": "Abdomen en máquina",
+    "muscleGroup": "ABDOMEN",
+    "poolRole": "flexion_tronco",
+    "isTracker": false,
+    "substitutes": [
+      "Crunch en colchoneta"
+    ],
+    "level": "PRINCIPIANTE",
+    "equipment": "MAQUINA",
+    "howTo": "Sentado, flexiona el tronco contra la resistencia sin tirar del cuello.",
+    "whyFor": "Permite cargar el abdominal progresivamente, cosa que el crunch libre no.",
+    "watchOut": "Tirar con los brazos en vez de con el abdomen."
+  },
+  {
+    "name": "Crunch en colchoneta",
+    "muscleGroup": "ABDOMEN",
+    "poolRole": "flexion_tronco",
+    "isTracker": false,
+    "substitutes": [
+      "Abdomen en máquina"
+    ],
+    "level": "PRINCIPIANTE",
+    "equipment": "PESO_CORPORAL",
+    "howTo": "Boca arriba, despega los omóplatos llevando las costillas a la cadera.",
+    "whyFor": "El básico de flexión de tronco, sin equipo.",
+    "watchOut": "Jalarse el cuello con las manos."
+  },
+  {
+    "name": "Elevación de piernas colgado",
+    "muscleGroup": "ABDOMEN",
+    "poolRole": "flexion_cadera",
+    "isTracker": false,
+    "substitutes": [
+      "Crunch en colchoneta"
+    ],
+    "level": "AVANZADO",
+    "equipment": "PESO_CORPORAL",
+    "howTo": "Colgado de la barra, sube las piernas rectas o con rodillas flexionadas sin balancearte.",
+    "whyFor": "Trabaja el abdominal bajo y el flexor de cadera con el core sosteniendo todo.",
+    "watchOut": "Balancearse para subir. Si hay péndulo, no hay abdomen."
+  },
+  {
+    "name": "Plancha",
+    "muscleGroup": "ABDOMEN",
+    "poolRole": "antiextension",
+    "isTracker": false,
+    "substitutes": [
+      "Crunch en colchoneta"
+    ],
+    "level": "PRINCIPIANTE",
+    "equipment": "PESO_CORPORAL",
+    "howTo": "Codos bajo los hombros, glúteo apretado, costillas abajo, cuerpo en línea.",
+    "whyFor": "El core se entrena aguantando, no doblándose.",
+    "watchOut": "Subir la cadera para descansar. Si la cadera sube, el ejercicio se acabó."
+  },
+  {
+    "name": "Sentadilla con barra",
+    "muscleGroup": "PIERNA",
+    "poolRole": "cuadriceps_compuesto",
+    "isTracker": true,
+    "substitutes": [
+      "Back squat en Smith",
+      "Hack squat",
+      "Prensa de pierna"
+    ],
+    "level": "INTERMEDIO",
+    "equipment": "BARRA",
+    "howTo": "Barra sobre los trapecios, pies al ancho de hombros, baja hasta pasar la paralela con el tronco firme y empuja el piso.",
+    "whyFor": "El ejercicio con más transferencia de todo el gimnasio: no había versión libre en el catálogo, solo la guiada.",
+    "watchOut": "Que el talón se levante o la rodilla se meta. Si pasa, trabaja movilidad de tobillo antes de subir carga."
+  },
+  {
+    "name": "Sentadilla frontal",
+    "muscleGroup": "PIERNA",
+    "poolRole": "cuadriceps_compuesto",
+    "isTracker": false,
+    "substitutes": [
+      "Sentadilla con barra",
+      "Hack squat",
+      "Sentadilla goblet"
+    ],
+    "level": "AVANZADO",
+    "equipment": "BARRA",
+    "howTo": "Barra sobre los deltoides con los codos altos, tronco vertical, sentadilla completa.",
+    "whyFor": "Carga el cuádriceps y obliga al tronco a mantenerse vertical: menos peso, más exigencia técnica.",
+    "watchOut": "Codos que caen. La barra rueda al frente y la espalda paga la diferencia."
+  },
+  {
+    "name": "Sentadilla goblet",
+    "muscleGroup": "PIERNA",
+    "poolRole": "cuadriceps_compuesto",
+    "isTracker": false,
+    "substitutes": [
+      "Prensa de pierna",
+      "Sentadilla con barra"
+    ],
+    "level": "PRINCIPIANTE",
+    "equipment": "MANCUERNA",
+    "howTo": "Mancuerna o pesa rusa sujeta al pecho, sentadilla completa con los codos por dentro de las rodillas.",
+    "whyFor": "El contrapeso al frente endereza el tronco solo: la forma más rápida de aprender a sentarse bien.",
+    "watchOut": "Separar la pesa del pecho al bajar. Si se aleja, el peso lo sostiene la espalda."
+  },
+  {
+    "name": "Sentadilla al cajón",
+    "muscleGroup": "PIERNA",
+    "poolRole": "cuadriceps_compuesto",
+    "isTracker": false,
+    "substitutes": [
+      "Sentadilla goblet",
+      "Prensa de pierna"
+    ],
+    "level": "PRINCIPIANTE",
+    "equipment": "BARRA",
+    "howTo": "Baja hasta sentarte apenas en un cajón, haz una pausa breve y levántate sin rebotar.",
+    "whyFor": "Enseña la profundidad y quita el miedo a bajar: el cajón marca dónde termina el recorrido.",
+    "watchOut": "Dejarte caer sobre el cajón. Se toca, no se descansa."
+  },
+  {
+    "name": "Zancada estática",
+    "muscleGroup": "PIERNA",
+    "poolRole": "unilateral",
+    "isTracker": false,
+    "substitutes": [
+      "Sentadilla búlgara",
+      "Desplantes caminando"
+    ],
+    "level": "PRINCIPIANTE",
+    "equipment": "MANCUERNA",
+    "howTo": "Un pie adelante y otro atrás fijos, baja recto hasta que la rodilla trasera casi toque y sube.",
+    "whyFor": "La entrada al trabajo unilateral: sin desplazamiento, es mucho más fácil de controlar que la caminando.",
+    "watchOut": "Dar un paso corto, que manda toda la carga a la rodilla de adelante."
+  },
+  {
+    "name": "Subida al cajón",
+    "muscleGroup": "PIERNA",
+    "poolRole": "unilateral",
+    "isTracker": false,
+    "substitutes": [
+      "Zancada estática",
+      "Sentadilla búlgara"
+    ],
+    "level": "PRINCIPIANTE",
+    "equipment": "MANCUERNA",
+    "howTo": "Sube apoyando el pie completo en el cajón y empujando con esa pierna, sin impulsarte con la de abajo.",
+    "whyFor": "Patrón de escalón unilateral, el más transferible a subir escaleras y a correr.",
+    "watchOut": "Empujar con la pierna de abajo. Si te ayudas, la que trabaja no trabaja."
+  },
+  {
+    "name": "Peso muerto sumo",
+    "muscleGroup": "PIERNA",
+    "poolRole": "cadena_posterior",
+    "isTracker": false,
+    "substitutes": [
+      "Peso muerto",
+      "Peso muerto rumano"
+    ],
+    "level": "INTERMEDIO",
+    "equipment": "BARRA",
+    "howTo": "Pies anchos con punteras abiertas, agarre por dentro de las piernas, tronco más vertical que en el convencional.",
+    "whyFor": "Reparte más carga a glúteo y aductor y exige menos a la espalda baja.",
+    "watchOut": "Empezar tirando con la espalda. La cadera y el pecho suben al mismo tiempo."
+  },
+  {
+    "name": "Buenos días",
+    "muscleGroup": "PIERNA",
+    "poolRole": "cadena_posterior",
+    "isTracker": false,
+    "substitutes": [
+      "Peso muerto rumano",
+      "Curl femoral acostado"
+    ],
+    "level": "AVANZADO",
+    "equipment": "BARRA",
+    "howTo": "Barra en la espalda, cadera atrás bajando el tronco con las rodillas casi rectas y la espalda neutra.",
+    "whyFor": "Isquiotibial y erector espinal en el patrón de bisagra más exigente.",
+    "watchOut": "Usarlo pesado. Es un ejercicio de técnica y control, no de carga máxima."
+  },
+  {
+    "name": "Elevación de talón de pie",
+    "muscleGroup": "PIERNA",
+    "poolRole": "pantorrilla",
+    "isTracker": false,
+    "substitutes": [
+      "Press de pantorrilla"
+    ],
+    "level": "PRINCIPIANTE",
+    "equipment": "MAQUINA",
+    "howTo": "De pie con la punta en el escalón, baja el talón hasta el estiramiento y sube al máximo.",
+    "whyFor": "Con la rodilla extendida trabaja el gemelo; sentado trabaja el sóleo. Se necesitan los dos.",
+    "watchOut": "Rebotar sin llegar abajo. El recorrido completo es todo el ejercicio."
+  },
+  {
+    "name": "Elevación de talón sentado",
+    "muscleGroup": "PIERNA",
+    "poolRole": "pantorrilla",
+    "isTracker": false,
+    "substitutes": [
+      "Press de pantorrilla",
+      "Elevación de talón de pie"
+    ],
+    "level": "PRINCIPIANTE",
+    "equipment": "MAQUINA",
+    "howTo": "Sentado con el peso sobre las rodillas, sube y baja el talón a recorrido completo.",
+    "whyFor": "Con la rodilla flexionada el trabajo se va al sóleo, que es el que sostiene al caminar y al correr.",
+    "watchOut": "Hacer solo la versión de pie y dejar el sóleo sin entrenar."
+  },
+  {
+    "name": "Prensa a una pierna",
+    "muscleGroup": "PIERNA",
+    "poolRole": "unilateral",
+    "isTracker": false,
+    "substitutes": [
+      "Prensa de pierna",
+      "Sentadilla búlgara"
+    ],
+    "level": "INTERMEDIO",
+    "equipment": "MAQUINA",
+    "howTo": "En la prensa con un solo pie centrado en la plataforma, baja controlando y empuja con el talón.",
+    "whyFor": "Unilateral con la espalda apoyada: útil cuando el equilibrio limita antes que la fuerza.",
+    "watchOut": "Girar la cadera para empujar más. La cadera se queda cuadrada."
+  },
+  {
+    "name": "Curl nórdico asistido",
+    "muscleGroup": "PIERNA",
+    "poolRole": "femoral",
+    "isTracker": false,
+    "substitutes": [
+      "Curl femoral acostado",
+      "Peso muerto rumano"
+    ],
+    "level": "AVANZADO",
+    "equipment": "PESO_CORPORAL",
+    "howTo": "De rodillas con los tobillos sujetos, baja el tronco lo más lento posible y ayúdate con las manos al final.",
+    "whyFor": "El trabajo excéntrico de isquios con más evidencia de prevención de lesiones en deportes de velocidad.",
+    "watchOut": "Dejarse caer. Todo el valor está en frenar la bajada."
+  },
+  {
+    "name": "Hip thrust en máquina",
+    "muscleGroup": "PIERNA",
+    "poolRole": "gluteo",
+    "isTracker": false,
+    "substitutes": [
+      "Hip thrust",
+      "Patada trasera en polea"
+    ],
+    "level": "PRINCIPIANTE",
+    "equipment": "MAQUINA",
+    "howTo": "Espalda apoyada en la máquina, empuja la cadera hasta alinear tronco y muslos apretando el glúteo.",
+    "whyFor": "El hip thrust sin el montaje de la barra: la entrada más simple al trabajo de glúteo con carga.",
+    "watchOut": "Hiperextender la espalda arriba en vez de cerrar la cadera."
+  },
+  {
+    "name": "Remo en polea sentado",
+    "muscleGroup": "ESPALDA",
+    "poolRole": "jalon_horizontal",
+    "isTracker": true,
+    "substitutes": [
+      "Remo con mancuerna",
+      "T-bar row"
+    ],
+    "level": "PRINCIPIANTE",
+    "equipment": "POLEA",
+    "howTo": "Sentado con las rodillas semiflexionadas, tira del agarre al abdomen llevando los codos atrás y juntando las escápulas.",
+    "whyFor": "El tirón horizontal más accesible y el que faltaba en el catálogo: casi toda rutina de espalda lo lleva.",
+    "watchOut": "Echar el tronco atrás para tirar. El tronco se queda quieto; tiran los codos."
+  },
+  {
+    "name": "Remo con barra",
+    "muscleGroup": "ESPALDA",
+    "poolRole": "jalon_horizontal",
+    "isTracker": true,
+    "substitutes": [
+      "T-bar row",
+      "Remo en polea sentado"
+    ],
+    "level": "INTERMEDIO",
+    "equipment": "BARRA",
+    "howTo": "Tronco inclinado unos 45 grados con la espalda neutra, tira de la barra al ombligo y baja controlando.",
+    "whyFor": "El tirón horizontal con más carga total y el que más construye espesor de espalda.",
+    "watchOut": "Subir el tronco al tirar o redondear la espalda al final de la serie."
+  },
+  {
+    "name": "Dominadas",
+    "muscleGroup": "ESPALDA",
+    "poolRole": "jalon_vertical",
+    "isTracker": true,
+    "substitutes": [
+      "Dominadas asistidas",
+      "Jalón frontal"
+    ],
+    "level": "AVANZADO",
+    "equipment": "PESO_CORPORAL",
+    "howTo": "Colgado con agarre prono, sube hasta pasar la barbilla llevando los codos abajo y atrás.",
+    "whyFor": "El tirón vertical de referencia: si se pueden hacer, casi todo lo demás de espalda mejora.",
+    "watchOut": "Encoger los hombros al colgar. El movimiento empieza deprimiendo la escápula."
+  },
+  {
+    "name": "Dominadas supinas (chin-up)",
+    "muscleGroup": "ESPALDA",
+    "poolRole": "jalon_vertical",
+    "isTracker": false,
+    "substitutes": [
+      "Dominadas",
+      "Jalón neutro"
+    ],
+    "level": "INTERMEDIO",
+    "equipment": "PESO_CORPORAL",
+    "howTo": "Agarre supino al ancho de hombros, sube hasta el pecho.",
+    "whyFor": "Con el bíceps ayudando más, es la progresión natural entre la asistida y la dominada estricta.",
+    "watchOut": "Balancear las piernas. Si hay kipping, no es estricta."
+  },
+  {
+    "name": "Remo en máquina",
+    "muscleGroup": "ESPALDA",
+    "poolRole": "jalon_horizontal",
+    "isTracker": false,
+    "substitutes": [
+      "Remo en polea sentado",
+      "Remo con mancuerna"
+    ],
+    "level": "PRINCIPIANTE",
+    "equipment": "MAQUINA",
+    "howTo": "Pecho apoyado en el respaldo, tira de los agarres llevando los codos atrás.",
+    "whyFor": "El apoyo del pecho elimina la espalda baja de la ecuación: ideal para empezar o cuando la lumbar está cargada.",
+    "watchOut": "Despegar el pecho del respaldo para tirar más."
+  },
+  {
+    "name": "Face pull",
+    "muscleGroup": "ESPALDA",
+    "poolRole": "deltoide_posterior",
+    "isTracker": false,
+    "substitutes": [
+      "Polea baja posterior",
+      "Pájaros (deltoide posterior)"
+    ],
+    "level": "PRINCIPIANTE",
+    "equipment": "POLEA",
+    "howTo": "Polea a la altura de la cara con cuerda, tira hacia la frente separando las manos y rotando los hombros hacia afuera.",
+    "whyFor": "El mejor ejercicio de salud de hombro: compensa todo el empuje y mejora la postura.",
+    "watchOut": "Usar peso alto y convertirlo en remo alto. Va ligero y con rotación."
+  },
+  {
+    "name": "Rack pull",
+    "muscleGroup": "ESPALDA",
+    "poolRole": "cadena_posterior",
+    "isTracker": false,
+    "substitutes": [
+      "Peso muerto",
+      "Remo con barra"
+    ],
+    "level": "AVANZADO",
+    "equipment": "BARRA",
+    "howTo": "Peso muerto parcial desde soportes a la altura de la rodilla, con recorrido corto.",
+    "whyFor": "Permite cargar más que el peso muerto completo y refuerza el bloqueo de cadera.",
+    "watchOut": "Usarlo para mover egos. Recorrido corto con exceso de peso castiga la lumbar."
+  },
+  {
+    "name": "Remo invertido",
+    "muscleGroup": "ESPALDA",
+    "poolRole": "jalon_horizontal",
+    "isTracker": false,
+    "substitutes": [
+      "Remo en máquina",
+      "Remo en polea sentado"
+    ],
+    "level": "PRINCIPIANTE",
+    "equipment": "PESO_CORPORAL",
+    "howTo": "Colgado bajo una barra con el cuerpo recto, tira del pecho hacia la barra.",
+    "whyFor": "Tirón horizontal con el propio peso, escalable con solo cambiar la altura de los pies.",
+    "watchOut": "Sacar la cadera. El cuerpo sube entero, como una plancha que se acerca."
+  },
+  {
+    "name": "Press con mancuernas plano",
+    "muscleGroup": "PECHO",
+    "poolRole": "empuje_horizontal",
+    "isTracker": true,
+    "substitutes": [
+      "Bench press",
+      "Press en aparato de pecho"
+    ],
+    "level": "PRINCIPIANTE",
+    "equipment": "MANCUERNA",
+    "howTo": "Acostado, baja las mancuernas a los lados del pecho con los codos a 45 grados y empuja juntándolas arriba.",
+    "whyFor": "Más rango que la barra y cada lado trabaja por su cuenta: el mejor primer press con peso libre.",
+    "watchOut": "Bajar demasiado buscando estiramiento extra. El hombro tiene un límite."
+  },
+  {
+    "name": "Press con mancuernas inclinado",
+    "muscleGroup": "PECHO",
+    "poolRole": "empuje_inclinado",
+    "isTracker": false,
+    "substitutes": [
+      "Bench press inclinado",
+      "Press con mancuernas plano"
+    ],
+    "level": "INTERMEDIO",
+    "equipment": "MANCUERNA",
+    "howTo": "Banco a 30 grados, misma técnica que el plano.",
+    "whyFor": "Pecho superior con libertad de trayectoria, que es donde la barra limita más.",
+    "watchOut": "Inclinar el banco por encima de 45 grados: ahí ya es un press de hombro."
+  },
+  {
+    "name": "Press declinado",
+    "muscleGroup": "PECHO",
+    "poolRole": "empuje_horizontal",
+    "isTracker": false,
+    "substitutes": [
+      "Bench press",
+      "Fondos en paralelas"
+    ],
+    "level": "INTERMEDIO",
+    "equipment": "BARRA",
+    "howTo": "Banco declinado, baja la barra a la parte baja del pecho.",
+    "whyFor": "Enfatiza la porción baja del pecho y suele permitir más carga que el plano.",
+    "watchOut": "Levantarse del banco de golpe al terminar con la sangre en la cabeza."
+  },
+  {
+    "name": "Flexiones con lastre",
+    "muscleGroup": "PECHO",
+    "poolRole": "empuje_horizontal",
+    "isTracker": false,
+    "substitutes": [
+      "Lagartijas",
+      "Bench press"
+    ],
+    "level": "AVANZADO",
+    "equipment": "PESO_CORPORAL",
+    "howTo": "Flexión normal con un disco en la espalda alta o chaleco lastrado.",
+    "whyFor": "Extiende la vida útil de las lagartijas cuando el propio peso ya no reta.",
+    "watchOut": "Sumar peso antes de tener 20 flexiones limpias."
+  },
+  {
+    "name": "Press militar con barra",
+    "muscleGroup": "HOMBRO",
+    "poolRole": "empuje_vertical",
+    "isTracker": true,
+    "substitutes": [
+      "Press militar con mancuernas",
+      "Press de hombro en Smith"
+    ],
+    "level": "INTERMEDIO",
+    "equipment": "BARRA",
+    "howTo": "De pie, barra al frente de los hombros, empuja vertical metiendo la cabeza al pasar la barra, glúteo apretado.",
+    "whyFor": "El empuje vertical de referencia y el que más obliga al core a trabajar de pie.",
+    "watchOut": "Arquear la espalda para sacar el peso. Si hay que arquear, sobra peso."
+  },
+  {
+    "name": "Press Arnold",
+    "muscleGroup": "HOMBRO",
+    "poolRole": "empuje_vertical",
+    "isTracker": false,
+    "substitutes": [
+      "Press militar con mancuernas"
+    ],
+    "level": "INTERMEDIO",
+    "equipment": "MANCUERNA",
+    "howTo": "Empieza con las palmas hacia ti y gira las muñecas mientras empujas arriba.",
+    "whyFor": "Suma la rotación al empuje y trabaja el deltoide frontal en más rango.",
+    "watchOut": "Girar demasiado rápido con peso alto: el hombro rota bajo carga."
+  },
+  {
+    "name": "Elevación lateral en máquina",
+    "muscleGroup": "HOMBRO",
+    "poolRole": "deltoide_lateral",
+    "isTracker": false,
+    "substitutes": [
+      "Elevación lateral con mancuernas",
+      "Elevación lateral en polea"
+    ],
+    "level": "PRINCIPIANTE",
+    "equipment": "MAQUINA",
+    "howTo": "Sentado, sube los brazos contra los apoyos hasta la altura del hombro.",
+    "whyFor": "La versión guiada del lateral: imposible dar impulso con el cuerpo.",
+    "watchOut": "Subir por encima del hombro y meter el trapecio."
+  },
+  {
+    "name": "Peck deck inverso",
+    "muscleGroup": "HOMBRO",
+    "poolRole": "deltoide_posterior",
+    "isTracker": false,
+    "substitutes": [
+      "Pájaros (deltoide posterior)",
+      "Polea baja posterior"
+    ],
+    "level": "PRINCIPIANTE",
+    "equipment": "MAQUINA",
+    "howTo": "Sentado de frente al respaldo, abre los brazos hacia atrás a la altura del hombro.",
+    "whyFor": "Deltoide posterior guiado, el músculo que más compensa la postura de escritorio.",
+    "watchOut": "Tirar con los codos muy doblados: eso ya es un remo."
+  },
+  {
+    "name": "Curl con mancuernas alterno",
+    "muscleGroup": "BICEP",
+    "poolRole": "bicep_compuesto",
+    "isTracker": false,
+    "substitutes": [
+      "Curl con barra Z",
+      "Curl en polea"
+    ],
+    "level": "PRINCIPIANTE",
+    "equipment": "MANCUERNA",
+    "howTo": "De pie, sube una mancuerna a la vez girando la muñeca al subir, con el codo fijo.",
+    "whyFor": "Permite concentrarse en un brazo a la vez y corregir diferencias.",
+    "watchOut": "Balancear el tronco. Si el cuerpo se mueve, sobra peso."
+  },
+  {
+    "name": "Curl concentrado",
+    "muscleGroup": "BICEP",
+    "poolRole": "bicep_aislado",
+    "isTracker": false,
+    "substitutes": [
+      "Curl predicador",
+      "Curl Scott"
+    ],
+    "level": "PRINCIPIANTE",
+    "equipment": "MANCUERNA",
+    "howTo": "Sentado, codo apoyado en la cara interna del muslo, sube sin mover el brazo.",
+    "whyFor": "El aislado más estricto: el apoyo del muslo hace imposible hacer trampa.",
+    "watchOut": "Levantar el hombro para ayudar al final."
+  },
+  {
+    "name": "Curl inverso",
+    "muscleGroup": "BICEP",
+    "poolRole": "braquial",
+    "isTracker": false,
+    "substitutes": [
+      "Curl martillo",
+      "Curl con barra Z"
+    ],
+    "level": "INTERMEDIO",
+    "equipment": "BARRA",
+    "howTo": "Agarre prono, sube la barra con los codos pegados sin extender las muñecas.",
+    "whyFor": "Trabaja el braquiorradial y los extensores del antebrazo, que casi nadie entrena.",
+    "watchOut": "Usar el mismo peso que en el curl normal. Aquí entra bastante menos."
+  },
+  {
+    "name": "Extensión sobre la cabeza con mancuerna",
+    "muscleGroup": "TRICEP",
+    "poolRole": "extension_libre",
+    "isTracker": false,
+    "substitutes": [
+      "Press francés",
+      "Extensión de tríceps en polea baja"
+    ],
+    "level": "PRINCIPIANTE",
+    "equipment": "MANCUERNA",
+    "howTo": "Sentado o de pie, una mancuerna con las dos manos por detrás de la cabeza, extiende arriba con los codos apuntando al frente.",
+    "whyFor": "Estira la cabeza larga del tríceps, que solo trabaja con el brazo por encima de la cabeza.",
+    "watchOut": "Abrir los codos hacia los lados al subir."
+  },
+  {
+    "name": "Patada de tríceps",
+    "muscleGroup": "TRICEP",
+    "poolRole": "extension_libre",
+    "isTracker": false,
+    "substitutes": [
+      "Jalón de tríceps con cuerda"
+    ],
+    "level": "PRINCIPIANTE",
+    "equipment": "MANCUERNA",
+    "howTo": "Tronco inclinado, brazo pegado al costado, extiende el codo hasta atrás y regresa.",
+    "whyFor": "Aislado sencillo con máxima contracción al final del recorrido.",
+    "watchOut": "Mover el hombro en vez del codo."
+  },
+  {
+    "name": "Fondos en máquina",
+    "muscleGroup": "TRICEP",
+    "poolRole": "empuje_cerrado",
+    "isTracker": false,
+    "substitutes": [
+      "Fondos en banco",
+      "Press de tríceps en aparato"
+    ],
+    "level": "PRINCIPIANTE",
+    "equipment": "MAQUINA",
+    "howTo": "Sentado, empuja hacia abajo con los codos pegados al cuerpo.",
+    "whyFor": "Progresión asistida hacia los fondos en paralelas.",
+    "watchOut": "Abrir los codos y convertirlo en press de pecho."
+  },
+  {
+    "name": "Plancha lateral",
+    "muscleGroup": "ABDOMEN",
+    "poolRole": "antiextension",
+    "isTracker": false,
+    "substitutes": [
+      "Plancha"
+    ],
+    "level": "PRINCIPIANTE",
+    "equipment": "PESO_CORPORAL",
+    "howTo": "Apoyo en un codo y el canto del pie, cadera arriba, cuerpo en línea visto de frente.",
+    "whyFor": "Trabaja el lateral del tronco, que sostiene la cadera al caminar, correr y cargar de un lado.",
+    "watchOut": "Dejar caer la cadera. Mejor aguantar menos con la cadera arriba."
+  },
+  {
+    "name": "Rueda abdominal",
+    "muscleGroup": "ABDOMEN",
+    "poolRole": "antiextension",
+    "isTracker": false,
+    "substitutes": [
+      "Plancha",
+      "Elevación de piernas colgado"
+    ],
+    "level": "AVANZADO",
+    "equipment": "PESO_CORPORAL",
+    "howTo": "De rodillas, rueda al frente manteniendo la lumbar neutra y regresa con el abdomen.",
+    "whyFor": "El anti-extensión más exigente que existe sin aparatos.",
+    "watchOut": "Arquear la lumbar al extender. Acorta el recorrido hasta poder mantenerla neutra."
+  },
+  {
+    "name": "Press Pallof",
+    "muscleGroup": "ABDOMEN",
+    "poolRole": "antirotacion",
+    "isTracker": false,
+    "substitutes": [
+      "Plancha lateral",
+      "Plancha"
+    ],
+    "level": "INTERMEDIO",
+    "equipment": "POLEA",
+    "howTo": "De pie y de costado a la polea, empuja las manos al frente resistiendo la rotación.",
+    "whyFor": "Anti-rotación: entrena al core en su trabajo real, que es impedir movimiento, no producirlo.",
+    "watchOut": "Girar el tronco al empujar. Si giras, la polea ganó."
+  },
+  {
+    "name": "Dead bug",
+    "muscleGroup": "ABDOMEN",
+    "poolRole": "antiextension",
+    "isTracker": false,
+    "substitutes": [
+      "Plancha",
+      "Crunch en colchoneta"
+    ],
+    "level": "PRINCIPIANTE",
+    "equipment": "PESO_CORPORAL",
+    "howTo": "Boca arriba, baja el brazo y la pierna contrarios manteniendo la lumbar pegada al piso.",
+    "whyFor": "Enseña a mover las extremidades sin que la espalda se arquee: la base del control del tronco.",
+    "watchOut": "Despegar la lumbar. Cuando se despega, se acortó el recorrido."
+  },
+  {
+    "name": "Crunch en polea",
+    "muscleGroup": "ABDOMEN",
+    "poolRole": "flexion_tronco",
+    "isTracker": false,
+    "substitutes": [
+      "Abdomen en máquina",
+      "Crunch en colchoneta"
+    ],
+    "level": "INTERMEDIO",
+    "equipment": "POLEA",
+    "howTo": "De rodillas frente a la polea alta con la cuerda tras la nuca, flexiona el tronco llevando los codos a los muslos.",
+    "whyFor": "Permite cargar la flexión de tronco de forma progresiva, como cualquier otro músculo.",
+    "watchOut": "Tirar con los brazos o con la cadera en vez de flexionar el tronco."
+  },
+  {
+    "name": "Elevación de piernas en banco",
+    "muscleGroup": "ABDOMEN",
+    "poolRole": "flexion_cadera",
+    "isTracker": false,
+    "substitutes": [
+      "Elevación de piernas colgado",
+      "Crunch en colchoneta"
+    ],
+    "level": "PRINCIPIANTE",
+    "equipment": "PESO_CORPORAL",
+    "howTo": "Acostado en un banco sujetándote detrás de la cabeza, sube las piernas sin despegar la lumbar.",
+    "whyFor": "La progresión previa a la elevación colgado, con la espalda apoyada.",
+    "watchOut": "Bajar las piernas hasta que la lumbar se despegue del banco."
+  }
 ]

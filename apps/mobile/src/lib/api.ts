@@ -826,6 +826,33 @@ export function getTrainingToday(): Promise<TrainingTodayResponse> {
 }
 
 /** `GET /api/v1/training/week` — la semana entera para el modo gimnasio offline. */
+/** Un ejercicio del catálogo del gimnasio, con su ficha. */
+export type EjercicioGym = {
+  id: string;
+  name: string;
+  muscleGroup: string;
+  poolRole: string;
+  level: "PRINCIPIANTE" | "INTERMEDIO" | "AVANZADO";
+  equipment: string;
+  howTo: string | null;
+  whyFor: string | null;
+  watchOut: string | null;
+  isTracker: boolean;
+  substitutes: string[];
+  videoPath: string | null;
+  videoUrl: string | null;
+};
+
+/**
+ * `GET /api/v1/exercises` — el catálogo completo del gimnasio.
+ *
+ * Distinto de la semana: aquí están todos, no solo los que te tocaron. Es lo
+ * que hace que la biblioteca sirva para aprender y no solo para el día.
+ */
+export function getCatalogoGym(): Promise<{ ejercicios: EjercicioGym[] }> {
+  return apiFetch<{ ejercicios: EjercicioGym[] }>("/api/v1/exercises");
+}
+
 export function getTrainingWeek(date?: string): Promise<WeekView> {
   const query = date ? `?date=${date}` : "";
   return apiFetch<WeekView>(`/api/v1/training/week${query}`);

@@ -22,6 +22,8 @@ function option(partial: Partial<ExerciseOption> & { name: string }): ExerciseOp
     videoUrl: partial.videoUrl === undefined ? `library/${partial.name}.mp4` : partial.videoUrl,
     isTracker: partial.isTracker ?? false,
     substitutes: partial.substitutes ?? [],
+    level: partial.level ?? "PRINCIPIANTE",
+    equipment: partial.equipment ?? "MAQUINA",
   };
 }
 

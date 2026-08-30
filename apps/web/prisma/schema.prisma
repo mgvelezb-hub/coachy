@@ -638,6 +638,24 @@ model Exercise {
   /// Ejercicio trazador: se registra carga cada semana.
   isTracker   Boolean  @default(false) @map("is_tracker")
 
+  /**
+   * Nivel al que se prescribe: `PRINCIPIANTE`, `INTERMEDIO`, `AVANZADO`.
+   *
+   * El generador solo elige ejercicios del nivel de la atleta o por debajo.
+   * Mandar una sentadilla búlgara o un peso muerto a barra libre a quien
+   * lleva dos semanas no es exigencia, es la forma más común de lesionarse en
+   * un gimnasio.
+   */
+  level       String   @default("PRINCIPIANTE")
+  /// Con qué se hace: `BARRA`, `MANCUERNA`, `MAQUINA`, `POLEA`, `PESO_CORPORAL`.
+  equipment   String   @default("MAQUINA")
+  /// Cómo se ejecuta, para la biblioteca.
+  howTo       String?  @map("how_to")
+  /// Para qué sirve.
+  whyFor      String?  @map("why_for")
+  /// El error más común.
+  watchOut    String?  @map("watch_out")
+
   createdAt DateTime @default(now()) @map("created_at")
 
   workoutSets WorkoutSet[]

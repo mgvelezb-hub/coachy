@@ -94,6 +94,7 @@ export function toTrainingProfile(profile: Profile): TrainingProfile {
     primaryDiscipline: profile.primaryDiscipline as Discipline,
     otherDisciplines: parseDisciplineLoads(profile.otherDisciplines),
     disciplineLevels: parseNiveles(profile.disciplineLevels, profile.swimLevel as SwimLevel),
+    gymLevel: parseNiveles(profile.disciplineLevels, profile.swimLevel as SwimLevel).PESAS ?? "PRINCIPIANTE",
     goal: profile.goal,
   };
 }
@@ -130,6 +131,8 @@ export async function loadCatalog(): Promise<ExerciseOption[]> {
     videoUrl: row.videoUrl,
     isTracker: row.isTracker,
     substitutes: row.substitutes,
+    level: row.level,
+    equipment: row.equipment,
   }));
 }
 

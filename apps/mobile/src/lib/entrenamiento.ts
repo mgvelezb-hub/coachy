@@ -124,6 +124,23 @@ export const NIVELES_NATACION: Array<{ valor: SwimLevel; nombre: string; detalle
 export const NIVELES_POR_DISCIPLINA: Partial<
   Record<Discipline, Array<{ valor: SwimLevel; nombre: string; detalle: string }>>
 > = {
+  PESAS: [
+    {
+      valor: "PRINCIPIANTE",
+      nombre: "Principiante",
+      detalle: "Menos de seis meses entrenando. Máquinas, mancuernas y patrones básicos.",
+    },
+    {
+      valor: "INTERMEDIO",
+      nombre: "Intermedio",
+      detalle: "Dominas sentadilla, peso muerto y press. Entran las variantes con barra libre.",
+    },
+    {
+      valor: "AVANZADO",
+      nombre: "Avanzado",
+      detalle: "Años entrenando y técnica sólida. Entran frontal, dominadas, fondos y trasnuca.",
+    },
+  ],
   NATACION: [
     { valor: "PRINCIPIANTE", nombre: "Principiante", detalle: "Todavía no nadas de corrido. Técnica, tabla y descansos largos." },
     { valor: "INTERMEDIO", nombre: "Intermedio", detalle: "Nadas 400-800 m sin parar. Series de resistencia y de velocidad." },

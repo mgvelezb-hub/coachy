@@ -68,6 +68,10 @@ export type ExerciseOption = {
   videoUrl: string | null;
   isTracker: boolean;
   substitutes: string[];
+  /** `PRINCIPIANTE` | `INTERMEDIO` | `AVANZADO`. */
+  level: string;
+  /** `BARRA` | `MANCUERNA` | `MAQUINA` | `POLEA` | `PESO_CORPORAL`. */
+  equipment: string;
 };
 
 /** Una serie objetivo: reps y el peso que sugerimos, si hay con qué. */
@@ -192,6 +196,8 @@ export type TrainingProfile = {
   otherDisciplines: DisciplineLoad[];
   /** Nivel declarado por disciplina. Lo que falte arranca en principiante. */
   disciplineLevels: Partial<Record<Discipline, SwimLevel>>;
+  /** Nivel en el gimnasio: acota qué ejercicios puede elegir el generador. */
+  gymLevel: SwimLevel;
   /** El objetivo del perfil: modula el volumen de las otras disciplinas. */
   goal: string;
 };

@@ -18,11 +18,19 @@ import { ScoreCard } from "@/components/ScoreCard";
 import { EmptyState, ErrorState, LoadingState } from "@/components/States";
 import { useTheme } from "@/context/theme";
 import { useScrollTop } from "@/lib/scroll-top";
-import { ApiError, getTrainingWeek, type SessionExerciseView, type WeekView } from "@/lib/api";
+import {
+  ApiError,
+  getCatalogoGym,
+  getTrainingWeek,
+  type EjercicioGym,
+  type SessionExerciseView,
+  type WeekView,
+} from "@/lib/api";
 import { iconoDe } from "@/lib/disciplinas";
 import {
   BIBLIOTECA_POR_DISCIPLINA,
   NIVEL_LABEL,
+  ORDEN_NIVEL,
   porCategoria,
   porNivel,
   resumenDeBiblioteca,
@@ -141,6 +149,14 @@ export default function BibliotecaScreen() {
   const scrollRef = useScrollTop();
 
   const [week, setWeek] = useState<WeekView | null>(null);
+  /**
+   * El catálogo completo del gimnasio.
+   *
+   * La biblioteca traía solo los ejercicios de la semana con su video, así que
+   * servía para el gimnasio pero no para aprender: quien quería ver cómo se
+   * hace un peso muerto rumano el día que no le tocaba, no lo encontraba.
+   */
+  const [catalogo, setCatalogo] = useState<EjercicioGym[]>([]);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [online, setOnline] = useState(true);
   const [downloaded, setDownloaded] = useState<Record<string, boolean>>({});
@@ -178,6 +194,20 @@ export default function BibliotecaScreen() {
   useEffect(() => {
     void load();
   }, [load]);
+
+  useEffect(() => {
+    let vivo = true;
+    getCatalogoGym()
+      .then((respuesta) => {
+        if (vivo) setCatalogo(respuesta.ejercicios);
+      })
+      .catch(() => {
+        // Sin catálogo la pantalla sigue sirviendo con los videos de la semana.
+      });
+    return () => {
+      vivo = false;
+    };
+  }, []);
 
   useEffect(() => {
     NetInfo.fetch().then((state) => {
@@ -270,6 +300,75 @@ export default function BibliotecaScreen() {
         )}
       </ScoreCard>
 
+      {/* El catálogo del gimnasio, por zona y por nivel. La tarjeta de arriba
+          son los videos de TU semana; esta es todo lo que existe, que es lo
+          que hace que la biblioteca sirva para aprender y no solo para el
+          día. */}
+      {catalogo.length > 0 && (
+        <ScoreCard
+          icon={Dumbbell}
+          tint={colors.paloRosa}
+          title="Todos los ejercicios de gym"
+          summary={resumenDeBiblioteca(
+            catalogo.map((ejercicio) => ({ ...ejercicio, videoPath: ejercicio.videoPath })) as never,
+          )}
+        >
+          <Text style={styles.disciplinaIntro}>
+            El catálogo completo, agrupado por zona y por nivel. Tu rutina solo usa los de tu nivel
+            y los de abajo; aquí están todos para que veas hacia dónde va.
+          </Text>
+
+          {zonasDelCatalogo(catalogo).map((zona) => (
+            <Collapsible
+              key={zona.grupo}
+              title={zona.label}
+              subtitle={`${zona.ejercicios.length} ${
+                zona.ejercicios.length === 1 ? "ejercicio" : "ejercicios"
+              }`}
+            >
+              {nivelesDeZona(zona.ejercicios).map((grupo) => (
+                <View key={grupo.nivel} style={styles.familia}>
+                  <Text style={styles.familiaTitulo}>{NIVEL_LABEL[grupo.nivel]}</Text>
+
+                  {grupo.ejercicios.map((ejercicio) => (
+                    <Collapsible
+                      key={ejercicio.id}
+                      title={ejercicio.name}
+                      subtitle={EQUIPO_LABEL[ejercicio.equipment] ?? undefined}
+                    >
+                      {ejercicio.howTo && (
+                        <Text style={styles.fichaLinea}>
+                          <Text style={styles.fichaEtiqueta}>Cómo: </Text>
+                          {ejercicio.howTo}
+                        </Text>
+                      )}
+                      {ejercicio.whyFor && (
+                        <Text style={styles.fichaLinea}>
+                          <Text style={styles.fichaEtiqueta}>Para qué: </Text>
+                          {ejercicio.whyFor}
+                        </Text>
+                      )}
+                      {ejercicio.watchOut && (
+                        <Text style={styles.fichaLinea}>
+                          <Text style={styles.fichaEtiqueta}>Ojo con: </Text>
+                          {ejercicio.watchOut}
+                        </Text>
+                      )}
+                      {ejercicio.substitutes.length > 0 && (
+                        <Text style={styles.fichaLinea}>
+                          <Text style={styles.fichaEtiqueta}>Si está ocupado: </Text>
+                          {ejercicio.substitutes.join(" · ")}
+                        </Text>
+                      )}
+                    </Collapsible>
+                  ))}
+                </View>
+              ))}
+            </Collapsible>
+          ))}
+        </ScoreCard>
+      )}
+
       {/* Cada disciplina trae su biblioteca completa: los movimientos que su
           sesión pide por nombre, ordenados por nivel. El resumen se lee igual
           que el de Gym —videos y ejercicios— para que se comparen de un
@@ -341,6 +440,36 @@ export default function BibliotecaScreen() {
     </ScrollView>
   );
 }
+
+/** Las zonas del catálogo, en el orden en que se recorre el cuerpo. */
+function zonasDelCatalogo(
+  catalogo: EjercicioGym[],
+): Array<{ grupo: string; label: string; ejercicios: EjercicioGym[] }> {
+  return MUSCLE_GROUP_ORDER.map((grupo) => ({
+    grupo,
+    label: GROUP_LABELS[grupo] ?? grupo,
+    ejercicios: catalogo.filter((ejercicio) => ejercicio.muscleGroup === grupo),
+  })).filter((zona) => zona.ejercicios.length > 0);
+}
+
+/** Los ejercicios de una zona, agrupados por nivel de aprendizaje. */
+function nivelesDeZona(
+  ejercicios: EjercicioGym[],
+): Array<{ nivel: EjercicioGym["level"]; ejercicios: EjercicioGym[] }> {
+  return ORDEN_NIVEL.map((nivel) => ({
+    nivel,
+    ejercicios: ejercicios.filter((ejercicio) => ejercicio.level === nivel),
+  })).filter((grupo) => grupo.ejercicios.length > 0);
+}
+
+/** Con qué se hace, en el vocabulario del gimnasio. */
+const EQUIPO_LABEL: Record<string, string> = {
+  BARRA: "Barra",
+  MANCUERNA: "Mancuerna",
+  MAQUINA: "Máquina",
+  POLEA: "Polea",
+  PESO_CORPORAL: "Peso corporal",
+};
 
 function VideoRow({
   video,
