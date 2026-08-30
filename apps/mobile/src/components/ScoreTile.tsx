@@ -30,6 +30,11 @@ type ScoreTileProps = {
    * punto sugiere una tendencia que no existe.
    */
   serie?: number[];
+  /**
+   * Cuadro chico de dos por renglón. Recorta el detalle a una línea y sube el
+   * número: es la tarjeta que se mira de reojo, no la que se lee.
+   */
+  mini?: boolean;
 };
 
 /**
@@ -54,6 +59,7 @@ export function ScoreTile({
   onPress,
   extra,
   serie,
+  mini = false,
 }: ScoreTileProps) {
   const { colors } = useTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
@@ -89,18 +95,18 @@ export function ScoreTile({
       </Text>
 
       {detail && (
-        <Text style={styles.detail} numberOfLines={2}>
+        <Text style={styles.detail} numberOfLines={mini ? 1 : 2}>
           {detail}
         </Text>
       )}
 
-      {extra && (
+      {!mini && extra && (
         <Text style={styles.extra} numberOfLines={2}>
           {extra}
         </Text>
       )}
 
-      {serie && serie.length >= 2 && <Sparkline valores={serie} color={color} />}
+      {!mini && serie && serie.length >= 2 && <Sparkline valores={serie} color={color} />}
 
       {status && (
         <View style={[styles.chip, { backgroundColor: withAlpha(toneColor[status.tone], 0.18) }]}>

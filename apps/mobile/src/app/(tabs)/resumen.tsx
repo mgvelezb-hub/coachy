@@ -77,11 +77,7 @@ import {
   type Goal,
 } from "@/lib/insights";
 import { brechasDeObjetivo, enfasisDeObjetivo, perfilDeEjes } from "@/lib/perfil";
-import {
-  layoutPorDefecto,
-  sanearLayout,
-  type PanelConfig,
-} from "@/lib/paneles";
+import { layoutPorDefecto, sanearLayout, type PanelConfig } from "@/lib/paneles";
 import { brechasDelMes, metasDelMes } from "@/lib/metas";
 import { glidepathDeCintura, textoDeGlidepath } from "@/lib/glidepath";
 import { fonts, radius, spacing, type as typeScale, withAlpha, type Palette } from "@/lib/theme";
@@ -462,23 +458,21 @@ export default function ResumenScreen() {
     formatDateEs,
   };
 
-  // Los paneles de media pantalla se agrupan en filas; los de ancho completo
-  // cortan la fila. Así el acomodo del editor se respeta tal cual, sin que un
-  // panel ancho se cuele a media retícula.
-  const filas: Array<{ ancho: boolean; paneles: Array<{ config: PanelConfig; node: React.ReactNode }> }> = [];
+  // Los `mini` se emparejan de dos en dos; `compacta` y `completa` ocupan su
+  // propio renglón. El acomodo del editor se respeta tal cual: nada se cuela a
+  // media retícula.
+  const filas: Array<{ mini: boolean; paneles: PanelConfig[] }> = [];
   for (const config of layout) {
-    const node = <PanelResumen config={config} vista={vista} />;
-
-    if (config.ancho === "ancho") {
-      filas.push({ ancho: true, paneles: [{ config, node }] });
+    if (config.tamano !== "mini") {
+      filas.push({ mini: false, paneles: [config] });
       continue;
     }
 
     const ultima = filas[filas.length - 1];
-    if (ultima && !ultima.ancho && ultima.paneles.length < 2) {
-      ultima.paneles.push({ config, node });
+    if (ultima && ultima.mini && ultima.paneles.length < 2) {
+      ultima.paneles.push(config);
     } else {
-      filas.push({ ancho: false, paneles: [{ config, node }] });
+      filas.push({ mini: true, paneles: [config] });
     }
   }
 
@@ -503,12 +497,12 @@ export default function ResumenScreen() {
 
         {filas.map((fila, index) => (
           <View
-            key={`${fila.paneles.map((panel) => panel.config.id).join("-")}-${index}`}
-            style={fila.ancho ? undefined : styles.filaMosaico}
+            key={`${fila.paneles.map((panel) => panel.id).join("-")}-${index}`}
+            style={fila.mini ? styles.filaMosaico : undefined}
           >
-            {fila.paneles.map(({ config, node }) => (
-              <View key={config.id} style={fila.ancho ? undefined : styles.mitadMosaico}>
-                {node}
+            {fila.paneles.map((config) => (
+              <View key={config.id} style={fila.mini ? styles.mitadMosaico : undefined}>
+                <PanelResumen config={config} vista={vista} />
               </View>
             ))}
           </View>

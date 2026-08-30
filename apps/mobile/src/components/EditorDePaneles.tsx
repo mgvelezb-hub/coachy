@@ -1,4 +1,4 @@
-import { Check, Maximize2, Minimize2, Plus, RotateCcw, Trash2, X } from "lucide-react-native";
+import { Check, Plus, RotateCcw, Trash2, X } from "lucide-react-native";
 import { useMemo, useState } from "react";
 import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { Gesture, GestureDetector, GestureHandlerRootView } from "react-native-gesture-handler";
@@ -13,14 +13,14 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { PanelResumen, type VistaResumen } from "@/components/PanelResumen";
 import { useTheme } from "@/context/theme";
 import {
-  ETIQUETA_VARIANTE,
+  DESCRIPCION_TAMANO,
+  ETIQUETA_TAMANO,
   definicionDe,
   layoutPorDefecto,
   moverA,
   panelesDisponibles,
-  type Ancho,
   type PanelConfig,
-  type Variante,
+  type Tamano,
 } from "@/lib/paneles";
 import { fonts, radius, spacing, type as typeScale, withAlpha, type Palette } from "@/lib/theme";
 
@@ -68,7 +68,7 @@ export function EditorDePaneles({
   function agregar(id: string) {
     const def = definicionDe(id);
     if (!def) return;
-    onChange([...layout, { id, variante: def.variantes[0]!, ancho: def.anchos[0]! }]);
+    onChange([...layout, { id, tamano: def.porDefecto?.tamano ?? def.tamanos[0]! }]);
     setAbierto(id);
   }
 
@@ -226,7 +226,7 @@ function PanelEditable({
         <View>
           {/* El panel real, en su tamaño real. `pointerEvents="none"` para que
               el toque sea del editor y no de los enlaces internos del panel. */}
-          <View pointerEvents="none" style={panel.ancho === "medio" && styles.mitad}>
+          <View pointerEvents="none" style={panel.tamano === "mini" && styles.mitad}>
             <PanelResumen config={panel} vista={vista} />
           </View>
 
@@ -245,55 +245,45 @@ function PanelEditable({
 
       {abierto && (
         <View style={styles.opciones}>
-          <View style={styles.opcionesFila}>
-            {def.anchos.map((ancho: Ancho) => (
-              <Pressable
-                key={ancho}
-                onPress={() => onAplicar({ ancho })}
-                style={[styles.opcion, panel.ancho === ancho && styles.opcionActiva]}
-              >
-                {ancho === "ancho" ? (
-                  <Maximize2
-                    size={14}
-                    color={panel.ancho === ancho ? colors.pergamino : colors.marfil}
-                    strokeWidth={2}
-                  />
-                ) : (
-                  <Minimize2
-                    size={14}
-                    color={panel.ancho === ancho ? colors.pergamino : colors.marfil}
-                    strokeWidth={2}
-                  />
-                )}
-                <Text
-                  style={[styles.opcionTexto, panel.ancho === ancho && styles.opcionTextoActivo]}
-                >
-                  {ancho === "ancho" ? "1 por renglón" : "2 por renglón"}
-                </Text>
-              </Pressable>
-            ))}
-          </View>
-
-          <View style={styles.opcionesFila}>
-            {def.variantes.map((variante: Variante) => (
-              <Pressable
-                key={variante}
-                onPress={() => onAplicar({ variante })}
-                style={[styles.opcion, panel.variante === variante && styles.opcionActiva]}
-              >
+          <Text style={styles.opcionesTitulo}>Tamaño de esta tarjeta</Text>
+          {def.tamanos.map((tamano: Tamano) => (
+            <Pressable
+              key={tamano}
+              onPress={() => onAplicar({ tamano })}
+              style={[styles.opcionFila, panel.tamano === tamano && styles.opcionActiva]}
+            >
+              <View style={{ flex: 1 }}>
                 <Text
                   style={[
                     styles.opcionTexto,
-                    panel.variante === variante && styles.opcionTextoActivo,
+                    panel.tamano === tamano && styles.opcionTextoActivo,
                   ]}
                 >
-                  {ETIQUETA_VARIANTE[variante]}
+                  {ETIQUETA_TAMANO[tamano]}
                 </Text>
-              </Pressable>
-            ))}
-          </View>
+                <Text
+                  style={[
+                    styles.opcionDescripcion,
+                    panel.tamano === tamano && styles.opcionTextoActivo,
+                  ]}
+                >
+                  {DESCRIPCION_TAMANO[tamano]}
+                </Text>
+              </View>
+              {panel.tamano === tamano && (
+                <Check size={16} color={colors.pergamino} strokeWidth={3} />
+              )}
+            </Pressable>
+          ))}
+
+          {def.tamanos.length === 1 && (
+            <Text style={styles.opcionDescripcion}>
+              Este panel solo existe en un tamaño: en otro no enseñaría nada distinto.
+            </Text>
+          )}
         </View>
       )}
+
     </Animated.View>
   );
 }
@@ -373,17 +363,24 @@ const makeStyles = (colors: Palette) =>
       backgroundColor: withAlpha(colors.paloRosa, 0.1),
       gap: spacing.sm,
     },
-    opcionesFila: { flexDirection: "row", flexWrap: "wrap", gap: spacing.sm },
-    opcion: {
+    opcionesTitulo: {
+      fontFamily: fonts.sansSemiBold,
+      ...typeScale.label,
+      letterSpacing: 1,
+      textTransform: "uppercase",
+      color: colors.paloRosa,
+    },
+    opcionFila: {
       flexDirection: "row",
       alignItems: "center",
-      gap: 5,
+      gap: spacing.sm,
       paddingHorizontal: spacing.md,
-      paddingVertical: spacing.sm,
-      borderRadius: radius.full,
+      paddingVertical: spacing.md,
+      borderRadius: radius.xl,
       borderWidth: 1,
       borderColor: colors.cardBorder,
     },
+    opcionDescripcion: { fontFamily: fonts.sans, ...typeScale.bodySm, color: colors.paloRosa },
     opcionActiva: { backgroundColor: colors.guinda, borderColor: colors.guindaLight },
     opcionTexto: { fontFamily: fonts.sansMedium, ...typeScale.bodySm, color: colors.marfil },
     opcionTextoActivo: { color: colors.pergamino },

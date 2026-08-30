@@ -2,65 +2,71 @@ import { describe, expect, it } from "vitest";
 
 import {
   PANELES,
+  TAMANOS,
+  definicionDe,
   layoutPorDefecto,
   mover,
   moverA,
   panelesDisponibles,
   sanearLayout,
-  siguienteVariante,
-  definicionDe,
-  alternarAncho,
 } from "@/lib/paneles";
 
 /**
  * El tablero configurable del Resumen.
  *
  * Lo que se cuida aquí es que el acomodo de alguien nunca se rompa: una app
- * vieja que guardó un panel que ya no existe, un ancho que ese panel no
- * soporta, o un tablero que quedó vacío.
+ * vieja que guardó un panel que ya no existe, un tamaño que ese panel no
+ * soporta, un tablero vacío, o —lo más delicado— un acomodo guardado con el
+ * modelo anterior de ancho + variante.
  */
 
 describe("catálogo de paneles", () => {
-  it("cada panel declara al menos una variante y un ancho", () => {
+  it("cada panel declara al menos un tamaño, y todos son válidos", () => {
     for (const panel of PANELES) {
-      expect(panel.variantes.length, panel.id).toBeGreaterThan(0);
-      expect(panel.anchos.length, panel.id).toBeGreaterThan(0);
+      expect(panel.tamanos.length, panel.id).toBeGreaterThan(0);
+      for (const tamano of panel.tamanos) {
+        expect(TAMANOS, panel.id).toContain(tamano);
+      }
     }
   });
 
-  it("el acomodo de fábrica no repite paneles y respeta lo que cada uno soporta", () => {
+  it("el tamaño de fábrica de cada panel es uno que sabe pintar", () => {
+    for (const panel of PANELES) {
+      if (!panel.porDefecto) continue;
+      expect(panel.tamanos, panel.id).toContain(panel.porDefecto.tamano);
+    }
+  });
+
+  it("los paneles de gráfica no ofrecen mini: una telaraña de 150 pt es adorno", () => {
+    expect(definicionDe("perfil")!.tamanos).not.toContain("mini");
+    expect(definicionDe("anillos")!.tamanos).not.toContain("mini");
+  });
+
+  it("el acomodo de fábrica no repite paneles", () => {
     const layout = layoutPorDefecto();
     expect(new Set(layout.map((panel) => panel.id)).size).toBe(layout.length);
-
-    for (const panel of layout) {
-      const def = definicionDe(panel.id)!;
-      expect(def.variantes, panel.id).toContain(panel.variante);
-      expect(def.anchos, panel.id).toContain(panel.ancho);
-    }
   });
 });
 
 describe("acomodo guardado", () => {
   it("descarta ids que ya no existen en vez de romperse", () => {
     const limpio = sanearLayout([
-      { id: "cintura", variante: "normal", ancho: "medio" },
-      { id: "panel_de_una_version_vieja", variante: "normal", ancho: "medio" },
+      { id: "cintura", tamano: "mini" },
+      { id: "panel_de_una_version_vieja", tamano: "mini" },
     ]);
     expect(limpio.map((panel) => panel.id)).toEqual(["cintura"]);
   });
 
-  it("corrige una variante o un ancho que ese panel no soporta", () => {
-    const limpio = sanearLayout([{ id: "checkin", variante: "detallado", ancho: "ancho" }]);
-    const def = definicionDe("checkin")!;
-
-    expect(def.variantes).toContain(limpio[0]!.variante);
-    expect(def.anchos).toContain(limpio[0]!.ancho);
+  it("corrige un tamaño que ese panel no soporta", () => {
+    const limpio = sanearLayout([{ id: "perfil", tamano: "mini" }]);
+    expect(definicionDe("perfil")!.tamanos).toContain(limpio[0]!.tamano);
+    expect(limpio[0]!.tamano).not.toBe("mini");
   });
 
   it("quita repetidos: un panel dos veces se pintaría dos veces", () => {
     const limpio = sanearLayout([
-      { id: "racha", variante: "normal", ancho: "medio" },
-      { id: "racha", variante: "compacto", ancho: "medio" },
+      { id: "racha", tamano: "mini" },
+      { id: "racha", tamano: "compacta" },
     ]);
     expect(limpio).toHaveLength(1);
   });
@@ -69,6 +75,19 @@ describe("acomodo guardado", () => {
     expect(sanearLayout([]).length).toBe(layoutPorDefecto().length);
     expect(sanearLayout(null).length).toBe(layoutPorDefecto().length);
     expect(sanearLayout("cualquier cosa").length).toBe(layoutPorDefecto().length);
+  });
+
+  it("traduce el modelo viejo de ancho + variante sin perder la intención", () => {
+    const viejo = sanearLayout([
+      { id: "cintura", ancho: "medio", variante: "normal" },
+      { id: "semana", ancho: "ancho", variante: "detallado" },
+      { id: "plan", ancho: "ancho", variante: "normal" },
+    ]);
+
+    // Media pantalla era el cuadro chico; ancho con detalle era todo.
+    expect(viejo.find((panel) => panel.id === "cintura")!.tamano).toBe("mini");
+    expect(viejo.find((panel) => panel.id === "semana")!.tamano).toBe("completa");
+    expect(viejo.find((panel) => panel.id === "plan")!.tamano).toBe("compacta");
   });
 });
 
@@ -90,18 +109,6 @@ describe("edición", () => {
     // Fuera de rango se topa en el extremo, no rompe el acomodo.
     expect(moverA(layout, tercero, 99).at(-1)!.id).toBe(tercero);
     expect(moverA(layout, tercero, -5)[0]!.id).toBe(tercero);
-  });
-
-  it("las variantes rotan en ciclo", () => {
-    const def = definicionDe("cintura")!;
-    let variante = def.variantes[0]!;
-    for (let i = 0; i < def.variantes.length; i += 1) variante = siguienteVariante(def, variante);
-    expect(variante).toBe(def.variantes[0]);
-  });
-
-  it("un panel de un solo ancho no cambia de ancho", () => {
-    const def = definicionDe("checkin")!;
-    expect(alternarAncho(def, def.anchos[0]!)).toBe(def.anchos[0]);
   });
 
   it("lo que ya está en el tablero no aparece como disponible", () => {

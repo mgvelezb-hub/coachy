@@ -208,42 +208,89 @@ export function PanelResumen({
     router.push(ruta as never);
   }
 
-    const { id, variante, ancho } = config;
-    const grande = ancho === "ancho";
-    const conTendencia = variante === "detallado";
-    const compacto = variante === "compacto";
+  const { id, tamano } = config;
+  const mini = tamano === "mini";
+  const completa = tamano === "completa";
 
-    /** Cuadro estándar de media pantalla. Todos los chicos se ven igual. */
-    function chico(props: {
-      icon: typeof Flame;
-      tint: string;
-      title: string;
-      value: string;
-      detail?: string | null;
-      status?: { label: string; tone: "ok" | "warn" | "alto" | "neutral" } | null;
-      serie?: number[];
-      onPress?: () => void;
-    }) {
+  /**
+   * El cuadro chico. Todos los `mini` se ven igual: un dato, una línea y su
+   * estado. Sin gráficas y sin párrafos — para eso están los otros dos.
+   */
+  function cuadro(props: {
+    icon: typeof Flame;
+    tint: string;
+    title: string;
+    value: string;
+    detail?: string | null;
+    status?: { label: string; tone: "ok" | "warn" | "alto" | "neutral" } | null;
+    onPress?: () => void;
+  }) {
+    return (
+      <ScoreTile
+        mini
+        icon={props.icon}
+        tint={props.tint}
+        title={props.title}
+        value={props.value}
+        detail={props.detail ?? null}
+        status={props.status ?? null}
+        onPress={props.onPress}
+      />
+    );
+  }
+
+  /**
+   * El renglón bajo y el renglón alto comparten cabecera; lo único que cambia
+   * es si llevan cuerpo. Así "compacta" y "completa" nunca se ven iguales por
+   * accidente: si no hay `children`, no hay cuerpo.
+   */
+  function renglon(props: {
+    icon: typeof Flame;
+    tint: string;
+    title: string;
+    value: string;
+    detail?: string | null;
+    status?: { label: string; tone: "ok" | "warn" | "alto" | "neutral" } | null;
+    onPress?: () => void;
+    children?: React.ReactNode;
+  }) {
+    return (
+      <PanelGrande
+        icon={props.icon}
+        tint={props.tint}
+        title={props.title}
+        value={props.value}
+        detail={props.detail ?? null}
+        status={props.status ?? null}
+        onPress={props.onPress}
+      >
+        {completa ? props.children : null}
+      </PanelGrande>
+    );
+  }
+
+  switch (id) {
+    // -----------------------------------------------------------------------
+    case "anillos": {
+      const resumenDia = [
+        pasos ? `${pasos.value.toLocaleString("es-MX")} pasos` : null,
+        ejercicio ? `${ejercicio.value} min` : null,
+        sueno ? formatSleep(sueno.value) : null,
+      ]
+        .filter(Boolean)
+        .join(" · ");
+
       return (
-        <ScoreTile
-          icon={props.icon}
-          tint={props.tint}
-          title={props.title}
-          value={props.value}
-          detail={compacto ? null : props.detail}
-          status={props.status ?? null}
-          serie={conTendencia ? props.serie : undefined}
-          onPress={props.onPress}
-        />
-      );
-    }
+        <View style={styles.hero}>
+          <View style={styles.heroHead}>
+            <Text style={styles.heroTitle}>Tu día</Text>
+            <Text style={styles.heroPista}>toca cualquiera ›</Text>
+          </View>
 
-    switch (id) {
-      case "anillos": {
-        const cuerpo = (
-          <>
-            <View style={styles.heroBody}>
-              <ActivityRings rings={rings} size={grande ? 132 : 108} />
+          <View style={styles.heroBody}>
+            <ActivityRings rings={rings} size={completa ? 132 : 96} />
+
+            {completa ? (
               <View style={styles.leyendas}>
                 <Leyenda
                   icon={Footprints}
@@ -270,134 +317,190 @@ export function PanelResumen({
                   onPress={() => navegar("/salud/descanso")}
                 />
               </View>
-            </View>
-
-            {/* Recuperación y condición ya no son dos íconos sueltos abajo:
-                llevan su número y su lectura, o dicen que falta el dato. Un
-                ícono solo no informa nada. */}
-            {grande && (
-              <View style={styles.extras}>
-                <Leyenda
-                  icon={HeartPulse}
-                  color={colors.error}
-                  label="Recuperación"
-                  valor={hrv ? `${hrv.value} ms` : "Sin dato"}
-                  meta={hrv ? "vs. tu normal de 4 semanas" : "el reloj no la ha subido"}
-                  onPress={() => navegar("/salud/recuperacion")}
-                />
-                <Leyenda
-                  icon={ActivityIcon}
-                  color={colors.champan}
-                  label="Condición"
-                  valor={vo2 ? `${vo2.value}` : "Sin dato"}
-                  meta={vo2 ? "VO₂ máx" : "necesita entrenos al aire libre"}
-                  onPress={() => navegar("/salud/condicion")}
-                />
+            ) : (
+              <View style={styles.leyendas}>
+                <Text style={styles.heroResumen}>{resumenDia || "Sin datos del reloj todavía"}</Text>
+                <Text style={styles.heroCaption}>
+                  {fecha ? `Último dato: ${formatDateEs(fecha)}` : "Conecta tu reloj"}
+                </Text>
               </View>
             )}
-          </>
-        );
-
-        return (
-          <View style={styles.hero}>
-            <View style={styles.heroHead}>
-              <Text style={styles.heroTitle}>Tu día</Text>
-              <Text style={styles.heroPista}>toca cualquiera para ver su detalle ›</Text>
-            </View>
-            {!compacto && (
-              <Text style={styles.heroCaption}>
-                {fecha
-                  ? `Último dato del reloj: ${formatDateEs(fecha)}`
-                  : "Conecta tu reloj para llenar los anillos"}
-              </Text>
-            )}
-            {cuerpo}
           </View>
-        );
+
+          {completa && (
+            <View style={styles.extras}>
+              <Leyenda
+                icon={HeartPulse}
+                color={colors.error}
+                label="Recuperación"
+                valor={hrv ? `${hrv.value} ms` : "Sin dato"}
+                meta={hrv ? "vs. tu normal de 4 semanas" : "el reloj no la ha subido"}
+                onPress={() => navegar("/salud/recuperacion")}
+              />
+              <Leyenda
+                icon={ActivityIcon}
+                color={colors.champan}
+                label="Condición"
+                valor={vo2 ? `${vo2.value}` : "Sin dato"}
+                meta={vo2 ? "VO₂ máx" : "necesita entrenos al aire libre"}
+                onPress={() => navegar("/salud/condicion")}
+              />
+            </View>
+          )}
+        </View>
+      );
+    }
+
+    // -----------------------------------------------------------------------
+    case "perfil": {
+      const conDato = ejes.filter((eje) => eje.value !== null && typeof eje.esperado === "number");
+      const peor = [...conDato].sort(
+        (a, b) => (a.value! - (a.esperado ?? 0)) - (b.value! - (b.esperado ?? 0)),
+      )[0];
+
+      return (
+        <View style={styles.perfil}>
+          <Text style={styles.heroTitle}>Tu semana vs. lo esperado</Text>
+
+          {completa ? (
+            <>
+              <Text style={styles.heroCaption}>
+                Cada eje contra lo que tocaba a estas alturas
+                {objetivoLabel ? `, para tu objetivo de ${objetivoLabel}` : ""}.
+              </Text>
+              <ChartBoundary label="La telaraña no se pudo dibujar.">
+                <RadarChart ejes={ejes} size={260} />
+              </ChartBoundary>
+            </>
+          ) : (
+            <>
+              <Text style={styles.heroCaption}>
+                {peor
+                  ? `Lo que más te falta: ${peor.label}, ${Math.abs(
+                      Math.round((peor.value! - (peor.esperado ?? 0)) * 100),
+                    )} puntos abajo de lo esperado.`
+                  : "Todavía sin datos suficientes para comparar tu semana."}
+              </Text>
+              <View style={styles.ejesFila}>
+                {conDato.map((eje) => {
+                  const desvio = Math.round((eje.value! - (eje.esperado ?? 0)) * 100);
+                  return (
+                    <View key={eje.label} style={styles.ejePastilla}>
+                      <Text style={styles.ejeNombre}>{eje.label}</Text>
+                      <Text style={[styles.ejeValor, desvio < -5 && styles.ejeValorBajo]}>
+                        {desvio > 0 ? "+" : ""}
+                        {desvio}
+                      </Text>
+                    </View>
+                  );
+                })}
+              </View>
+            </>
+          )}
+        </View>
+      );
+    }
+
+    // -----------------------------------------------------------------------
+    case "mes": {
+      if (metas.medidas.length === 0) return null;
+      const rieles = brechasDelMes(metas.medidas);
+      const alCorriente = rieles.filter((riel) => (riel.avance ?? 0) >= 1).length;
+
+      if (mini) {
+        return cuadro({
+          icon: TrendingUp,
+          tint: colors.champan,
+          title: "Tu mes",
+          value: `${alCorriente}/${rieles.length}`,
+          detail: "metas del mes cumplidas",
+          onPress: () => navegar("/glidepath"),
+        });
       }
 
-      case "perfil":
-        return (
-          <View style={styles.perfil}>
-            <Text style={styles.heroTitle}>Tu semana vs. lo esperado</Text>
-            <Text style={styles.heroCaption}>
-              Cada eje contra lo que tocaba a estas alturas
-              {objetivoLabel ? `, para tu objetivo de ${objetivoLabel}` : ""}.
-            </Text>
-            <ChartBoundary label="La telaraña no se pudo dibujar.">
-              <RadarChart ejes={grande ? ejes : ejes.slice(0, 6)} size={grande ? 260 : anchoPanel} />
+      return (
+        <View style={styles.perfil}>
+          <Text style={styles.heroTitle}>Tu mes</Text>
+          <Text style={styles.heroCaption}>
+            Dónde estás hoy y a dónde llega el escalón de este mes, desde tu check-in del{" "}
+            {metas.desde}
+          </Text>
+
+          <View style={{ marginTop: spacing.md }}>
+            <ChartBoundary label="Las metas del mes no se pudieron dibujar.">
+              <GapChart brechas={completa ? rieles : rieles.slice(0, 2)} />
             </ChartBoundary>
           </View>
-        );
 
-      case "mes":
-        if (metas.medidas.length === 0) return null;
-        return (
-          <View style={styles.perfil}>
-            <Text style={styles.heroTitle}>Tu mes</Text>
-            <Text style={styles.heroCaption}>
-              Dónde estás hoy y a dónde llega el escalón de este mes, desde tu check-in del{" "}
-              {metas.desde}
+          <Pressable onPress={() => navegar("/glidepath")} hitSlop={6}>
+            <Text style={styles.glidepathLink}>
+              {completa ? "Ver todo el camino al objetivo →" : `Ver las ${rieles.length} medidas →`}
             </Text>
+          </Pressable>
+        </View>
+      );
+    }
 
-            <View style={{ marginTop: spacing.md }}>
-              <ChartBoundary label="Las metas del mes no se pudieron dibujar.">
-                <GapChart brechas={grande ? brechasDelMes(metas.medidas) : brechasDelMes(metas.medidas).slice(0, 2)} />
-              </ChartBoundary>
-            </View>
+    // -----------------------------------------------------------------------
+    case "brecha_objetivo": {
+      if (brechas.length === 0) return null;
+      const masLejos = [...brechas].sort((a, b) => (a.avance ?? 0) - (b.avance ?? 0))[0];
 
-            <Pressable onPress={() => navegar("/glidepath")} hitSlop={6}>
-              <Text style={styles.glidepathLink}>Ver todo el camino al objetivo →</Text>
-            </Pressable>
+      if (mini) {
+        return cuadro({
+          icon: Target,
+          tint: colors.guindaLight,
+          title: "Vs. objetivo",
+          value: masLejos?.label ?? "—",
+          detail: "la zona más lejana",
+          onPress: () => navegar("/objetivo"),
+        });
+      }
+
+      return (
+        <View style={styles.perfil}>
+          <Text style={styles.heroTitle}>Vs. tu objetivo final</Text>
+          <Text style={styles.heroCaption}>
+            {objetivoListo
+              ? "Sale de comparar tus fotos con tu referencia: es una lectura por zona, no centímetros."
+              : "Todavía sin fotos tuyas: esto es el énfasis que pide tu referencia, no tu brecha."}
+          </Text>
+          <View style={{ marginTop: spacing.md }}>
+            <ChartBoundary label="La brecha no se pudo dibujar.">
+              <GapChart brechas={completa ? brechas : brechas.slice(0, 3)} />
+            </ChartBoundary>
           </View>
-        );
+        </View>
+      );
+    }
 
-      case "brecha_objetivo":
-        if (brechas.length === 0) return null;
-        return (
-          <View style={styles.perfil}>
-            <Text style={styles.heroTitle}>Vs. tu objetivo final</Text>
-            <Text style={styles.heroCaption}>
-              {objetivoListo
-                ? "Sale de comparar tus fotos con tu referencia. Es una lectura por zona, no centímetros: de una foto no salen medidas."
-                : "Todavía sin fotos tuyas: esto es el énfasis que pide tu referencia, no tu brecha."}
-            </Text>
-            <View style={{ marginTop: spacing.md }}>
-              <ChartBoundary label="La brecha no se pudo dibujar.">
-                <GapChart brechas={grande ? brechas : brechas.slice(0, 3)} />
-              </ChartBoundary>
-            </View>
-          </View>
-        );
+    // -----------------------------------------------------------------------
+    case "cintura": {
+      const valor = ultimoCheckIn?.waistCm != null ? `${ultimoCheckIn.waistCm} cm` : "—";
+      const detalle = ultimoCheckIn
+        ? `${datos.checkIns?.length ?? 0} check-ins · ${formatDateEs(ultimoCheckIn.date)}`
+        : "Tu primer check-in arranca el historial";
 
-      case "cintura": {
-        const serie = serieDe("waistCm");
-        const detalle = ultimoCheckIn
-          ? `${datos.checkIns?.length ?? 0} check-ins · ${formatDateEs(ultimoCheckIn.date)}`
-          : "Tu primer check-in arranca el historial";
-        const valor = ultimoCheckIn?.waistCm != null ? `${ultimoCheckIn.waistCm} cm` : "—";
+      if (mini) {
+        return cuadro({
+          icon: TrendingUp,
+          tint: colors.champan,
+          title: "Cintura",
+          value: valor,
+          detail: plan ? `meta del mes ${plan.meta} cm` : detalle,
+          onPress: () => navegar("/salud/medidas"),
+        });
+      }
 
-        if (!grande) {
-          return chico({
-            icon: TrendingUp,
-            tint: colors.champan,
-            title: "Cintura",
-            value: valor,
-            detail: detalle,
-            serie,
-            onPress: () => navegar("/salud/medidas"),
-          });
-        }
-
-        return (
-          <PanelGrande
-            icon={TrendingUp}
-            tint={colors.champan}
-            title="Cintura"
-            value={valor}
-            detail={detalle}
-            onPress={() => navegar("/salud/medidas")}
-          >
+      return renglon({
+        icon: TrendingUp,
+        tint: colors.champan,
+        title: "Cintura",
+        value: valor,
+        detail: plan ? `${detalle} · meta del mes ${plan.meta} cm` : detalle,
+        onPress: () => navegar("/salud/medidas"),
+        children: (
+          <>
             <ChartBoundary label="La tendencia no se pudo dibujar.">
               <LineChart
                 points={(datos.points ?? []).slice(-10).map((punto) => ({
@@ -410,83 +513,93 @@ export function PanelResumen({
               />
             </ChartBoundary>
             {plan && <Text style={styles.panelNota}>{textoDeGlidepath(plan)}</Text>}
-          </PanelGrande>
-        );
+          </>
+        ),
+      });
+    }
+
+    // -----------------------------------------------------------------------
+    case "checkin": {
+      const valor = diasCheckIn === null ? "—" : diasCheckIn === 0 ? "Hoy" : `${diasCheckIn} d`;
+      const estado = {
+        label: checkInPendiente ? "Toca" : "Al día",
+        tone: (checkInPendiente ? "warn" : "ok") as "warn" | "ok",
+      };
+      const cierre =
+        datos.me?.profile?.checkinWeekday != null
+          ? `cierras los ${DIAS_SEMANA[datos.me.profile.checkinWeekday]}`
+          : "sin día de cierre elegido";
+
+      if (mini) {
+        return cuadro({
+          icon: CalendarCheck,
+          tint: colors.guindaLight,
+          title: "Check-in",
+          value: valor,
+          detail: diasCheckIn === null ? "nunca has hecho uno" : "desde el último",
+          status: estado,
+          onPress: () => navegar("/checkin"),
+        });
       }
 
-      case "checkin": {
-        const valor = diasCheckIn === null ? "—" : diasCheckIn === 0 ? "Hoy" : `${diasCheckIn} d`;
-        const estado = {
-          label: checkInPendiente ? "Toca" : "Al día",
-          tone: (checkInPendiente ? "warn" : "ok") as "warn" | "ok",
-        };
-        const detalle = diasCheckIn === null ? "Nunca has hecho uno" : "desde el último";
-
-        if (!grande) {
-          return chico({
-            icon: CalendarCheck,
-            tint: colors.guindaLight,
-            title: "Check-in",
-            value: valor,
-            detail: detalle,
-            status: estado,
-            onPress: () => navegar("/checkin"),
-          });
-        }
-
-        return (
-          <PanelGrande
-            icon={CalendarCheck}
-            tint={colors.guindaLight}
-            title="Check-in"
-            value={valor}
-            detail={detalle}
-            status={estado}
-            onPress={() => navegar("/checkin")}
-          >
+      return renglon({
+        icon: CalendarCheck,
+        tint: colors.guindaLight,
+        title: "Check-in",
+        value: valor,
+        detail: `${diasCheckIn === null ? "Nunca has hecho uno" : "desde el último"} · ${cierre}`,
+        status: estado,
+        onPress: () => navegar("/checkin"),
+        children: (
+          <>
             <Text style={styles.panelNota}>
-              {datos.me?.profile?.checkinWeekday != null
-                ? `Cierras tu semana los ${DIAS_SEMANA[datos.me.profile.checkinWeekday]}${
-                    datos.me.profile.checkinHour != null
-                      ? ` a las ${datos.me.profile.checkinHour}:00`
-                      : ""
-                  }.`
-                : "Todavía no eliges qué día cierras tu semana. Se configura en Ajustes."}
+              {datos.me?.profile?.checkinHour != null
+                ? `Te avisa a las ${datos.me.profile.checkinHour}:00, con recordatorio en el teléfono.`
+                : "Elige día y hora en Ajustes para que te avise."}
             </Text>
             <Text style={styles.panelNota}>
-              Seis campos: cintura, peso y cuatro escalas. Brazos y piernas van una vez al mes.
+              Seis campos: cintura, peso y cuatro escalas. Brazos y piernas van una vez al mes, y
+              el cumplimiento llega prellenado.
             </Text>
-          </PanelGrande>
-        );
+          </>
+        ),
+      });
+    }
+
+    // -----------------------------------------------------------------------
+    case "semana": {
+      const valor = sesionesTotal === 0 ? "—" : `${sesionesHechas}/${sesionesTotal}`;
+      const proxima = (datos.week?.sessions ?? []).find((sesion) => sesion.completedAt === null);
+
+      if (mini) {
+        return cuadro({
+          icon: Dumbbell,
+          tint: colors.paloRosa,
+          title: "Esta semana",
+          value: valor,
+          detail: "sesiones cerradas",
+          onPress: () => navegar("/rutinas"),
+        });
       }
 
-      case "semana": {
-        const valor = sesionesTotal === 0 ? "—" : `${sesionesHechas}/${sesionesTotal}`;
-        const detalle = sesionesTotal === 0 ? "Sin semana generada" : "sesiones completadas";
-
-        if (!grande) {
-          return chico({
-            icon: Dumbbell,
-            tint: colors.paloRosa,
-            title: "Esta semana",
-            value: valor,
-            detail: detalle,
-            onPress: () => navegar("/rutinas"),
-          });
-        }
-
-        return (
-          <PanelGrande
-            icon={Dumbbell}
-            tint={colors.paloRosa}
-            title="Esta semana"
-            value={valor}
-            detail={detalle}
-            onPress={() => navegar("/rutinas")}
-          >
+      return renglon({
+        icon: Dumbbell,
+        tint: colors.paloRosa,
+        title: "Esta semana",
+        value: valor,
+        detail: proxima
+          ? `sigue ${proxima.muscleGroup.toLowerCase()} · ${proxima.date.slice(8)}/${proxima.date.slice(5, 7)}`
+          : sesionesTotal === 0
+            ? "Sin semana generada"
+            : "todo cerrado",
+        onPress: () => navegar("/rutinas"),
+        children: (
+          <>
             {(datos.week?.sessions ?? []).map((sesion) => (
               <View key={sesion.workoutId} style={styles.filaSemana}>
-                <Text style={styles.filaSemanaDia}>{sesion.date.slice(8)}/{sesion.date.slice(5, 7)}</Text>
+                <Text style={styles.filaSemanaDia}>
+                  {sesion.date.slice(8)}/{sesion.date.slice(5, 7)}
+                </Text>
                 <Text style={styles.filaSemanaGrupo} numberOfLines={1}>
                   {sesion.muscleGroup}
                 </Text>
@@ -500,41 +613,50 @@ export function PanelResumen({
                 </Text>
               </View>
             ))}
-          </PanelGrande>
-        );
+          </>
+        ),
+      });
+    }
+
+    // -----------------------------------------------------------------------
+    case "disciplinas": {
+      const otras = datos.week?.otherSessions ?? [];
+      const valor = `${sesionesTotal + otras.length}`;
+      const reparto =
+        otras.length === 0
+          ? "solo pesas"
+          : `${sesionesTotal} de pesas · ${otras
+              .map((sesion) => DISCIPLINE_LABELS[sesion.discipline].toLowerCase())
+              .join(", ")}`;
+
+      if (mini) {
+        return cuadro({
+          icon: Waves,
+          tint: colors.paloRosa,
+          title: "Disciplinas",
+          value: valor,
+          detail: "sesiones esta semana",
+          onPress: () => navegar("/rutinas"),
+        });
       }
 
-      case "disciplinas": {
-        const otras = datos.week?.otherSessions ?? [];
-        const valor = `${sesionesTotal + otras.length}`;
-
-        if (!grande) {
-          return chico({
-            icon: Waves,
-            tint: colors.paloRosa,
-            title: "Tus disciplinas",
-            value: valor,
-            detail: "sesiones esta semana",
-            onPress: () => navegar("/rutinas"),
-          });
-        }
-
-        return (
-          <PanelGrande
-            icon={Waves}
-            tint={colors.paloRosa}
-            title="Tus disciplinas"
-            value={valor}
-            detail="sesiones esta semana"
-            onPress={() => navegar("/rutinas")}
-          >
+      return renglon({
+        icon: Waves,
+        tint: colors.paloRosa,
+        title: "Tus disciplinas",
+        value: valor,
+        detail: reparto,
+        onPress: () => navegar("/rutinas"),
+        children: (
+          <>
             <View style={styles.filaSemana}>
               <Text style={styles.filaSemanaGrupo}>Pesas</Text>
               <Text style={styles.filaSemanaEstado}>{sesionesTotal} sesiones</Text>
             </View>
             {otras.length === 0 ? (
               <Text style={styles.panelNota}>
-                Solo pesas. Agrega otra disciplina en Ajustes y se reparte sola en tu semana.
+                Agrega otra disciplina en Ajustes y se reparte sola en tu semana, gastando del
+                mismo presupuesto de sesiones.
               </Text>
             ) : (
               Object.entries(
@@ -550,34 +672,37 @@ export function PanelResumen({
                 </View>
               ))
             )}
-          </PanelGrande>
-        );
+          </>
+        ),
+      });
+    }
+
+    // -----------------------------------------------------------------------
+    case "cumplimiento": {
+      const valor = cumplimiento.rutina === null ? "—" : `${cumplimiento.rutina} %`;
+
+      if (mini) {
+        return cuadro({
+          icon: ClipboardCheck,
+          tint: colors.champan,
+          title: "Cumplimiento",
+          value: valor,
+          detail: "de tu rutina",
+          onPress: () => navegar("/checkin"),
+        });
       }
 
-      case "cumplimiento": {
-        const valor = cumplimiento.rutina === null ? "—" : `${cumplimiento.rutina} %`;
-        const detalle = "de tu rutina, con lo ya registrado";
-
-        if (!grande) {
-          return chico({
-            icon: ClipboardCheck,
-            tint: colors.champan,
-            title: "Cumplimiento",
-            value: valor,
-            detail: detalle,
-            onPress: () => navegar("/checkin"),
-          });
-        }
-
-        return (
-          <PanelGrande
-            icon={ClipboardCheck}
-            tint={colors.champan}
-            title="Cumplimiento"
-            value={valor}
-            detail={detalle}
-            onPress={() => navegar("/checkin")}
-          >
+      return renglon({
+        icon: ClipboardCheck,
+        tint: colors.champan,
+        title: "Cumplimiento",
+        value: valor,
+        detail: `rutina ${cumplimiento.rutinaDetalle ?? "—"} · dieta ${
+          cumplimiento.dieta === null ? "sin datos" : `${cumplimiento.dieta} %`
+        }`,
+        onPress: () => navegar("/checkin"),
+        children: (
+          <>
             <View style={styles.filaSemana}>
               <Text style={styles.filaSemanaGrupo}>Rutina</Text>
               <Text style={styles.filaSemanaEstado}>
@@ -596,67 +721,73 @@ export function PanelResumen({
             </View>
             <Text style={styles.panelNota}>
               {cumplimiento.dietaMedida
-                ? "Los dos se cuentan solos: la rutina con lo que cierras en la app y sube el reloj, y la dieta con las comidas que confirmas desde el aviso."
-                : "La rutina se cuenta sola. Para que la dieta también, confirma tus comidas desde Hoy o desde el aviso que llega a su hora."}
+                ? "Los dos se cuentan solos: la rutina con lo que cierras y sube el reloj, y la dieta con las comidas que confirmas."
+                : "La rutina se cuenta sola. Para que la dieta también, confirma tus comidas desde Hoy o desde el aviso."}
             </Text>
-          </PanelGrande>
-        );
+          </>
+        ),
+      });
+    }
+
+    // -----------------------------------------------------------------------
+    case "racha": {
+      if (mini) {
+        return cuadro({
+          icon: Flame,
+          tint: colors.champan,
+          title: "Racha",
+          value: `${streak}`,
+          detail: streak === 0 ? "hoy cuenta para empezar" : "días seguidos",
+        });
       }
 
-      case "racha": {
-        const detalle =
+      return renglon({
+        icon: Flame,
+        tint: colors.champan,
+        title: "Racha",
+        value: `${streak}`,
+        detail:
           streak === 0
             ? "Hoy cuenta para empezar"
             : best > streak
-              ? `días · tu mejor: ${best}`
-              : "días entrenando seguido";
+              ? `días seguidos · tu mejor: ${best}`
+              : "días seguidos, y es tu mejor marca",
+      });
+    }
 
-        if (!grande) {
-          return chico({ icon: Flame, tint: colors.champan, title: "Racha", value: `${streak}`, detail: detalle });
-        }
+    // -----------------------------------------------------------------------
+    case "estudios": {
+      const valor = ultimoLab ? formatDateEs(ultimoLab.takenOn) : "—";
+      const estado =
+        ultimoLab && ultimoLab.outsideRange.length > 0
+          ? { label: "Revisar", tone: "warn" as const }
+          : null;
+      const detalle = ultimoLab
+        ? `${ultimoLab.values.length} valores · ${ultimoLab.kind === "INBODY" ? "bioimpedancia" : "química"}`
+        : "Todavía sin estudios cargados";
 
-        return (
-          <PanelGrande icon={Flame} tint={colors.champan} title="Racha" value={`${streak}`} detail={detalle}>
-            <Text style={styles.panelNota}>
-              Tu mejor racha son {best} {best === 1 ? "día" : "días"}. Cuenta cualquier sesión
-              registrada, de gimnasio o de otra disciplina.
-            </Text>
-          </PanelGrande>
-        );
+      if (mini) {
+        return cuadro({
+          icon: FlaskConical,
+          tint: colors.guindaLight,
+          title: "Estudios",
+          value: ultimoLab ? valor.split(" de ")[0]! : "—",
+          detail: ultimoLab ? `${ultimoLab.values.length} valores` : "sin cargar",
+          status: estado,
+          onPress: () => navegar("/laboratorios"),
+        });
       }
 
-      case "estudios": {
-        const valor = ultimoLab ? formatDateEs(ultimoLab.takenOn) : "—";
-        const detalle = ultimoLab
-          ? `${ultimoLab.values.length} valores · ${ultimoLab.kind === "INBODY" ? "bioimpedancia" : "química"}`
-          : "Todavía sin estudios cargados";
-        const estado =
-          ultimoLab && ultimoLab.outsideRange.length > 0
-            ? { label: "Revisar", tone: "warn" as const }
-            : null;
-
-        if (!grande) {
-          return chico({
-            icon: FlaskConical,
-            tint: colors.guindaLight,
-            title: "Tus estudios",
-            value: valor,
-            detail: detalle,
-            status: estado,
-            onPress: () => navegar("/laboratorios"),
-          });
-        }
-
-        return (
-          <PanelGrande
-            icon={FlaskConical}
-            tint={colors.guindaLight}
-            title="Tus estudios"
-            value={valor}
-            detail={detalle}
-            status={estado}
-            onPress={() => navegar("/laboratorios")}
-          >
+      return renglon({
+        icon: FlaskConical,
+        tint: colors.guindaLight,
+        title: "Tus estudios",
+        value: valor,
+        detail: detalle,
+        status: estado,
+        onPress: () => navegar("/laboratorios"),
+        children: (
+          <>
             {(ultimoLab?.values ?? []).slice(0, 5).map((dato) => (
               <View key={dato.key} style={styles.filaSemana}>
                 <Text style={styles.filaSemanaGrupo} numberOfLines={1}>
@@ -671,115 +802,106 @@ export function PanelResumen({
               Se guardan y se grafican. La app no los interpreta: lo que salga fuera del rango de
               tu laboratorio lo revisa un médico.
             </Text>
-          </PanelGrande>
-        );
+          </>
+        ),
+      });
+    }
+
+    // -----------------------------------------------------------------------
+    case "plan": {
+      const valor = datos.decision ? `${datos.decision.kcal}` : "—";
+      const fase = datos.decision ? datos.decision.phase.replace(/_/g, " ").toLowerCase() : null;
+
+      if (mini) {
+        return cuadro({
+          icon: Flame,
+          tint: colors.paloRosa,
+          title: "Tu plan",
+          value: valor,
+          detail: fase ? `kcal · ${fase}` : "sin decisión",
+          onPress: () => navegar("/nutricion"),
+        });
       }
 
-      case "plan": {
-        const valor = datos.decision ? `${datos.decision.kcal}` : "—";
-        const detalle = datos.decision
-          ? `kcal · ${datos.decision.phase.replace(/_/g, " ").toLowerCase()}`
-          : "Sin decisión publicada";
+      return renglon({
+        icon: Flame,
+        tint: colors.paloRosa,
+        title: "Tu plan",
+        value: valor,
+        detail: datos.decision
+          ? `kcal · ${fase} · P ${datos.decision.proteinG} · C ${datos.decision.carbsG} · G ${datos.decision.fatG}`
+          : "Sin decisión publicada",
+        onPress: () => navegar("/nutricion"),
+        children: datos.decision ? (
+          <View style={styles.macros}>
+            <Macro label="Proteína" valor={`${datos.decision.proteinG} g`} />
+            <Macro label="Carbohidratos" valor={`${datos.decision.carbsG} g`} />
+            <Macro label="Grasas" valor={`${datos.decision.fatG} g`} />
+          </View>
+        ) : (
+          <Text style={styles.panelNota}>Tu primera decisión sale de tu primer check-in.</Text>
+        ),
+      });
+    }
 
-        if (!grande) {
-          return chico({
-            icon: Flame,
-            tint: colors.paloRosa,
-            title: "Tu plan",
-            value: valor,
-            detail: detalle,
-            onPress: () => navegar("/nutricion"),
-          });
-        }
+    // -----------------------------------------------------------------------
+    case "objetivo": {
+      const valor =
+        objetivoEstado === "listo"
+          ? "Listo"
+          : objetivoEstado === "en_espera"
+            ? "En análisis"
+            : "Pendiente";
+      const referencias =
+        datos.goal && "references" in datos.goal.status
+          ? `${datos.goal.status.references} referencias`
+          : "Sube tus fotos de referencia";
 
-        return (
-          <PanelGrande
-            icon={Flame}
-            tint={colors.paloRosa}
-            title="Tu plan"
-            value={valor}
-            detail={detalle}
-            onPress={() => navegar("/nutricion")}
-          >
-            {datos.decision ? (
-              <View style={styles.macros}>
-                <Macro label="Proteína" valor={`${datos.decision.proteinG} g`} />
-                <Macro label="Carbohidratos" valor={`${datos.decision.carbsG} g`} />
-                <Macro label="Grasas" valor={`${datos.decision.fatG} g`} />
-              </View>
-            ) : (
-              <Text style={styles.panelNota}>
-                Tu primera decisión sale de tu primer check-in.
-              </Text>
-            )}
-          </PanelGrande>
-        );
+      if (mini) {
+        return cuadro({
+          icon: Target,
+          tint: colors.guindaLight,
+          title: "Objetivo",
+          value: valor,
+          detail: referencias,
+          onPress: () => navegar("/objetivo"),
+        });
       }
 
-      case "objetivo": {
-        const valor =
-          objetivoEstado === "listo"
-            ? "Listo"
-            : objetivoEstado === "en_espera"
-              ? "En análisis"
-              : "Pendiente";
-        const detalle =
-          datos.goal && "references" in datos.goal.status
-            ? `${datos.goal.status.references} referencias`
-            : "Sube tus fotos de referencia";
+      return renglon({
+        icon: Target,
+        tint: colors.guindaLight,
+        title: "Objetivo",
+        value: valor,
+        detail: `${referencias} · la referencia es dirección, no promesa`,
+        onPress: () => navegar("/objetivo"),
+      });
+    }
 
-        if (!grande) {
-          return chico({
-            icon: Target,
-            tint: colors.guindaLight,
-            title: "Objetivo",
-            value: valor,
-            detail: detalle,
-            onPress: () => navegar("/objetivo"),
-          });
-        }
-
-        return (
-          <PanelGrande
-            icon={Target}
-            tint={colors.guindaLight}
-            title="Objetivo"
-            value={valor}
-            detail={detalle}
-            onPress={() => navegar("/objetivo")}
-          >
-            <Text style={styles.panelNota}>
-              La referencia es dirección, no promesa: se comparan proporciones, nunca identidades.
-            </Text>
-          </PanelGrande>
-        );
+    // -----------------------------------------------------------------------
+    case "records": {
+      if (mini) {
+        return cuadro({
+          icon: Trophy,
+          tint: colors.champan,
+          title: "Récords",
+          value: `${prs.length}`,
+          detail: ultimoPr ? ultimoPr.exerciseName : "sin PRs todavía",
+          onPress: () => navegar("/historial"),
+        });
       }
 
-      case "records": {
-        const detalle = ultimoPr
+      return renglon({
+        icon: Trophy,
+        tint: colors.champan,
+        title: "Récords",
+        value: `${prs.length}`,
+        detail: ultimoPr
           ? `último: ${ultimoPr.exerciseName} ${ultimoPr.weightKg} kg`
-          : "Cierra sesiones para tener PRs";
-
-        if (!grande) {
-          return chico({
-            icon: Trophy,
-            tint: colors.champan,
-            title: "Récords",
-            value: `${prs.length}`,
-            detail: detalle,
-            onPress: () => navegar("/historial"),
-          });
-        }
-
-        return (
-          <PanelGrande
-            icon={Trophy}
-            tint={colors.champan}
-            title="Récords"
-            value={`${prs.length}`}
-            detail={detalle}
-            onPress={() => navegar("/historial")}
-          >
+          : "Cierra sesiones para tener PRs",
+        onPress: () => navegar("/historial"),
+        children: (
+          <>
             {prs.slice(0, 5).map((record) => (
               <View key={record.exerciseName} style={styles.filaSemana}>
                 <Text style={styles.filaSemanaGrupo} numberOfLines={1}>
@@ -790,124 +912,123 @@ export function PanelResumen({
                 </Text>
               </View>
             ))}
-          </PanelGrande>
-        );
-      }
-
-      case "peso":
-        return metricaSimple({
-          grande,
-          icon: TrendingUp,
-          tint: colors.paloRosa,
-          title: "Peso",
-          value: ultimoCheckIn?.weightKg != null ? `${ultimoCheckIn.weightKg} kg` : "—",
-          detail: "de tu último check-in",
-          serie: serieDe("weightKg"),
-          puntos: (datos.points ?? []).slice(-10).map((punto) => ({ date: punto.date, value: punto.weightKg })),
-          formato: (valor: number) => `${valor} kg`,
-          ruta: "/salud/medidas",
-        });
-
-      case "pasos":
-        return metricaSimple({
-          grande,
-          icon: Footprints,
-          tint: colors.champan,
-          title: "Pasos",
-          value: pasos ? pasos.value.toLocaleString("es-MX") : "—",
-          detail: `de ${PASOS_META.toLocaleString("es-MX")}`,
-          serie: serieSalud("steps"),
-          puntos: puntosSalud("steps"),
-          formato: (valor: number) => `${Math.round(valor)}`,
-          ruta: "/salud/pasos",
-        });
-
-      case "sueno":
-        return metricaSimple({
-          grande,
-          icon: Moon,
-          tint: colors.paloRosa,
-          title: "Sueño",
-          value: sueno ? formatSleep(sueno.value) : "—",
-          detail: `de ${formatSleep(SUENO_META_MIN)}`,
-          serie: serieSalud("sleepMin"),
-          puntos: puntosSalud("sleepMin"),
-          formato: (valor: number) => formatSleep(valor),
-          ruta: "/salud/descanso",
-        });
-
-      case "recuperacion":
-        return metricaSimple({
-          grande,
-          icon: HeartPulse,
-          tint: colors.error,
-          title: "Recuperación",
-          value: hrv ? `${hrv.value}` : "—",
-          detail: "ms de variabilidad",
-          serie: serieSalud("hrvMs"),
-          puntos: puntosSalud("hrvMs"),
-          formato: (valor: number) => `${Math.round(valor)} ms`,
-          ruta: "/salud/recuperacion",
-        });
-
-      case "condicion":
-        return metricaSimple({
-          grande,
-          icon: ActivityIcon,
-          tint: colors.champan,
-          title: "Condición",
-          value: vo2 ? `${vo2.value}` : "—",
-          detail: "VO₂ máx",
-          serie: serieSalud("vo2max"),
-          puntos: puntosSalud("vo2max"),
-          formato: (valor: number) => `${valor}`,
-          ruta: "/salud/condicion",
-        });
-
-      default:
-        return null;
+          </>
+        ),
+      });
     }
 
-    /** Métrica de una sola serie: el mismo molde para las cinco del reloj. */
-    function metricaSimple(props: {
-      grande: boolean;
-      icon: typeof Flame;
-      tint: string;
-      title: string;
-      value: string;
-      detail: string;
-      serie: number[];
-      puntos: Array<{ date: string; value: number | null }>;
-      formato: (valor: number) => string;
-      ruta: string;
-    }): React.ReactNode {
-      if (!props.grande) {
-        return chico({
-          icon: props.icon,
-          tint: props.tint,
-          title: props.title,
-          value: props.value,
-          detail: props.detail,
-          serie: props.serie,
-          onPress: () => navegar(props.ruta),
-        });
-      }
+    // -----------------------------------------------------------------------
+    case "peso":
+      return metrica({
+        icon: TrendingUp,
+        tint: colors.paloRosa,
+        title: "Peso",
+        value: ultimoCheckIn?.weightKg != null ? `${ultimoCheckIn.weightKg} kg` : "—",
+        detail: "de tu último check-in",
+        serie: serieDe("weightKg"),
+        puntos: (datos.points ?? [])
+          .slice(-10)
+          .map((punto) => ({ date: punto.date, value: punto.weightKg })),
+        formato: (valor: number) => `${valor} kg`,
+        ruta: "/salud/medidas",
+      });
 
-      return (
-        <PanelGrande
-          icon={props.icon}
-          tint={props.tint}
-          title={props.title}
-          value={props.value}
-          detail={props.detail}
-          onPress={() => navegar(props.ruta)}
-        >
+    case "pasos":
+      return metrica({
+        icon: Footprints,
+        tint: colors.champan,
+        title: "Pasos",
+        value: pasos ? pasos.value.toLocaleString("es-MX") : "—",
+        detail: `de ${PASOS_META.toLocaleString("es-MX")} al día`,
+        serie: serieSalud("steps"),
+        puntos: puntosSalud("steps"),
+        formato: (valor: number) => `${Math.round(valor)}`,
+        ruta: "/salud/pasos",
+      });
+
+    case "sueno":
+      return metrica({
+        icon: Moon,
+        tint: colors.paloRosa,
+        title: "Sueño",
+        value: sueno ? formatSleep(sueno.value) : "—",
+        detail: `de ${formatSleep(SUENO_META_MIN)} por noche`,
+        serie: serieSalud("sleepMin"),
+        puntos: puntosSalud("sleepMin"),
+        formato: (valor: number) => formatSleep(valor),
+        ruta: "/salud/descanso",
+      });
+
+    case "recuperacion":
+      return metrica({
+        icon: HeartPulse,
+        tint: colors.error,
+        title: "Recuperación",
+        value: hrv ? `${hrv.value}` : "—",
+        detail: "ms de variabilidad, contra tu propia normal",
+        serie: serieSalud("hrvMs"),
+        puntos: puntosSalud("hrvMs"),
+        formato: (valor: number) => `${Math.round(valor)} ms`,
+        ruta: "/salud/recuperacion",
+      });
+
+    case "condicion":
+      return metrica({
+        icon: ActivityIcon,
+        tint: colors.champan,
+        title: "Condición",
+        value: vo2 ? `${vo2.value}` : "—",
+        detail: "VO₂ máx estimado por el reloj",
+        serie: serieSalud("vo2max"),
+        puntos: puntosSalud("vo2max"),
+        formato: (valor: number) => `${valor}`,
+        ruta: "/salud/condicion",
+      });
+
+    default:
+      return null;
+  }
+
+  /** Las cinco métricas de una sola serie comparten molde en los tres tamaños. */
+  function metrica(props: {
+    icon: typeof Flame;
+    tint: string;
+    title: string;
+    value: string;
+    detail: string;
+    serie: number[];
+    puntos: Array<{ date: string; value: number | null }>;
+    formato: (valor: number) => string;
+    ruta: string;
+  }): React.ReactNode {
+    if (mini) {
+      return cuadro({
+        icon: props.icon,
+        tint: props.tint,
+        title: props.title,
+        value: props.value,
+        detail: props.detail,
+        onPress: () => navegar(props.ruta),
+      });
+    }
+
+    return (
+      <PanelGrande
+        icon={props.icon}
+        tint={props.tint}
+        title={props.title}
+        value={props.value}
+        detail={props.detail}
+        onPress={() => navegar(props.ruta)}
+      >
+        {completa ? (
           <ChartBoundary label="La tendencia no se pudo dibujar.">
             <LineChart points={props.puntos} color={props.tint} format={props.formato} />
           </ChartBoundary>
-        </PanelGrande>
-      );
-    }
+        ) : null}
+      </PanelGrande>
+    );
+  }
 }
 
 const makeStyles = (colors: Palette) =>
@@ -929,6 +1050,21 @@ const makeStyles = (colors: Palette) =>
     heroTitle: { fontFamily: fonts.sansBold, ...typeScale.heading, color: colors.marfil },
     heroPista: { fontFamily: fonts.sans, ...typeScale.label, color: colors.paloRosaLight },
     heroCaption: { fontFamily: fonts.sans, ...typeScale.bodySm, color: colors.paloRosa },
+    heroResumen: { fontFamily: fonts.sansBold, ...typeScale.subheading, color: colors.marfil },
+    ejesFila: { flexDirection: "row", flexWrap: "wrap", gap: spacing.sm, marginTop: spacing.md },
+    ejePastilla: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 6,
+      borderRadius: radius.full,
+      borderWidth: 1,
+      borderColor: colors.cardBorder,
+      paddingHorizontal: spacing.md,
+      paddingVertical: 5,
+    },
+    ejeNombre: { fontFamily: fonts.sansMedium, ...typeScale.bodySm, color: colors.paloRosa },
+    ejeValor: { fontFamily: fonts.sansBold, ...typeScale.bodySm, color: colors.champan },
+    ejeValorBajo: { color: colors.error },
     heroBody: {
       flexDirection: "row",
       alignItems: "center",

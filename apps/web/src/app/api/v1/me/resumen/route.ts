@@ -16,16 +16,29 @@ import { prisma } from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
 
-const panelSchema = z.object({
-  id: z
-    .string()
-    .trim()
-    .min(1)
-    .max(40)
-    .regex(/^[a-z0-9_]+$/, "el id va en minúsculas, sin espacios"),
-  variante: z.enum(["compacto", "normal", "detallado"]),
-  ancho: z.enum(["medio", "ancho"]),
-});
+/**
+ * Un panel del tablero.
+ *
+ * `tamano` es el modelo actual; `variante` + `ancho` es el anterior y se sigue
+ * aceptando porque un teléfono sin actualizar manda ese formato. Traducirlo es
+ * trabajo del cliente (`sanearLayout`), no del servidor: aquí solo se valida
+ * que la forma sea razonable y se guarda tal cual.
+ */
+const panelSchema = z
+  .object({
+    id: z
+      .string()
+      .trim()
+      .min(1)
+      .max(40)
+      .regex(/^[a-z0-9_]+$/, "el id va en minúsculas, sin espacios"),
+    tamano: z.enum(["mini", "compacta", "completa"]).optional(),
+    variante: z.enum(["compacto", "normal", "detallado"]).optional(),
+    ancho: z.enum(["medio", "ancho"]).optional(),
+  })
+  .refine((panel) => panel.tamano !== undefined || panel.ancho !== undefined, {
+    message: "un panel sin tamaño no se puede pintar",
+  });
 
 const schema = z.object({
   paneles: z
