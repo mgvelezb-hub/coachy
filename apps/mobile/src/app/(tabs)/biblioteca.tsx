@@ -20,7 +20,13 @@ import { useTheme } from "@/context/theme";
 import { useScrollTop } from "@/lib/scroll-top";
 import { ApiError, getTrainingWeek, type SessionExerciseView, type WeekView } from "@/lib/api";
 import { iconoDe } from "@/lib/disciplinas";
-import { TECNICA_POR_DISCIPLINA } from "@/lib/tecnica";
+import {
+  BIBLIOTECA_POR_DISCIPLINA,
+  NIVEL_LABEL,
+  porCategoria,
+  porNivel,
+  resumenDeBiblioteca,
+} from "@/lib/tecnica";
 import { DISCIPLINE_LABELS, type Discipline } from "@/lib/api";
 import { fonts, radius, spacing, type Palette, type as typeScale } from "@/lib/theme";
 import { getCachedWeek, saveWeek } from "@/lib/training-db";
@@ -264,13 +270,14 @@ export default function BibliotecaScreen() {
         )}
       </ScoreCard>
 
-      {/* Cada disciplina con prescripción trae sus fichas de técnica. La sesión
-          las pide por nombre —"patada con tabla", "vuelta a la T", "guardia"—
-          y pedir algo que no se enseña en ningún lado es lo que en pesas sería
-          impensable: ahí cada ejercicio tiene su video. */}
-      {(Object.keys(TECNICA_POR_DISCIPLINA) as Discipline[]).map((disciplina) => {
-        const fichas = TECNICA_POR_DISCIPLINA[disciplina] ?? [];
+      {/* Cada disciplina trae su biblioteca completa: los movimientos que su
+          sesión pide por nombre, ordenados por nivel. El resumen se lee igual
+          que el de Gym —videos y ejercicios— para que se comparen de un
+          vistazo. */}
+      {(Object.keys(BIBLIOTECA_POR_DISCIPLINA) as Discipline[]).map((disciplina) => {
+        const ejercicios = BIBLIOTECA_POR_DISCIPLINA[disciplina] ?? [];
         const Icono = iconoDe(disciplina);
+        const niveles = porNivel(ejercicios);
 
         return (
           <ScoreCard
@@ -278,28 +285,43 @@ export default function BibliotecaScreen() {
             icon={Icono}
             tint={colors.paloRosa}
             title={DISCIPLINE_LABELS[disciplina]}
-            summary={`${fichas.length} ejercicios de técnica · sin video todavía`}
-            status={{ label: "Ya se prescribe", tone: "ok" }}
+            summary={resumenDeBiblioteca(ejercicios)}
           >
             <Text style={styles.disciplinaIntro}>
-              Estos son los que aparecen en el bloque de técnica de tu sesión. Todavía sin video:
-              lo que hay es cómo se hace, para qué sirve y el error más común.
+              Los que aparecen en tus sesiones, con cómo se hacen, para qué sirven y el error más
+              común. Sin video todavía.
             </Text>
 
-            {fichas.map((ficha) => (
-              <Collapsible key={ficha.id} title={ficha.nombre}>
-                <Text style={styles.fichaLinea}>
-                  <Text style={styles.fichaEtiqueta}>Cómo: </Text>
-                  {ficha.como}
-                </Text>
-                <Text style={styles.fichaLinea}>
-                  <Text style={styles.fichaEtiqueta}>Para qué: </Text>
-                  {ficha.para}
-                </Text>
-                <Text style={styles.fichaLinea}>
-                  <Text style={styles.fichaEtiqueta}>Ojo con: </Text>
-                  {ficha.ojo}
-                </Text>
+            {niveles.map((grupo) => (
+              <Collapsible
+                key={grupo.nivel}
+                title={NIVEL_LABEL[grupo.nivel]}
+                subtitle={`${grupo.ejercicios.length} ${
+                  grupo.ejercicios.length === 1 ? "ejercicio" : "ejercicios"
+                }`}
+              >
+                {porCategoria(grupo.ejercicios).map((familia) => (
+                  <View key={familia.categoria} style={styles.familia}>
+                    <Text style={styles.familiaTitulo}>{familia.categoria}</Text>
+
+                    {familia.ejercicios.map((ejercicio) => (
+                      <Collapsible key={ejercicio.id} title={ejercicio.nombre}>
+                        <Text style={styles.fichaLinea}>
+                          <Text style={styles.fichaEtiqueta}>Cómo: </Text>
+                          {ejercicio.como}
+                        </Text>
+                        <Text style={styles.fichaLinea}>
+                          <Text style={styles.fichaEtiqueta}>Para qué: </Text>
+                          {ejercicio.para}
+                        </Text>
+                        <Text style={styles.fichaLinea}>
+                          <Text style={styles.fichaEtiqueta}>Ojo con: </Text>
+                          {ejercicio.ojo}
+                        </Text>
+                      </Collapsible>
+                    ))}
+                  </View>
+                ))}
               </Collapsible>
             ))}
           </ScoreCard>
@@ -405,6 +427,14 @@ const makeStyles = (colors: Palette) => StyleSheet.create({
     marginBottom: spacing.sm,
   },
   fichaLinea: { fontFamily: fonts.sans, ...typeScale.bodySm, color: colors.paloRosa },
+  familia: { marginTop: spacing.md, gap: spacing.xs },
+  familiaTitulo: {
+    fontFamily: fonts.sansSemiBold,
+    ...typeScale.label,
+    letterSpacing: 1,
+    textTransform: "uppercase",
+    color: colors.champan,
+  },
   fichaEtiqueta: { fontFamily: fonts.sansSemiBold, color: colors.marfil },
 
   screen: { flex: 1, backgroundColor: colors.obsidiana },

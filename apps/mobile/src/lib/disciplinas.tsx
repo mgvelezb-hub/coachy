@@ -1,15 +1,13 @@
-import {
-  Activity,
-  Dumbbell,
-  Footprints,
-  HandFist,
-  Timer,
-  Volleyball,
-  Waves,
-  Weight,
-} from "lucide-react-native";
+import { Activity, Dumbbell, Waves } from "lucide-react-native";
 import type { ComponentType } from "react";
 
+import {
+  GuantesBox,
+  JumpingJack,
+  LevantamientoClean,
+  PersonaCorriendo,
+  RaquetaSquash,
+} from "@/components/iconos/Disciplinas";
 import type { Discipline } from "@/lib/api";
 
 /**
@@ -20,21 +18,25 @@ import type { Discipline } from "@/lib/api";
  * en Actividad—. Un ícono que cambia de pantalla en pantalla deja de ser un
  * ícono y se vuelve decoración.
  *
- * Elegidos por lo que la disciplina hace, con lo que el set de íconos tiene:
- * el puño para box, la pelota para squash, las olas para nadar, las pisadas
- * para correr, la pesa rusa para funcional y el cronómetro para CrossFit —el
- * WOD se mide contra el reloj, y eso lo distingue de las pesas—.
+ * Cuatro son dibujados a mano (`components/iconos/Disciplinas.tsx`) porque el
+ * set genérico no los tiene: una raqueta de squash, un par de guantes, la
+ * silueta corriendo, la del jumping jack y la del clean. Los sustitutos
+ * genéricos —una pelota cualquiera, un puño suelto, unas pisadas— no se
+ * reconocen de un vistazo, que es lo único que un ícono tiene que hacer.
+ *
+ * Mancuerna y olas sí vienen del set: para gimnasio y natación ya dicen
+ * exactamente lo que son.
  */
 type IconProps = { size?: number; color?: string; strokeWidth?: number };
 
 export const DISCIPLINE_ICON: Record<Discipline, ComponentType<IconProps>> = {
   PESAS: Dumbbell,
   NATACION: Waves,
-  BOX: HandFist,
-  SQUASH: Volleyball,
-  CARDIO: Footprints,
-  FUNCIONAL: Weight,
-  CROSSFIT: Timer,
+  BOX: GuantesBox,
+  SQUASH: RaquetaSquash,
+  CARDIO: PersonaCorriendo,
+  FUNCIONAL: JumpingJack,
+  CROSSFIT: LevantamientoClean,
   // La cubeta de lo que se registra pero no se planea.
   OTRO: Activity,
 };
