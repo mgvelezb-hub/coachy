@@ -294,10 +294,23 @@ model Profile {
    */
   disciplineLevels  Json?      @map("discipline_levels")
   /// Disciplinas además de la primaria, con cuántas sesiones a la semana:
-  /// `[{ "discipline": "NATACION", "sessionsPerWeek": 2 }]`. Gastan del
-  /// presupuesto semanal: agregar una no suma días encima, se los quita a las
-  /// pesas.
+  /// `[{ "discipline": "NATACION", "sessionsPerWeek": 2, "proposito": "COMPLEMENTO", "importancia": 2 }]`.
+  /// Gastan del presupuesto semanal: agregar una no suma días encima, se los
+  /// quita a las pesas. `proposito` e `importancia` son lo que la persona
+  /// contestó al replanificar (ver `replan.ts`) — antes se preguntaban y se
+  /// tiraban, y la pantalla de recalibrar tenía que adivinar la importancia
+  /// contando sesiones.
   otherDisciplines  Json?      @map("other_disciplines")
+  /**
+   * Minutos disponibles por día, tal como la persona los declaró al
+   * replanificar: `{"LUN": 60, "MAR": 90, ..., "DOM": 0}`. `null` = todavía
+   * no se ha declarado y el planificador usa sus defaults.
+   *
+   * Es lo que hace honesto el reparto de un día combinado: sin esto, dos
+   * bloques de una sesión compartida se repartían 60 minutos imaginarios
+   * (`DEFAULT_MINUTES` de `disciplines.ts`) en vez del tiempo real del día.
+   */
+  timePerDay        Json?      @map("time_per_day")
 
   /// Overrides de la config del motor (spec 02 §7). Null = defaults.
   engineConfig Json? @map("engine_config")

@@ -20,11 +20,15 @@ import type {
   HistoryWorkout,
   MuscleGroup,
   PlannedExercise,
+  Proposito,
   TargetSet,
   SwimLevel,
   TrainingProfile,
   VolumeBias,
 } from "@/lib/training/types";
+
+/** Mismos valores que `PROPOSITOS` en `replan.ts`, para validar el JSON crudo. */
+const PROPOSITOS: readonly Proposito[] = ["ENTRENAMIENTO", "COMPLEMENTO", "HOBBY"];
 
 /**
  * Traduce la fase de la dieta (`Phase`, del motor de nutrición) al único dato
@@ -48,6 +52,14 @@ export function volumeBiasForPhase(phase: Phase): VolumeBias {
  * `other_disciplines` es JSON libre en la base: lo que llegue mal formado se
  * ignora en vez de tumbar la rutina de la semana. Una preferencia corrupta no
  * puede dejar a nadie sin entrenar.
+ *
+ * `discipline` y `sessionsPerWeek` siguen siendo obligatorios — sin ellos la
+ * entrada entera no dice nada útil y se descarta. `proposito` e `importancia`
+ * (Fase de preferencias declaradas) son **tolerantes campo por campo**: una
+ * entrada vieja que no los trae sigue siendo válida sin ellos, y un valor
+ * fuera de rango (`importancia: 7`, un `proposito` que no existe) tira solo
+ * ese campo, no la entrada — la persona no se queda sin su disciplina activa
+ * por un dato corrupto en un campo que ni siquiera pidió.
  */
 export function parseDisciplineLoads(raw: unknown): DisciplineLoad[] {
   if (!Array.isArray(raw)) return [];
@@ -55,16 +67,55 @@ export function parseDisciplineLoads(raw: unknown): DisciplineLoad[] {
   const loads: DisciplineLoad[] = [];
   for (const entry of raw) {
     if (entry === null || typeof entry !== "object") continue;
-    const { discipline, sessionsPerWeek } = entry as Record<string, unknown>;
+    const { discipline, sessionsPerWeek, proposito, importancia } = entry as Record<string, unknown>;
     if (typeof discipline !== "string") continue;
     if (!(DISCIPLINES as readonly string[]).includes(discipline)) continue;
     if (typeof sessionsPerWeek !== "number" || !Number.isFinite(sessionsPerWeek)) continue;
-    loads.push({
+
+    const load: DisciplineLoad = {
       discipline: discipline as Discipline,
       sessionsPerWeek: Math.max(0, Math.min(7, Math.trunc(sessionsPerWeek))),
-    });
+    };
+
+    if (typeof proposito === "string" && (PROPOSITOS as readonly string[]).includes(proposito)) {
+      load.proposito = proposito as Proposito;
+    }
+    if (
+      typeof importancia === "number" &&
+      Number.isFinite(importancia) &&
+      Number.isInteger(importancia) &&
+      importancia >= 1 &&
+      importancia <= 3
+    ) {
+      load.importancia = importancia;
+    }
+
+    loads.push(load);
   }
   return loads;
+}
+
+/** Los días de la semana que entiende el generador. Igual que `WEEK_DAYS` de `split.ts`. */
+const DIAS: readonly WeekDay[] = ["LUN", "MAR", "MIE", "JUE", "VIE", "SAB", "DOM"];
+
+/**
+ * `time_per_day` es JSON libre en la base, igual que `other_disciplines`:
+ * tolerante campo por campo. Una llave que no es un día conocido se ignora,
+ * un valor fuera de 0-300 se clampa en vez de tirar el día entero, y si no
+ * queda ninguna llave usable se devuelve `null` — igual que "no se ha
+ * declarado", que es el estado que hace que el planificador use sus defaults.
+ */
+export function parseTimePerDay(raw: unknown): Partial<Record<WeekDay, number>> | null {
+  if (raw === null || typeof raw !== "object" || Array.isArray(raw)) return null;
+
+  const result: Partial<Record<WeekDay, number>> = {};
+  for (const [key, value] of Object.entries(raw as Record<string, unknown>)) {
+    if (!(DIAS as readonly string[]).includes(key)) continue;
+    if (typeof value !== "number" || !Number.isFinite(value)) continue;
+    result[key as WeekDay] = Math.max(0, Math.min(300, Math.trunc(value)));
+  }
+
+  return Object.keys(result).length > 0 ? result : null;
 }
 
 /** Las etiquetas de grupo que el generador entiende; el resto se descarta. */
@@ -96,6 +147,7 @@ export function toTrainingProfile(profile: Profile): TrainingProfile {
     disciplineLevels: parseNiveles(profile.disciplineLevels, profile.swimLevel as SwimLevel),
     gymLevel: parseNiveles(profile.disciplineLevels, profile.swimLevel as SwimLevel).PESAS ?? "PRINCIPIANTE",
     goal: profile.goal,
+    timePerDay: parseTimePerDay(profile.timePerDay),
   };
 }
 
@@ -252,6 +304,19 @@ function plannedDatesOf(profile: Profile, monday: Date): string[] {
  * guardarse: son sugerencias de día con su plan, no filas que alguien vaya a
  * editar. Lo que sí queda registrado es lo que se hizo, y eso vive en
  * `ActivitySession`.
+ *
+ * **Por qué esto no diverge de lo que ya se generó.** `planDisciplines` es
+ * pura: misma entrada, misma salida — incluidos `gymMinutesPorFecha` y el
+ * `orden` de cada bloque (Fase 9). `generateWeek` (en `ensureWeekMaterialized`)
+ * y esta función arman `gymByDay` por caminos distintos —una desde el split
+ * recién calculado, esta desde el `dayKind` ya guardado en cada `Workout`—
+ * pero para la MISMA semana ya materializada ambos caminos producen el mismo
+ * mapa, y `otherDisciplines`/`niveles`/`objetivo`/`isoWeek` salen del mismo
+ * `toTrainingProfile(profile)` en los dos lados. Si algún día uno de los dos
+ * empieza a construir `gymByDay` o el `isoWeek` distinto (p. ej. leyendo un
+ * `profile` desactualizado), la semana materializada y la vista se separan en
+ * silencio — por eso los dos siguen llamando a `planDisciplines` con el mismo
+ * criterio en vez de cachear el resultado de uno para el otro.
  */
 export function otherSessionsFor(
   profile: Profile,
@@ -277,6 +342,7 @@ export function otherSessionsFor(
     niveles: training.disciplineLevels,
     objetivo: training.goal as never,
     isoWeek: isoWeekNumber(monday),
+    timePerDay: training.timePerDay,
   }).sessions;
 }
 

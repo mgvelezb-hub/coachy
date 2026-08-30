@@ -6,12 +6,14 @@ import type { DayKind } from "@/lib/training/types";
 import type { WeekDay } from "@/lib/training/split";
 
 /**
- * El modelo de convivencia entre disciplinas (Fase 7).
+ * El modelo de convivencia entre disciplinas (Fase 7, ampliada en Fase 9).
  *
  * Lo que se prueba no son los números —cuántos metros, cuántos puntos de
- * puntuación—, sino las cuatro reglas: el presupuesto no se estira, la
- * primaria arma el esqueleto, el alto impacto no va la víspera de pierna, y
- * el día compartido recorta el gimnasio.
+ * puntuación—, sino las reglas: el presupuesto no se estira, la primaria arma
+ * el esqueleto, el alto impacto no va la víspera de pierna, y desde la Fase 9,
+ * nada se tira en silencio — lo que no cabe en su propio día se anexa a uno ya
+ * ocupado o libera un descanso, y solo si de plano no cabe en ningún lado se
+ * avisa.
  */
 
 /** Lunes 2026-01-05 = semana ISO 2. */
@@ -26,6 +28,7 @@ function plan(input: {
   loads: Array<{ discipline: Parameters<typeof planDisciplines>[0]["otherDisciplines"][number]["discipline"]; sessionsPerWeek: number }>;
   gym: Map<WeekDay, DayKind>;
   isoWeek?: number;
+  timePerDay?: Partial<Record<WeekDay, number>> | null;
 }) {
   return planDisciplines({
     weekStart: MONDAY,
@@ -34,7 +37,34 @@ function plan(input: {
     niveles: { NATACION: "INTERMEDIO" },
     objetivo: "RECOMPOSICION",
     isoWeek: input.isoWeek ?? 2,
+    timePerDay: input.timePerDay,
   });
+}
+
+/** Los 7 días con el mismo minutaje: sirve para aislar el efecto de `timePerDay`. */
+function todosLosDias(minutos: number): Record<WeekDay, number> {
+  return {
+    LUN: minutos,
+    MAR: minutos,
+    MIE: minutos,
+    JUE: minutos,
+    VIE: minutos,
+    SAB: minutos,
+    DOM: minutos,
+  };
+}
+
+/** Semana de gimnasio los 7 días: fuerza a que cualquier secundaria pase por la Fase 2 (anexar). */
+function gymTodaLaSemana(kind: DayKind): Map<WeekDay, DayKind> {
+  return gymWeek([
+    ["LUN", kind],
+    ["MAR", kind],
+    ["MIE", kind],
+    ["JUE", kind],
+    ["VIE", kind],
+    ["SAB", kind],
+    ["DOM", kind],
+  ]);
 }
 
 describe("reparto de disciplinas en la semana", () => {
@@ -52,7 +82,10 @@ describe("reparto de disciplinas en la semana", () => {
     expect(sessions.every((session) => !session.sharesDayWithGym)).toBe(true);
   });
 
-  it("no pone dos disciplinas el mismo día", () => {
+  // En este reparto concreto sobran dos días libres (SAB y DOM no se piden),
+  // así que nada combina — la prueba de que SÍ pueden combinar cuando hace
+  // falta vive en el bloque "el caso real" más abajo.
+  it("no pone dos disciplinas el mismo día cuando hay huecos de sobra", () => {
     const { sessions } = plan({
       loads: [
         { discipline: "NATACION", sessionsPerWeek: 2 },
@@ -93,8 +126,13 @@ describe("reparto de disciplinas en la semana", () => {
     expect(sessions[0]!.note).toContain("después de pierna");
   });
 
-  it("cuando no hay huecos comparte día, y ese día de gimnasio se recorta", () => {
-    const { sessions, crowdedDates } = plan({
+  // Fase 9: antes, el único destino de "no hay huecos" era compartir día con
+  // el gimnasio y perder un accesorio a ciegas. Ahora pasa por
+  // `combinaciones.ts`: la sesión de pesas se REDIMENSIONA a los minutos que
+  // le tocan de verdad (`gymMinutesPorFecha`), y la nota explica el porqué del
+  // orden en vez de solo avisar el recorte.
+  it("cuando no hay huecos, anexa el día con la mejor combinación de gimnasio y redimensiona esa sesión", () => {
+    const { sessions, crowdedDates, gymMinutesPorFecha, avisos } = plan({
       loads: [{ discipline: "NATACION", sessionsPerWeek: 1 }],
       gym: gymWeek([
         ["LUN", "PIERNA_CUADRICEPS"],
@@ -109,7 +147,11 @@ describe("reparto de disciplinas en la semana", () => {
 
     expect(sessions[0]!.sharesDayWithGym).toBe(true);
     expect(crowdedDates).toEqual([sessions[0]!.date]);
-    expect(sessions[0]!.note).toContain("un ejercicio menos");
+    // Natación siempre cierra el día (recuperación activa): la nota lo dice.
+    expect(sessions[0]!.note).toContain("soltar");
+    expect(gymMinutesPorFecha[sessions[0]!.date]).toBeGreaterThan(0);
+    // No cupo en un día libre, pero SÍ combinó: no es un "no cupo" real.
+    expect(avisos).toEqual([]);
   });
 
   it("las disciplinas con prescriptor traen plan; las demás reservan el día", () => {
@@ -134,6 +176,121 @@ describe("reparto de disciplinas en la semana", () => {
       gym: gymWeek([["LUN", "PIERNA_CUADRICEPS"]]),
     });
     expect(sessions).toEqual([]);
+  });
+
+  // `timePerDay` es el tiempo REAL que la persona declaró al replanificar.
+  // Sin él, la Fase 2 asume 60 minutos de gimnasio (imaginarios) más el
+  // default de la secundaria — con él, el combo se acepta o se rechaza
+  // contra lo que de verdad hay ese día.
+  it("con 90 minutos reales declarados, el combo con gimnasio sí cabe", () => {
+    const { sessions, avisos } = plan({
+      loads: [{ discipline: "NATACION", sessionsPerWeek: 1 }],
+      // Los 7 días llenos de gimnasio: no hay día libre, así que NATACION
+      // solo puede colocarse anexándose (Fase 2).
+      gym: gymTodaLaSemana("HOMBRO"),
+      timePerDay: todosLosDias(90),
+    });
+
+    expect(avisos).toEqual([]);
+    expect(sessions).toHaveLength(1);
+    expect(sessions[0]!.sharesDayWithGym).toBe(true);
+  });
+
+  it("con 45 minutos reales declarados, el mismo combo no cabe y se avisa", () => {
+    const { sessions, avisos } = plan({
+      loads: [{ discipline: "NATACION", sessionsPerWeek: 1 }],
+      gym: gymTodaLaSemana("HOMBRO"),
+      timePerDay: todosLosDias(45),
+    });
+
+    expect(sessions).toEqual([]);
+    expect(avisos).toHaveLength(1);
+    expect(avisos[0]).toContain("no cupo");
+  });
+
+  it("sin timePerDay declarado, se cae al default de siempre (60 + secundaria)", () => {
+    // Mismo escenario que el de "cuando no hay huecos, anexa..." de arriba,
+    // solo que aquí se fuerzan los 7 días de gimnasio: sin `timePerDay`, el
+    // comportamiento no debe cambiar — es el fallback que protege a quien
+    // nunca ha replanificado.
+    const { sessions, avisos } = plan({
+      loads: [{ discipline: "NATACION", sessionsPerWeek: 1 }],
+      gym: gymTodaLaSemana("HOMBRO"),
+    });
+
+    expect(avisos).toEqual([]);
+    expect(sessions).toHaveLength(1);
+    expect(sessions[0]!.sharesDayWithGym).toBe(true);
+  });
+});
+
+describe("el caso real: 5 días de gimnasio + natación + squash (Fase 9)", () => {
+  // El reporte que motivó este rediseño: 5 días de pesas más natación y
+  // squash, cada una una vez por semana, en una semana de 7 días. Eso es
+  // 5 + 1 + 1 = 7 — la semana queda exactamente llena, sin un solo día
+  // libre. Con el planificador viejo esto no tiraba nada (el `break` solo
+  // aparecía con MÁS demanda que días), pero tampoco liberaba un descanso;
+  // con el nuevo, la Fase 3 debe notar que la semana quedó 7/7 y fusionar
+  // squash+natación —los únicos dos días de secundaria, y compatibles entre
+  // sí— para devolver un día de descanso de verdad.
+  const gym = gymWeek([
+    ["LUN", "PIERNA_CUADRICEPS"],
+    ["MAR", "HOMBRO"],
+    ["MIE", "PECHO_ESPALDA"],
+    ["JUE", "PIERNA_FEMORAL"],
+    ["VIE", "BRAZO"],
+  ]);
+
+  it("no tira nada: squash y natación quedan colocadas", () => {
+    const { sessions, avisos } = plan({
+      loads: [
+        { discipline: "SQUASH", sessionsPerWeek: 1 },
+        { discipline: "NATACION", sessionsPerWeek: 1 },
+      ],
+      gym,
+    });
+
+    expect(avisos).toEqual([]);
+    expect(sessions.map((s) => s.discipline).sort()).toEqual(["NATACION", "SQUASH"]);
+  });
+
+  it("squash jamás cae en un día de pierna del gimnasio", () => {
+    const { sessions } = plan({
+      loads: [
+        { discipline: "SQUASH", sessionsPerWeek: 1 },
+        { discipline: "NATACION", sessionsPerWeek: 1 },
+      ],
+      gym,
+    });
+
+    const squash = sessions.find((s) => s.discipline === "SQUASH")!;
+    const kindDelDiaDeSquash = gym.get(squash.weekday);
+    // O bien squash cayó en un día sin gimnasio (lo normal), o si combinó con
+    // gimnasio no puede ser uno de pierna — esa combinación es `null` en
+    // `compatibilidad` a propósito.
+    if (kindDelDiaDeSquash) {
+      expect(kindDelDiaDeSquash.startsWith("PIERNA")).toBe(false);
+    }
+  });
+
+  it("como la semana quedaba 7/7, se libera al menos un día de descanso completo", () => {
+    const { sessions } = plan({
+      loads: [
+        { discipline: "SQUASH", sessionsPerWeek: 1 },
+        { discipline: "NATACION", sessionsPerWeek: 1 },
+      ],
+      gym,
+    });
+
+    const diasConAlgo = new Set([...gym.keys(), ...sessions.map((s) => s.weekday)]);
+    expect(diasConAlgo.size).toBeLessThan(7);
+
+    // Y ese descanso sale de fusionar squash con natación en un solo día: las
+    // dos terminan en la misma fecha, natación cerrando (recuperación activa).
+    const [primero, segundo] = [...sessions].sort((a, b) => a.orden - b.orden);
+    expect(primero!.date).toBe(segundo!.date);
+    expect(segundo!.discipline).toBe("NATACION");
+    expect(segundo!.orden).toBe(2);
   });
 });
 

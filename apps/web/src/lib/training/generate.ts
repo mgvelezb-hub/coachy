@@ -222,8 +222,8 @@ export function generateWeek(
     niveles: profile.disciplineLevels,
     objetivo: profile.goal as never,
     isoWeek,
+    timePerDay: profile.timePerDay,
   });
-  const crowded = new Set(disciplines.crowdedDates);
 
   /**
    * Qué grupos llegan cansados cada día por otra disciplina.
@@ -268,12 +268,17 @@ export function generateWeek(
     // salió de comparar tus fotos contra tu referencia—. Es lo único que el
     // énfasis mueve: ni el split, ni los días, ni las cargas.
     const tocaPrioridad = DAY_GROUPS[kind].some((group) => emphasis.includes(group));
-    // Regla 4 del modelo: un día que además trae sesión de otra disciplina
-    // pierde un accesorio. Es el mismo recorte por prioridad de siempre, por
-    // otra razón — y nunca baja de tres ejercicios: media sesión de pesas ya
-    // no entrena nada.
     const fecha = dateOfDay(weekStart, dayIndex);
-    const apretado = crowded.has(fecha);
+
+    // Regla 4 del modelo: un día que además trae sesión de otra disciplina se
+    // redimensiona a los minutos reales que le tocan (Fase 9). Antes esto era
+    // "pierde un accesorio" sin importar si al día le quedaban 50 minutos o
+    // 25 — un parche parejo para un recorte que no lo es. `gymMinutesPorFecha`
+    // ya trae el resultado de `repartirMinutos`, así que la cuenta base sale
+    // de los minutos de verdad, no de una resta fija.
+    const minutosDelDia = disciplines.gymMinutesPorFecha[fecha];
+    const cuentaBase =
+      minutosDelDia !== undefined ? exerciseCountFor(minutosDelDia, profile.volumeBias) : exerciseCount;
 
     // Y el recorte se hace DONDE toca: si ayer nadaste, el que sobra es un
     // accesorio de espalda, no el de pierna que hoy está fresca.
@@ -285,10 +290,9 @@ export function generateWeek(
         ? ordenarPorFatiga(slots, cansados)
         : slots;
 
-    const chosen = chooseSlots(
-      disponibles,
-      Math.max(3, exerciseCount + (tocaPrioridad ? 1 : 0) - (apretado ? 1 : 0)),
-    );
+    // El +1 de énfasis se suma DESPUÉS del recuento por minutos: el ejercicio
+    // del objetivo prioritario nunca es el que se recorta por compartir día.
+    const chosen = chooseSlots(disponibles, Math.max(3, cuentaBase + (tocaPrioridad ? 1 : 0)));
     const usedToday = new Set<string>();
     const exercises: PlannedExercise[] = [];
 

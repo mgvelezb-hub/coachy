@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 
 import { apiUser, unauthorized } from "@/lib/api/auth";
 import { decimalToNumber } from "@/lib/format";
-import { parseDisciplineLoads } from "@/lib/training/db";
+import { parseDisciplineLoads, parseTimePerDay } from "@/lib/training/db";
 
 /**
  * `GET /api/v1/me` — quién es el atleta autenticado y si ya terminó el
@@ -52,6 +52,10 @@ export async function GET(request: Request): Promise<NextResponse> {
           otherDisciplines: parseDisciplineLoads(profile.otherDisciplines),
           swimLevel: profile.swimLevel,
           disciplineLevels: profile.disciplineLevels,
+          // Minutos por día que la persona declaró al replanificar. `null` =
+          // no se ha declarado: la pantalla de recalibrar no tiene por qué
+          // adivinar contando sesiones si esto ya viene aquí.
+          timePerDay: parseTimePerDay(profile.timePerDay),
           dietStyle: profile.dietStyle,
           supplements: profile.supplements,
           // A qué hora entrena: la pantalla de dieta lo necesita para avisar

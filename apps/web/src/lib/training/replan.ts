@@ -1,3 +1,4 @@
+import { compatibilidad, ordenar, repartirMinutos, type BloqueDia } from "@/lib/training/combinaciones";
 import { WEEK_DAYS, type WeekDay } from "@/lib/training/split";
 import type { Discipline } from "@/lib/training/types";
 
@@ -20,6 +21,17 @@ import type { Discipline } from "@/lib/training/types";
  *
  * Lo que NO hace: inventar sesiones de disciplinas que no sabemos prescribir.
  * Reserva el día y dice para qué es, igual que el planificador semanal.
+ *
+ * **Fase 9 — antes de decir "no cupo".** Lo que no encontró día propio no se
+ * da por perdido de inmediato: primero intenta anexarse como segundo bloque a
+ * un día YA asignado (de la primaria o de otra secundaria), usando
+ * `combinaciones.ts` para decidir si de verdad conviven y cuánto tiempo le
+ * toca a cada una del tiempo real de ese día. Solo si tampoco hay ahí un
+ * hueco compatible se avisa. Este módulo no conoce el `DayKind` del gimnasio
+ * (eso lo decide `buildSplit` más tarde, cuando ya se generó la semana), así
+ * que la regla de "nada de alto impacto en día de pierna" no aplica aquí —
+ * las demás reglas duras de `compatibilidad` (misma disciplina, CrossFit con
+ * gimnasio, squash+box) sí.
  */
 
 export const PROPOSITOS = ["ENTRENAMIENTO", "COMPLEMENTO", "HOBBY"] as const;
@@ -78,8 +90,19 @@ export type SesionAsignada = {
 
 export type Replan = {
   asignadas: SesionAsignada[];
-  /** Sesiones por disciplina, listo para guardar en el perfil. */
-  cargas: Array<{ discipline: Discipline; sessionsPerWeek: number }>;
+  /**
+   * Sesiones por disciplina, listo para guardar en el perfil. La primaria
+   * sale sin `proposito`/`importancia` — esos dos campos son de las
+   * secundarias, lo que la persona contestó al elegirlas (`secundarias` en
+   * `EntradaReplan`). Guardarlos aquí es lo que evita que la próxima
+   * recalibración tenga que adivinar la importancia contando sesiones.
+   */
+  cargas: Array<{
+    discipline: Discipline;
+    sessionsPerWeek: number;
+    proposito?: Proposito;
+    importancia?: number;
+  }>;
   /** Días que quedaron con entrenamiento. */
   diasActivos: WeekDay[];
   /**
@@ -142,12 +165,81 @@ function repartirSecundarias(
 }
 
 /**
+ * Intenta anexar `discipline` como segundo bloque a un día que ya tiene una
+ * sesión asignada (de la primaria o de otra secundaria).
+ *
+ * Entre todos los días ya ocupados y sin su segundo bloque, se queda con el
+ * de mejor `compatibilidad` — y solo si `repartirMinutos` alcanza con el
+ * tiempo real de ese día (`tiempo[dia]`, no una suma de valores por defecto:
+ * aquí sí se sabe cuánto tiempo hay de verdad). Si combina, la sesión del
+ * ocupante original se actualiza con su minutaje real; la nueva se agrega con
+ * el mismo `weekday`.
+ */
+function intentarAnexarEnDia(
+  discipline: Discipline,
+  tiempo: TiempoPorDia,
+  asignadas: SesionAsignada[],
+  diasConDosBloques: Set<WeekDay>,
+): boolean {
+  const nuevo: BloqueDia = { discipline };
+
+  // Un weekday puede ya traer una o dos sesiones; solo el primer ocupante
+  // cuenta para decidir si cabe un segundo bloque — un tercero nunca se
+  // ofrece.
+  const primerOcupantePorDia = new Map<WeekDay, SesionAsignada>();
+  for (const sesion of asignadas) {
+    if (!primerOcupantePorDia.has(sesion.weekday)) primerOcupantePorDia.set(sesion.weekday, sesion);
+  }
+
+  let mejor: {
+    ocupante: SesionAsignada;
+    orden: [BloqueDia, BloqueDia];
+    minutos: [number, number];
+    score: number;
+  } | null = null;
+
+  for (const [dia, ocupante] of primerOcupantePorDia) {
+    if (diasConDosBloques.has(dia)) continue;
+
+    const existente: BloqueDia = { discipline: ocupante.discipline };
+    const score = compatibilidad(existente, nuevo);
+    if (score === null) continue;
+
+    const orden = ordenar(existente, nuevo);
+    const reparto = repartirMinutos(tiempo[dia] ?? 0, orden);
+    if (!reparto) continue;
+
+    if (!mejor || score > mejor.score) {
+      mejor = { ocupante, orden, minutos: reparto.minutos, score };
+    }
+  }
+
+  if (!mejor) return false;
+
+  diasConDosBloques.add(mejor.ocupante.weekday);
+  const [primero] = mejor.orden;
+  const nuevoEsPrimero = primero.discipline === discipline;
+
+  mejor.ocupante.minutos = nuevoEsPrimero ? mejor.minutos[1] : mejor.minutos[0];
+  asignadas.push({
+    weekday: mejor.ocupante.weekday,
+    discipline,
+    minutos: nuevoEsPrimero ? mejor.minutos[0] : mejor.minutos[1],
+    esPrimaria: false,
+  });
+
+  return true;
+}
+
+/**
  * El reparto de la semana.
  *
  * Primero la primaria toma los días que le alcanzan; lo que queda se reparte
- * entre las secundarias por peso. Un día solo lleva una sesión: encimar dos
- * disciplinas el mismo día es justo lo que el presupuesto semanal existe para
- * evitar.
+ * entre las secundarias por peso. Un día lleva una sola sesión salvo que dos
+ * disciplinas combinen de verdad (Fase 9): compatibles según
+ * `combinaciones.ts` y con tiempo real para los mínimos de ambas más la
+ * transición. Una tercera nunca se ofrece — combinar es la excepción que
+ * evita perder una sesión, no la norma.
  */
 export function replanificar(entrada: EntradaReplan): Replan {
   const avisos: string[] = [];
@@ -189,6 +281,8 @@ export function replanificar(entrada: EntradaReplan): Replan {
   // Cada secundaria toma sus días entre los que le alcanzan, empezando por los
   // que menos tiempo tienen: los días largos se dejan para lo que pide más.
   const tomados = new Set<WeekDay>();
+  // Días que ya combinaron dos disciplinas: no se ofrece un tercer bloque.
+  const diasConDosBloques = new Set<WeekDay>();
   for (const fila of reparto) {
     const minimo = MINUTOS_MINIMOS[fila.proposito];
     const candidatos = librePorDia
@@ -196,12 +290,6 @@ export function replanificar(entrada: EntradaReplan): Replan {
       .sort((a, b) => (entrada.tiempo[a] ?? 0) - (entrada.tiempo[b] ?? 0));
 
     const cabe = Math.min(fila.sesiones, candidatos.length);
-    if (cabe < fila.sesiones) {
-      avisos.push(
-        `${fila.discipline.toLowerCase()} se queda en ${cabe} ${cabe === 1 ? "sesión" : "sesiones"}: ` +
-          `no hay más días con al menos ${minimo} minutos libres.`,
-      );
-    }
 
     for (const dia of candidatos.slice(0, cabe)) {
       tomados.add(dia);
@@ -212,12 +300,35 @@ export function replanificar(entrada: EntradaReplan): Replan {
         esPrimaria: false,
       });
     }
+
+    // Lo que no encontró día propio intenta anexarse a uno ya asignado antes
+    // de darlo por perdido — ver el docblock del módulo.
+    let anexadas = 0;
+    for (let restante = fila.sesiones - cabe; restante > 0; restante--) {
+      const anexada = intentarAnexarEnDia(fila.discipline, entrada.tiempo, asignadas, diasConDosBloques);
+      if (!anexada) break; // si ya no combinó en ningún lado, un intento más tampoco lo hará.
+      anexadas += 1;
+    }
+
+    const totalColocadas = cabe + anexadas;
+    if (totalColocadas < fila.sesiones) {
+      avisos.push(
+        `${fila.discipline.toLowerCase()} se queda en ${totalColocadas} ${totalColocadas === 1 ? "sesión" : "sesiones"}: ` +
+          `no hay más días con al menos ${minimo} minutos libres, ni un día ya asignado con el que combine.`,
+      );
+    }
   }
 
   const porDisciplina = new Map<Discipline, number>();
   for (const sesion of asignadas) {
     porDisciplina.set(sesion.discipline, (porDisciplina.get(sesion.discipline) ?? 0) + 1);
   }
+
+  // Lo que la persona contestó al elegir cada secundaria, para hilarlo hasta
+  // `cargas` y que sobreviva en el perfil (ver el docblock de `Replan`).
+  const eleccionPorDisciplina = new Map(
+    entrada.secundarias.map((elegida) => [elegida.discipline, elegida] as const),
+  );
 
   const ordenadas = asignadas.sort(
     (a, b) => WEEK_DAYS.indexOf(a.weekday) - WEEK_DAYS.indexOf(b.weekday),
@@ -232,10 +343,14 @@ export function replanificar(entrada: EntradaReplan): Replan {
 
   return {
     asignadas: ordenadas,
-    cargas: [...porDisciplina.entries()].map(([discipline, sessionsPerWeek]) => ({
-      discipline,
-      sessionsPerWeek,
-    })),
+    cargas: [...porDisciplina.entries()].map(([discipline, sessionsPerWeek]) => {
+      const elegida = eleccionPorDisciplina.get(discipline);
+      return {
+        discipline,
+        sessionsPerWeek,
+        ...(elegida ? { proposito: elegida.proposito, importancia: elegida.importancia } : {}),
+      };
+    }),
     diasActivos: [...new Set(ordenadas.map((sesion) => sesion.weekday))],
     avisos,
   };

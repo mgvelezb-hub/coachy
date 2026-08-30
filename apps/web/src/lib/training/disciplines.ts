@@ -1,3 +1,4 @@
+import { compatibilidad, ordenar, porqueDeCombo, repartirMinutos, type BloqueDia } from "@/lib/training/combinaciones";
 import { DAY_GROUPS, WEEK_DAYS, type WeekDay } from "@/lib/training/split";
 import {
   prescribirSesion,
@@ -8,25 +9,39 @@ import {
 import type { DayKind, Discipline, DisciplineLoad } from "@/lib/training/types";
 
 /**
- * Cómo conviven las disciplinas en una semana (Fase 7).
+ * Cómo conviven las disciplinas en una semana (Fase 7, ampliada en Fase 9 con
+ * días de dos bloques).
  *
  * Es puro: recibe la semana de pesas ya decidida y reparte lo demás. El
- * modelo son cuatro reglas, y las cuatro están escritas aquí salvo la primera,
- * que vive en `split.ts` porque decide cuántos días quedan:
+ * reparto corre en tres fases, cada una resolviendo lo que la anterior dejó
+ * sin resolver — nunca lo que la anterior ya resolvió:
  *
- * 1. **Presupuesto semanal, no lista de deseos** — `liftingDaysWithinBudget`.
- * 2. **Una primaria manda**: la primaria arma el esqueleto y las secundarias
- *    caen en los huecos que deja.
- * 3. **Interferencia por vecindad**: el alto impacto no va la víspera de
- *    pierna; la natación cae bien el día después.
- * 4. **El volumen se ajusta solo**: un día de gimnasio que comparte fecha con
- *    una sesión secundaria pierde un accesorio.
+ * 1. **Días libres por score** (`scoreDay`): igual que siempre, cada
+ *    disciplina busca el mejor día SIN gimnasio y sin otra secundaria ya
+ *    puesta. La vecindad —el alto impacto lejos de la víspera de pierna, la
+ *    natación bien el día después— se decide aquí.
+ * 2. **Anexar como segundo bloque**: lo que no encontró día libre en la Fase 1
+ *    intenta pegarse a un día YA ocupado (de gimnasio o de otra secundaria),
+ *    usando `combinaciones.ts` para decidir si de verdad conviven, en qué
+ *    orden y con cuántos minutos cada uno. Esto es lo que reemplaza al viejo
+ *    "el día compartido pierde un accesorio": ahora la sesión de pesas se
+ *    REDIMENSIONA a los minutos que le tocan de verdad, y una sesión que no
+ *    era de gimnasio (squash + natación, por ejemplo) también puede combinar.
+ * 3. **Liberar un día de descanso**: si después de las dos fases la semana
+ *    quedó 7/7 ocupada —ni un día libre, ni de gimnasio ni de disciplina—, se
+ *    intenta fusionar el mejor par de días de secundarias (nunca de gimnasio)
+ *    para liberar uno. El descanso también es parte del modelo: una semana sin
+ *    un solo hueco contradice la premisa de todo este planificador.
+ *
+ * La regla que NO cambia: nunca se tira una sesión en silencio. Lo que de
+ * plano no cupo —ni en su propio día, ni anexado a otro— se dice en
+ * `avisos`. El viejo `break` que abandonaba TODA la cola en cuanto un día no
+ * alcanzaba (no solo la disciplina que fallaba) es justo el bug que este
+ * rediseño corrige: ahora cada disciplina se intenta por su cuenta.
  *
  * Lo que NO hace: inventar sesiones de disciplinas que no sabemos prescribir.
  * Las que tienen prescriptor traen su plan (`lib/training/disciplinas/`); el
- * resto reserva el día y dice para qué es. Cada disciplina entró con su propia
- * investigación —niveles, estructura y riesgos—, que es la razón de haberlas
- * hecho una por una en vez de las siete de golpe.
+ * resto reserva el día y dice para qué es.
  */
 
 /** Disciplinas de alto impacto: pisan fuerte y compiten con la pierna. */
@@ -44,6 +59,18 @@ const DEFAULT_MINUTES: Record<Discipline, number> = {
   OTRO: 45,
 };
 
+/** Nombres para los avisos de "no cupo". Vocabulario del dueño, no el enum. */
+const NOMBRE_AVISO: Record<Discipline, string> = {
+  PESAS: "Una sesión de gimnasio",
+  FUNCIONAL: "Una sesión de funcional",
+  CROSSFIT: "Una sesión de CrossFit",
+  NATACION: "Una sesión de natación",
+  BOX: "Una sesión de box",
+  SQUASH: "Una sesión de squash",
+  CARDIO: "Una sesión de cardio",
+  OTRO: "Una sesión de otra actividad",
+};
+
 export type OtherSession = {
   /** ISO `YYYY-MM-DD`. */
   date: string;
@@ -56,16 +83,44 @@ export type OtherSession = {
    * que nadie diseñó para esa disciplina.
    */
   sesion: SesionDisciplina | null;
-  /** Por qué cayó en ese día. La regla se dice, no se adivina. */
+  /** Por qué cayó en ese día (o, si es un combo, por qué va en ese orden). */
   note: string;
-  /** Comparte día con una sesión de pesas: ese día de gimnasio se recorta. */
+  /** Comparte día con una sesión de pesas: ese día de gimnasio se redimensiona. */
   sharesDayWithGym: boolean;
+  /**
+   * Posición dentro del día: `1` si es la única sesión de ese día, o la
+   * primera de un combo; `2` si es el segundo bloque. Un día jamás lleva un
+   * tercero — `combinaciones.ts` trabaja siempre en pares.
+   */
+  orden: 1 | 2;
 };
 
 export type DisciplinePlan = {
   sessions: OtherSession[];
-  /** Fechas de gimnasio que pierden un accesorio por compartir día. */
+  /** Fechas de gimnasio que comparten día con una secundaria. */
   crowdedDates: string[];
+  /**
+   * Cuántos minutos le tocan al bloque de PESAS en cada fecha combinada, según
+   * `repartirMinutos`. `generate.ts` la usa para recontar ejercicios por
+   * minutos reales en vez del parche de "un accesorio menos".
+   */
+  gymMinutesPorFecha: Record<string, number>;
+  /**
+   * Lo que de verdad no cupo esta semana —ni en su día, ni anexado a otro, ni
+   * liberando un descanso—, una entrada por sesión. Nunca vacío en silencio:
+   * si algo se cae, se dice aquí.
+   */
+  avisos: string[];
+};
+
+/** Una colocación en construcción, antes de convertirse en `OtherSession`. */
+type Colocacion = {
+  weekday: WeekDay;
+  discipline: Discipline;
+  orden: 1 | 2;
+  minutes: number;
+  sharesDayWithGym: boolean;
+  note: string;
 };
 
 function isLegDay(kind: DayKind): boolean {
@@ -80,7 +135,7 @@ function dateOf(weekStart: Date, weekday: WeekDay): string {
 }
 
 /**
- * Qué tan bien le cae a una disciplina caer en cierto día.
+ * Qué tan bien le cae a una disciplina caer en cierto día LIBRE (Fase 1).
  *
  * Más alto es mejor. El orden importa más que los números: lo que se está
  * codificando es "primero los huecos, y dentro de los huecos el que menos
@@ -95,18 +150,14 @@ function scoreDay(
   const previous = WEEK_DAYS[index - 1];
   const next = WEEK_DAYS[index + 1];
 
-  const kindToday = gym.get(weekday);
   const kindTomorrow = next ? gym.get(next) : undefined;
   const kindYesterday = previous ? gym.get(previous) : undefined;
 
-  // Un hueco siempre vale más que compartir día: el descanso también es parte
-  // del plan, pero encimar dos sesiones es peor que ocupar un día libre.
-  let score = kindToday ? 0 : 100;
+  let score = 100;
 
   if (HIGH_IMPACT.includes(discipline)) {
-    // Regla 3: nada de alto impacto la víspera de pierna pesada.
+    // Nada de alto impacto la víspera de pierna pesada.
     if (kindTomorrow && isLegDay(kindTomorrow)) score -= 60;
-    if (kindToday && isLegDay(kindToday)) score -= 30;
   }
 
   if (discipline === "NATACION") {
@@ -115,6 +166,189 @@ function scoreDay(
   }
 
   return score;
+}
+
+function noteFor(discipline: Discipline, weekday: WeekDay, gym: Map<WeekDay, DayKind>): string {
+  const previous = WEEK_DAYS[WEEK_DAYS.indexOf(weekday) - 1];
+  const kindYesterday = previous ? gym.get(previous) : undefined;
+
+  if (discipline === "NATACION" && kindYesterday && isLegDay(kindYesterday)) {
+    return "Va después de pierna: bajo impacto y tren superior, ayuda a soltar.";
+  }
+  if (discipline === "CROSSFIT") {
+    return "Ocupa el lugar de un día de gimnasio, no se suma: un metcon con sentadilla es un día de pierna con otro nombre.";
+  }
+  if (HIGH_IMPACT.includes(discipline)) {
+    return "Colocada lejos de la víspera de pierna, que es donde más estorba.";
+  }
+  return "Cae en un día libre de pesas.";
+}
+
+/**
+ * Fase 2: intenta anexar `discipline` como segundo bloque a un día que ya
+ * tiene UN ocupante (gimnasio o una secundaria de la Fase 1) y que todavía no
+ * tiene dos. Entre todos los días donde cabe, se queda con el de mejor
+ * `compatibilidad` — no con el primero que encuentra.
+ *
+ * Muta `colocaciones`, `dobles` y `gymMinutesPorFecha` cuando encuentra dónde
+ * anexar. Devuelve `true` si lo logró.
+ */
+function intentarAnexar(
+  discipline: Discipline,
+  gymByDay: Map<WeekDay, DayKind>,
+  colocaciones: Colocacion[],
+  dobles: Set<WeekDay>,
+  gymMinutesPorFecha: Record<string, number>,
+  weekStart: Date,
+  timePerDay: Partial<Record<WeekDay, number>> | null | undefined,
+): boolean {
+  const nuevo: BloqueDia = { discipline };
+
+  type Candidato = {
+    weekday: WeekDay;
+    esGym: boolean;
+    ocupante: Colocacion | null;
+    orden: [BloqueDia, BloqueDia];
+    minutos: [number, number];
+    score: number;
+  };
+
+  let mejor: Candidato | null = null;
+
+  for (const weekday of WEEK_DAYS) {
+    if (dobles.has(weekday)) continue; // ya tiene sus dos bloques
+
+    const esGym = gymByDay.has(weekday);
+    const ocupante = esGym ? null : (colocaciones.find((c) => c.weekday === weekday) ?? null);
+    if (!esGym && !ocupante) continue; // día completamente libre: no es de Fase 2
+
+    const existente: BloqueDia = esGym
+      ? { discipline: "PESAS", dayKind: gymByDay.get(weekday) }
+      : { discipline: ocupante!.discipline };
+
+    const score = compatibilidad(existente, nuevo);
+    if (score === null) continue;
+
+    const orden = ordenar(existente, nuevo);
+    // Con `timePerDay` declarado, el tiempo real de ese día manda: es lo que
+    // de verdad limita si el combo cabe. Sin dato (perfil sin declarar, o
+    // `disciplines.ts` llamado sin el hilo del perfil) se cae al viejo
+    // supuesto: 60 del gym más el default de la secundaria, la misma cifra
+    // imaginaria que antes se usaba siempre.
+    const totalMinutos =
+      timePerDay?.[weekday] !== undefined
+        ? timePerDay[weekday]!
+        : esGym
+          ? DEFAULT_MINUTES.PESAS + DEFAULT_MINUTES[discipline]
+          : ocupante!.minutes + DEFAULT_MINUTES[discipline];
+    const reparto = repartirMinutos(totalMinutos, orden);
+    if (!reparto) continue;
+
+    if (!mejor || score > mejor.score) {
+      mejor = { weekday, esGym, ocupante, orden, minutos: reparto.minutos, score };
+    }
+  }
+
+  if (!mejor) return false;
+
+  dobles.add(mejor.weekday);
+  const [primero, segundo] = mejor.orden;
+  const explicacion = porqueDeCombo(primero, segundo);
+  const nuevoEsPrimero = primero.discipline === discipline;
+  const minutosNuevo = nuevoEsPrimero ? mejor.minutos[0] : mejor.minutos[1];
+  const minutosExistente = nuevoEsPrimero ? mejor.minutos[1] : mejor.minutos[0];
+
+  if (mejor.esGym) {
+    gymMinutesPorFecha[dateOf(weekStart, mejor.weekday)] = minutosExistente;
+  } else {
+    mejor.ocupante!.minutes = minutosExistente;
+    mejor.ocupante!.orden = nuevoEsPrimero ? 2 : 1;
+    mejor.ocupante!.note = explicacion;
+  }
+
+  colocaciones.push({
+    weekday: mejor.weekday,
+    discipline,
+    orden: nuevoEsPrimero ? 1 : 2,
+    minutes: minutosNuevo,
+    sharesDayWithGym: mejor.esGym,
+    note: explicacion,
+  });
+
+  return true;
+}
+
+/**
+ * Fase 3: si la semana quedó sin un solo día libre, fusiona el mejor par de
+ * días de secundarias (nunca de gimnasio) en uno solo, para que el otro quede
+ * de descanso completo.
+ *
+ * "El mejor par" es el de mayor `compatibilidad` entre los días que hoy tienen
+ * exactamente un ocupante y no son de gimnasio. El día que sobrevive es el más
+ * temprano de la semana — no hay una regla fisiológica que decida cuál fecha
+ * se queda, así que se elige la más predecible.
+ */
+function intentarLiberarDescanso(
+  gymByDay: Map<WeekDay, DayKind>,
+  colocaciones: Colocacion[],
+  dobles: Set<WeekDay>,
+): void {
+  const ocupado = (day: WeekDay): boolean => gymByDay.has(day) || colocaciones.some((c) => c.weekday === day);
+  if (WEEK_DAYS.some((day) => !ocupado(day))) return; // ya hay descanso: nada que liberar
+
+  const fusionables = WEEK_DAYS.filter(
+    (day) => !gymByDay.has(day) && !dobles.has(day) && colocaciones.some((c) => c.weekday === day),
+  );
+
+  type Fusion = {
+    destino: WeekDay;
+    origen: WeekDay;
+    orden: [BloqueDia, BloqueDia];
+    minutos: [number, number];
+    score: number;
+  };
+  let mejor: Fusion | null = null;
+
+  for (let i = 0; i < fusionables.length; i++) {
+    for (let j = i + 1; j < fusionables.length; j++) {
+      const destino = fusionables[i]!;
+      const origen = fusionables[j]!;
+      const colDestino = colocaciones.find((c) => c.weekday === destino)!;
+      const colOrigen = colocaciones.find((c) => c.weekday === origen)!;
+      const bloqueDestino: BloqueDia = { discipline: colDestino.discipline };
+      const bloqueOrigen: BloqueDia = { discipline: colOrigen.discipline };
+
+      const score = compatibilidad(bloqueDestino, bloqueOrigen);
+      if (score === null) continue;
+
+      const orden = ordenar(bloqueDestino, bloqueOrigen);
+      const reparto = repartirMinutos(colDestino.minutes + colOrigen.minutes, orden);
+      if (!reparto) continue;
+
+      if (!mejor || score > mejor.score) {
+        mejor = { destino, origen, orden, minutos: reparto.minutos, score };
+      }
+    }
+  }
+
+  if (!mejor) return; // no hay par que combine: la semana se queda 7/7
+
+  const colDestino = colocaciones.find((c) => c.weekday === mejor!.destino)!;
+  const colOrigen = colocaciones.find((c) => c.weekday === mejor!.origen)!;
+  const [primero, segundo] = mejor.orden;
+  const explicacion = porqueDeCombo(primero, segundo);
+  const destinoEsPrimero = primero.discipline === colDestino.discipline;
+
+  colDestino.orden = destinoEsPrimero ? 1 : 2;
+  colDestino.minutes = destinoEsPrimero ? mejor.minutos[0] : mejor.minutos[1];
+  colDestino.note = explicacion;
+
+  // Se muda de fecha: el día de origen queda sin ninguna colocación, es decir,
+  // libre de verdad.
+  colOrigen.weekday = mejor.destino;
+  colOrigen.orden = destinoEsPrimero ? 2 : 1;
+  colOrigen.minutes = destinoEsPrimero ? mejor.minutos[1] : mejor.minutos[0];
+  colOrigen.note = explicacion;
 }
 
 /**
@@ -133,8 +367,15 @@ export function planDisciplines(input: {
   /** El objetivo del perfil: modula el volumen, no la técnica. */
   objetivo: ObjetivoAtleta;
   isoWeek: number;
+  /**
+   * Minutos reales por día, tal como la persona los declaró al replanificar.
+   * `null`/`undefined` = no se ha declarado; se cae al `DEFAULT_MINUTES` de
+   * siempre. Con dato, decide si un combo cabe de verdad (Fase 2) en vez de
+   * repartir 60 minutos imaginarios de gimnasio.
+   */
+  timePerDay?: Partial<Record<WeekDay, number>> | null;
 }): DisciplinePlan {
-  const { weekStart, otherDisciplines, gymByDay, niveles, objetivo, isoWeek } = input;
+  const { weekStart, otherDisciplines, gymByDay, niveles, objetivo, isoWeek, timePerDay } = input;
 
   // Las de alto impacto se colocan primero: son las que tienen restricciones
   // duras. Si se colocan al final, se quedan con los días que nadie quiso.
@@ -144,74 +385,109 @@ export function planDisciplines(input: {
     )
     .sort((a, b) => Number(HIGH_IMPACT.includes(b)) - Number(HIGH_IMPACT.includes(a)));
 
-  const taken = new Set<WeekDay>();
-  const sessions: OtherSession[] = [];
-  const cuenta = new Map<Discipline, number>();
+  const colocaciones: Colocacion[] = [];
+  const dobles = new Set<WeekDay>();
+  const gymMinutesPorFecha: Record<string, number> = {};
+  const avisos: string[] = [];
+
+  // FASE 1 — días completamente libres, por score. -------------------------
+  const takenPhase1 = new Set<WeekDay>();
+  const sinColocar: Discipline[] = [];
 
   for (const discipline of queue) {
-    const candidates = WEEK_DAYS.filter((day) => !taken.has(day)).sort(
+    const candidates = WEEK_DAYS.filter((day) => !takenPhase1.has(day) && !gymByDay.has(day)).sort(
       (a, b) =>
         scoreDay(discipline, b, gymByDay) - scoreDay(discipline, a, gymByDay) ||
         WEEK_DAYS.indexOf(a) - WEEK_DAYS.indexOf(b),
     );
 
     const weekday = candidates[0];
-    if (!weekday) break; // Más sesiones que días: la semana no da para más.
+    if (!weekday) {
+      // Antes había un `break` aquí: en cuanto UNA disciplina no encontraba
+      // día, se abandonaba TODA la cola, incluso lo que venía después y sí
+      // hubiera cabido. Ahora cada una se intenta por su cuenta en la Fase 2.
+      sinColocar.push(discipline);
+      continue;
+    }
 
-    taken.add(weekday);
-    const sharesDayWithGym = gymByDay.has(weekday);
-    const ordinal = (cuenta.get(discipline) ?? 0) + 1;
-    cuenta.set(discipline, ordinal);
-
-    sessions.push({
-      date: dateOf(weekStart, weekday),
+    takenPhase1.add(weekday);
+    colocaciones.push({
       weekday,
       discipline,
+      orden: 1,
       minutes: DEFAULT_MINUTES[discipline],
-      sesion: prescribirSesion({
-        discipline,
-        nivel: niveles[discipline] ?? "PRINCIPIANTE",
-        isoWeek,
-        ordinal,
-        minutes: DEFAULT_MINUTES[discipline],
-        objetivo,
-      }),
-      note: noteFor(discipline, weekday, gymByDay, sharesDayWithGym),
-      sharesDayWithGym,
+      sharesDayWithGym: false,
+      note: noteFor(discipline, weekday, gymByDay),
     });
   }
 
-  const ordered = sessions.sort((a, b) => a.date.localeCompare(b.date));
+  // FASE 2 — anexar como segundo bloque a un día ya ocupado. ---------------
+  const noColocadas: Discipline[] = [];
+  for (const discipline of sinColocar) {
+    const anexada = intentarAnexar(
+      discipline,
+      gymByDay,
+      colocaciones,
+      dobles,
+      gymMinutesPorFecha,
+      weekStart,
+      timePerDay,
+    );
+    if (!anexada) noColocadas.push(discipline);
+  }
+
+  for (const discipline of noColocadas) {
+    avisos.push(
+      `${NOMBRE_AVISO[discipline]} no cupo esta semana: no hay ningún día, libre o combinado, donde alcance el tiempo mínimo.`,
+    );
+  }
+
+  // FASE 3 — si la semana quedó 7/7, liberar un descanso. -------------------
+  intentarLiberarDescanso(gymByDay, colocaciones, dobles);
+
+  // Construcción final: el ordinal de cada disciplina sale de su orden
+  // cronológico, no del orden en que se procesó la cola — con combos, ese
+  // orden de proceso ya no coincide con la fecha final.
+  const porDisciplina = new Map<Discipline, Colocacion[]>();
+  for (const colocacion of colocaciones) {
+    const lista = porDisciplina.get(colocacion.discipline) ?? [];
+    lista.push(colocacion);
+    porDisciplina.set(colocacion.discipline, lista);
+  }
+
+  const sessions: OtherSession[] = [];
+  for (const [discipline, lista] of porDisciplina) {
+    const enOrden = [...lista].sort((a, b) => WEEK_DAYS.indexOf(a.weekday) - WEEK_DAYS.indexOf(b.weekday));
+    enOrden.forEach((colocacion, index) => {
+      const ordinal = index + 1;
+      sessions.push({
+        date: dateOf(weekStart, colocacion.weekday),
+        weekday: colocacion.weekday,
+        discipline,
+        minutes: colocacion.minutes,
+        sesion: prescribirSesion({
+          discipline,
+          nivel: niveles[discipline] ?? "PRINCIPIANTE",
+          isoWeek,
+          ordinal,
+          minutes: colocacion.minutes,
+          objetivo,
+        }),
+        note: colocacion.note,
+        sharesDayWithGym: colocacion.sharesDayWithGym,
+        orden: colocacion.orden,
+      });
+    });
+  }
+
+  const ordered = sessions.sort((a, b) => a.date.localeCompare(b.date) || a.orden - b.orden);
 
   return {
     sessions: ordered,
     crowdedDates: ordered.filter((session) => session.sharesDayWithGym).map((session) => session.date),
+    gymMinutesPorFecha,
+    avisos,
   };
-}
-
-function noteFor(
-  discipline: Discipline,
-  weekday: WeekDay,
-  gym: Map<WeekDay, DayKind>,
-  sharesDayWithGym: boolean,
-): string {
-  if (sharesDayWithGym) {
-    return "Comparte día con el gimnasio: esa sesión de pesas va con un ejercicio menos.";
-  }
-
-  const previous = WEEK_DAYS[WEEK_DAYS.indexOf(weekday) - 1];
-  const kindYesterday = previous ? gym.get(previous) : undefined;
-
-  if (discipline === "NATACION" && kindYesterday && isLegDay(kindYesterday)) {
-    return "Va después de pierna: bajo impacto y tren superior, ayuda a soltar.";
-  }
-  if (discipline === "CROSSFIT") {
-    return "Ocupa el lugar de un día de gimnasio, no se suma: un metcon con sentadilla es un día de pierna con otro nombre.";
-  }
-  if (HIGH_IMPACT.includes(discipline)) {
-    return "Colocada lejos de la víspera de pierna, que es donde más estorba.";
-  }
-  return "Cae en un día libre de pesas.";
 }
 
 export type { NivelDisciplina, SesionDisciplina };

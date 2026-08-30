@@ -1,8 +1,11 @@
 import { NextResponse } from "next/server";
+import { Prisma } from "@prisma/client";
 import { z } from "zod";
 
 import { apiUser, unauthorized } from "@/lib/api/auth";
 import { prisma } from "@/lib/prisma";
+import { PROPOSITOS } from "@/lib/training/replan";
+import { WEEK_DAYS } from "@/lib/training/split";
 import { DISCIPLINES, MUSCLE_GROUPS, SWIM_LEVELS } from "@/lib/training/types";
 
 /**
@@ -14,6 +17,11 @@ import { DISCIPLINES, MUSCLE_GROUPS, SWIM_LEVELS } from "@/lib/training/types";
  *   repetían pasan a trabajar otra cosa. La semana no se encoge.
  * - **Disciplinas activas**: gastan del presupuesto semanal. Agregar natación
  *   dos veces no suma dos sesiones encima — se las quita al gimnasio.
+ *
+ * Cada disciplina también puede traer `proposito` e `importancia` — lo mismo
+ * que se pregunta al rearmar la rutina (`/api/v1/training/replan`) — y el
+ * perfil puede traer `timePerDay`, los minutos declarados por día. Guardarlos
+ * aquí también es lo que evita preguntar dos veces lo mismo.
  *
  * Aplica desde la siguiente vez que se arme la rutina; la semana en curso ya
  * está publicada y moverla a medio martes solo confunde.
@@ -39,10 +47,19 @@ const schema = z
           discipline: z.enum(DISCIPLINES),
           /** 0 = declarada pero sin carga: se registra, no planea. */
           sessionsPerWeek: z.number().int().min(0).max(7),
+          /** Para qué sirve esta disciplina — lo que se pregunta al rearmar la rutina. */
+          proposito: z.enum(PROPOSITOS).optional(),
+          /** 1 a 3: cuánto quiere la persona que pese, dentro de su propósito. */
+          importancia: z.number().int().min(1).max(3).optional(),
         }),
       )
       .max(DISCIPLINES.length)
       .optional(),
+    /**
+     * Minutos disponibles por día. `null` limpia lo declarado (vuelve a los
+     * defaults); omitido deja lo que ya había. 0 = ese día no se entrena.
+     */
+    timePerDay: z.record(z.enum(WEEK_DAYS), z.number().int().min(0).max(300)).nullable().optional(),
   })
   .refine((value) => Object.keys(value).length > 0, { message: "no hay nada que guardar" })
   .refine(
@@ -75,8 +92,14 @@ export async function PATCH(request: Request): Promise<NextResponse> {
     );
   }
 
-  const { avoidRepeatGroups, primaryDiscipline, otherDisciplines, swimLevel, disciplineLevels } =
-    parsed.data;
+  const {
+    avoidRepeatGroups,
+    primaryDiscipline,
+    otherDisciplines,
+    swimLevel,
+    disciplineLevels,
+    timePerDay,
+  } = parsed.data;
 
   // La primaria no puede estar además en la lista de secundarias: se cobraría
   // dos veces del mismo presupuesto.
@@ -91,6 +114,9 @@ export async function PATCH(request: Request): Promise<NextResponse> {
       ...(others !== undefined ? { otherDisciplines: others } : {}),
       ...(swimLevel !== undefined ? { swimLevel } : {}),
       ...(disciplineLevels !== undefined ? { disciplineLevels } : {}),
+      // `null` limpia la columna: Prisma exige `Prisma.JsonNull` explícito
+      // para no confundirlo con "no tocar este campo".
+      ...(timePerDay !== undefined ? { timePerDay: timePerDay ?? Prisma.JsonNull } : {}),
     },
     select: {
       avoidRepeatGroups: true,
@@ -98,6 +124,7 @@ export async function PATCH(request: Request): Promise<NextResponse> {
       otherDisciplines: true,
       swimLevel: true,
       disciplineLevels: true,
+      timePerDay: true,
     },
   });
 

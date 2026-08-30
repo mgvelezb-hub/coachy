@@ -113,4 +113,40 @@ describe("replanificar la semana", () => {
     const total = replan.cargas.reduce((suma, carga) => suma + carga.sessionsPerWeek, 0);
     expect(total).toBe(replan.asignadas.length);
   });
+
+  it("las cargas conservan el proposito y la importancia que la persona contestó", () => {
+    const replan = replanificar({
+      tiempo: tiempo({ LUN: 60, MAR: 60, MIE: 60, JUE: 60, VIE: 60 }),
+      primaria: "PESAS",
+      secundarias: [
+        { discipline: "NATACION", proposito: "ENTRENAMIENTO", importancia: 2 },
+        { discipline: "SQUASH", proposito: "COMPLEMENTO", importancia: 2 },
+      ],
+      sesionesPrimaria: 1,
+    });
+
+    const natacion = replan.cargas.find((carga) => carga.discipline === "NATACION");
+    const squash = replan.cargas.find((carga) => carga.discipline === "SQUASH");
+
+    // Ambas deben haber recibido al menos una sesión para que la prueba diga
+    // algo: si una se quedó en cero, no está en `cargas` y no hay nada que
+    // conservar.
+    expect(natacion?.sessionsPerWeek).toBeGreaterThan(0);
+    expect(squash?.sessionsPerWeek).toBeGreaterThan(0);
+    expect(natacion).toMatchObject({ proposito: "ENTRENAMIENTO", importancia: 2 });
+    expect(squash).toMatchObject({ proposito: "COMPLEMENTO", importancia: 2 });
+  });
+
+  it("la carga de la primaria no trae proposito ni importancia: eso es de las secundarias", () => {
+    const replan = replanificar({
+      tiempo: tiempo({ LUN: 60, MAR: 60 }),
+      primaria: "PESAS",
+      secundarias: [],
+      sesionesPrimaria: 2,
+    });
+
+    const pesas = replan.cargas.find((carga) => carga.discipline === "PESAS");
+    expect(pesas).not.toHaveProperty("proposito");
+    expect(pesas).not.toHaveProperty("importancia");
+  });
 });

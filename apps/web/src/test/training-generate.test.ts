@@ -4,6 +4,7 @@ import { describe, expect, it } from "vitest";
 
 import { generateWeek } from "@/lib/training/generate";
 import { incrementFor, intensityForReps, suggestTopWeight } from "@/lib/training/progression";
+import { exerciseCountFor } from "@/lib/training/recipes";
 import { SCHEMES, isoWeekNumber, schemeForWeek } from "@/lib/training/schemes";
 import {
   buildSplit,
@@ -39,6 +40,7 @@ function profile(overrides: Partial<TrainingProfile> = {}): TrainingProfile {
     disciplineLevels: { NATACION: "INTERMEDIO" },
     gymLevel: "AVANZADO",
     goal: "RECOMPOSICION",
+    timePerDay: null,
     ...overrides,
   };
 }
@@ -540,5 +542,37 @@ describe("determinismo", () => {
     const piernaBase = base.workouts.find((w) => w.dayKind === "PIERNA_CUADRICEPS")!;
     const piernaEnfasis = conEnfasis.workouts.find((w) => w.dayKind === "PIERNA_CUADRICEPS")!;
     expect(piernaEnfasis.exercises.length).toBe(piernaBase.exercises.length);
+  });
+});
+
+describe("día combinado con otra disciplina (Fase 9)", () => {
+  // 7 sesiones de natación piden más de lo que caben los 6 días libres que
+  // deja el presupuesto (7 - 1 día de gimnasio, el piso mientras pesas sea la
+  // primaria): la séptima solo tiene un candidato válido para anexarse — las
+  // otras seis ya son natación, y `compatibilidad` nunca combina una
+  // disciplina consigo misma —, así que cae en el único día de gimnasio.
+  it("redimensiona la sesión de pesas a los minutos reales del combo, no a un accesorio menos", () => {
+    const week = generate(
+      profile({
+        liftingDays: 7,
+        sessionMinutes: 60,
+        otherDisciplines: [{ discipline: "NATACION", sessionsPerWeek: 7 }],
+      }),
+    );
+
+    expect(week.workouts).toHaveLength(1);
+    const dia = week.workouts[0]!;
+    expect(dia.dayKind).toBe("PIERNA_CUADRICEPS");
+
+    // Minutos reales del combo: 60 (gimnasio) + 45 (natación) - 10 de
+    // transición = 95, repartidos 60/40 a favor del primero (gimnasio, que va
+    // antes porque natación siempre cierra) y redondeados a múltiplos de 5.
+    const minutosReales = 55;
+    expect(dia.exercises.length).toBe(exerciseCountFor(minutosReales, "normal"));
+
+    // El parche viejo ("un accesorio menos" sobre los 60 min completos de la
+    // sesión) hubiera dado 5. Redimensionar a los ~55 minutos reales da 6: la
+    // diferencia es justo la que separa un recorte a ciegas de uno que mide.
+    expect(dia.exercises.length).toBe(6);
   });
 });

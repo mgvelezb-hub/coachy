@@ -104,6 +104,10 @@ export async function POST(request: Request): Promise<NextResponse> {
       sessionMinutes: Math.max(20, Math.min(120, minutosPorSesion)),
       trainingSchedule: horarioDesde(replan, user.profile.trainingTime),
       otherDisciplines: replan.cargas.filter((carga) => carga.discipline !== primaria),
+      // El tiempo que la persona declaró día por día: es lo que hace honesto
+      // el reparto de un día combinado la próxima vez que se arme la semana
+      // (`timePerDay` en `disciplines.ts`), en vez de volver a preguntarlo.
+      timePerDay: completo,
       ...(ageRange !== undefined && !user.profile.birthDate ? { ageRange } : {}),
     },
   });

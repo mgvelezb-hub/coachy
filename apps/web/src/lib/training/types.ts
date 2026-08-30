@@ -141,6 +141,8 @@ export type OtherSessionPlan = {
   sesion: unknown | null;
   note: string;
   sharesDayWithGym: boolean;
+  /** `1` si es la única sesión del día (o la primera de un combo); `2` si es el segundo bloque. */
+  orden: 1 | 2;
 };
 
 /**
@@ -160,8 +162,31 @@ export const DISCIPLINES = [
 
 export type Discipline = (typeof DISCIPLINES)[number];
 
-/** Una disciplina secundaria y cuántas veces por semana se practica. */
-export type DisciplineLoad = { discipline: Discipline; sessionsPerWeek: number };
+/**
+ * Para qué sirve esta disciplina en la semana de la persona. Mismos valores
+ * que `Proposito` en `replan.ts` (repetido aquí porque `types.ts` es puro y no
+ * importa ese módulo, igual que `Discipline`): `ENTRENAMIENTO` pide sesiones
+ * completas, `HOBBY` un hueco. Ver `PESO_POR_PROPOSITO` en `replan.ts`.
+ */
+export type Proposito = "ENTRENAMIENTO" | "COMPLEMENTO" | "HOBBY";
+
+/**
+ * Una disciplina secundaria y cuántas veces por semana se practica.
+ *
+ * `proposito` e `importancia` (1-3) son lo que la persona contestó al
+ * replanificar — antes se preguntaban en la pantalla de rearmar rutina y se
+ * tiraban, así que la pantalla de recalibrar tenía que adivinar la
+ * importancia contando sesiones. Opcionales porque las cargas viejas (de
+ * antes de esta fase) no los traen: `parseDisciplineLoads` las sigue
+ * aceptando sin ellos.
+ */
+export type DisciplineLoad = {
+  discipline: Discipline;
+  sessionsPerWeek: number;
+  proposito?: Proposito;
+  /** 1 a 3. Fuera de rango se descarta el campo, no la entrada entera. */
+  importancia?: number;
+};
 
 /** Nivel en el agua. Igual que `SwimLevel` en el schema. */
 export const SWIM_LEVELS = ["PRINCIPIANTE", "INTERMEDIO", "AVANZADO"] as const;
@@ -200,7 +225,21 @@ export type TrainingProfile = {
   gymLevel: SwimLevel;
   /** El objetivo del perfil: modula el volumen de las otras disciplinas. */
   goal: string;
+  /**
+   * Minutos disponibles por día, tal como la persona los declaró al
+   * replanificar. `null` = no se ha declarado; el planificador usa sus
+   * defaults (`DEFAULT_MINUTES` en `disciplines.ts`). Con dato real, un
+   * combo se acepta o se rechaza contra el tiempo de verdad del día, no
+   * contra 60 minutos imaginarios.
+   */
+  timePerDay: Partial<Record<WeekDay, number>> | null;
 };
+
+/**
+ * Día de la semana, igual que `WeekDay` en `split.ts` (repetido aquí porque
+ * `types.ts` es puro y no importa ese módulo).
+ */
+export type WeekDay = "LUN" | "MAR" | "MIE" | "JUE" | "VIE" | "SAB" | "DOM";
 
 /** Una serie ya ejecutada, tal como la devuelve el historial. */
 export type HistorySet = {
