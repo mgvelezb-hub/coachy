@@ -1,10 +1,20 @@
 import { useRouter } from "expo-router";
 import { ChevronLeft } from "lucide-react-native";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import {
+  KeyboardAvoidingView,
+  Platform,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+} from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import { Card } from "@/components/Card";
+import { RegenerarMenu } from "@/components/RegenerarMenu";
 import { SectionLabel } from "@/components/SectionLabel";
 import { ErrorState, LoadingState } from "@/components/States";
 import { useTheme } from "@/context/theme";
@@ -114,7 +124,11 @@ export default function ReplantearDietaScreen() {
 
   return (
     <SafeAreaView style={styles.screen} edges={["top"]}>
-      <ScrollView contentContainerStyle={styles.content}>
+      <KeyboardAvoidingView
+        style={styles.flex}
+        behavior={Platform.OS === "ios" ? "padding" : undefined}
+      >
+      <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
         <Pressable onPress={() => router.back()} hitSlop={10} style={styles.back}>
           <ChevronLeft size={22} color={colors.paloRosa} strokeWidth={2} />
           <Text style={styles.backText}>Atrás</Text>
@@ -268,12 +282,15 @@ export default function ReplantearDietaScreen() {
 
             <Text style={styles.cuando}>{resultado.cuando}</Text>
 
+            <RegenerarMenu />
+
             <Pressable onPress={() => router.replace("/nutricion")} style={styles.boton}>
               <Text style={styles.botonTexto}>Ver mi alimentación</Text>
             </Pressable>
           </Card>
         )}
       </ScrollView>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }
@@ -318,7 +335,11 @@ function Opciones({
 const makeStyles = (colors: Palette) =>
   StyleSheet.create({
     screen: { flex: 1, backgroundColor: colors.obsidiana },
-    content: { padding: spacing.lg, gap: spacing.md, paddingBottom: spacing.huge },
+    flex: { flex: 1 },
+    // El doble de `spacing.huge`: los campos de favoritos/excluidos quedan
+    // cerca del final del scroll, y necesitan aire extra debajo para no
+    // quedar tapados por el teclado al enfocarlos.
+    content: { padding: spacing.lg, gap: spacing.md, paddingBottom: spacing.huge * 2 },
     back: { flexDirection: "row", alignItems: "center", gap: 2, paddingVertical: spacing.sm },
     backText: { fontFamily: fonts.sansMedium, ...typeScale.body, color: colors.paloRosa },
     title: { fontFamily: fonts.sansBold, ...typeScale.title, color: colors.marfil },

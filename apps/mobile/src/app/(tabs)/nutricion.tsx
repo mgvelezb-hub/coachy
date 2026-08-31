@@ -9,7 +9,16 @@ import {
   UtensilsCrossed,
 } from "lucide-react-native";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import {
+  ActivityIndicator,
+  Pressable,
+  RefreshControl,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+} from "react-native";
 import { useRouter } from "expo-router";
 
 import { ScoreCard } from "@/components/ScoreCard";
@@ -21,6 +30,7 @@ import {
   getCheckins,
   getMe,
   getNutrition,
+  postSwap,
   preguntarNutricion,
   type ConsultaResponse,
   type MeResponse,
@@ -210,7 +220,7 @@ export default function NutricionScreen() {
       </ScoreCard>
 
       {menus.map((menu) => (
-        <MenuCard key={menu.menuNumber} menu={menu} />
+        <MenuCard key={menu.menuNumber} menu={menu} onSwapped={load} />
       ))}
 
       <ScoreCard
@@ -242,7 +252,7 @@ export default function NutricionScreen() {
   );
 }
 
-function MenuCard({ menu }: { menu: Menu }) {
+function MenuCard({ menu, onSwapped }: { menu: Menu; onSwapped: () => Promise<void> }) {
   const { colors } = useTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
 
@@ -260,7 +270,12 @@ function MenuCard({ menu }: { menu: Menu }) {
       summary={resumen}
     >
       {menu.meals.map((meal) => (
-        <ComidaDelMenu key={meal.slot} meal={meal} />
+        <ComidaDelMenu
+          key={meal.slot}
+          meal={meal}
+          menuNumber={menu.menuNumber}
+          onSwapped={onSwapped}
+        />
       ))}
     </ScoreCard>
   );
@@ -277,14 +292,46 @@ function MenuCard({ menu }: { menu: Menu }) {
  * La cantidad se lee primero en la unidad en que se sirve —"3 tortillas"— y
  * los gramos van al lado, más chicos: siguen siendo la cifra exacta, pero ya
  * no son lo primero que hay que interpretar.
+ *
+ * Elegir una opción YA NO es de lectura: cada opción es un botón que llama
+ * `POST /nutricion/swap`, y al guardar se refresca el menú del padre
+ * (`onSwapped`, que en la pantalla es el mismo `load()` de siempre) — así el
+ * cambio se ve aquí, en el widget y en cualquier vista que lea `getNutrition`
+ * sin trabajo extra. Si el servidor rechaza el cambio, no se toca el estado
+ * local: no hay nada que revertir porque nunca se aplicó de más.
  */
-function ComidaDelMenu({ meal }: { meal: MenuMeal }) {
+function ComidaDelMenu({
+  meal,
+  menuNumber,
+  onSwapped,
+}: {
+  meal: MenuMeal;
+  menuNumber: number;
+  onSwapped: () => Promise<void>;
+}) {
   const { colors } = useTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
   const [abierto, setAbierto] = useState<string | null>(null);
+  const [cambiando, setCambiando] = useState<string | null>(null);
+  const [errorCambio, setErrorCambio] = useState<string | null>(null);
 
   const equivalenciaDe = (nombre: string) =>
     meal.equivalences.find((equivalencia) => equivalencia.forName === nombre) ?? null;
+
+  async function cambiar(forName: string, toName: string) {
+    if (cambiando) return;
+    setErrorCambio(null);
+    setCambiando(toName);
+    try {
+      await postSwap({ menuNumber, slot: meal.slot, forName, toName });
+      await onSwapped();
+      setAbierto(null);
+    } catch (error) {
+      setErrorCambio(error instanceof ApiError ? error.message : "No se pudo hacer el cambio");
+    } finally {
+      setCambiando(null);
+    }
+  }
 
   return (
     <View style={styles.meal}>
@@ -299,7 +346,11 @@ function ComidaDelMenu({ meal }: { meal: MenuMeal }) {
         return (
           <View key={item.name}>
             <Pressable
-              onPress={() => equivalencia && setAbierto(expandido ? null : item.name)}
+              onPress={() => {
+                if (!equivalencia) return;
+                setErrorCambio(null);
+                setAbierto(expandido ? null : item.name);
+              }}
               disabled={!equivalencia}
               style={styles.itemFila}
             >
@@ -325,12 +376,33 @@ function ComidaDelMenu({ meal }: { meal: MenuMeal }) {
             </Pressable>
 
             {expandido && equivalencia && (
-              <Text style={styles.equivalencia}>
-                En su lugar:{" "}
-                {equivalencia.options
-                  .map((opcion) => opcion.portion ?? `${opcion.name} (${opcion.grams} g)`)
-                  .join(" · ")}
-              </Text>
+              <View style={styles.equivalenciaWrap}>
+                <Text style={styles.equivalenciaAviso}>
+                  El cambio se queda: tu menú, tu widget y tu día lo muestran así.
+                </Text>
+                <View style={styles.equivalenciaOpciones}>
+                  {equivalencia.options.map((opcion) => {
+                    const aplicando = cambiando === opcion.name;
+                    return (
+                      <Pressable
+                        key={opcion.name}
+                        onPress={() => cambiar(equivalencia.forName, opcion.name)}
+                        disabled={cambiando !== null}
+                        style={[styles.equivalenciaOpcion, aplicando && styles.equivalenciaOpcionOn]}
+                      >
+                        {aplicando ? (
+                          <ActivityIndicator size="small" color={colors.champan} />
+                        ) : (
+                          <Text style={styles.equivalenciaOpcionTexto}>
+                            {opcion.portion ?? `${opcion.name} (${opcion.grams} g)`}
+                          </Text>
+                        )}
+                      </Pressable>
+                    );
+                  })}
+                </View>
+                {errorCambio && <Text style={styles.equivalenciaError}>{errorCambio}</Text>}
+              </View>
             )}
           </View>
         );
@@ -573,11 +645,44 @@ const makeStyles = (colors: Palette) => StyleSheet.create({
     width: 62,
     textAlign: "right",
   },
-  equivalencia: {
+  equivalenciaWrap: {
+    gap: spacing.sm,
+    marginBottom: spacing.sm,
+    paddingLeft: spacing.sm,
+  },
+  equivalenciaAviso: {
     fontFamily: fonts.sans,
     ...typeScale.bodySm,
     color: colors.paloRosa,
-    marginBottom: spacing.sm,
-    paddingLeft: spacing.sm,
+  },
+  equivalenciaOpciones: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: spacing.sm,
+  },
+  equivalenciaOpcion: {
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: colors.cardBorder,
+    backgroundColor: colors.cardBg,
+    minWidth: 44,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  equivalenciaOpcionOn: {
+    backgroundColor: colors.guinda,
+    borderColor: colors.guindaLight,
+  },
+  equivalenciaOpcionTexto: {
+    fontFamily: fonts.sansMedium,
+    ...typeScale.bodySm,
+    color: colors.marfil,
+  },
+  equivalenciaError: {
+    fontFamily: fonts.sans,
+    ...typeScale.bodySm,
+    color: colors.error,
   },
 });

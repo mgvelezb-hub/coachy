@@ -958,6 +958,38 @@ export function getNutrition(): Promise<NutritionResponse> {
   return apiFetch<NutritionResponse>("/api/v1/nutrition");
 }
 
+/**
+ * `POST /api/v1/nutricion/regenerar-menu` — rearma los menús vigentes AHORA
+ * con las preferencias de hoy, en vez de esperar al siguiente check-in.
+ *
+ * Mismo shape de respuesta que `GET /api/v1/nutrition`: la pantalla puede
+ * pintar el resultado directo, sin un segundo `getNutrition()`. 409 si no
+ * hay todavía una decisión aprobada con la que regenerar.
+ */
+export function postRegenerarMenu(): Promise<NutritionResponse> {
+  return apiFetch<NutritionResponse>("/api/v1/nutricion/regenerar-menu", { method: "POST" });
+}
+
+/** Lo que devuelve `POST /api/v1/nutricion/swap`. */
+export type SwapResponse = { menu: Menu };
+
+/**
+ * Elige una equivalencia y la deja guardada: el item cambia en el menú, y la
+ * equivalencia de ese hueco queda apuntando de vuelta al alimento original
+ * (intercambio reversible — el servidor lo garantiza, no la app).
+ *
+ * No toca la lista de súper: un cambio puntual no rehace la compra de la
+ * semana. Para eso está `postRegenerarMenu`.
+ */
+export function postSwap(input: {
+  menuNumber: number;
+  slot: string;
+  forName: string;
+  toName: string;
+}): Promise<SwapResponse> {
+  return apiFetch<SwapResponse>("/api/v1/nutricion/swap", { method: "POST", body: input });
+}
+
 export function getTrainingToday(): Promise<TrainingTodayResponse> {
   return apiFetch<TrainingTodayResponse>("/api/v1/training/today");
 }

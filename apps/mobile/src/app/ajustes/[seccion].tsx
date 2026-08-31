@@ -2,13 +2,25 @@ import Constants from "expo-constants";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { Check, RotateCcw } from "lucide-react-native";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Alert, Platform, Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View } from "react-native";
+import {
+  Alert,
+  KeyboardAvoidingView,
+  Platform,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Switch,
+  Text,
+  TextInput,
+  View,
+} from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import { Card } from "@/components/Card";
 import { Explicacion, TextoExplicativo } from "@/components/Explicacion";
 import { ErrorState, LoadingState } from "@/components/States";
 import { PrimaryButton } from "@/components/PrimaryButton";
+import { RegenerarMenu } from "@/components/RegenerarMenu";
 import { SectionLabel } from "@/components/SectionLabel";
 import { SeccionEntrenamiento } from "@/components/ajustes/SeccionEntrenamiento";
 import { useTheme } from "@/context/theme";
@@ -221,7 +233,9 @@ export default function AjustesDetalleScreen() {
     setPresupuestoMsg(null);
     try {
       await patchPresupuesto(valor);
-      setPresupuestoMsg("Guardado. Entra en tu siguiente menú, no en el de esta semana.");
+      setPresupuestoMsg(
+        "Guardado — regenera tu menú abajo para verlo hoy, o espera a tu siguiente check-in.",
+      );
     } catch (error) {
       setPresupuestoMsg(
         error instanceof ApiError ? error.message : "No se pudo guardar tu presupuesto",
@@ -272,7 +286,9 @@ export default function AjustesDetalleScreen() {
     setSuplementosMsg(null);
     try {
       await patchNutricion({ supplements: siguiente });
-      setSuplementosMsg("Guardado. Entra en tu siguiente menú y en tus pautas del día.");
+      setSuplementosMsg(
+        "Guardado — regenera tu menú abajo para verlo hoy, o espera a tu siguiente check-in.",
+      );
     } catch (error) {
       setSuplementos(suplementos);
       setSuplementosMsg(
@@ -307,7 +323,9 @@ export default function AjustesDetalleScreen() {
       });
       setFavoritos(guardado.favoriteFoods.join(", "));
       setExcluidos(guardado.excludedFoods.join(", "));
-      setAlimentosMsg("Guardado. Entra en tu siguiente menú.");
+      setAlimentosMsg(
+        "Guardado — regenera tu menú abajo para verlo hoy, o espera a tu siguiente check-in.",
+      );
     } catch (error) {
       setAlimentosMsg(
         error instanceof ApiError ? error.message : "No se pudieron guardar tus alimentos",
@@ -338,7 +356,9 @@ export default function AjustesDetalleScreen() {
     setDietaMsg(null);
     try {
       await patchNutricion({ dietStyle: valor });
-      setDietaMsg("Guardado. Entra en tu siguiente menú, no en el de esta semana.");
+      setDietaMsg(
+        "Guardado — regenera tu menú abajo para verlo hoy, o espera a tu siguiente check-in.",
+      );
     } catch (error) {
       setDieta(anterior);
       setDietaMsg(error instanceof ApiError ? error.message : "No se pudo guardar tu dieta");
@@ -540,7 +560,11 @@ export default function AjustesDetalleScreen() {
 
   return (
     <SafeAreaView style={styles.screen} edges={["top"]}>
-      <ScrollView contentContainerStyle={styles.content}>
+      <KeyboardAvoidingView
+        style={styles.flex}
+        behavior={Platform.OS === "ios" ? "padding" : undefined}
+      >
+      <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
         <Pressable onPress={() => router.back()} style={styles.backRow} hitSlop={8}>
           <Text style={styles.backText}>← Atrás</Text>
         </Pressable>
@@ -828,6 +852,15 @@ export default function AjustesDetalleScreen() {
 
           {alimentosMsg && <Text style={styles.vaultMsg}>{alimentosMsg}</Text>}
         </Card>
+
+        <Card>
+          <SectionLabel>Regenerar tu menú</SectionLabel>
+          <Text style={styles.vaultIntro}>
+            Ya guardaste tus cambios arriba. Si no quieres esperar a tu siguiente check-in, aquí
+            rearmas tu menú de hoy con lo que acabas de elegir.
+          </Text>
+          <RegenerarMenu />
+        </Card>
         </>
         )}
 
@@ -1083,6 +1116,7 @@ export default function AjustesDetalleScreen() {
         </Card>
         )}
       </ScrollView>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }
@@ -1250,10 +1284,16 @@ const makeStyles = (colors: Palette) => StyleSheet.create({
     flex: 1,
     backgroundColor: colors.obsidiana,
   },
+  flex: {
+    flex: 1,
+  },
   content: {
     padding: spacing.lg,
     gap: spacing.lg,
-    paddingBottom: spacing.huge,
+    // Extra sobre `spacing.huge`: en las secciones con campos de texto al
+    // fondo (favoritos/excluidos), el teclado necesita más aire debajo del
+    // último campo para no taparlo — antes se escribía a ciegas ahí.
+    paddingBottom: spacing.huge * 2,
   },
   backRow: { flexDirection: "row", alignItems: "center" },
   backText: { fontFamily: fonts.sans, ...typeScale.bodySm, color: colors.paloRosaLight },

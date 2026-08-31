@@ -98,27 +98,45 @@ export async function mealPlansOf(decisionId: string): Promise<MealPlan[]> {
   return prisma.mealPlan.findMany({ where: { decisionId }, orderBy: { menuNumber: "asc" } });
 }
 
+export interface MaterializeOptions {
+  /** El peso más reciente del historial; el del perfil puede estar viejo. */
+  latestWeightKg?: number | null;
+  /**
+   * Si ya hay menús guardados para esta decisión, `false` los deja intactos
+   * (el caso de `ensureMealPlans`: solo rellena lo que nunca se generó) y
+   * `true` los pisa con lo recién calculado (el caso de "regenerar mi menú
+   * ahora": la persona pidió explícitamente que sus alimentos de hoy entren
+   * YA, no hasta el siguiente check-in).
+   */
+  overwrite: boolean;
+}
+
 /**
- * Menús de una decisión que nació sin ellos.
+ * `distribute` + `generateMenu` sobre los macros ya decididos, y guarda el
+ * resultado.
  *
- * `syncMealPlans` corre dentro de `runCoachy`, así que toda decisión que llegó
- * por otro camino — el importador de historial, por ejemplo — quedó con sus
- * números pero sin menú, y la atleta abre la app y no ve nada de nutrición.
- * Aquí se materializan **a demanda**, con el mismo patrón que la rutina:
- * la primera vez que alguien abre el home, no un cron.
+ * Único lugar donde se corre el generador de menús a partir de una
+ * `Decision` ya guardada — `ensureMealPlans` (primera vez, nunca pisa) y
+ * `POST /api/v1/nutricion/regenerar-menu` (a demanda, sí pisa) son los dos
+ * llamadores, y comparten esta función para no tener la lógica del motor
+ * duplicada con la oportunidad de que un día se desincronicen.
  *
- * El motor sigue mandando: los gramos salen de `distribute` + `generateMenu`
- * sobre los macros que ya estaban guardados. Aquí no se decide ningún número.
+ * Los MACROS no se tocan: `targets` sale de la `Decision` tal cual está
+ * guardada. Lo único que cambia con `toEngineProfile(profile)` son las
+ * preferencias con las que se elige QUÉ alimentos cumplen esos números —
+ * exclusiones, favoritos, presupuesto, dieta, suplementos, tiempo de cocina.
+ *
+ * La MISMA semilla (`decision.menuSeed` o su respaldo por fecha) entra
+ * siempre: mismo seed + catálogo filtrado por las preferencias de hoy es lo
+ * que hace que regenerar cambie solo lo necesario y no entregue un menú
+ * irreconocible.
  */
-export async function ensureMealPlans(
+export async function materializeMealPlans(
   decision: Decision & { checkIn?: { date: Date } | null },
   profile: Profile,
-  latestWeightKg?: number | null,
+  options: MaterializeOptions,
 ): Promise<MealPlan[]> {
-  const existing = await mealPlansOf(decision.id);
-  if (existing.length > 0) return existing;
-
-  const engineProfile = toEngineProfile(profile, latestWeightKg ?? null);
+  const engineProfile = toEngineProfile(profile, options.latestWeightKg ?? null);
   const targets = {
     kcal: decision.kcal,
     proteinG: decision.proteinG,
@@ -141,22 +159,46 @@ export async function ensureMealPlans(
       meal.equivalences.map((equivalence) => ({ slot: meal.slot, ...equivalence })),
     );
 
+    const data = {
+      mealsJson: menu.meals as unknown as Prisma.InputJsonValue,
+      equivalencesJson: equivalences as unknown as Prisma.InputJsonValue,
+      groceryListJson: plan.shoppingList as unknown as Prisma.InputJsonValue,
+    };
+
     saved.push(
       await prisma.mealPlan.upsert({
         where: { decisionId_menuNumber: { decisionId: decision.id, menuNumber: menu.id } },
-        create: {
-          decisionId: decision.id,
-          menuNumber: menu.id,
-          mealsJson: menu.meals as unknown as Prisma.InputJsonValue,
-          equivalencesJson: equivalences as unknown as Prisma.InputJsonValue,
-          groceryListJson: plan.shoppingList as unknown as Prisma.InputJsonValue,
-        },
-        update: {},
+        create: { decisionId: decision.id, menuNumber: menu.id, ...data },
+        update: options.overwrite ? data : {},
       }),
     );
   }
 
   return saved;
+}
+
+/**
+ * Menús de una decisión que nació sin ellos.
+ *
+ * `syncMealPlans` corre dentro de `runCoachy`, así que toda decisión que llegó
+ * por otro camino — el importador de historial, por ejemplo — quedó con sus
+ * números pero sin menú, y la atleta abre la app y no ve nada de nutrición.
+ * Aquí se materializan **a demanda**, con el mismo patrón que la rutina:
+ * la primera vez que alguien abre el home, no un cron.
+ *
+ * `overwrite: false`: si ya hay menús (aunque vengan de otra fuente), esta
+ * función nunca los toca — para reemplazarlos a propósito está
+ * `materializeMealPlans` directo, con `overwrite: true`.
+ */
+export async function ensureMealPlans(
+  decision: Decision & { checkIn?: { date: Date } | null },
+  profile: Profile,
+  latestWeightKg?: number | null,
+): Promise<MealPlan[]> {
+  const existing = await mealPlansOf(decision.id);
+  if (existing.length > 0) return existing;
+
+  return materializeMealPlans(decision, profile, { overwrite: false, latestWeightKg });
 }
 
 export type CurrentMealPlan = {
