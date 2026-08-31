@@ -7,18 +7,8 @@ import { materializeMealPlans } from "@/lib/coachy/menu";
 import { prisma } from "@/lib/prisma";
 import { PROPOSITOS } from "@/lib/training/replan";
 import { WEEK_DAYS } from "@/lib/training/split";
+import { TRAINING_TIMES, bloqueDelMotor } from "@/lib/training/horario";
 import { DISCIPLINES, MUSCLE_GROUPS, SWIM_LEVELS } from "@/lib/training/types";
-
-/** Los cuatro horarios que reconoce el perfil (`TrainingTime` en Prisma). */
-export const TRAINING_TIMES = ["MANANA", "MEDIODIA", "TARDE", "NOCHE"] as const;
-
-/**
- * El motor solo distingue mañana de tarde: es lo que cambia el reparto de
- * carbohidratos del día. Mediodía cuenta como mañana y noche como tarde.
- */
-function bloqueDelMotor(hora: string): "manana" | "tarde" {
-  return hora === "TARDE" || hora === "NOCHE" ? "tarde" : "manana";
-}
 
 /**
  * `PATCH /api/v1/me/entrenamiento` — las preferencias que cambian la rutina.
