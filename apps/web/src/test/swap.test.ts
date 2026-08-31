@@ -106,6 +106,31 @@ describe("applySwap", () => {
     expect(vuelta.equivalencesJson).toEqual(equivalencesOriginal);
   });
 
+  it("un vegetal libre intercambiado por otro sigue siendo libre", () => {
+    // "Libre" describe al hueco (cantidad sin contar), no al alimento: si la
+    // espinaca era libre, el nopal que la sustituye también lo es.
+    const meals = [
+      {
+        slot: "comida",
+        label: "Comida",
+        timeHint: "2:00 pm",
+        items: [{ name: "Espinaca", grams: 100, free: true }],
+        equivalences: [
+          { forName: "Espinaca", options: [{ name: "Nopal", grams: 100 }] },
+        ],
+      },
+    ];
+
+    const resultado = applySwap(meals, [], {
+      slot: "comida",
+      forName: "Espinaca",
+      toName: "Nopal",
+    });
+
+    const comida = (resultado.mealsJson as any[])[0];
+    expect(comida.items[0]).toEqual({ name: "Nopal", grams: 100, free: true });
+  });
+
   it("lanza SwapError si el slot no existe", () => {
     expect(() =>
       applySwap(mealsJsonDeAvena(), equivalencesJsonDeAvena(), {

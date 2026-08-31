@@ -301,7 +301,32 @@ function equivalencesFor(
   profile: Profile,
   config: EngineConfig,
 ): Equivalence | null {
-  if (slot.food.role === 'vegetal_libre' || slot.food.role === 'suplemento') return null;
+  // Los suplementos no tienen equivalente honesto: la creatina es un compuesto,
+  // no un alimento, y ofrecer "canela en vez de psyllium" seria fingir que son
+  // intercambiables. Se quedan sin opciones a proposito.
+  if (slot.food.role === 'suplemento') return null;
+
+  // Los vegetales libres SI tienen equivalencias — y son las mas faciles de
+  // dar: "libre" significa que la cantidad no esta contada, asi que cualquier
+  // otro vegetal libre del catalogo (que pase exclusiones y dieta) sirve tal
+  // cual, con los mismos gramos sugeridos. No hay macro que cuadrar.
+  if (slot.food.role === 'vegetal_libre') {
+    const opciones = eligible(pool, profile, config, 'vegetal_libre', { freeVegetable: true })
+      .filter((f) => f.id !== slot.food.id)
+      .sort((a, b) => {
+        // Los favoritos del perfil primero; el resto alfabetico, para que la
+        // lista sea estable entre generaciones.
+        const favA = matchesAny(a, profile.favoriteFoods) ? 0 : 1;
+        const favB = matchesAny(b, profile.favoriteFoods) ? 0 : 1;
+        return favA - favB || a.name.localeCompare(b.name);
+      })
+      .slice(0, config.equivalencesPerItem)
+      .map((f) => ({ foodId: f.id, name: f.name, grams: Math.round(slot.grams) }));
+
+    if (opciones.length === 0) return null;
+    return { forFoodId: slot.food.id, forName: slot.food.name, options: opciones };
+  }
+
   const key = primaryMacroOf(slot.food.role);
   const base = slot.food[key];
   if (base <= 0 || slot.grams <= 0) return null;

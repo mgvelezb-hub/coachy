@@ -84,7 +84,10 @@ export function applySwap(
   const originalGrams = item.grams;
 
   // El item se vuelve la elección: la equivalencia deja de ser lectura.
-  const newItem: JsonRecord = { name: option.name, grams: option.grams, free: false };
+  // `free` se hereda del alimento que sale: un vegetal libre intercambiado por
+  // otro vegetal libre sigue siendo libre — la etiqueta "libre" describe el
+  // hueco (cantidad sin contar), no al alimento concreto que lo ocupa.
+  const newItem: JsonRecord = { name: option.name, grams: option.grams, free: item.free === true };
   const newItems = items.map((entry, index) => (index === itemIndex ? newItem : entry));
 
   // La equivalencia de ese hueco ahora se busca desde la elección, y la

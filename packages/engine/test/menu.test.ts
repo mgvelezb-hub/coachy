@@ -145,6 +145,9 @@ describe('generador de menus (spec §6)', () => {
             const equiv = meal.equivalences.find((e) => e.forFoodId === item.foodId);
             if (!equiv) continue;
             const food = findFood(item.foodId)!;
+            // Los vegetales libres no cuadran macros: su equivalencia es
+            // "cualquier otro vegetal libre", con la cantidad sin contar.
+            if (food.role === 'vegetal_libre') continue;
             const key =
               food.role === 'grasa'
                 ? 'fatPer100'
@@ -261,5 +264,55 @@ describe('generador de menus (spec §6)', () => {
     });
     const favoriteHits = hits.filter((id) => ['pechuga_pollo', 'camote', 'aguacate'].includes(id));
     expect(favoriteHits.length).toBeGreaterThan(0);
+  });
+});
+
+describe('equivalencias de vegetales libres', () => {
+  // Antes los vegetales libres eran los unicos items sin boton de "cambiar":
+  // la persona veia "Espinaca (libre)" y no podia pedir otra cosa. Ahora su
+  // equivalencia es la mas simple de todas — cualquier otro vegetal libre,
+  // mismos gramos sugeridos, porque la cantidad no esta contada.
+  it('todo vegetal libre trae al menos una opcion de cambio', () => {
+    for (const seed of SEEDS) {
+      const { plan } = planFor(P, 'BASE', seed);
+      for (const menu of plan.menus) {
+        for (const meal of menu.meals) {
+          for (const item of meal.items) {
+            if (findFood(item.foodId)!.role !== 'vegetal_libre') continue;
+            const equiv = meal.equivalences.find((e) => e.forFoodId === item.foodId);
+            expect(equiv, `${item.name} seed ${seed} sin equivalencias`).toBeDefined();
+            expect(equiv!.options.length).toBeGreaterThanOrEqual(1);
+            for (const option of equiv!.options) {
+              expect(findFood(option.foodId)!.role).toBe('vegetal_libre');
+              // Mismos gramos: libre es libre, no hay macro que cuadrar.
+              expect(option.grams).toBe(item.grams);
+            }
+          }
+        }
+      }
+    }
+  });
+
+  it('las opciones respetan exclusiones del perfil', () => {
+    const profile: Profile = { ...P, excludedFoods: ['espinaca', 'nopal'] };
+    const { plan } = planFor(profile, 'BASE', 42);
+    const opciones = plan.menus.flatMap((m) =>
+      m.meals.flatMap((meal) => meal.equivalences.flatMap((e) => e.options.map((o) => o.foodId))),
+    );
+    expect(opciones).not.toContain('espinaca');
+    expect(opciones).not.toContain('nopal');
+  });
+
+  it('los suplementos siguen sin equivalencias: no tienen sustituto honesto', () => {
+    for (const seed of SEEDS) {
+      const { plan } = planFor(P, 'BASE', seed);
+      for (const menu of plan.menus) {
+        for (const meal of menu.meals) {
+          for (const equiv of meal.equivalences) {
+            expect(findFood(equiv.forFoodId)!.role).not.toBe('suplemento');
+          }
+        }
+      }
+    }
   });
 });
