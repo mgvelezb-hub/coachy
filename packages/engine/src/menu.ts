@@ -727,17 +727,37 @@ function shoppingList(menus: Menu[], pool: Food[], daysPerMenu: number): Shoppin
   for (const menu of menus) {
     for (const meal of menu.meals) {
       for (const item of meal.items) {
-        const food = pool.find((f) => f.id === item.foodId);
+        // Un alimento intercambiado por una equivalencia puede venir SIN
+        // `foodId` (los menus guardados antes de que el intercambio lo
+        // conservara). Agrupar por `undefined` metia a todos esos alimentos
+        // en la misma cubeta: la lista salia con seis renglones y sumas
+        // imposibles —"Yogur 13 440 g"— porque el yogur cargaba tambien con
+        // el pavo, el frijol y las tostadas. El nombre es la llave de
+        // respaldo, que es justo lo que distingue un alimento de otro cuando
+        // el id se perdio.
+        const food =
+          pool.find((f) => f.id === item.foodId) ??
+          pool.find((f) => normalize(f.name) === normalize(item.name));
+
+        // La llave sale del alimento resuelto, no del id que traiga el JSON:
+        // asi el MISMO alimento con id (como lo genero el motor) y sin id
+        // (como quedo tras un intercambio) cae en el mismo renglon en vez de
+        // aparecer dos veces. Solo si no esta en el catalogo se usa su nombre.
+        const clave = food?.id ?? normalize(item.name);
+
         const grams = item.grams * daysPerMenu;
-        const existing = acc.get(item.foodId);
+        const existing = acc.get(clave);
         if (existing) {
           existing.grams += grams;
         } else {
-          acc.set(item.foodId, {
-            foodId: item.foodId,
+          acc.set(clave, {
+            foodId: item.foodId ?? food?.id ?? clave,
             name: item.name,
             grams,
-            unit: food?.unit ?? 'g',
+            // Los gramos acumulados son gramos: etiquetarlos con la unidad de
+            // servicio del alimento imprimia "Naranja - 1260 pieza". Las
+            // piezas las calcula quien pinta la lista, desde los gramos.
+            unit: 'g',
             costRel: food?.costRel ?? 2,
           });
         }

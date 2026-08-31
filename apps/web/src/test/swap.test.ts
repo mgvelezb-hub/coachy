@@ -131,6 +131,45 @@ describe("applySwap", () => {
     expect(comida.items[0]).toEqual({ name: "Nopal", grams: 100, free: true });
   });
 
+  it("el intercambio conserva el id del alimento en los dos sentidos", () => {
+    // Sin el id, la lista de súper —que agrupa por alimento— metía a todos
+    // los intercambiados en la misma cubeta y sumaba sus gramos entre sí.
+    const meals = [
+      {
+        slot: "cena",
+        label: "Cena",
+        timeHint: "20:00",
+        items: [{ foodId: "avena", name: "Avena", grams: 60, free: false }],
+        equivalences: [
+          {
+            forName: "Avena",
+            options: [{ foodId: "amaranto", name: "Amaranto", grams: 55 }],
+          },
+        ],
+      },
+    ];
+
+    const resultado = applySwap(meals, [], {
+      slot: "cena",
+      forName: "Avena",
+      toName: "Amaranto",
+    });
+
+    const comida = (resultado.mealsJson as any[])[0];
+    expect(comida.items[0]).toEqual({
+      foodId: "amaranto",
+      name: "Amaranto",
+      grams: 55,
+      free: false,
+    });
+    // Y la opción de volver conserva el id del que salió.
+    expect(comida.equivalences[0].options[0]).toEqual({
+      foodId: "avena",
+      name: "Avena",
+      grams: 60,
+    });
+  });
+
   it("lanza SwapError si el slot no existe", () => {
     expect(() =>
       applySwap(mealsJsonDeAvena(), equivalencesJsonDeAvena(), {

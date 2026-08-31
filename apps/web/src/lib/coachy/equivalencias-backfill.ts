@@ -75,6 +75,9 @@ export function rellenaEquivalencias(
       const agregadas = frescas.options
         .filter((opcion) => opcion.name !== nombre && !yaEstan.has(opcion.name))
         .map((opcion) => ({
+          // El id viaja con la opción: al intercambiar, el alimento nuevo lo
+          // hereda y la lista de súper puede seguir agrupando por alimento.
+          foodId: opcion.foodId,
           name: opcion.name,
           grams: opcion.grams,
           ...(opcion.aproximada === true ? { aproximada: true } : {}),

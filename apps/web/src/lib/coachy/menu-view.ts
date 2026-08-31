@@ -47,6 +47,12 @@ export interface GroceryItemView {
   name: string;
   grams: number;
   unit: string;
+  /**
+   * "7 naranjas", cuando el alimento se compra por pieza. La lista acumula
+   * gramos —son gramos de verdad— pero nadie pide 1 260 g de naranja en el
+   * súper: pide siete.
+   */
+  portion?: string | null;
 }
 
 /** El JSON del motor, aplanado a lo que necesita la vista. */
@@ -120,10 +126,8 @@ export function toGroceries(json: Prisma.JsonValue): GroceryItemView[] {
   if (!Array.isArray(json)) return [];
   return json.map((raw) => {
     const item = raw as Record<string, unknown>;
-    return {
-      name: String(item.name ?? ""),
-      grams: Number(item.grams ?? 0),
-      unit: String(item.unit ?? ""),
-    };
+    const name = String(item.name ?? "");
+    const grams = Number(item.grams ?? 0);
+    return { name, grams, unit: String(item.unit ?? ""), portion: porcionNatural(name, grams) };
   });
 }

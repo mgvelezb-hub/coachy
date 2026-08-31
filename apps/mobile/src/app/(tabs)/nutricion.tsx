@@ -303,7 +303,7 @@ export default function NutricionScreen() {
         ) : (
           groceries.map((item) => (
             <Text key={item.name} style={styles.item}>
-              · {item.name} — {item.grams} {item.unit}
+              · {item.name} — {item.portion ? `${item.portion} (${item.grams} g)` : `${item.grams} ${item.unit}`}
             </Text>
           ))
         )}
@@ -521,7 +521,9 @@ function ComidaDelMenu({
 
               <View style={styles.itemCantidad}>
                 {item.portion ? (
-                  <Text style={styles.itemPorcion}>{item.portion}</Text>
+                  <Text style={styles.itemPorcion} numberOfLines={2}>
+                    {item.portion}
+                  </Text>
                 ) : !item.free ? (
                   <Text style={styles.itemPorcion}>{item.grams} g</Text>
                 ) : null}
@@ -796,16 +798,27 @@ const makeStyles = (colors: Palette) => StyleSheet.create({
   },
   item: {
     flex: 1,
+    // Piso de ancho: sin él, una porción larga ("3 tostadas de maiz
+    // horneada") se comía toda la fila y el nombre del alimento quedaba en
+    // una columna de un carácter, escrito hacia abajo letra por letra.
+    minWidth: 110,
     fontFamily: fonts.sans,
     ...typeScale.body,
     color: colors.marfil,
   },
-  itemCantidad: { alignItems: "flex-end" },
+  itemCantidad: {
+    alignItems: "flex-end",
+    // La cantidad cede espacio antes que el nombre, y nunca se lleva más de
+    // la mitad de la fila.
+    flexShrink: 1,
+    maxWidth: "45%",
+  },
   itemPorcion: {
     fontFamily: fonts.sansSemiBold,
     ...typeScale.body,
     color: colors.marfil,
     fontVariant: ["tabular-nums"],
+    textAlign: "right",
   },
   // Los gramos no desaparecen: quedan debajo, más chicos. Siguen siendo la
   // cifra exacta, pero ya no son lo primero que hay que interpretar.

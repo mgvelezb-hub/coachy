@@ -82,19 +82,35 @@ export function applySwap(
 
   const originalName = item.name;
   const originalGrams = item.grams;
+  // El id del alimento viaja en los dos sentidos. Sin él, un alimento
+  // intercambiado quedaba sin `foodId` y la lista de súper —que agrupa por
+  // id— metía a todos los intercambiados en la misma cubeta y sumaba sus
+  // gramos entre sí.
+  const originalFoodId = item.foodId;
 
   // El item se vuelve la elección: la equivalencia deja de ser lectura.
   // `free` se hereda del alimento que sale: un vegetal libre intercambiado por
   // otro vegetal libre sigue siendo libre — la etiqueta "libre" describe el
   // hueco (cantidad sin contar), no al alimento concreto que lo ocupa.
-  const newItem: JsonRecord = { name: option.name, grams: option.grams, free: item.free === true };
+  const newItem: JsonRecord = {
+    ...(option.foodId !== undefined ? { foodId: option.foodId } : {}),
+    name: option.name,
+    grams: option.grams,
+    free: item.free === true,
+  };
   const newItems = items.map((entry, index) => (index === itemIndex ? newItem : entry));
 
   // La equivalencia de ese hueco ahora se busca desde la elección, y la
   // opción que se tomó se reemplaza por el alimento original — así la
   // próxima vez que se abra, "volver" está entre las opciones.
   const newOptions = options.map((entry, index) =>
-    index === optionIndex ? { name: originalName, grams: originalGrams } : entry,
+    index === optionIndex
+      ? {
+          ...(originalFoodId !== undefined ? { foodId: originalFoodId } : {}),
+          name: originalName,
+          grams: originalGrams,
+        }
+      : entry,
   );
   const newEquivalence: JsonRecord = { ...equivalence, forName: option.name, options: newOptions };
   const newEquivalences = equivalences.map((entry, index) =>

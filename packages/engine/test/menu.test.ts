@@ -390,3 +390,54 @@ describe('la lista de super sigue a los menus que se van a cocinar', () => {
     expect(ambos.length).toBeGreaterThanOrEqual(soloUno.length);
   });
 });
+
+describe('la lista de super no revuelve alimentos', () => {
+  // El bug: los alimentos intercambiados se guardaban sin `foodId`, la lista
+  // agrupaba por ese id y todos caian en la misma cubeta. En pantalla salian
+  // seis renglones con sumas imposibles: el yogur cargaba tambien con el
+  // pavo, el frijol y las tostadas.
+  it('agrupa por nombre cuando el alimento viene sin id', () => {
+    const menu: any = {
+      id: 1,
+      meals: [
+        {
+          slot: 'COMIDA',
+          items: [
+            { name: 'Yogur griego natural 0%', grams: 370 },
+            { name: 'Pechuga de pavo cocida', grams: 145 },
+            { name: 'Frijol negro de olla', grams: 330 },
+          ],
+        },
+      ],
+    };
+
+    const lista = listaDeSuper([menu], 7);
+
+    expect(lista).toHaveLength(3);
+    const porNombre = Object.fromEntries(lista.map((item) => [item.name, item.grams]));
+    expect(porNombre['Yogur griego natural 0%']).toBe(370 * 7);
+    expect(porNombre['Pechuga de pavo cocida']).toBe(145 * 7);
+    expect(porNombre['Frijol negro de olla']).toBe(330 * 7);
+  });
+
+  it('el mismo alimento con y sin id se suma una sola vez', () => {
+    const menu: any = {
+      id: 1,
+      meals: [
+        { slot: 'DESAYUNO', items: [{ foodId: 'avena', name: 'Avena en hojuelas (cruda)', grams: 40 }] },
+        { slot: 'CENA', items: [{ name: 'Avena en hojuelas (cruda)', grams: 20 }] },
+      ],
+    };
+
+    const lista = listaDeSuper([menu], 1);
+    expect(lista).toHaveLength(1);
+    expect(lista[0]!.grams).toBe(60);
+  });
+
+  it('los gramos acumulados se reportan en gramos, no en piezas', () => {
+    const menu: any = { id: 1, meals: [{ slot: 'DESAYUNO', items: [{ foodId: 'naranja', name: 'Naranja', grams: 180 }] }] };
+    const lista = listaDeSuper([menu], 7);
+    expect(lista[0]!.unit).toBe('g');
+    expect(lista[0]!.grams).toBe(1260);
+  });
+});

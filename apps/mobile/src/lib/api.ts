@@ -379,7 +379,13 @@ export type MenuMeal = {
   }>;
 };
 export type Menu = { menuNumber: number; meals: MenuMeal[] };
-export type GroceryItem = { name: string; grams: number; unit: string };
+export type GroceryItem = {
+  name: string;
+  grams: number;
+  unit: string;
+  /** "7 naranjas" cuando se compra por pieza; los gramos van al lado. */
+  portion?: string | null;
+};
 
 export type NutritionDecisionSummary = {
   id: string;

@@ -6,6 +6,7 @@ import { distribute, generateMenu, listaDeSuper } from "engine";
 
 import { rellenaEquivalencias } from "@/lib/coachy/equivalencias-backfill";
 import { toGroceries } from "@/lib/coachy/menu-view";
+import { porcionNatural } from "@/lib/coachy/porciones";
 import { toEngineProfile } from "@/lib/coachy/mapping";
 import type { EngineDecision } from "@/lib/engine-types";
 import { prisma } from "@/lib/prisma";
@@ -308,6 +309,8 @@ export function listaDeSuperDe(
     name: item.name,
     grams: item.grams,
     unit: item.unit,
+    // Se compra en piezas cuando así se vende: "7 naranjas", no "1260 g".
+    portion: porcionNatural(item.name, item.grams),
   }));
 }
 

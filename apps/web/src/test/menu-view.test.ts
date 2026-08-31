@@ -61,7 +61,17 @@ describe("toMenuView", () => {
 describe("toGroceries", () => {
   it("aplana la lista de súper", () => {
     const json = [{ name: "Pollo", grams: 500, unit: "g" }];
-    expect(toGroceries(json)).toEqual([{ name: "Pollo", grams: 500, unit: "g" }]);
+    // `portion` es null para lo que se compra a granel: la pechuga se pesa,
+    // no se cuenta.
+    expect(toGroceries(json)).toEqual([
+      { name: "Pollo", grams: 500, unit: "g", portion: null },
+    ]);
+  });
+
+  it("lo que se vende por pieza se pide en piezas", () => {
+    // "1260 g de naranja" no se pide en el súper: se piden siete naranjas.
+    const json = [{ name: "Naranja", grams: 1260, unit: "g" }];
+    expect(toGroceries(json)[0]?.portion).toContain("naranja");
   });
 
   it("devuelve un arreglo vacío si el json no es un arreglo", () => {
