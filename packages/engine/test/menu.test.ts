@@ -159,7 +159,14 @@ describe('generador de menus (spec §6)', () => {
             for (const option of equiv.options) {
               const sub = findFood(option.foodId)!;
               const got = (option.grams * sub[key]) / 100;
-              expect(devPct(got, base), `${food.name} -> ${sub.name} seed ${seed}`).toBeLessThanOrEqual(10);
+              // Una opcion sin marca promete +-10 %. Las marcadas `aproximada`
+              // son las que completan la lista cuando no hay tres exactas:
+              // valen hasta 40 % y la app las advierte antes de aplicarlas.
+              const tope = option.aproximada ? 40 : 10;
+              expect(devPct(got, base), `${food.name} -> ${sub.name} seed ${seed}`).toBeLessThanOrEqual(tope);
+              if (option.aproximada) {
+                expect(equiv.aproximada, `${food.name} seed ${seed}`).toBe(true);
+              }
             }
           }
         }
@@ -311,6 +318,40 @@ describe('equivalencias de vegetales libres', () => {
           for (const equiv of meal.equivalences) {
             expect(findFood(equiv.forFoodId)!.role).not.toBe('suplemento');
           }
+        }
+      }
+    }
+  });
+});
+
+describe('la lista de equivalencias da de donde elegir', () => {
+  // La queja fue literal: "antes salian al menos 3 equivalencias, ahora solo
+  // aparece 1". Con una sola opcion no se elige, se acepta. Cuando el catalogo
+  // elegible de la persona da para mas, la lista tiene que llenarse.
+  it('llena hasta 5 opciones cuando el catalogo da para eso', () => {
+    const { plan } = planFor(P, 'BASE', 42);
+    const equivalencias = plan.menus.flatMap((m) => m.meals.flatMap((meal) => meal.equivalences));
+    const conVarias = equivalencias.filter((e) => e.options.length >= 3);
+
+    // La gran mayoria trae al menos 3; las que no, es porque su rol tiene
+    // pocos alimentos elegibles (no porque el motor las recorte de mas).
+    expect(conVarias.length / equivalencias.length).toBeGreaterThan(0.7);
+    for (const equivalencia of equivalencias) {
+      expect(equivalencia.options.length).toBeLessThanOrEqual(5);
+      expect(equivalencia.options.length).toBeGreaterThan(0);
+    }
+  });
+
+  it('las exactas van primero: lo aproximado solo completa', () => {
+    const { plan } = planFor(P, 'BASE', 7);
+    for (const menu of plan.menus) {
+      for (const meal of menu.meals) {
+        for (const equivalencia of meal.equivalences) {
+          const marcas = equivalencia.options.map((o) => o.aproximada === true);
+          // Ninguna exacta puede venir despues de una aproximada.
+          const primeraAprox = marcas.indexOf(true);
+          if (primeraAprox === -1) continue;
+          expect(marcas.slice(primeraAprox).every(Boolean)).toBe(true);
         }
       }
     }

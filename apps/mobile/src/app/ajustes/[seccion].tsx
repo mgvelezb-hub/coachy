@@ -23,15 +23,18 @@ import { PrimaryButton } from "@/components/PrimaryButton";
 import { RegenerarMenu } from "@/components/RegenerarMenu";
 import { SectionLabel } from "@/components/SectionLabel";
 import { SeccionEntrenamiento } from "@/components/ajustes/SeccionEntrenamiento";
+import { SeccionPuntoCero } from "@/components/ajustes/SeccionPuntoCero";
 import { useTheme } from "@/context/theme";
 import type { ThemePreference } from "@/context/theme";
 import {
   ApiError,
   getActivities,
   getMe,
+  getPuntoCero,
   patchCheckinSchedule,
   patchNutricion,
   patchPresupuesto,
+  type PuntoCero,
   type MeResponse,
   type DietStyle,
 } from "@/lib/api";
@@ -138,6 +141,10 @@ export default function AjustesDetalleScreen() {
   const styles = useMemo(() => makeStyles(colors), [colors]);
 
   const [me, setMe] = useState<MeResponse | null>(null);
+  // Desde qué check-in se compara todo. Vive aquí y no dentro de la tarjeta
+  // porque la carga inicial de Ajustes ya hace una tanda de llamadas: una más
+  // suelta desde el hijo dejaría la tarjeta parpadeando al abrir la sección.
+  const [puntoCero, setPuntoCero] = useState<PuntoCero>(null);
   const [meError, setMeError] = useState<string | null>(null);
 
   // Emparejar un reloj o instalarle la app son cosas que se hacen fuera de
@@ -168,6 +175,15 @@ export default function AjustesDetalleScreen() {
       setMe(response);
     } catch (error) {
       setMeError(error instanceof ApiError ? error.message : "No se pudo cargar tu perfil");
+    }
+
+    // El punto cero va aparte y sin romper nada si falla: es una etiqueta de
+    // "desde cuándo te comparas", no un dato sin el cual Ajustes no sirva.
+    try {
+      const respuesta = await getPuntoCero();
+      setPuntoCero(respuesta.puntoCero);
+    } catch {
+      setPuntoCero(null);
     }
   }, []);
 
@@ -570,6 +586,10 @@ export default function AjustesDetalleScreen() {
         </Pressable>
 
         <Text style={styles.title}>{activa ? SECCIONES[activa] : "Ajustes"}</Text>
+
+        {activa === "checkin" && (
+        <SeccionPuntoCero puntoCero={puntoCero} onCambio={setPuntoCero} />
+        )}
 
         {activa === "checkin" && (
         <Card>

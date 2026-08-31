@@ -325,6 +325,21 @@ model Profile {
    */
   compactDays       Boolean    @default(true) @map("compact_days")
 
+  /**
+   * El "punto cero": el check-in que la persona declaró como su referencia.
+   *
+   * Quien vuelve después de meses parada arrastra un historial que ya no la
+   * describe, y comparar contra su primer registro de hace un año convierte
+   * cualquier avance real en un retroceso en pantalla. Al marcar un check-in
+   * como punto cero, todo lo que compara —avances, gráficas, fotos— arranca
+   * ahí. El historial viejo NO se borra: deja de ser la vara.
+   *
+   * `null` = sin punto cero declarado: la vara es el primer check-in, que es
+   * como funcionaba antes de que esto existiera.
+   */
+  baselineCheckInId String?   @unique @map("baseline_check_in_id") @db.Uuid
+  baselineCheckIn   CheckIn?  @relation("PuntoCero", fields: [baselineCheckInId], references: [id], onDelete: SetNull)
+
   /// Overrides de la config del motor (spec 02 §7). Null = defaults.
   engineConfig Json? @map("engine_config")
 
@@ -406,6 +421,8 @@ model CheckIn {
 
   photos   Photo[]
   decision Decision?
+  /// Perfiles que declararon este check-in como su punto cero (a lo mas uno).
+  puntoCeroDe Profile[] @relation("PuntoCero")
 
   @@unique([userId, date])
   @@index([userId, date])

@@ -140,6 +140,7 @@ export type CheckInDecisionSummary = {
 };
 
 export type CheckInRow = {
+  id: string;
   date: string;
   waistCm: number | null;
   weightKg: number | null;
@@ -150,7 +151,32 @@ export type CheckInRow = {
   decision: CheckInDecisionSummary | null;
 };
 
-export type CheckInsResponse = { checkIns: CheckInRow[] };
+/** El punto cero declarado: desde dónde se compara todo. `null` = sin declarar. */
+export type PuntoCero = { checkInId: string; date: string } | null;
+
+export type CheckInsResponse = { checkIns: CheckInRow[]; puntoCero?: PuntoCero };
+
+export type PuntoCeroResponse = { puntoCero: PuntoCero };
+
+/**
+ * `GET /api/v1/me/punto-cero` — desde qué check-in se está comparando.
+ */
+export function getPuntoCero(): Promise<PuntoCeroResponse> {
+  return apiFetch<PuntoCeroResponse>("/api/v1/me/punto-cero");
+}
+
+/**
+ * `PUT /api/v1/me/punto-cero` — declarar la referencia, o quitarla con `null`.
+ *
+ * Quitarlo NO pierde nada: el historial anterior sigue en el servidor y
+ * vuelve a contar en cuanto se quita la marca.
+ */
+export function putPuntoCero(checkInId: string | null): Promise<PuntoCeroResponse> {
+  return apiFetch<PuntoCeroResponse>("/api/v1/me/punto-cero", {
+    method: "PUT",
+    body: { checkInId },
+  });
+}
 
 /** Los campos EXACTOS de `checkInSchema` (apps/web/src/lib/validation/checkin.ts). */
 export const STRENGTH_TRENDS = ["SUBE", "IGUAL", "BAJA"] as const;
@@ -280,6 +306,12 @@ export type MenuMeal = {
   equivalences: Array<{
     forName: string;
     options: Array<{ name: string; grams: number; portion: string | null }>;
+    /**
+     * `true` cuando ninguna opción del catálogo cupo dentro del ±10% de
+     * macro del alimento original — el motor igual ofrece la más cercana en
+     * vez de dejar al usuario sin cambio. Opcional: el API viejo no lo manda.
+     */
+    aproximada?: boolean;
   }>;
 };
 export type Menu = { menuNumber: number; meals: MenuMeal[] };

@@ -36,7 +36,12 @@ export {
 } from './phases.js';
 export { decide, decideAll, weeksBetween, type DecideOptions } from './adjust.js';
 export { NO_DENSE_CARB_PHASES, distribute } from './meals.js';
-export { generateMenu, prepMinDelDia, type MenuOptions } from './menu.js';
+export {
+  generateMenu,
+  prepMinDelDia,
+  equivalenciasDeAlimento,
+  type MenuOptions,
+} from './menu.js';
 export { FOODS, findFood, foodsByRole, matchesAny, normalize } from './foods.js';
 export {
   SUPPLEMENTS,

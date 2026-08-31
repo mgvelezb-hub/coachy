@@ -97,6 +97,7 @@ export const ConfigSchema = z
     equivalencesPerItem: z.number().int().min(1).max(5),
     /** Cuánto puede desviarse una equivalencia de su macro base, ya redondeada. */
     equivalenceMaxDeviation: z.number().min(0.01).max(0.5),
+    equivalenceFallbackDeviation: z.number().min(0.01).max(0.6),
   })
   .strict();
 
@@ -188,9 +189,18 @@ export const DEFAULT_CONFIG: EngineConfig = {
   freeVegetableMaxCarbPer100: 6,
   denseFoodKcalPer100: 300,
   menuGramRoundingG: 5,
-  equivalencesPerItem: 3,
+  // 5, no 3: la pantalla las muestra como botones y la queja fue directa —
+  // con una o dos opciones no se elige, se acepta. Las que sobran del 10 %
+  // exacto entran marcadas como aproximadas.
+  equivalencesPerItem: 5,
   // 10 %: es lo que la app promete al decir "se puede cambiar por".
   equivalenceMaxDeviation: 0.1,
+  // Con que exista UNA opcion exacta no basta: una sola equivalencia no es
+  // elegir. La lista se completa con lo mas cercano que exista hasta un 40 %
+  // de diferencia, marcado como aproximado para que la app lo advierta.
+  // Mas alla de ese 40 % ya no es un cambio —media lata de sardina no
+  // sustituye un huevo— y ofrecerlo seria mentir con tal de llenar el hueco.
+  equivalenceFallbackDeviation: 0.4,
 };
 
 function isPlainObject(value: unknown): value is Record<string, unknown> {

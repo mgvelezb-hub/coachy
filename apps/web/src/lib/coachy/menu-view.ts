@@ -26,7 +26,15 @@ export interface MenuMealView {
   items: MenuItemView[];
   equivalences: Array<{
     forName: string;
-    options: Array<{ name: string; grams: number; portion: string | null }>;
+    options: Array<{
+      name: string;
+      grams: number;
+      portion: string | null;
+      /** true si esa opción sola se sale del ±10 %: sirve, pero no es igual. */
+      aproximada?: boolean;
+    }>;
+    /** true si alguna de sus opciones es aproximada; la app lo advierte. */
+    aproximada?: boolean;
   }>;
 }
 
@@ -81,8 +89,16 @@ export function toMenuView(menuNumber: number, mealsJson: Prisma.JsonValue): Men
               const item = option as Record<string, unknown>;
               const nombre = String(item.name ?? "");
               const gramos = Number(item.grams ?? 0);
-              return { name: nombre, grams: gramos, portion: porcionNatural(nombre, gramos) };
+              return {
+                name: nombre,
+                grams: gramos,
+                portion: porcionNatural(nombre, gramos),
+                // Los menús guardados antes de que existiera la marca no la
+                // traen: ausente se lee como exacta, que es lo que eran.
+                ...(item.aproximada === true ? { aproximada: true } : {}),
+              };
             }),
+            ...(row.aproximada === true ? { aproximada: true } : {}),
           };
         }),
       } satisfies MenuMealView;

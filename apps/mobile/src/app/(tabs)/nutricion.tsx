@@ -41,6 +41,7 @@ import {
 import { DIETA_ACTUAL, PORQUE_DEL_PLAN, PRESUPUESTOS, aguaDelDia } from "@/lib/nutricion";
 import { programarComidas } from "@/lib/recordatorio";
 import { fonts, spacing, type as typeScale, type Palette } from "@/lib/theme";
+import { formatMealItem, pickNextMeal, syncWidgetData } from "@/lib/widget";
 
 /**
  * Nutrición — todo lo de comer que NO es de hoy.
@@ -77,6 +78,26 @@ export default function NutricionScreen() {
         isOnboardingIncomplete(e) ? null : Promise.reject(e),
       );
       setData(nutrition ?? { decision: null, menus: [], groceries: [], materialized: false });
+
+      // Nutrición es la única pantalla donde el usuario cambia un alimento
+      // (swap) y la equivalencia queda guardada en el servidor: si no
+      // avisamos aquí, el widget de iOS se queda con la comida vieja hasta
+      // que el usuario abre Hoy. Igual que Hoy, tomamos el menú 1
+      // (`menus[0]`) como el vigente del día — es el mismo criterio que ya
+      // usa `index.tsx` para el widget, así ambas pantallas están de acuerdo
+      // en cuál menú es "el de hoy". Mandamos SOLO los campos de comida:
+      // racha/entreno son de Hoy, y como `undefined` no borra nada (ver el
+      // contrato en `lib/widget.ts`), no se los pisamos desde aquí.
+      try {
+        const nextMeal = pickNextMeal(nutrition?.menus[0]?.meals ?? []);
+        syncWidgetData({
+          comidaLabel: nextMeal?.label ?? null,
+          comidaHora: nextMeal?.timeHint ?? null,
+          comidaItems: nextMeal ? nextMeal.items.slice(0, 3).map(formatMealItem) : null,
+        });
+      } catch {
+        // Sincronizar el widget nunca debe tumbar la pantalla de Nutrición.
+      }
 
       const [perfil, checkins] = await Promise.all([
         getMe().catch(() => null),
@@ -378,7 +399,13 @@ function ComidaDelMenu({
             {expandido && equivalencia && (
               <View style={styles.equivalenciaWrap}>
                 <Text style={styles.equivalenciaAviso}>
-                  El cambio se queda: tu menú, tu widget y tu día lo muestran así.
+                  {equivalencia.aproximada
+                    ? // El motor a veces no encuentra ninguna opción dentro del ±10% de
+                      // macro del alimento original; en vez de dejar al usuario sin
+                      // cambio, ofrece la más parecida de su catálogo. Se lo decimos
+                      // para que no espere que los números cuadren exacto.
+                      "Cambio aproximado: los macros no quedan idénticos, pero es lo más cercano de tu catálogo. Se queda guardado."
+                    : "El cambio se queda: tu menú, tu widget y tu día lo muestran así."}
                 </Text>
                 <View style={styles.equivalenciaOpciones}>
                   {equivalencia.options.map((opcion) => {

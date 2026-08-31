@@ -6,6 +6,7 @@ import { decide } from "engine";
 
 import { engineConfigForActivity, toEngineCheckIn, toEngineProfile } from "@/lib/coachy/mapping";
 import { activityWindow } from "@/lib/health/db";
+import { puntoCeroDe } from "@/lib/checkins";
 import type { VisionAnalysis, WeekSignals } from "@/lib/coachy/types";
 import { analyzePhotos } from "@/lib/coachy/vision";
 import type { EngineDecision } from "@/lib/engine-types";
@@ -132,8 +133,16 @@ export async function runCheckinAnalysis(checkInId: string): Promise<AnalysisRes
   const profile = user.profile;
   if (!profile) throw new MissingOnboardingError();
 
+  // El "primero" de la narrativa es el punto cero cuando existe: lo que
+  // Coachy le dice a la persona tiene que medirse contra la referencia que
+  // ella declaró, no contra una etapa que ya no la describe.
+  const punto = await puntoCeroDe(user.id);
+
   const history = await prisma.checkIn.findMany({
-    where: { userId: user.id, date: { lte: checkIn.date } },
+    where: {
+      userId: user.id,
+      date: { lte: checkIn.date, ...(punto ? { gte: punto.date } : {}) },
+    },
     orderBy: { date: "asc" },
     include: { photos: true },
   });

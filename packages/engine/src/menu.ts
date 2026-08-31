@@ -1,7 +1,7 @@
 import { DEFAULT_CONFIG, type EngineConfig } from './config.js';
 import { permitePolvos } from './suplementos.js';
 import { roundTo } from './calc.js';
-import { FOODS, matchesAny } from './foods.js';
+import { FOODS, matchesAny, normalize } from './foods.js';
 import type {
   Equivalence,
   Food,
@@ -330,34 +330,93 @@ function equivalencesFor(
   const key = primaryMacroOf(slot.food.role);
   const base = slot.food[key];
   if (base <= 0 || slot.grams <= 0) return null;
-  const options = eligible(pool, profile, config, slot.food.role)
-    .filter((f) => f.id !== slot.food.id && f[key] > 0)
-    .sort((a, b) => Math.abs(a[key] - base) - Math.abs(b[key] - base))
-    .slice(0, config.equivalencesPerItem + 3)
-    .map((f) => ({
-      foodId: f.id,
-      name: f.name,
-      grams: Math.max(
-        roundingFor(f, config),
-        roundTo((slot.grams * base) / f[key], roundingFor(f, config)),
-      ),
-    }))
-    .filter((option) => {
-      const food = pool.find((f) => f.id === option.foodId);
-      if (food === undefined || option.grams > maxGrams(food)) return false;
 
-      // Los gramos se redondean al múltiplo del alimento, y ese redondeo puede
-      // empujar la equivalencia fuera del ±10% que promete. Se revisa DESPUÉS
-      // de redondear, que es como la va a comer quien la siga: una porción que
-      // se pasa del 10% ya no es equivalente, es otra comida.
-      const objetivo = (slot.grams * base) / 100;
-      const real = (option.grams * food[key]) / 100;
+  const objetivo = (slot.grams * base) / 100;
+
+  /** Candidatos ya con gramos redondeados y su desviacion real, de menor a mayor. */
+  const candidatos = eligible(pool, profile, config, slot.food.role)
+    .filter((f) => f.id !== slot.food.id && f[key] > 0)
+    .map((f) => {
+      const paso = roundingFor(f, config);
+      const ideal = roundTo((slot.grams * base) / f[key], paso);
+      // Los gramos se topan al maximo del alimento en vez de descartarlo:
+      // antes, una porcion grande (300 g de platano) se quedaba sin ninguna
+      // equivalencia porque CUALQUIER sustituto pedia mas gramos de los que
+      // se puede servir de el. Topado, el arroz o el camote siguen sirviendo
+      // —cubren casi todo el carbohidrato— y la desviacion que queda se mide
+      // abajo y decide si la equivalencia es exacta, aproximada o ninguna.
+      const grams = Math.min(Math.max(paso, ideal), maxGrams(f));
+      // La desviacion se mide DESPUES de redondear y topar, que es como la va
+      // a comer quien la siga: una porcion que se pasa del tope ya no es
+      // equivalente, es otra comida.
+      const real = (grams * f[key]) / 100;
       const desviacion = objetivo <= 0 ? 0 : Math.abs(real - objetivo) / objetivo;
-      return desviacion <= config.equivalenceMaxDeviation;
+      return { food: f, option: { foodId: f.id, name: f.name, grams }, desviacion };
     })
-    .slice(0, config.equivalencesPerItem);
-  if (options.length === 0) return null;
-  return { forFoodId: slot.food.id, forName: slot.food.name, options };
+    .sort((a, b) => a.desviacion - b.desviacion);
+
+  // El recorte va DESPUES de filtrar y ordenar por desviacion real: antes se
+  // tomaban los mas parecidos en densidad y solo entonces se revisaba el
+  // tope, asi que un alimento cuyos vecinos se pasaban se quedaba sin ninguna
+  // opcion aunque el catalogo tuviera otras que si cumplian.
+  // Se llena hasta `equivalencesPerItem` opciones: primero las exactas (dentro
+  // del +-10 % que promete una equivalencia), y si no alcanzan para llenar la
+  // lista se completan con las mas cercanas de las aproximadas. Antes bastaba
+  // con que hubiera UNA exacta para descartar todas las demas, asi que un
+  // alimento podia quedarse con una sola opcion aunque el catalogo tuviera
+  // otras dos casi igual de buenas — y una sola opcion no es elegir.
+  const exactas = candidatos.filter((c) => c.desviacion <= config.equivalenceMaxDeviation);
+  const aproximadas = candidatos.filter(
+    (c) =>
+      c.desviacion > config.equivalenceMaxDeviation &&
+      c.desviacion <= config.equivalenceFallbackDeviation,
+  );
+
+  const elegidas = [...exactas, ...aproximadas].slice(0, config.equivalencesPerItem);
+  if (elegidas.length === 0) return null;
+
+  return {
+    forFoodId: slot.food.id,
+    forName: slot.food.name,
+    options: elegidas.map((c) =>
+      c.desviacion > config.equivalenceMaxDeviation
+        ? { ...c.option, aproximada: true }
+        : c.option,
+    ),
+    // La equivalencia entera se marca aproximada cuando alguna de sus opciones
+    // lo es: la app avisa una vez arriba en vez de repetirlo por renglon.
+    ...(elegidas.some((c) => c.desviacion > config.equivalenceMaxDeviation)
+      ? { aproximada: true }
+      : {}),
+  };
+}
+
+/**
+ * Equivalencias de un alimento suelto, resolviendolo por NOMBRE.
+ *
+ * Existe para los menus que ya estan guardados: un menu generado antes de que
+ * el motor supiera dar equivalencias de vegetales libres —o antes de que
+ * llenara la lista hasta cinco opciones— se queda con esos huecos para
+ * siempre, y la unica salida era regenerar el menu completo, que le borra a
+ * la persona los cambios que ya habia elegido. Con esto el servidor puede
+ * rellenar SOLO lo que falta, sin tocar lo demas.
+ *
+ * Se resuelve por nombre porque eso es lo unico que guarda el JSON de la
+ * comida. Si el nombre no existe en el catalogo (un alimento renombrado, uno
+ * capturado a mano), devuelve `null` en vez de adivinar.
+ */
+export function equivalenciasDeAlimento(
+  nombre: string,
+  gramos: number,
+  profile: Profile,
+  config: EngineConfig = DEFAULT_CONFIG,
+  pool: Food[] = FOODS,
+): Equivalence | null {
+  const buscado = normalize(nombre);
+  const food = pool.find((f) => normalize(f.name) === buscado || normalize(f.id) === buscado);
+  if (food === undefined || gramos <= 0) return null;
+
+  return equivalencesFor({ food, grams: gramos, fixed: false }, pool, profile, config);
 }
 
 /**

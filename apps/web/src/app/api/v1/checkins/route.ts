@@ -5,6 +5,7 @@ import { apiUser, unauthorized } from "@/lib/api/auth";
 import { runCoachy } from "@/lib/coachy";
 import { persistCheckIn } from "@/lib/checkin-write";
 import { fromISODate, decimalToNumber, isoFromDateColumn } from "@/lib/format";
+import { puntoCeroDe } from "@/lib/checkins";
 import { prisma } from "@/lib/prisma";
 import { checkInSchema, coerceCheckInPayload } from "@/lib/validation/checkin";
 
@@ -47,8 +48,13 @@ export async function GET(request: Request): Promise<NextResponse> {
   const { searchParams } = new URL(request.url);
   const limit = parseLimit(searchParams);
 
+  // La lista arranca en el punto cero cuando la persona declaró uno: es la
+  // misma que la app usa para calcular "cuánto llevas", y compararla contra
+  // un registro de otra etapa de su vida no informa, desanima.
+  const punto = await puntoCeroDe(user.id);
+
   const checkIns = await prisma.checkIn.findMany({
-    where: { userId: user.id },
+    where: { userId: user.id, ...(punto ? { date: { gte: punto.date } } : {}) },
     orderBy: { date: "desc" },
     take: limit,
     include: {
@@ -59,7 +65,13 @@ export async function GET(request: Request): Promise<NextResponse> {
   });
 
   return NextResponse.json({
+    puntoCero: punto
+      ? { checkInId: punto.checkInId, date: isoFromDateColumn(punto.date) }
+      : null,
     checkIns: checkIns.map((checkIn) => ({
+      // El id viaja porque la app necesita poder señalar UNO: "este es mi
+      // punto cero" (`PUT /api/v1/me/punto-cero`).
+      id: checkIn.id,
       date: isoFromDateColumn(checkIn.date),
       waistCm: decimalToNumber(checkIn.waistCm),
       weightKg: decimalToNumber(checkIn.weightKg),

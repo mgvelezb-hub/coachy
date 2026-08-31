@@ -296,7 +296,20 @@ export interface MenuItem {
 export interface Equivalence {
   forFoodId: string;
   forName: string;
-  options: Array<{ foodId: string; name: string; grams: number }>;
+  options: Array<{
+    foodId: string;
+    name: string;
+    grams: number;
+    /** true si esta opcion sola se sale del +-10 %: sirve, pero no es igual. */
+    aproximada?: boolean;
+  }>;
+  /**
+   * true cuando las opciones NO caben en el +-10% de macro que promete una
+   * equivalencia normal: son lo mas cercano que existe en el catalogo
+   * elegible de esa persona. Se marca para que la app lo diga en voz alta en
+   * vez de fingir un intercambio exacto.
+   */
+  aproximada?: boolean;
 }
 
 export interface MenuMeal {

@@ -4,6 +4,7 @@ import type { Decision, MealPlan, Profile } from "@prisma/client";
 import type { Prisma } from "@prisma/client";
 import { distribute, generateMenu } from "engine";
 
+import { rellenaEquivalencias } from "@/lib/coachy/equivalencias-backfill";
 import { toEngineProfile } from "@/lib/coachy/mapping";
 import type { EngineDecision } from "@/lib/engine-types";
 import { prisma } from "@/lib/prisma";
@@ -215,6 +216,52 @@ export type CurrentMealPlan = {
  * aprobada, esa manda — es exactamente el caso del historial importado, donde
  * la decisión existe desde el día uno y el menú nunca se generó.
  */
+/**
+ * Rellena las equivalencias que le faltan a un menú ya guardado y las
+ * persiste, de una sola pasada.
+ *
+ * Se hace al LEER y no al generar porque el problema es justamente el de los
+ * menús que ya existen: quien tiene uno de antes vería sus huecos para
+ * siempre, y regenerarlo —la otra salida— le borra los cambios que ya eligió.
+ * Si no falta nada no hay UPDATE, así que la lectura normal no paga nada.
+ *
+ * Un error aquí NO puede tumbar la pantalla de alimentación: si algo falla se
+ * devuelven los menús tal como estaban, que es exactamente lo que se veía
+ * antes de que esto existiera.
+ */
+async function rellenaEquivalenciasGuardadas(
+  plans: MealPlan[],
+  profile: Profile,
+): Promise<MealPlan[]> {
+  try {
+    const engineProfile = toEngineProfile(profile, null);
+    const salida: MealPlan[] = [];
+
+    for (const plan of plans) {
+      const relleno = rellenaEquivalencias(plan.mealsJson, plan.equivalencesJson, engineProfile);
+      if (!relleno.cambiado) {
+        salida.push(plan);
+        continue;
+      }
+
+      salida.push(
+        await prisma.mealPlan.update({
+          where: { id: plan.id },
+          data: {
+            mealsJson: relleno.mealsJson as Prisma.InputJsonValue,
+            equivalencesJson: relleno.equivalencesJson as Prisma.InputJsonValue,
+          },
+        }),
+      );
+    }
+
+    return salida;
+  } catch (error) {
+    console.error("[coachy] no se pudieron rellenar las equivalencias", error);
+    return plans;
+  }
+}
+
 export async function currentMealPlan(
   userId: string,
   profile: Profile,
@@ -234,7 +281,9 @@ export async function currentMealPlan(
   if (decision === null) return null;
 
   const existing = await mealPlansOf(decision.id);
-  if (existing.length > 0) return { decision, plans: existing, materialized: false };
+  if (existing.length > 0) {
+    return { decision, plans: await rellenaEquivalenciasGuardadas(existing, profile), materialized: false };
+  }
 
   const latest = await prisma.checkIn.findFirst({
     where: { userId, weightKg: { not: null } },
