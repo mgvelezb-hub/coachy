@@ -40,7 +40,11 @@ const schema = z
      * pantalla tiene en la mano, y parcharlo llave por llave abriría la puerta
      * a que dos ediciones seguidas se pisen.
      */
-    disciplineLevels: z.record(z.enum(DISCIPLINES), z.enum(SWIM_LEVELS)).optional(),
+    // `partialRecord`, no `record`: en zod 4 un record con llave enum exige
+    // TODAS las llaves, y este mapa trae solo las disciplinas que la persona
+    // tiene. Con `record`, subir el nivel de pesas devolvía 422 porque
+    // "faltaban" crossfit y funcional.
+    disciplineLevels: z.partialRecord(z.enum(DISCIPLINES), z.enum(SWIM_LEVELS)).optional(),
     otherDisciplines: z
       .array(
         z.object({
@@ -59,7 +63,7 @@ const schema = z
      * Minutos disponibles por día. `null` limpia lo declarado (vuelve a los
      * defaults); omitido deja lo que ya había. 0 = ese día no se entrena.
      */
-    timePerDay: z.record(z.enum(WEEK_DAYS), z.number().int().min(0).max(300)).nullable().optional(),
+    timePerDay: z.partialRecord(z.enum(WEEK_DAYS), z.number().int().min(0).max(300)).nullable().optional(),
   })
   .refine((value) => Object.keys(value).length > 0, { message: "no hay nada que guardar" })
   .refine(

@@ -30,7 +30,9 @@ const AGE_RANGES = ["18_24", "25_34", "35_44", "45_54", "55_64", "65_MAS"] as co
 
 const schema = z.object({
   /** Minutos disponibles por día. 0 = ese día no se entrena. */
-  tiempo: z.record(z.enum(WEEK_DAYS), z.number().int().min(0).max(300)),
+  // `partialRecord` por la regla de zod 4 (record con enum = exhaustivo);
+  // los días ausentes ya se rellenan con 0 más abajo.
+  tiempo: z.partialRecord(z.enum(WEEK_DAYS), z.number().int().min(0).max(300)),
   primaria: z.enum(DISCIPLINES),
   sesionesPrimaria: z.number().int().min(0).max(7),
   secundarias: z
