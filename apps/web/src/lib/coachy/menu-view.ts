@@ -52,7 +52,15 @@ export interface GroceryItemView {
 /** El JSON del motor, aplanado a lo que necesita la vista. */
 import { porcionNatural } from "@/lib/coachy/porciones";
 
-export function toMenuView(menuNumber: number, mealsJson: Prisma.JsonValue): MenuView {
+export function toMenuView(
+  menuNumber: number,
+  mealsJson: Prisma.JsonValue,
+  /**
+   * Horarios propios `{slot: "HH:MM"}`. Los tiempos que la persona movió
+   * pisan la hora sugerida por el motor; los demás se quedan como estaban.
+   */
+  horarios: Record<string, string> = {},
+): MenuView {
   const meals = Array.isArray(mealsJson) ? mealsJson : [];
 
   return {
@@ -62,10 +70,12 @@ export function toMenuView(menuNumber: number, mealsJson: Prisma.JsonValue): Men
       const items = Array.isArray(meal.items) ? meal.items : [];
       const equivalences = Array.isArray(meal.equivalences) ? meal.equivalences : [];
 
+      const slot = String(meal.slot ?? "");
+
       return {
-        slot: String(meal.slot ?? ""),
+        slot,
         label: String(meal.label ?? ""),
-        timeHint: String(meal.timeHint ?? ""),
+        timeHint: horarios[slot] ?? String(meal.timeHint ?? ""),
         allowDenseCarb: meal.allowDenseCarb !== false,
         items: items.map((item) => {
           const row = item as Record<string, unknown>;

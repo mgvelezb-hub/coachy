@@ -21,7 +21,9 @@ import {
 } from "react-native";
 import { useRouter } from "expo-router";
 
+import { Card } from "@/components/Card";
 import { ScoreCard } from "@/components/ScoreCard";
+import { SectionLabel } from "@/components/SectionLabel";
 import { EmptyState, ErrorState, LoadingState } from "@/components/States";
 import { useTheme } from "@/context/theme";
 import { useScrollTop } from "@/lib/scroll-top";
@@ -34,13 +36,17 @@ import {
   preguntarNutricion,
   type ConsultaResponse,
   type MeResponse,
+  putMenuPreferido,
+  type GroceryItem,
   type Menu,
+  type MenuPreference,
   type MenuMeal,
   type NutritionResponse,
 } from "@/lib/api";
 import { DIETA_ACTUAL, PORQUE_DEL_PLAN, PRESUPUESTOS, aguaDelDia } from "@/lib/nutricion";
 import { programarComidas } from "@/lib/recordatorio";
-import { fonts, spacing, type as typeScale, type Palette } from "@/lib/theme";
+import { fonts, radius, spacing, type as typeScale, type Palette } from "@/lib/theme";
+import { actualizarComidaEnElReloj } from "@/lib/reloj-nativo";
 import { formatMealItem, pickNextMeal, syncWidgetData } from "@/lib/widget";
 
 /**
@@ -66,6 +72,11 @@ export default function NutricionScreen() {
   // Tocar esta pestaña estando en ella regresa el scroll hasta arriba.
   const scrollRef = useScrollTop();
   const [data, setData] = useState<NutritionResponse | null>(null);
+  // Qué menús se cocinan esta semana y la lista de súper que les corresponde.
+  // Viven aquí y no dentro del selector porque la lista de abajo también las
+  // usa: cambiar de menú tiene que mover las dos cosas a la vez.
+  const [preferencia, setPreferencia] = useState<MenuPreference>("AMBOS");
+  const [groceriesLocal, setGroceriesLocal] = useState<GroceryItem[] | null>(null);
   const [me, setMe] = useState<MeResponse | null>(null);
   /** El peso más reciente: es lo que dimensiona el agua del día. */
   const [pesoKg, setPesoKg] = useState<number | null>(null);
@@ -78,6 +89,9 @@ export default function NutricionScreen() {
         isOnboardingIncomplete(e) ? null : Promise.reject(e),
       );
       setData(nutrition ?? { decision: null, menus: [], groceries: [], materialized: false });
+      setPreferencia(nutrition?.menuPreference ?? "AMBOS");
+      // La lista recién llegada manda sobre cualquier recálculo anterior.
+      setGroceriesLocal(null);
 
       // Nutrición es la única pantalla donde el usuario cambia un alimento
       // (swap) y la equivalencia queda guardada en el servidor: si no
@@ -95,8 +109,16 @@ export default function NutricionScreen() {
           comidaHora: nextMeal?.timeHint ?? null,
           comidaItems: nextMeal ? nextMeal.items.slice(0, 3).map(formatMealItem) : null,
         });
+
+        // El reloj recibe lo mismo, conservando lo que Hoy ya le dijo de
+        // entrenamiento y racha (esta pantalla no sabe de eso).
+        actualizarComidaEnElReloj({
+          comida: nextMeal?.label ?? null,
+          comidaHora: nextMeal?.timeHint ?? null,
+          comidaItems: nextMeal ? nextMeal.items.slice(0, 3).map(formatMealItem) : null,
+        });
       } catch {
-        // Sincronizar el widget nunca debe tumbar la pantalla de Nutrición.
+        // Sincronizar el widget o el reloj nunca debe tumbar Nutrición.
       }
 
       const [perfil, checkins] = await Promise.all([
@@ -143,7 +165,10 @@ export default function NutricionScreen() {
   if (!data && error) return <ErrorState message={error} onRetry={load} />;
   if (!data) return null;
 
-  const { decision, menus, groceries } = data;
+  const { decision, menus } = data;
+  // La lista de súper puede venir recalculada por el selector de menú sin
+  // volver a pedir toda la pantalla: mientras eso pasa, manda la local.
+  const groceries = groceriesLocal ?? data.groceries;
   const agua = aguaDelDia(pesoKg);
 
   return (
@@ -240,9 +265,26 @@ export default function NutricionScreen() {
         </Text>
       </ScoreCard>
 
-      {menus.map((menu) => (
-        <MenuCard key={menu.menuNumber} menu={menu} onSwapped={load} />
-      ))}
+      {menus.length > 1 && (
+        <SelectorDeMenu
+          preferencia={preferencia}
+          onCambio={(nueva, nuevasCompras) => {
+            setPreferencia(nueva);
+            setGroceriesLocal(nuevasCompras);
+          }}
+        />
+      )}
+
+      {menus
+        .filter(
+          (menu) =>
+            preferencia === "AMBOS" ||
+            (preferencia === "MENU_1" && menu.menuNumber === 1) ||
+            (preferencia === "MENU_2" && menu.menuNumber === 2),
+        )
+        .map((menu) => (
+          <MenuCard key={menu.menuNumber} menu={menu} onSwapped={load} />
+        ))}
 
       <ScoreCard
         icon={ShoppingBasket}
@@ -251,7 +293,9 @@ export default function NutricionScreen() {
         summary={
           groceries.length === 0
             ? "Se arma sola con tus menús"
-            : `${groceries.length} ${groceries.length === 1 ? "artículo" : "artículos"} para la semana`
+            : `${groceries.length} ${groceries.length === 1 ? "artículo" : "artículos"} para ${
+                preferencia === "AMBOS" ? "la semana con los dos menús" : "la semana completa"
+              }`
         }
       >
         {groceries.length === 0 ? (
@@ -270,6 +314,101 @@ export default function NutricionScreen() {
 
       <EstudiosCard />
     </ScrollView>
+  );
+}
+
+/**
+ * "¿Cuál de los dos menús cocino esta semana?"
+ *
+ * LA CONFUSIÓN que resuelve: la pantalla enseñaba dos menús sin decir qué
+ * eran, y la lectura natural —"¿es uno por semana? ¿son dos semanas?"— estaba
+ * mal. Son dos variantes de LA MISMA semana: mismos macros, distintos
+ * alimentos, para no comer lo mismo siete días. Aquí se dice con todas sus
+ * letras y se puede elegir cocinar uno solo.
+ *
+ * Elegir cambia la lista de súper, que es lo que de verdad duele: comprar los
+ * ingredientes de un menú que no vas a cocinar es tirar comida. Un menú solo
+ * se come los 7 días, así que su lista trae el doble de cada cosa.
+ */
+function SelectorDeMenu({
+  preferencia,
+  onCambio,
+}: {
+  preferencia: MenuPreference;
+  onCambio: (nueva: MenuPreference, groceries: GroceryItem[]) => void;
+}) {
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
+  const [guardando, setGuardando] = useState<MenuPreference | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  const OPCIONES: Array<{ valor: MenuPreference; nombre: string; detalle: string }> = [
+    {
+      valor: "AMBOS",
+      nombre: "Los dos",
+      detalle: "Alternas: cada menú cubre media semana. Compras para ambos.",
+    },
+    {
+      valor: "MENU_1",
+      nombre: "Solo el 1",
+      detalle: "Lo comes los 7 días. La lista trae solo sus ingredientes.",
+    },
+    {
+      valor: "MENU_2",
+      nombre: "Solo el 2",
+      detalle: "Lo comes los 7 días. La lista trae solo sus ingredientes.",
+    },
+  ];
+
+  async function elegir(valor: MenuPreference) {
+    if (guardando || valor === preferencia) return;
+    setError(null);
+    setGuardando(valor);
+    try {
+      const respuesta = await putMenuPreferido(valor);
+      onCambio(respuesta.menuPreference, respuesta.groceries);
+    } catch (e) {
+      setError(e instanceof ApiError ? e.message : "No se pudo guardar tu elección");
+    } finally {
+      setGuardando(null);
+    }
+  }
+
+  return (
+    <Card>
+      <SectionLabel>Tus dos menús</SectionLabel>
+      <Text style={styles.parrafo}>
+        No son dos semanas: son dos formas de comer LA MISMA semana, con los mismos macros y
+        distintos alimentos, para que no acabes comiendo lo mismo siete días. Si prefieres cocinar
+        uno solo, dilo aquí y tu lista de súper deja de traer lo del otro.
+      </Text>
+
+      <View style={styles.selectorLista}>
+        {OPCIONES.map((opcion) => {
+          const activa = preferencia === opcion.valor;
+          return (
+            <Pressable
+              key={opcion.valor}
+              onPress={() => elegir(opcion.valor)}
+              disabled={guardando !== null}
+              style={[styles.selectorFila, activa && styles.selectorFilaOn]}
+            >
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.selectorNombre, activa && styles.selectorNombreOn]}>
+                  {opcion.nombre}
+                </Text>
+                <Text style={styles.selectorDetalle}>{opcion.detalle}</Text>
+              </View>
+              {guardando === opcion.valor && (
+                <ActivityIndicator size="small" color={colors.champan} />
+              )}
+            </Pressable>
+          );
+        })}
+      </View>
+
+      {error && <Text style={styles.equivalenciaError}>{error}</Text>}
+    </Card>
   );
 }
 
@@ -407,7 +546,15 @@ function ComidaDelMenu({
                       "Cambio aproximado: los macros no quedan idénticos, pero es lo más cercano de tu catálogo. Se queda guardado."
                     : "El cambio se queda: tu menú, tu widget y tu día lo muestran así."}
                 </Text>
-                <View style={styles.equivalenciaOpciones}>
+                {/* Lista desplazable y no una fila de botones: con veinte
+                    opciones, envolverlas en pastillas convertía el panel en un
+                    muro que empujaba el resto del menú fuera de la pantalla.
+                    Una por renglón se lee de corrido y se toca sin apuntar. */}
+                <ScrollView
+                  style={styles.equivalenciaLista}
+                  nestedScrollEnabled
+                  keyboardShouldPersistTaps="handled"
+                >
                   {equivalencia.options.map((opcion) => {
                     const aplicando = cambiando === opcion.name;
                     return (
@@ -417,17 +564,20 @@ function ComidaDelMenu({
                         disabled={cambiando !== null}
                         style={[styles.equivalenciaOpcion, aplicando && styles.equivalenciaOpcionOn]}
                       >
+                        <Text style={styles.equivalenciaOpcionTexto} numberOfLines={2}>
+                          {opcion.portion ?? `${opcion.name} (${opcion.grams} g)`}
+                        </Text>
                         {aplicando ? (
                           <ActivityIndicator size="small" color={colors.champan} />
-                        ) : (
-                          <Text style={styles.equivalenciaOpcionTexto}>
-                            {opcion.portion ?? `${opcion.name} (${opcion.grams} g)`}
-                          </Text>
-                        )}
+                        ) : opcion.aproximada ? (
+                          // Una sola marca por renglón: la persona ve de un
+                          // vistazo cuáles cuadran exacto y cuáles se acercan.
+                          <Text style={styles.equivalenciaAprox}>aprox.</Text>
+                        ) : null}
                       </Pressable>
                     );
                   })}
-                </View>
+                </ScrollView>
                 {errorCambio && <Text style={styles.equivalenciaError}>{errorCambio}</Text>}
               </View>
             )}
@@ -682,30 +832,72 @@ const makeStyles = (colors: Palette) => StyleSheet.create({
     ...typeScale.bodySm,
     color: colors.paloRosa,
   },
-  equivalenciaOpciones: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: spacing.sm,
+  // Tope de alto para que el desplegable no empuje el resto del menú fuera
+  // de la pantalla: se ven ~5 opciones y las demás se deslizan.
+  equivalenciaLista: {
+    maxHeight: 260,
+    marginTop: spacing.sm,
   },
   equivalenciaOpcion: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: spacing.sm,
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm,
-    borderRadius: 999,
+    marginBottom: 6,
+    borderRadius: radius.md,
     borderWidth: 1,
     borderColor: colors.cardBorder,
     backgroundColor: colors.cardBg,
-    minWidth: 44,
-    alignItems: "center",
-    justifyContent: "center",
+    minHeight: 44,
+  },
+  equivalenciaAprox: {
+    fontFamily: fonts.sans,
+    ...typeScale.label,
+    color: colors.paloRosa,
   },
   equivalenciaOpcionOn: {
     backgroundColor: colors.guinda,
     borderColor: colors.guindaLight,
   },
   equivalenciaOpcionTexto: {
+    flex: 1,
     fontFamily: fonts.sansMedium,
     ...typeScale.bodySm,
     color: colors.marfil,
+  },
+  selectorLista: {
+    gap: spacing.sm,
+    marginTop: spacing.md,
+  },
+  selectorFila: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.sm,
+    padding: spacing.md,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    borderColor: colors.cardBorder,
+    backgroundColor: colors.cardBg,
+  },
+  selectorFilaOn: {
+    backgroundColor: colors.guinda,
+    borderColor: colors.guindaLight,
+  },
+  selectorNombre: {
+    fontFamily: fonts.sansMedium,
+    ...typeScale.bodySm,
+    color: colors.marfil,
+  },
+  selectorNombreOn: {
+    color: colors.pergamino,
+  },
+  selectorDetalle: {
+    fontFamily: fonts.sans,
+    ...typeScale.label,
+    color: colors.pergaminoSoft,
+    marginTop: 2,
   },
   equivalenciaError: {
     fontFamily: fonts.sans,

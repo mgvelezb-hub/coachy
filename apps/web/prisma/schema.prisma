@@ -326,6 +326,29 @@ model Profile {
   compactDays       Boolean    @default(true) @map("compact_days")
 
   /**
+   * Horarios de comida propios: `{ "DESAYUNO": "07:30", "COMIDA": "15:00" }`.
+   *
+   * El motor reparte los macros por tiempo de comida y trae una hora sugerida
+   * para cada uno, pero esa hora sale de una jornada estándar que no es la de
+   * todo el mundo: quien entra a trabajar a las 6, quien come a las 4 de la
+   * tarde o quien entrena de noche estaba viendo horas que no iba a cumplir,
+   * y un horario que no se cumple vuelve inútil el recordatorio.
+   *
+   * Solo se guardan los tiempos que la persona movió; los demás siguen con la
+   * sugerencia del motor. `null` = ninguno movido.
+   */
+  mealTimes         Json?      @map("meal_times")
+
+  /**
+   * Cuál de los dos menús de la semana quiere cocinar: `AMBOS` (por defecto,
+   * se reparten la semana), `MENU_1` o `MENU_2`.
+   *
+   * Cambia la lista de súper, que es el punto: comprar los ingredientes de
+   * dos menús cuando solo se va a cocinar uno es tirar comida y dinero.
+   */
+  menuPreference    String     @default("AMBOS") @map("menu_preference")
+
+  /**
    * El "punto cero": el check-in que la persona declaró como su referencia.
    *
    * Quien vuelve después de meses parada arrastra un historial que ya no la

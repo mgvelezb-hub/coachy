@@ -40,6 +40,7 @@ export {
   generateMenu,
   prepMinDelDia,
   equivalenciasDeAlimento,
+  listaDeSuper,
   type MenuOptions,
 } from './menu.js';
 export { FOODS, findFood, foodsByRole, matchesAny, normalize } from './foods.js';

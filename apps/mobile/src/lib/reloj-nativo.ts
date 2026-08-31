@@ -113,17 +113,57 @@ export type ResumenParaReloj = {
   comida: string | null;
   /** "14:00". */
   comidaHora: string | null;
+  /**
+   * Los alimentos de esa comida, ya formateados ("3 tortillas de maíz").
+   *
+   * Van formateados desde aquí y no en Swift porque es aquí donde están los
+   * gramos, las porciones naturales y la marca de "libre": el reloj solo
+   * pinta lo que le llega.
+   */
+  comidaItems: string[] | null;
   racha: number;
 };
+
+/**
+ * El último resumen que se mandó, para poder actualizar UNA parte sin
+ * inventarse las demás.
+ *
+ * El reloj recibe el resumen completo (qué toca hoy, racha, siguiente
+ * comida): no hay forma de mandarle solo un campo. La pantalla de Nutrición
+ * sabe de comida pero no de racha ni de entrenamiento, así que sin esta copia
+ * un cambio de equivalencia tendría que mandar ceros en lo demás y le
+ * borraría al reloj lo que Hoy ya le había dicho.
+ */
+let ultimoResumen: ResumenParaReloj | null = null;
 
 /** Manda el resumen del día. Va por el mismo canal que la sesión. */
 export function enviarResumenAlReloj(resumen: ResumenParaReloj): boolean {
   if (!nativo) return false;
   try {
-    return nativo.enviarResumen(JSON.stringify(resumen));
+    const enviado = nativo.enviarResumen(JSON.stringify(resumen));
+    if (enviado) ultimoResumen = resumen;
+    return enviado;
   } catch {
     return false;
   }
+}
+
+/**
+ * Actualiza SOLO la comida en el reloj, conservando lo demás del último
+ * resumen enviado.
+ *
+ * Lo usa Nutrición al cambiar un alimento por una equivalencia: sin esto el
+ * reloj seguía enseñando el alimento viejo hasta que se volviera a abrir Hoy.
+ * Si en esta sesión todavía no se ha mandado ningún resumen no hay nada que
+ * conservar y no se manda nada: Hoy lo hará con datos completos.
+ */
+export function actualizarComidaEnElReloj(comida: {
+  comida: string | null;
+  comidaHora: string | null;
+  comidaItems: string[] | null;
+}): boolean {
+  if (!ultimoResumen) return false;
+  return enviarResumenAlReloj({ ...ultimoResumen, ...comida });
 }
 
 /** Avisa que hay algo nuevo que recoger. No trae los datos: llama a drenar. */

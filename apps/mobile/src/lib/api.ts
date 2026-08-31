@@ -158,6 +158,62 @@ export type CheckInsResponse = { checkIns: CheckInRow[]; puntoCero?: PuntoCero }
 
 export type PuntoCeroResponse = { puntoCero: PuntoCero };
 
+/** Cuál de los dos menús de la semana se va a cocinar. */
+export const MENU_PREFERENCES = ["AMBOS", "MENU_1", "MENU_2"] as const;
+export type MenuPreference = (typeof MENU_PREFERENCES)[number];
+
+/** Un tiempo de comida con la hora que rige hoy. */
+export type TiempoDeComida = {
+  slot: string;
+  label: string;
+  /** "14:00" — la propia si la movió, la del motor si no. */
+  hora: string;
+  propia: boolean;
+};
+
+export type HorariosResponse = {
+  horarios: Record<string, string>;
+  tiempos: TiempoDeComida[];
+  /** Se guardó, pero conviene saberlo (post-entreno lejos, día muy largo). */
+  avisos?: string[];
+};
+
+/** `GET /api/v1/me/horarios-comida` — a qué hora come, con lo que rige hoy. */
+export function getHorariosComida(): Promise<HorariosResponse> {
+  return apiFetch<HorariosResponse>("/api/v1/me/horarios-comida");
+}
+
+/**
+ * `PUT /api/v1/me/horarios-comida` — mover una o varias horas.
+ *
+ * Un slot en `null` vuelve a la hora que sugiere el motor. El servidor valida
+ * el día completo (orden, separación mínima, ventana del día) y responde 422
+ * con el motivo en palabras si algo no cabe.
+ */
+export function putHorariosComida(
+  horarios: Record<string, string | null>,
+): Promise<HorariosResponse> {
+  return apiFetch<HorariosResponse>("/api/v1/me/horarios-comida", {
+    method: "PUT",
+    body: { horarios },
+  });
+}
+
+/**
+ * `PUT /api/v1/me/menu-preferido` — cocinar los dos menús o uno solo.
+ *
+ * Devuelve la lista de súper ya recalculada: un menú solo se come los 7 días
+ * y no hay por qué comprar los ingredientes del otro.
+ */
+export function putMenuPreferido(
+  menuPreference: MenuPreference,
+): Promise<{ menuPreference: MenuPreference; groceries: GroceryItem[] }> {
+  return apiFetch<{ menuPreference: MenuPreference; groceries: GroceryItem[] }>(
+    "/api/v1/me/menu-preferido",
+    { method: "PUT", body: { menuPreference } },
+  );
+}
+
 /**
  * `GET /api/v1/me/punto-cero` — desde qué check-in se está comparando.
  */
@@ -305,7 +361,13 @@ export type MenuMeal = {
   items: MenuItem[];
   equivalences: Array<{
     forName: string;
-    options: Array<{ name: string; grams: number; portion: string | null }>;
+    options: Array<{
+      name: string;
+      grams: number;
+      portion: string | null;
+      /** Esta opción sola se sale del ±10%: sirve, pero no cuadra igual. */
+      aproximada?: boolean;
+    }>;
     /**
      * `true` cuando ninguna opción del catálogo cupo dentro del ±10% de
      * macro del alimento original — el motor igual ofrece la más cercana en
@@ -331,6 +393,10 @@ export type NutritionResponse = {
   menus: Menu[];
   groceries: GroceryItem[];
   materialized: boolean;
+  /** Cuál de los dos menús se está cocinando; la lista de súper lo sigue. */
+  menuPreference?: MenuPreference;
+  /** Las horas propias que ya pisan la sugerencia del motor. */
+  horarios?: Record<string, string>;
 };
 
 export type TodayCard = {

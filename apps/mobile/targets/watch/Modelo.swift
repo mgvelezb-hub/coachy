@@ -88,5 +88,13 @@ struct ResumenDelDia: Codable {
     /// "Comida 2". `nil` si ya no queda ninguna hoy.
     let comida: String?
     let comidaHora: String?
+    /// Los alimentos de esa comida, ya formateados ("3 tortillas de maiz").
+    ///
+    /// Antes el reloj solo decia el NOMBRE de la comida y la hora, asi que
+    /// para saber que tocaba comer habia que sacar el telefono — justo lo que
+    /// la muneca deberia evitar. Llegan pocos y ya listos para pintar: el
+    /// reloj no formatea gramos ni decide que cabe, eso se resolvio del lado
+    /// del telefono donde estan los datos completos.
+    let comidaItems: [String]?
     let racha: Int
 }

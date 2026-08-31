@@ -705,6 +705,23 @@ function buildMenu(
   };
 }
 
+/**
+ * La lista de super de los menus que se vayan a cocinar de verdad.
+ *
+ * `daysPerMenu` es cuantos dias se come CADA menu de los que se pasan: dos
+ * menus repartidos en la semana son 3.5 dias cada uno, pero quien decide
+ * cocinar uno solo lo come los 7. Por eso quien llama decide ambas cosas
+ * —cuales menus y cuantos dias— en vez de que el motor asuma que siempre son
+ * los dos: comprar para un menu que no se va a cocinar es tirar comida.
+ */
+export function listaDeSuper(
+  menus: Menu[],
+  diasPorMenu: number,
+  pool: Food[] = FOODS,
+): ShoppingItem[] {
+  return shoppingList(menus, pool, diasPorMenu);
+}
+
 function shoppingList(menus: Menu[], pool: Food[], daysPerMenu: number): ShoppingItem[] {
   const acc = new Map<string, ShoppingItem>();
   for (const menu of menus) {

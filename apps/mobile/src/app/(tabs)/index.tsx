@@ -216,6 +216,7 @@ export default function HoyScreen() {
           hecho: todayCard?.completed ?? false,
           comida: nextMeal?.label ?? null,
           comidaHora: nextMeal?.timeHint ?? null,
+          comidaItems: nextMeal ? nextMeal.items.slice(0, 3).map(formatMealItem) : null,
           racha: streak,
         });
       } catch {

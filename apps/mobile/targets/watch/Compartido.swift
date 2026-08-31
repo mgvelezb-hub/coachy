@@ -28,6 +28,9 @@ enum Compartido {
         disco.set(resumen.hecho, forKey: "reloj.hecho")
         disco.set(resumen.comida ?? "", forKey: "reloj.comida")
         disco.set(resumen.comidaHora ?? "", forKey: "reloj.comidaHora")
+        // Los alimentos viajan en una sola cadena separada por "|": son tres
+        // como maximo y un arreglo en UserDefaults no compra nada aqui.
+        disco.set((resumen.comidaItems ?? []).joined(separator: "|"), forKey: "reloj.comidaItems")
         disco.set(resumen.racha, forKey: "reloj.racha")
 
         // Sin esto la carátula se queda con lo de ayer hasta que al sistema se

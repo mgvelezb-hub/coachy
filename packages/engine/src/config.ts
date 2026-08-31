@@ -94,7 +94,7 @@ export const ConfigSchema = z
     /** Alimentos con esta densidad o mas se redondean al gramo, no a 5 g. */
     denseFoodKcalPer100: z.number().int().min(150).max(900),
     menuGramRoundingG: z.number().int().min(1).max(25),
-    equivalencesPerItem: z.number().int().min(1).max(5),
+    equivalencesPerItem: z.number().int().min(1).max(20),
     /** Cuánto puede desviarse una equivalencia de su macro base, ya redondeada. */
     equivalenceMaxDeviation: z.number().min(0.01).max(0.5),
     equivalenceFallbackDeviation: z.number().min(0.01).max(0.6),
@@ -189,10 +189,11 @@ export const DEFAULT_CONFIG: EngineConfig = {
   freeVegetableMaxCarbPer100: 6,
   denseFoodKcalPer100: 300,
   menuGramRoundingG: 5,
-  // 5, no 3: la pantalla las muestra como botones y la queja fue directa —
-  // con una o dos opciones no se elige, se acepta. Las que sobran del 10 %
-  // exacto entran marcadas como aproximadas.
-  equivalencesPerItem: 5,
+  // 20: la pantalla las muestra en una lista desplegable, no en botones
+  // sueltos, asi que caben todas las que el catalogo de la persona permita.
+  // Van ordenadas de mas parecida a menos, y las que se salen del 10 % exacto
+  // entran marcadas como aproximadas. Si su catalogo da menos, salen menos.
+  equivalencesPerItem: 20,
   // 10 %: es lo que la app promete al decir "se puede cambiar por".
   equivalenceMaxDeviation: 0.1,
   // Con que exista UNA opcion exacta no basta: una sola equivalencia no es

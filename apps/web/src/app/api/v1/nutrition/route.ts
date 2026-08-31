@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 
 import { apiUser, unauthorized } from "@/lib/api/auth";
-import { currentMealPlan } from "@/lib/coachy/menu";
+import { parseMealTimes } from "@/lib/coachy/horarios";
+import { currentMealPlan, listaDeSuperDe } from "@/lib/coachy/menu";
 import { toGroceries, toMenuView } from "@/lib/coachy/menu-view";
 
 /**
@@ -27,8 +28,13 @@ export async function GET(request: Request): Promise<NextResponse> {
     return null;
   });
 
-  const menus = nutrition?.plans.map((plan) => toMenuView(plan.menuNumber, plan.mealsJson)) ?? [];
-  const groceries = nutrition?.plans[0] ? toGroceries(nutrition.plans[0].groceryListJson) : [];
+  const horarios = parseMealTimes(profile.mealTimes);
+  const menus =
+    nutrition?.plans.map((plan) => toMenuView(plan.menuNumber, plan.mealsJson, horarios)) ?? [];
+
+  // La lista de súper depende de qué menús se van a cocinar de verdad: los dos
+  // repartidos en la semana, o uno solo los siete días.
+  const groceries = nutrition ? listaDeSuperDe(nutrition.plans, profile.menuPreference) : [];
 
   return NextResponse.json({
     decision: nutrition
@@ -43,6 +49,10 @@ export async function GET(request: Request): Promise<NextResponse> {
       : null,
     menus,
     groceries,
+    /** `AMBOS` | `MENU_1` | `MENU_2`: cuál se está cocinando. */
+    menuPreference: profile.menuPreference,
+    /** Los horarios propios que ya pisan la sugerencia del motor. */
+    horarios,
     materialized: nutrition?.materialized ?? false,
   });
 }

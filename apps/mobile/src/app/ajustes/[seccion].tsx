@@ -23,6 +23,7 @@ import { PrimaryButton } from "@/components/PrimaryButton";
 import { RegenerarMenu } from "@/components/RegenerarMenu";
 import { SectionLabel } from "@/components/SectionLabel";
 import { SeccionEntrenamiento } from "@/components/ajustes/SeccionEntrenamiento";
+import { SeccionHorariosComida } from "@/components/ajustes/SeccionHorariosComida";
 import { SeccionPuntoCero } from "@/components/ajustes/SeccionPuntoCero";
 import { useTheme } from "@/context/theme";
 import type { ThemePreference } from "@/context/theme";
@@ -647,6 +648,8 @@ export default function AjustesDetalleScreen() {
         )}
 
         {activa === "entrenamiento" && <SeccionEntrenamiento me={me} />}
+
+        {activa === "nutricion" && <SeccionHorariosComida />}
 
         {activa === "nutricion" && (
         <>

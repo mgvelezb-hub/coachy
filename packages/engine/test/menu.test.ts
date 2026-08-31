@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { generateMenu, prepMinDelDia } from '../src/menu.js';
+import { generateMenu, listaDeSuper, prepMinDelDia } from '../src/menu.js';
 import { distribute } from '../src/meals.js';
 import { kcalForDeficit, macrosFor } from '../src/calc.js';
 import { DEFAULT_CONFIG, pickDeficit } from '../src/config.js';
@@ -328,7 +328,7 @@ describe('la lista de equivalencias da de donde elegir', () => {
   // La queja fue literal: "antes salian al menos 3 equivalencias, ahora solo
   // aparece 1". Con una sola opcion no se elige, se acepta. Cuando el catalogo
   // elegible de la persona da para mas, la lista tiene que llenarse.
-  it('llena hasta 5 opciones cuando el catalogo da para eso', () => {
+  it('llena hasta 20 opciones cuando el catalogo da para eso', () => {
     const { plan } = planFor(P, 'BASE', 42);
     const equivalencias = plan.menus.flatMap((m) => m.meals.flatMap((meal) => meal.equivalences));
     const conVarias = equivalencias.filter((e) => e.options.length >= 3);
@@ -337,7 +337,7 @@ describe('la lista de equivalencias da de donde elegir', () => {
     // pocos alimentos elegibles (no porque el motor las recorte de mas).
     expect(conVarias.length / equivalencias.length).toBeGreaterThan(0.7);
     for (const equivalencia of equivalencias) {
-      expect(equivalencia.options.length).toBeLessThanOrEqual(5);
+      expect(equivalencia.options.length).toBeLessThanOrEqual(20);
       expect(equivalencia.options.length).toBeGreaterThan(0);
     }
   });
@@ -355,5 +355,38 @@ describe('la lista de equivalencias da de donde elegir', () => {
         }
       }
     }
+  });
+});
+
+describe('la lista de super sigue a los menus que se van a cocinar', () => {
+  // Los dos menus son dos variantes de LA MISMA semana, no dos semanas. Quien
+  // cocina uno solo lo come los 7 dias: comprar tambien los ingredientes del
+  // otro es tirar comida.
+  it('un menu solo pide el doble que ese mismo menu repartido a medias', () => {
+    const { plan } = planFor(P, 'BASE', 42);
+    const [menu1] = plan.menus;
+
+    const soloUno = listaDeSuper([menu1!], 7);
+    const mitad = listaDeSuper([menu1!], 3.5);
+
+    const gramosDe = (lista: typeof soloUno, id: string) =>
+      lista.find((item) => item.foodId === id)?.grams ?? 0;
+
+    for (const item of soloUno) {
+      // La lista redondea a multiplos de 5 g, asi que el doble exacto no
+      // siempre cae: lo que importa es que sea el doble en la practica.
+      const esperado = gramosDe(mitad, item.foodId) * 2;
+      expect(Math.abs(gramosDe(soloUno, item.foodId) - esperado)).toBeLessThanOrEqual(10);
+    }
+  });
+
+  it('los dos menus juntos traen los alimentos de ambos', () => {
+    const { plan } = planFor(P, 'BASE', 42);
+    const ambos = listaDeSuper(plan.menus, 3.5);
+    const soloUno = listaDeSuper([plan.menus[0]!], 7);
+
+    const ids = new Set(ambos.map((item) => item.foodId));
+    for (const item of soloUno) expect(ids.has(item.foodId)).toBe(true);
+    expect(ambos.length).toBeGreaterThanOrEqual(soloUno.length);
   });
 });

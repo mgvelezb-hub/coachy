@@ -2,9 +2,10 @@ import "server-only";
 
 import type { Decision, MealPlan, Profile } from "@prisma/client";
 import type { Prisma } from "@prisma/client";
-import { distribute, generateMenu } from "engine";
+import { distribute, generateMenu, listaDeSuper } from "engine";
 
 import { rellenaEquivalencias } from "@/lib/coachy/equivalencias-backfill";
+import { toGroceries } from "@/lib/coachy/menu-view";
 import { toEngineProfile } from "@/lib/coachy/mapping";
 import type { EngineDecision } from "@/lib/engine-types";
 import { prisma } from "@/lib/prisma";
@@ -260,6 +261,54 @@ async function rellenaEquivalenciasGuardadas(
     console.error("[coachy] no se pudieron rellenar las equivalencias", error);
     return plans;
   }
+}
+
+
+/** Los tres modos de cocinar la semana. */
+export const MENU_PREFERENCES = ["AMBOS", "MENU_1", "MENU_2"] as const;
+export type MenuPreference = (typeof MENU_PREFERENCES)[number];
+
+/**
+ * La lista de súper de lo que de verdad se va a cocinar esta semana.
+ *
+ * Los dos menús NO son dos semanas: son dos variantes de LA MISMA semana, con
+ * los mismos macros y distintos alimentos, para no comer lo mismo siete días.
+ * Por defecto la semana se reparte entre ambos (3.5 días cada uno) y hay que
+ * comprar para los dos. Quien prefiere cocinar uno solo lo come los 7 días, y
+ * entonces comprar los ingredientes del otro es tirar comida: por eso la
+ * lista se recalcula desde los menús elegidos en vez de leer la que se guardó
+ * al generarlos, que siempre asume los dos.
+ */
+export function listaDeSuperDe(
+  plans: MealPlan[],
+  preference: string,
+): ReturnType<typeof toGroceries> {
+  const elegidos =
+    preference === "MENU_1"
+      ? plans.filter((plan) => plan.menuNumber === 1)
+      : preference === "MENU_2"
+        ? plans.filter((plan) => plan.menuNumber === 2)
+        : plans;
+
+  if (elegidos.length === 0) {
+    // La preferencia apunta a un menú que no existe (todavía). Antes que
+    // dejar a alguien sin lista de súper, se cae a lo que sí hay.
+    return plans[0] ? toGroceries(plans[0].groceryListJson) : [];
+  }
+
+  // Un solo menú se come los 7 días; dos se reparten la semana.
+  const diasPorMenu = 7 / elegidos.length;
+
+  const menus = elegidos.map((plan) => ({
+    id: plan.menuNumber as 1 | 2,
+    meals: (Array.isArray(plan.mealsJson) ? plan.mealsJson : []) as never,
+  }));
+
+  return listaDeSuper(menus as never, diasPorMenu).map((item) => ({
+    name: item.name,
+    grams: item.grams,
+    unit: item.unit,
+  }));
 }
 
 export async function currentMealPlan(

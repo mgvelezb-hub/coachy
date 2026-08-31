@@ -94,6 +94,15 @@ struct SesionView: View {
                                     .font(.caption2)
                                     .foregroundStyle(.secondary)
                             }
+                            // Que comer, no solo cuando: sin esto habia que
+                            // sacar el telefono para saberlo.
+                            if let items = resumen.comidaItems, !items.isEmpty {
+                                ForEach(items, id: \.self) { item in
+                                    Text(item)
+                                        .font(.caption2)
+                                        .foregroundStyle(.primary)
+                                }
+                            }
                         }
                     }
 
