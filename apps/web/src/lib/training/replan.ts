@@ -32,6 +32,18 @@ import type { Discipline } from "@/lib/training/types";
  * que la regla de "nada de alto impacto en día de pierna" no aplica aquí —
  * las demás reglas duras de `compatibilidad` (misma disciplina, CrossFit con
  * gimnasio, squash+box) sí.
+ *
+ * **Fase 10 — compactar por gusto (`diasCompactos`).** La Fase 9 combina solo
+ * cuando algo no encontró día propio. Con `diasCompactos` encendido —lo que
+ * declaró la persona en Ajustes (`Profile.compactDays`), no algo que se
+ * pregunte aquí— se compacta igual aunque todo haya cabido suelto: mismo
+ * greedy por `compatibilidad` que en `disciplines.ts` (el par de mejor
+ * puntaje primero, hasta que ninguno quepa), pero contra el tiempo real de
+ * `tiempo` en vez del `timePerDay` declarado aparte — este módulo, a
+ * diferencia de `disciplines.ts`, sí lo tiene en la mano en el momento del
+ * reparto. Por la misma razón que la Fase 9, tampoco aquí aplica la regla de
+ * "nada de alto impacto en día de pierna": sin `DayKind`, no hay pierna que
+ * proteger.
  */
 
 export const PROPOSITOS = ["ENTRENAMIENTO", "COMPLEMENTO", "HOBBY"] as const;
@@ -79,6 +91,12 @@ export type EntradaReplan = {
   secundarias: DisciplinaElegida[];
   /** Cuántas sesiones de la primaria quiere a la semana, como tope deseado. */
   sesionesPrimaria: number;
+  /**
+   * Preferencia declarada en Ajustes (`Profile.compactDays`): compactar por
+   * gusto (Fase 10) además de por desborde (Fase 9). `undefined`/`false` deja
+   * el reparto de siempre.
+   */
+  diasCompactos?: boolean;
 };
 
 export type SesionAsignada = {
@@ -231,6 +249,81 @@ function intentarAnexarEnDia(
   return true;
 }
 
+/** Un día con exactamente una sesión: candidato a compactarse con otro. */
+type CandidatoCompacto = { weekday: WeekDay; sesion: SesionAsignada };
+
+/** Los días de una sola sesión, en orden de semana (más temprano primero). */
+function candidatosCompactables(asignadas: SesionAsignada[]): CandidatoCompacto[] {
+  const candidatos: CandidatoCompacto[] = [];
+  for (const weekday of WEEK_DAYS) {
+    const enEseDia = asignadas.filter((sesion) => sesion.weekday === weekday);
+    if (enEseDia.length === 1) candidatos.push({ weekday, sesion: enEseDia[0]! });
+  }
+  return candidatos;
+}
+
+/**
+ * Fase 10: compacta por preferencia, no por desborde — igual que su
+ * contraparte en `disciplines.ts`, pero mutando `SesionAsignada[]` (aquí no
+ * hay `Colocacion` ni gimnasio aparte: la primaria es una sesión más dentro
+ * de `asignadas`, así que participa en la compactación igual que cualquier
+ * secundaria).
+ *
+ * Greedy: en cada vuelta evalúa todos los pares de días de una sola sesión,
+ * se queda con el de mejor `compatibilidad` que quepa en `repartirMinutos`
+ * contra el tiempo REAL de ese día (`tiempo[destino]`, no una suma de
+ * valores por defecto), fusiona, y repite desde cero hasta que ningún par
+ * combine. El día que sobrevive como destino es el más temprano de los dos —
+ * no hay una regla fisiológica que decida cuál fecha se queda.
+ */
+function intentarCompactarAsignadas(asignadas: SesionAsignada[], tiempo: TiempoPorDia): void {
+  for (;;) {
+    const candidatos = candidatosCompactables(asignadas);
+
+    type Fusion = {
+      destino: CandidatoCompacto;
+      origen: CandidatoCompacto;
+      orden: [BloqueDia, BloqueDia];
+      minutos: [number, number];
+      score: number;
+    };
+    let mejor: Fusion | null = null;
+
+    for (let i = 0; i < candidatos.length; i++) {
+      for (let j = i + 1; j < candidatos.length; j++) {
+        // `candidatosCompactables` recorre `WEEK_DAYS` en orden e `i < j`:
+        // el destino ya es el más temprano de los dos.
+        const destino = candidatos[i]!;
+        const origen = candidatos[j]!;
+        const bloqueDestino: BloqueDia = { discipline: destino.sesion.discipline };
+        const bloqueOrigen: BloqueDia = { discipline: origen.sesion.discipline };
+
+        const score = compatibilidad(bloqueDestino, bloqueOrigen);
+        if (score === null) continue; // incompatibilidad dura: manda siempre
+
+        const orden = ordenar(bloqueDestino, bloqueOrigen);
+        const reparto = repartirMinutos(tiempo[destino.weekday] ?? 0, orden);
+        if (!reparto) continue; // no caben los dos mínimos con el tiempo real del día
+
+        if (!mejor || score > mejor.score) {
+          mejor = { destino, origen, orden, minutos: reparto.minutos, score };
+        }
+      }
+    }
+
+    if (!mejor) return; // no queda par compatible que quepa: termina aquí
+
+    const [primero] = mejor.orden;
+    const destinoEsPrimero = primero.discipline === mejor.destino.sesion.discipline;
+
+    mejor.destino.sesion.minutos = destinoEsPrimero ? mejor.minutos[0] : mejor.minutos[1];
+    mejor.origen.sesion.minutos = destinoEsPrimero ? mejor.minutos[1] : mejor.minutos[0];
+    // La sesión de origen se muda a la fecha destino: su día original queda
+    // sin sesión — libre de verdad.
+    mejor.origen.sesion.weekday = mejor.destino.weekday;
+  }
+}
+
 /**
  * El reparto de la semana.
  *
@@ -317,6 +410,11 @@ export function replanificar(entrada: EntradaReplan): Replan {
           `no hay más días con al menos ${minimo} minutos libres, ni un día ya asignado con el que combine.`,
       );
     }
+  }
+
+  // FASE 10 — compactar por gusto, quepa o no quepa todo suelto. ------------
+  if (entrada.diasCompactos) {
+    intentarCompactarAsignadas(asignadas, entrada.tiempo);
   }
 
   const porDisciplina = new Map<Discipline, number>();

@@ -13,7 +13,7 @@ import type { DayKind, Discipline, DisciplineLoad } from "@/lib/training/types";
  * días de dos bloques).
  *
  * Es puro: recibe la semana de pesas ya decidida y reparte lo demás. El
- * reparto corre en tres fases, cada una resolviendo lo que la anterior dejó
+ * reparto corre en cuatro fases, cada una resolviendo lo que la anterior dejó
  * sin resolver — nunca lo que la anterior ya resolvió:
  *
  * 1. **Días libres por score** (`scoreDay`): igual que siempre, cada
@@ -32,6 +32,23 @@ import type { DayKind, Discipline, DisciplineLoad } from "@/lib/training/types";
  *    intenta fusionar el mejor par de días de secundarias (nunca de gimnasio)
  *    para liberar uno. El descanso también es parte del modelo: una semana sin
  *    un solo hueco contradice la premisa de todo este planificador.
+ * 4. **Compactar por gusto** (`compactos`, Fase 10): las tres fases de arriba
+ *    combinan SOLO cuando algo no cabe suelto o la semana se llenó. Eso deja
+ *    fuera el caso real que originó esta fase: gimnasio 1 vez + natación 2 +
+ *    squash 2 en una semana de 7 días son 5 sesiones para 7 días —cada una
+ *    cabe suelta, nada desborda— y aun así la persona QUIERE squash y natación
+ *    el mismo día, porque prefiere concentrar el esfuerzo y quedarse con más
+ *    días de descanso completo a repartir por repartir. Combinar por gusto y
+ *    repartir por gusto no son "correcto" e "incorrecto": son dos preferencias,
+ *    y esta fase es la que por fin le da voz a la primera. Con `compactos`
+ *    encendido (`Profile.compactDays`, default `true`), fusiona greedy por
+ *    `compatibilidad` — el par de mejor puntaje primero, y así hasta que no
+ *    quede par compatible que quepa con el tiempo real del día
+ *    (`repartirMinutos`) — entre cualquier par de días de un solo bloque:
+ *    secundaria+secundaria, o secundaria+gimnasio (anexándola al día del gym y
+ *    liberando el suyo). Nunca un tercer bloque. Las incompatibilidades duras
+ *    de `combinaciones.ts` siguen mandando sin excepción: un día de pierna
+ *    jamás recibe squash, esté `compactos` encendido o no.
  *
  * La regla que NO cambia: nunca se tira una sesión en silencio. Lo que de
  * plano no cupo —ni en su propio día, ni anexado a otro— se dice en
@@ -351,6 +368,138 @@ function intentarLiberarDescanso(
   colOrigen.note = explicacion;
 }
 
+/** Un día de un solo bloque, candidato a compactarse con otro (Fase 10). */
+type CandidatoCompacto = { weekday: WeekDay; esGym: boolean; colocacion: Colocacion | null };
+
+/**
+ * Los días de UN solo bloque —gimnasio sin secundaria anexada, o una
+ * secundaria sola— en orden de semana. Un día con dos bloques ya no tiene
+ * dónde anexar un tercero; un día vacío no tiene con qué combinar. Se recorre
+ * el estado real (`colocaciones`/`gymByDay`) en vez de un `Set` aparte porque
+ * la Fase 3 puede haber dejado un día con dos `Colocacion` sin haber pasado
+ * por `intentarAnexar` (que es el único que hoy usa `dobles`) — contar de
+ * verdad es la única forma de no confundir "ya lleva dos" con "todavía uno".
+ */
+function candidatosCompactables(
+  gymByDay: Map<WeekDay, DayKind>,
+  colocaciones: Colocacion[],
+): CandidatoCompacto[] {
+  const candidatos: CandidatoCompacto[] = [];
+  for (const weekday of WEEK_DAYS) {
+    const enEseDia = colocaciones.filter((colocacion) => colocacion.weekday === weekday);
+    const esGym = gymByDay.has(weekday);
+    const totalBloques = (esGym ? 1 : 0) + enEseDia.length;
+    if (totalBloques !== 1) continue; // libre del todo, o ya lleva sus dos bloques
+
+    candidatos.push(esGym ? { weekday, esGym: true, colocacion: null } : { weekday, esGym: false, colocacion: enEseDia[0]! });
+  }
+  return candidatos;
+}
+
+/**
+ * Fase 10: compacta por preferencia, no por desborde.
+ *
+ * A diferencia de la Fase 2 (que anexa lo que no cupo suelto) y la Fase 3
+ * (que solo actúa si la semana quedó 7/7), esta corre siempre que `compactos`
+ * esté encendido, exista o no un día libre de sobra — es la diferencia entre
+ * "combino porque no cabe de otra forma" y "combino porque así lo quiero".
+ *
+ * Greedy: en cada vuelta, evalúa TODOS los pares de días de un solo bloque,
+ * calcula su `compatibilidad` y se queda con el de mejor puntaje que además
+ * quepa en `repartirMinutos` (con el tiempo real de `timePerDay`, o el
+ * fallback de `DEFAULT_MINUTES` cuando no se ha declarado). Fusiona ese par,
+ * vuelve a evaluar desde cero —el estado cambió, así que el mejor par
+ * siguiente puede no ser el segundo mejor de la vuelta anterior— y repite
+ * hasta que ningún par restante combine. Es el mismo orden de preferencia que
+ * ya vive en `combinaciones.ts` (squash+natación puntúa 70, un día de
+ * gimnasio de torso+natación puntúa 55): esta fase no inventa una regla
+ * nueva, solo la deja actuar sin esperar a que algo desborde.
+ *
+ * El día de gimnasio, si participa, siempre sobrevive como destino: su fecha
+ * ya la fijó el split y no se puede mover. Entre dos secundarias sobrevive la
+ * más temprana de la semana, igual que en `intentarLiberarDescanso` — no hay
+ * una regla fisiológica que decida cuál fecha se queda.
+ */
+function intentarCompactar(
+  gymByDay: Map<WeekDay, DayKind>,
+  colocaciones: Colocacion[],
+  gymMinutesPorFecha: Record<string, number>,
+  weekStart: Date,
+  timePerDay: Partial<Record<WeekDay, number>> | null | undefined,
+): void {
+  for (;;) {
+    const candidatos = candidatosCompactables(gymByDay, colocaciones);
+
+    type Fusion = {
+      destino: CandidatoCompacto;
+      origen: CandidatoCompacto;
+      orden: [BloqueDia, BloqueDia];
+      minutos: [number, number];
+      score: number;
+    };
+    let mejor: Fusion | null = null;
+
+    for (let i = 0; i < candidatos.length; i++) {
+      for (let j = i + 1; j < candidatos.length; j++) {
+        const a = candidatos[i]!;
+        const b = candidatos[j]!;
+        if (a.esGym && b.esGym) continue; // dos días de gimnasio no combinan entre sí
+
+        // El de gimnasio, si hay uno, siempre es el destino: su fecha no se
+        // mueve. Entre dos secundarias, `a` ya es la más temprana —
+        // `candidatosCompactables` recorre `WEEK_DAYS` en orden y `i < j`.
+        const [destino, origen] = a.esGym ? [a, b] : b.esGym ? [b, a] : [a, b];
+
+        const bloqueDestino: BloqueDia = destino.esGym
+          ? { discipline: "PESAS", dayKind: gymByDay.get(destino.weekday) }
+          : { discipline: destino.colocacion!.discipline };
+        const bloqueOrigen: BloqueDia = { discipline: origen.colocacion!.discipline };
+
+        const score = compatibilidad(bloqueDestino, bloqueOrigen);
+        if (score === null) continue; // incompatibilidad dura: manda siempre, `compactos` o no
+
+        const orden = ordenar(bloqueDestino, bloqueOrigen);
+        const totalMinutos = destino.esGym
+          ? (timePerDay?.[destino.weekday] ??
+              DEFAULT_MINUTES.PESAS + DEFAULT_MINUTES[origen.colocacion!.discipline])
+          : (timePerDay?.[destino.weekday] ??
+              destino.colocacion!.minutes + origen.colocacion!.minutes);
+        const reparto = repartirMinutos(totalMinutos, orden);
+        if (!reparto) continue; // no caben los dos mínimos ni con el tiempo real del día
+
+        if (!mejor || score > mejor.score) {
+          mejor = { destino, origen, orden, minutos: reparto.minutos, score };
+        }
+      }
+    }
+
+    if (!mejor) return; // no queda par compatible que quepa: la compactación termina aquí
+
+    const [primero] = mejor.orden;
+    const explicacion = porqueDeCombo(mejor.orden[0], mejor.orden[1]);
+    const discDestino = mejor.destino.esGym ? "PESAS" : mejor.destino.colocacion!.discipline;
+    const destinoEsPrimero = primero.discipline === discDestino;
+    const minutosDestino = destinoEsPrimero ? mejor.minutos[0] : mejor.minutos[1];
+    const minutosOrigen = destinoEsPrimero ? mejor.minutos[1] : mejor.minutos[0];
+
+    if (mejor.destino.esGym) {
+      gymMinutesPorFecha[dateOf(weekStart, mejor.destino.weekday)] = minutosDestino;
+    } else {
+      mejor.destino.colocacion!.orden = destinoEsPrimero ? 1 : 2;
+      mejor.destino.colocacion!.minutes = minutosDestino;
+      mejor.destino.colocacion!.note = explicacion;
+    }
+
+    // La secundaria de origen se muda a la fecha destino: su día original
+    // queda sin colocación — libre de verdad, no solo "sin nada planeado".
+    mejor.origen.colocacion!.weekday = mejor.destino.weekday;
+    mejor.origen.colocacion!.orden = destinoEsPrimero ? 2 : 1;
+    mejor.origen.colocacion!.minutes = minutosOrigen;
+    mejor.origen.colocacion!.note = explicacion;
+    mejor.origen.colocacion!.sharesDayWithGym = mejor.destino.esGym;
+  }
+}
+
 /**
  * Reparte las sesiones de las disciplinas secundarias en la semana.
  *
@@ -374,8 +523,15 @@ export function planDisciplines(input: {
    * repartir 60 minutos imaginarios de gimnasio.
    */
   timePerDay?: Partial<Record<WeekDay, number>> | null;
+  /**
+   * Preferencia declarada en Ajustes (`Profile.compactDays`): combinar
+   * disciplinas compatibles el mismo día por gusto, no solo cuando algo
+   * desborda. `undefined`/`false` deja el comportamiento de siempre (Fases
+   * 1-3 únicamente).
+   */
+  compactos?: boolean;
 }): DisciplinePlan {
-  const { weekStart, otherDisciplines, gymByDay, niveles, objetivo, isoWeek, timePerDay } = input;
+  const { weekStart, otherDisciplines, gymByDay, niveles, objetivo, isoWeek, timePerDay, compactos } = input;
 
   // Las de alto impacto se colocan primero: son las que tienen restricciones
   // duras. Si se colocan al final, se quedan con los días que nadie quiso.
@@ -444,6 +600,11 @@ export function planDisciplines(input: {
 
   // FASE 3 — si la semana quedó 7/7, liberar un descanso. -------------------
   intentarLiberarDescanso(gymByDay, colocaciones, dobles);
+
+  // FASE 4 — compactar por gusto, esté o no la semana llena. ----------------
+  if (compactos) {
+    intentarCompactar(gymByDay, colocaciones, gymMinutesPorFecha, weekStart, timePerDay);
+  }
 
   // Construcción final: el ordinal de cada disciplina sale de su orden
   // cronológico, no del orden en que se procesó la cola — con combos, ese

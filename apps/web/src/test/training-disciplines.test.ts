@@ -29,6 +29,7 @@ function plan(input: {
   gym: Map<WeekDay, DayKind>;
   isoWeek?: number;
   timePerDay?: Partial<Record<WeekDay, number>> | null;
+  compactos?: boolean;
 }) {
   return planDisciplines({
     weekStart: MONDAY,
@@ -38,6 +39,7 @@ function plan(input: {
     objetivo: "RECOMPOSICION",
     isoWeek: input.isoWeek ?? 2,
     timePerDay: input.timePerDay,
+    compactos: input.compactos,
   });
 }
 
@@ -291,6 +293,107 @@ describe("el caso real: 5 días de gimnasio + natación + squash (Fase 9)", () =
     expect(primero!.date).toBe(segundo!.date);
     expect(segundo!.discipline).toBe("NATACION");
     expect(segundo!.orden).toBe(2);
+  });
+});
+
+describe("compactar por gusto (Fase 10, compactos)", () => {
+  // El reporte real que motivó esta fase: gimnasio 1 vez + natación 2 +
+  // squash 2 en una semana de 7 días son 5 sesiones para 7 días — cada una
+  // cabe SUELTA (no hay desborde, así que las Fases 2 y 3 no hacen nada), y
+  // aun así la persona quiere squash y natación el mismo día. `HOMBRO` (no
+  // pierna) es el único gimnasio de la semana, a propósito: aísla el efecto
+  // de "compactar por gusto" del de "no queda de otra" que ya prueban los
+  // bloques de arriba.
+  const gymUnDia = gymWeek([["MIE", "HOMBRO"]]);
+
+  it("con compactos:true combina squash+natación y deja más días libres que compactos:false", () => {
+    const suelto = plan({
+      loads: [
+        { discipline: "SQUASH", sessionsPerWeek: 2 },
+        { discipline: "NATACION", sessionsPerWeek: 2 },
+      ],
+      gym: gymUnDia,
+      timePerDay: todosLosDias(90),
+      compactos: false,
+    });
+    const compacto = plan({
+      loads: [
+        { discipline: "SQUASH", sessionsPerWeek: 2 },
+        { discipline: "NATACION", sessionsPerWeek: 2 },
+      ],
+      gym: gymUnDia,
+      timePerDay: todosLosDias(90),
+      compactos: true,
+    });
+
+    const diasLibresDe = (sessions: typeof compacto.sessions) => {
+      const ocupados = new Set([...gymUnDia.keys(), ...sessions.map((s) => s.date)]);
+      return 7 - ocupados.size;
+    };
+
+    expect(suelto.avisos).toEqual([]);
+    expect(compacto.avisos).toEqual([]);
+    // Suelto: las 4 sesiones (2 squash + 2 natación) en 4 días propios, sin
+    // combinar entre sí ni con el único día de gimnasio (nada desborda).
+    expect(new Set(suelto.sessions.map((s) => s.date)).size).toBe(4);
+    expect(diasLibresDe(compacto.sessions)).toBeGreaterThan(diasLibresDe(suelto.sessions));
+
+    // Al menos un día combina squash con natación, con natación cerrando.
+    const combosSquashNatacion = compacto.sessions.filter(
+      (s, _i, todas) =>
+        s.discipline === "NATACION" &&
+        s.orden === 2 &&
+        todas.some((otra) => otra.date === s.date && otra.discipline === "SQUASH" && otra.orden === 1),
+    );
+    expect(combosSquashNatacion.length).toBeGreaterThan(0);
+  });
+
+  it("con 45 minutos reales por día no fusiona: no caben dos bloques", () => {
+    const { sessions, avisos } = plan({
+      loads: [
+        { discipline: "SQUASH", sessionsPerWeek: 2 },
+        { discipline: "NATACION", sessionsPerWeek: 2 },
+      ],
+      gym: gymUnDia,
+      timePerDay: todosLosDias(45),
+      compactos: true,
+    });
+
+    expect(avisos).toEqual([]);
+    // Las 4 sesiones quedan sueltas: ninguna comparte fecha con otra.
+    const fechas = sessions.map((s) => s.date);
+    expect(new Set(fechas).size).toBe(fechas.length);
+    expect(sessions.every((s) => !s.sharesDayWithGym)).toBe(true);
+  });
+
+  it("un día de pierna jamás recibe squash, ni siquiera compactando", () => {
+    const { sessions } = plan({
+      loads: [{ discipline: "SQUASH", sessionsPerWeek: 1 }],
+      gym: gymWeek([["LUN", "PIERNA_CUADRICEPS"]]),
+      timePerDay: todosLosDias(90),
+      compactos: true,
+    });
+
+    // El único día de gimnasio de la semana es de pierna: si `compactos`
+    // ignorara la incompatibilidad dura, squash no tendría otro sitio al que
+    // "preferir" combinarse. En vez de eso, se queda en su propio día.
+    expect(sessions).toHaveLength(1);
+    expect(sessions[0]!.sharesDayWithGym).toBe(false);
+    expect(sessions[0]!.weekday).not.toBe("LUN");
+  });
+
+  it("compactos:false deja el comportamiento de siempre intacto", () => {
+    const conCompactos = plan({
+      loads: [
+        { discipline: "SQUASH", sessionsPerWeek: 1 },
+        { discipline: "NATACION", sessionsPerWeek: 1 },
+      ],
+      gym: gymUnDia,
+      timePerDay: todosLosDias(90),
+    });
+
+    expect(new Set(conCompactos.sessions.map((s) => s.date)).size).toBe(2);
+    expect(conCompactos.sessions.every((s) => !s.sharesDayWithGym)).toBe(true);
   });
 });
 

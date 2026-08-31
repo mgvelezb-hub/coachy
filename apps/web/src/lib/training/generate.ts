@@ -223,6 +223,9 @@ export function generateWeek(
     objetivo: profile.goal as never,
     isoWeek,
     timePerDay: profile.timePerDay,
+    // Mismo `compactDays` que `otherSessionsFor` en `db.ts`: si uno combina y
+    // el otro no, la semana materializada y la vista que la muestra divergen.
+    compactos: profile.compactDays,
   });
 
   /**

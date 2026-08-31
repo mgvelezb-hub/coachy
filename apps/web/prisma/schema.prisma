@@ -311,6 +311,19 @@ model Profile {
    * (`DEFAULT_MINUTES` de `disciplines.ts`) en vez del tiempo real del día.
    */
   timePerDay        Json?      @map("time_per_day")
+  /**
+   * Si el planificador debe COMBINAR disciplinas compatibles el mismo día
+   * (`true`) o darle a cada una su propio día (`false`).
+   *
+   * Default `true` porque el reporte que originó este campo es justo el caso
+   * típico: quien declara varias disciplinas (gimnasio + natación + squash)
+   * casi siempre quiere concentrarlas y quedarse con más días de descanso
+   * completo, no repartirlas por default y descubrir después que existía la
+   * opción de juntarlas. Quien de verdad prefiere una disciplina por día —
+   * sesiones más frescas, a costa de menos descanso— lo apaga con un toque en
+   * Ajustes; no es una migración de datos, es una preferencia declarada.
+   */
+  compactDays       Boolean    @default(true) @map("compact_days")
 
   /// Overrides de la config del motor (spec 02 §7). Null = defaults.
   engineConfig Json? @map("engine_config")

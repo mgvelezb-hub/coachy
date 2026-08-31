@@ -85,6 +85,9 @@ export async function POST(request: Request): Promise<NextResponse> {
     primaria,
     secundarias: otras,
     sesionesPrimaria,
+    // La preferencia se declaró en Ajustes (`PATCH /me/entrenamiento`), no
+    // aquí: este flujo no la vuelve a preguntar.
+    diasCompactos: user.profile.compactDays,
   });
 
   const sesionesDePesas =

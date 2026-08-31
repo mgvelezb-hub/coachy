@@ -70,6 +70,11 @@ export function SeccionEntrenamiento({ me }: { me: MeResponse | null }) {
   );
   const [entrenoMsg, setEntrenoMsg] = useState<string | null>(null);
   const [tiempoMsg, setTiempoMsg] = useState<string | null>(null);
+  // `true` por default: coincide con `Profile.compactDays` en el servidor
+  // mientras la respuesta de `/me` no llega (deploy en progreso, o versión
+  // vieja de la API todavía en producción).
+  const [compactDays, setCompactDays] = useState(true);
+  const [compactoMsg, setCompactoMsg] = useState<string | null>(null);
 
   useEffect(() => {
     if (!me?.profile) return;
@@ -80,6 +85,7 @@ export function SeccionEntrenamiento({ me }: { me: MeResponse | null }) {
       NATACION: me.profile.swimLevel ?? "PRINCIPIANTE",
       ...(me.profile.disciplineLevels ?? {}),
     });
+    setCompactDays(me.profile.compactDays ?? true);
 
     // Se prellena solo con lo declarado: los días ausentes se quedan en 0
     // ("ese día no"), que es un valor honesto y no un supuesto.
@@ -226,6 +232,31 @@ export function SeccionEntrenamiento({ me }: { me: MeResponse | null }) {
     }
   }
 
+  /**
+   * Guarda cómo se arma la semana (Fase 10): días compactos o repartidos.
+   *
+   * El orden DENTRO de un día combinado nunca se pregunta —eso lo decide la
+   * app (la alberca al final, el impacto primero)—; esto solo decide SI se
+   * combinan disciplinas compatibles el mismo día.
+   */
+  async function guardarCompactDays(valor: boolean) {
+    const anterior = compactDays;
+    setCompactDays(valor);
+    setCompactoMsg(null);
+    try {
+      await patchEntrenamiento({ compactDays: valor });
+      void cargarSemana();
+      setCompactoMsg(
+        valor
+          ? "Guardado. Desde tu siguiente semana, lo que combine bien cae el mismo día."
+          : "Guardado. Desde tu siguiente semana, cada disciplina vuelve a tener su propio día.",
+      );
+    } catch (error) {
+      setCompactDays(anterior);
+      setCompactoMsg(error instanceof ApiError ? error.message : "No se pudo guardar tu preferencia");
+    }
+  }
+
   const activas = DISCIPLINAS.filter(
     (disciplina) => disciplina.valor === primaria || otras.some((carga) => carga.discipline === disciplina.valor),
   );
@@ -256,6 +287,45 @@ export function SeccionEntrenamiento({ me }: { me: MeResponse | null }) {
           </Text>
         ))}
       </ScoreCard>
+
+      {/* "Cómo se arma tu semana" (Fase 10): combinar por gusto o repartir. */}
+      <Card>
+        <SectionLabel>Cómo se arma tu semana</SectionLabel>
+        <Explicacion titulo="Qué decide esto">
+          <TextoExplicativo>
+            El orden dentro de un día combinado no se pregunta: la app siempre cierra con la
+            alberca (recuperación activa) y abre con el impacto —squash, box— cuando las piernas
+            todavía están frescas. Esto solo decide si combina disciplinas compatibles el mismo
+            día, o si le da a cada una su propio día.
+          </TextoExplicativo>
+        </Explicacion>
+
+        <View style={styles.presupuestoLista}>
+          <Pressable
+            onPress={() => guardarCompactDays(true)}
+            style={[styles.presupuestoFila, compactDays && styles.presupuestoFilaOn]}
+          >
+            <Text style={[styles.presupuestoNombre, compactDays && styles.presupuestoNombreOn]}>
+              Días compactos
+            </Text>
+            <Text style={styles.presupuestoDetalle}>
+              Combina disciplinas compatibles el mismo día y te deja más días de descanso
+              completo.
+            </Text>
+          </Pressable>
+          <Pressable
+            onPress={() => guardarCompactDays(false)}
+            style={[styles.presupuestoFila, !compactDays && styles.presupuestoFilaOn]}
+          >
+            <Text style={[styles.presupuestoNombre, !compactDays && styles.presupuestoNombreOn]}>
+              Días repartidos
+            </Text>
+            <Text style={styles.presupuestoDetalle}>Una disciplina por día, sesiones más frescas.</Text>
+          </Pressable>
+        </View>
+
+        {compactoMsg && <Text style={styles.vaultMsg}>{compactoMsg}</Text>}
+      </Card>
 
       {/* 2. "¿Qué tan grande es el cambio?" — los tres niveles, en orden. */}
       <Card>

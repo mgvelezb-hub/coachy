@@ -148,6 +148,7 @@ export function toTrainingProfile(profile: Profile): TrainingProfile {
     gymLevel: parseNiveles(profile.disciplineLevels, profile.swimLevel as SwimLevel).PESAS ?? "PRINCIPIANTE",
     goal: profile.goal,
     timePerDay: parseTimePerDay(profile.timePerDay),
+    compactDays: profile.compactDays,
   };
 }
 
@@ -343,6 +344,9 @@ export function otherSessionsFor(
     objetivo: training.goal as never,
     isoWeek: isoWeekNumber(monday),
     timePerDay: training.timePerDay,
+    // Mismo `compactDays` que `generateWeek`: si difieren, la vista de
+    // "Tu semana" y la semana que de verdad se materializó divergen.
+    compactos: training.compactDays,
   }).sessions;
 }
 

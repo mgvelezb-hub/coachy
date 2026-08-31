@@ -233,6 +233,13 @@ export type TrainingProfile = {
    * contra 60 minutos imaginarios.
    */
   timePerDay: Partial<Record<WeekDay, number>> | null;
+  /**
+   * Si el planificador debe combinar disciplinas compatibles el mismo día
+   * (`true`, el default en la base) o darle a cada una su propio día
+   * (`false`). Ver el docblock de `compactDays` en `schema.prisma` para el
+   * porqué del default.
+   */
+  compactDays: boolean;
 };
 
 /**

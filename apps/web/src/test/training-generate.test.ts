@@ -41,6 +41,11 @@ function profile(overrides: Partial<TrainingProfile> = {}): TrainingProfile {
     gymLevel: "AVANZADO",
     goal: "RECOMPOSICION",
     timePerDay: null,
+    // `false` a propósito: la compactación por gusto (Fase 10) es una
+    // preferencia nueva y estas pruebas fijan el comportamiento de siempre
+    // (Fases 1-3). Las pruebas dedicadas de la Fase 10 viven en
+    // `training-disciplines.test.ts`, que sí la enciende explícitamente.
+    compactDays: false,
     ...overrides,
   };
 }

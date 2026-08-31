@@ -76,6 +76,12 @@ export type MeResponse = {
      * disciplinas de verdad tiene tiempo para las dos.
      */
     timePerDay?: Record<string, number> | null;
+    /**
+     * Si el planificador combina disciplinas compatibles el mismo día
+     * (Fase 10). `undefined` = todavía no llega el deploy que lo manda;
+     * la pantalla lo trata como el default de la base (`true`).
+     */
+    compactDays?: boolean;
   } | null;
 };
 
@@ -711,6 +717,8 @@ export type PreferenciasEntrenamiento = {
    * el mapa entero: el servidor lo guarda tal cual, igual que `disciplineLevels`.
    */
   timePerDay?: Record<string, number> | null;
+  /** Combinar disciplinas compatibles el mismo día, o darle a cada una el suyo (Fase 10). */
+  compactDays?: boolean;
 };
 
 export type PreferenciasEntrenamientoResponse = {
@@ -718,6 +726,7 @@ export type PreferenciasEntrenamientoResponse = {
   primaryDiscipline: Discipline;
   otherDisciplines: DisciplineLoad[];
   swimLevel: SwimLevel;
+  compactDays?: boolean;
 };
 
 /**

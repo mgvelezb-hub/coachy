@@ -149,4 +149,40 @@ describe("replanificar la semana", () => {
     expect(pesas).not.toHaveProperty("proposito");
     expect(pesas).not.toHaveProperty("importancia");
   });
+
+  // Fase 10: `diasCompactos` compacta por gusto, no solo cuando algo desborda.
+  // Con 90 minutos reales en cada uno de 4 días, PESAS (2 sesiones) y NATACION
+  // (2 sesiones) caben cada una suelta sin problema — nada fuerza a combinar.
+  // Con `diasCompactos: true`, el greedy de `compatibilidad` las junta de
+  // todos modos y libera días de descanso completos.
+  describe("diasCompactos (Fase 10)", () => {
+    function base(diasCompactos?: boolean) {
+      return replanificar({
+        tiempo: tiempo({ LUN: 90, MAR: 90, MIE: 90, JUE: 90 }),
+        primaria: "PESAS",
+        secundarias: [{ discipline: "NATACION", proposito: "ENTRENAMIENTO", importancia: 3 }],
+        sesionesPrimaria: 2,
+        diasCompactos,
+      });
+    }
+
+    it("sin diasCompactos, PESAS y NATACION quedan en 4 días distintos", () => {
+      const replan = base(false);
+      expect(replan.asignadas).toHaveLength(4);
+      expect(replan.diasActivos).toHaveLength(4);
+    });
+
+    it("con diasCompactos:true, se combinan y sobran días de descanso completo", () => {
+      const replan = base(true);
+
+      // Las 4 sesiones se conservan: compactar no tira ninguna.
+      expect(replan.asignadas).toHaveLength(4);
+      // Pero ahora caben en menos días de los que ocupaban sueltas.
+      expect(replan.diasActivos.length).toBeLessThan(4);
+
+      // Cada día activo, si lleva más de una sesión, cupo con el tiempo real
+      // (90 min): ninguna sesión se quedó en 0 ni negativa.
+      expect(replan.asignadas.every((sesion) => sesion.minutos > 0)).toBe(true);
+    });
+  });
 });

@@ -56,6 +56,9 @@ export async function GET(request: Request): Promise<NextResponse> {
           // no se ha declarado: la pantalla de recalibrar no tiene por qué
           // adivinar contando sesiones si esto ya viene aquí.
           timePerDay: parseTimePerDay(profile.timePerDay),
+          // Si el planificador combina disciplinas compatibles el mismo día
+          // (Fase 10). Ajustes lo pinta prellenado con lo que ya eligió.
+          compactDays: profile.compactDays,
           dietStyle: profile.dietStyle,
           supplements: profile.supplements,
           // A qué hora entrena: la pantalla de dieta lo necesita para avisar

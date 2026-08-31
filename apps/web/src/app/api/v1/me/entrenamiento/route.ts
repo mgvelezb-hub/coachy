@@ -23,6 +23,11 @@ import { DISCIPLINES, MUSCLE_GROUPS, SWIM_LEVELS } from "@/lib/training/types";
  * perfil puede traer `timePerDay`, los minutos declarados por día. Guardarlos
  * aquí también es lo que evita preguntar dos veces lo mismo.
  *
+ * `compactDays` (Fase 10) también vive aquí y no en el flujo de replanificar:
+ * es una preferencia de "cómo armo tu semana", no una respuesta de "cuánto
+ * tiempo tengo" — se ajusta un toque en Ajustes, no rehaciendo el
+ * cuestionario completo.
+ *
  * Aplica desde la siguiente vez que se arme la rutina; la semana en curso ya
  * está publicada y moverla a medio martes solo confunde.
  */
@@ -64,6 +69,12 @@ const schema = z
      * defaults); omitido deja lo que ya había. 0 = ese día no se entrena.
      */
     timePerDay: z.partialRecord(z.enum(WEEK_DAYS), z.number().int().min(0).max(300)).nullable().optional(),
+    /**
+     * Combinar disciplinas compatibles el mismo día (`true`) o darle a cada
+     * una su propio día (`false`). Ver el docblock de `compactDays` en
+     * `schema.prisma` para el porqué del default.
+     */
+    compactDays: z.boolean().optional(),
   })
   .refine((value) => Object.keys(value).length > 0, { message: "no hay nada que guardar" })
   .refine(
@@ -103,6 +114,7 @@ export async function PATCH(request: Request): Promise<NextResponse> {
     swimLevel,
     disciplineLevels,
     timePerDay,
+    compactDays,
   } = parsed.data;
 
   // La primaria no puede estar además en la lista de secundarias: se cobraría
@@ -121,6 +133,7 @@ export async function PATCH(request: Request): Promise<NextResponse> {
       // `null` limpia la columna: Prisma exige `Prisma.JsonNull` explícito
       // para no confundirlo con "no tocar este campo".
       ...(timePerDay !== undefined ? { timePerDay: timePerDay ?? Prisma.JsonNull } : {}),
+      ...(compactDays !== undefined ? { compactDays } : {}),
     },
     select: {
       avoidRepeatGroups: true,
@@ -129,6 +142,7 @@ export async function PATCH(request: Request): Promise<NextResponse> {
       swimLevel: true,
       disciplineLevels: true,
       timePerDay: true,
+      compactDays: true,
     },
   });
 
