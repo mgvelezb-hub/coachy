@@ -23,6 +23,7 @@ import { PrimaryButton } from "@/components/PrimaryButton";
 import { RegenerarMenu } from "@/components/RegenerarMenu";
 import { SectionLabel } from "@/components/SectionLabel";
 import { SeccionEntrenamiento } from "@/components/ajustes/SeccionEntrenamiento";
+import { HorarioDeEntrenamiento } from "@/components/ajustes/HorarioDeEntrenamiento";
 import { SeccionHorariosComida } from "@/components/ajustes/SeccionHorariosComida";
 import { SeccionPuntoCero } from "@/components/ajustes/SeccionPuntoCero";
 import { useTheme } from "@/context/theme";
@@ -646,6 +647,8 @@ export default function AjustesDetalleScreen() {
           )}
         </Card>
         )}
+
+        {activa === "entrenamiento" && <HorarioDeEntrenamiento me={me} />}
 
         {activa === "entrenamiento" && <SeccionEntrenamiento me={me} />}
 

@@ -1,6 +1,6 @@
 import { Clock } from "lucide-react-native";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { ActivityIndicator, Pressable, StyleSheet, Text, View } from "react-native";
+import { ActivityIndicator, Modal, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 
 import { Card } from "@/components/Card";
 import { Explicacion, TextoExplicativo } from "@/components/Explicacion";
@@ -42,6 +42,9 @@ export function SeccionHorariosComida() {
   const [guardando, setGuardando] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [avisos, setAvisos] = useState<string[]>([]);
+  // Qué tiempo de comida tiene abierto el selector rápido. Los ±15 sirven
+  // para el ajuste fino; mover una comida tres horas a punta de toques no.
+  const [eligiendo, setEligiendo] = useState<TiempoDeComida | null>(null);
 
   useEffect(() => {
     let vivo = true;
@@ -91,6 +94,25 @@ export function SeccionHorariosComida() {
       }
     },
     [guardando, tiempos],
+  );
+
+  const poner = useCallback(
+    async (slot: string, hora: string) => {
+      if (guardando) return;
+      setEligiendo(null);
+      setError(null);
+      setGuardando(true);
+      try {
+        const respuesta = await putHorariosComida({ [slot]: hora });
+        setTiempos(respuesta.tiempos);
+        setAvisos(respuesta.avisos ?? []);
+      } catch (e) {
+        setError(e instanceof ApiError ? e.message : "No se pudo poner esa hora");
+      } finally {
+        setGuardando(false);
+      }
+    },
+    [guardando],
   );
 
   const restaurar = useCallback(
@@ -154,10 +176,17 @@ export function SeccionHorariosComida() {
                 <Text style={styles.pasoTexto}>−15</Text>
               </Pressable>
 
-              <View style={styles.hora}>
+              {/* La hora es un botón: toca el número y eliges directo, sin
+                  ir de 15 en 15 desde las 7 de la mañana hasta las 3 de la
+                  tarde. Los ±15 se quedan para el ajuste fino. */}
+              <Pressable
+                onPress={() => setEligiendo(tiempo)}
+                disabled={guardando}
+                style={styles.hora}
+              >
                 <Clock size={14} color={colors.champan} strokeWidth={2} />
                 <Text style={styles.horaTexto}>{tiempo.hora}</Text>
-              </View>
+              </Pressable>
 
               <Pressable
                 onPress={() => mover(tiempo.slot, 15)}
@@ -171,6 +200,36 @@ export function SeccionHorariosComida() {
         </View>
       )}
 
+      <Modal
+        visible={eligiendo !== null}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setEligiendo(null)}
+      >
+        <Pressable style={styles.fondo} onPress={() => setEligiendo(null)}>
+          <Pressable style={styles.hoja} onPress={() => {}}>
+            <Text style={styles.hojaTitulo}>{eligiendo?.label}</Text>
+            <Text style={styles.hojaNota}>
+              Elige la hora. Si choca con otra comida te lo digo y no se guarda.
+            </Text>
+            <ScrollView style={styles.hojaLista}>
+              {HORAS.map((hora) => {
+                const actual = eligiendo?.hora === hora;
+                return (
+                  <Pressable
+                    key={hora}
+                    onPress={() => eligiendo && poner(eligiendo.slot, hora)}
+                    style={[styles.hojaOpcion, actual && styles.hojaOpcionOn]}
+                  >
+                    <Text style={[styles.hojaHora, actual && styles.hojaHoraOn]}>{hora}</Text>
+                  </Pressable>
+                );
+              })}
+            </ScrollView>
+          </Pressable>
+        </Pressable>
+      </Modal>
+
       {error && <Text style={styles.error}>{error}</Text>}
       {avisos.map((aviso) => (
         <Text key={aviso} style={styles.aviso}>
@@ -180,6 +239,23 @@ export function SeccionHorariosComida() {
     </Card>
   );
 }
+
+/**
+ * Las horas que ofrece el selector: de 04:00 a 23:45, cada 15 minutos.
+ *
+ * Empieza a las 04:00 y termina a las 23:45 porque son los mismos límites que
+ * el servidor impone (nada de madrugada): ofrecer horas que van a ser
+ * rechazadas sería enseñar una puerta que no abre.
+ */
+const HORAS: string[] = (() => {
+  const salida: string[] = [];
+  for (let minutos = 4 * 60; minutos <= 23 * 60 + 45; minutos += 15) {
+    const h = Math.floor(minutos / 60);
+    const m = minutos % 60;
+    salida.push(`${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`);
+  }
+  return salida;
+})();
 
 /** `"14:00"` más/menos minutos, sin salirse del día. `null` si no es una hora. */
 function sumaMinutos(hora: string, minutos: number): string | null {
@@ -219,6 +295,39 @@ const makeStyles = (colors: Palette) =>
     hora: { flexDirection: "row", alignItems: "center", gap: 4, minWidth: 68, justifyContent: "center" },
     horaTexto: { fontFamily: fonts.sansMedium, ...typeScale.bodySm, color: colors.marfil },
     vacio: { fontFamily: fonts.sans, ...typeScale.bodySm, color: colors.pergaminoSoft, marginTop: spacing.md },
+    fondo: {
+      flex: 1,
+      backgroundColor: "rgba(0,0,0,0.6)",
+      justifyContent: "flex-end",
+    },
+    hoja: {
+      backgroundColor: colors.cardBg,
+      borderTopLeftRadius: radius.lg,
+      borderTopRightRadius: radius.lg,
+      borderWidth: 1,
+      borderColor: colors.cardBorder,
+      padding: spacing.lg,
+      maxHeight: "70%",
+    },
+    hojaTitulo: { fontFamily: fonts.sansMedium, ...typeScale.subheading, color: colors.marfil },
+    hojaNota: {
+      fontFamily: fonts.sans,
+      ...typeScale.label,
+      color: colors.pergaminoSoft,
+      marginTop: 4,
+      marginBottom: spacing.md,
+    },
+    hojaLista: { marginTop: spacing.sm },
+    hojaOpcion: {
+      minHeight: 44,
+      justifyContent: "center",
+      paddingHorizontal: spacing.md,
+      borderRadius: radius.md,
+      marginBottom: 4,
+    },
+    hojaOpcionOn: { backgroundColor: colors.guinda },
+    hojaHora: { fontFamily: fonts.sansMedium, ...typeScale.body, color: colors.marfil },
+    hojaHoraOn: { color: colors.pergamino },
     error: { fontFamily: fonts.sans, ...typeScale.bodySm, color: colors.error, marginTop: spacing.sm },
     aviso: { fontFamily: fonts.sans, ...typeScale.label, color: colors.paloRosa, marginTop: spacing.sm },
   });

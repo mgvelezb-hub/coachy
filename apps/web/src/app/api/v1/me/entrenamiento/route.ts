@@ -3,10 +3,22 @@ import { Prisma } from "@prisma/client";
 import { z } from "zod";
 
 import { apiUser, unauthorized } from "@/lib/api/auth";
+import { materializeMealPlans } from "@/lib/coachy/menu";
 import { prisma } from "@/lib/prisma";
 import { PROPOSITOS } from "@/lib/training/replan";
 import { WEEK_DAYS } from "@/lib/training/split";
 import { DISCIPLINES, MUSCLE_GROUPS, SWIM_LEVELS } from "@/lib/training/types";
+
+/** Los cuatro horarios que reconoce el perfil (`TrainingTime` en Prisma). */
+export const TRAINING_TIMES = ["MANANA", "MEDIODIA", "TARDE", "NOCHE"] as const;
+
+/**
+ * El motor solo distingue mañana de tarde: es lo que cambia el reparto de
+ * carbohidratos del día. Mediodía cuenta como mañana y noche como tarde.
+ */
+function bloqueDelMotor(hora: string): "manana" | "tarde" {
+  return hora === "TARDE" || hora === "NOCHE" ? "tarde" : "manana";
+}
 
 /**
  * `PATCH /api/v1/me/entrenamiento` — las preferencias que cambian la rutina.
@@ -75,6 +87,24 @@ const schema = z
      * `schema.prisma` para el porqué del default.
      */
     compactDays: z.boolean().optional(),
+    /**
+     * A qué hora entrena, parejo toda la semana.
+     *
+     * Cambia la ESTRUCTURA de las comidas, no solo una etiqueta: quien
+     * entrena en la mañana desayuna antes de entrenar y come fuerte después;
+     * quien entrena de noche desayuna bajo en carbohidratos y se los guarda
+     * para la tarde. Por eso, al cambiarlo, el menú se vuelve a armar.
+     */
+    trainingTime: z.enum(TRAINING_TIMES).optional(),
+    /**
+     * Horario por día, para quien no entrena a la misma hora toda la semana:
+     * `{ "LUN": "MANANA", "MAR": "NOCHE", "MIE": "DESCANSO" }`. `null` lo
+     * limpia y vuelve a mandar el horario parejo.
+     */
+    trainingSchedule: z
+      .partialRecord(z.enum(WEEK_DAYS), z.enum([...TRAINING_TIMES, "DESCANSO"]))
+      .nullable()
+      .optional(),
   })
   .refine((value) => Object.keys(value).length > 0, { message: "no hay nada que guardar" })
   .refine(
@@ -115,6 +145,8 @@ export async function PATCH(request: Request): Promise<NextResponse> {
     disciplineLevels,
     timePerDay,
     compactDays,
+    trainingTime,
+    trainingSchedule,
   } = parsed.data;
 
   // La primaria no puede estar además en la lista de secundarias: se cobraría
@@ -134,6 +166,10 @@ export async function PATCH(request: Request): Promise<NextResponse> {
       // para no confundirlo con "no tocar este campo".
       ...(timePerDay !== undefined ? { timePerDay: timePerDay ?? Prisma.JsonNull } : {}),
       ...(compactDays !== undefined ? { compactDays } : {}),
+      ...(trainingTime !== undefined ? { trainingTime } : {}),
+      ...(trainingSchedule !== undefined
+        ? { trainingSchedule: trainingSchedule ?? Prisma.JsonNull }
+        : {}),
     },
     select: {
       avoidRepeatGroups: true,
@@ -143,8 +179,37 @@ export async function PATCH(request: Request): Promise<NextResponse> {
       disciplineLevels: true,
       timePerDay: true,
       compactDays: true,
+      trainingTime: true,
+      trainingSchedule: true,
     },
   });
 
-  return NextResponse.json(profile);
+  // Cambiar la hora de entrenar no es cambiar una etiqueta: mueve el reparto
+  // de carbohidratos del día completo (quien entrena de noche desayuna bajo
+  // en carbos y se los guarda para la tarde). Si el cambio cruza de mañana a
+  // tarde —o al revés— el menú se rearma con la MISMA semilla, así que los
+  // alimentos siguen siendo reconocibles y lo que cambia es la estructura.
+  let menuRearmado = false;
+  if (trainingTime !== undefined && bloqueDelMotor(trainingTime) !== bloqueDelMotor(user.profile.trainingTime)) {
+    try {
+      const decision = await prisma.decision.findFirst({
+        where: { userId: user.id, status: { in: ["APROBADA", "CORREGIDA"] } },
+        orderBy: { createdAt: "desc" },
+        include: { checkIn: { select: { date: true } } },
+      });
+
+      if (decision) {
+        const completo = await prisma.profile.findUniqueOrThrow({ where: { userId: user.id } });
+        await materializeMealPlans(decision, completo, { overwrite: true });
+        menuRearmado = true;
+      }
+    } catch (error) {
+      // El horario SÍ se guardó; lo que falló es rearmar el menú. Se dice en
+      // la respuesta en vez de fingir que todo salió bien: el menú viejo
+      // sigue siendo comestible, solo que con la estructura anterior.
+      console.error("[coachy] no se pudo rearmar el menú tras cambiar el horario", error);
+    }
+  }
+
+  return NextResponse.json({ ...profile, menuRearmado });
 }

@@ -2,6 +2,17 @@ import { DEFAULT_CONFIG, type EngineConfig } from './config.js';
 import { clamp } from './calc.js';
 import type { MacroTargets, MealSlot, MealSlotId, Phase, Profile } from './types.js';
 
+/**
+ * Los nombres de cada tiempo de comida.
+ *
+ * Van SIEMPRE con el nombre de la comida del dia primero y el papel de
+ * entrenamiento entre parentesis: "Desayuno (pre-entreno)", no "Pre-entreno".
+ * La razon: quien entrena en la mañana leia "Pre-entreno" a las 7:00 y tenia
+ * que traducir mentalmente que ese era su desayuno; y quien entrena de noche,
+ * al leer la misma palabra en otra plantilla, no sabia si eso reemplazaba su
+ * desayuno o se sumaba. Nadie organiza su dia en pres y posts: lo organiza en
+ * desayuno, comida y cena, y el papel de entrenamiento es una nota al margen.
+ */
 interface SlotTemplate {
   id: MealSlotId;
   label: string;
@@ -15,21 +26,21 @@ interface SlotTemplate {
 }
 
 const MORNING_4: SlotTemplate[] = [
-  { id: 'PRE', label: 'Pre-entreno', timeHint: '07:00', carbPct: 32.5, proteinPct: 22.5, fatPct: 0, freeVegetables: false, carbPctAggressive: 45 },
-  { id: 'POST', label: 'Post-entreno', timeHint: '09:30', carbPct: 37.5, proteinPct: 25, fatPct: 0, freeVegetables: false, carbPctAggressive: 55 },
+  { id: 'PRE', label: 'Desayuno (pre-entreno)', timeHint: '07:00', carbPct: 32.5, proteinPct: 22.5, fatPct: 0, freeVegetables: false, carbPctAggressive: 45 },
+  { id: 'POST', label: 'Almuerzo (post-entreno)', timeHint: '09:30', carbPct: 37.5, proteinPct: 25, fatPct: 0, freeVegetables: false, carbPctAggressive: 55 },
   { id: 'COMIDA', label: 'Comida', timeHint: '14:00', carbPct: 20, proteinPct: 25, fatPct: 50, freeVegetables: true, carbPctAggressive: 0 },
   { id: 'CENA', label: 'Cena', timeHint: '20:00', carbPct: 10, proteinPct: 27.5, fatPct: 50, freeVegetables: true, carbPctAggressive: 0 },
 ];
 
 const MORNING_3: SlotTemplate[] = [
-  { id: 'DESAYUNO', label: 'Desayuno (pre/post entreno)', timeHint: '08:00', carbPct: 70, proteinPct: 47.5, fatPct: 0, freeVegetables: false, carbPctAggressive: 100 },
+  { id: 'DESAYUNO', label: 'Desayuno (pre y post entreno)', timeHint: '08:00', carbPct: 70, proteinPct: 47.5, fatPct: 0, freeVegetables: false, carbPctAggressive: 100 },
   { id: 'COMIDA', label: 'Comida', timeHint: '14:00', carbPct: 20, proteinPct: 25, fatPct: 50, freeVegetables: true, carbPctAggressive: 0 },
   { id: 'CENA', label: 'Cena', timeHint: '20:00', carbPct: 10, proteinPct: 27.5, fatPct: 50, freeVegetables: true, carbPctAggressive: 0 },
 ];
 
 const MORNING_5: SlotTemplate[] = [
-  { id: 'PRE', label: 'Pre-entreno', timeHint: '07:00', carbPct: 30, proteinPct: 20, fatPct: 0, freeVegetables: false, carbPctAggressive: 45 },
-  { id: 'POST', label: 'Post-entreno', timeHint: '09:30', carbPct: 35, proteinPct: 22.5, fatPct: 0, freeVegetables: false, carbPctAggressive: 55 },
+  { id: 'PRE', label: 'Desayuno (pre-entreno)', timeHint: '07:00', carbPct: 30, proteinPct: 20, fatPct: 0, freeVegetables: false, carbPctAggressive: 45 },
+  { id: 'POST', label: 'Almuerzo (post-entreno)', timeHint: '09:30', carbPct: 35, proteinPct: 22.5, fatPct: 0, freeVegetables: false, carbPctAggressive: 55 },
   { id: 'COMIDA', label: 'Comida', timeHint: '14:00', carbPct: 17.5, proteinPct: 22.5, fatPct: 45, freeVegetables: true, carbPctAggressive: 0 },
   { id: 'SNACK', label: 'Colacion', timeHint: '17:30', carbPct: 10, proteinPct: 12.5, fatPct: 10, freeVegetables: false, carbPctAggressive: 0 },
   { id: 'CENA', label: 'Cena', timeHint: '20:30', carbPct: 7.5, proteinPct: 22.5, fatPct: 45, freeVegetables: true, carbPctAggressive: 0 },
@@ -38,21 +49,21 @@ const MORNING_5: SlotTemplate[] = [
 const EVENING_4: SlotTemplate[] = [
   { id: 'DESAYUNO', label: 'Desayuno (bajo carbo)', timeHint: '08:00', carbPct: 20, proteinPct: 25, fatPct: 50, freeVegetables: true, carbPctAggressive: 0 },
   { id: 'COMIDA', label: 'Comida', timeHint: '13:30', carbPct: 10, proteinPct: 27.5, fatPct: 50, freeVegetables: true, carbPctAggressive: 0 },
-  { id: 'PRE', label: 'Pre-entreno', timeHint: '17:00', carbPct: 32.5, proteinPct: 22.5, fatPct: 0, freeVegetables: false, carbPctAggressive: 45 },
-  { id: 'POST', label: 'Post-entreno (cena)', timeHint: '20:30', carbPct: 37.5, proteinPct: 25, fatPct: 0, freeVegetables: false, carbPctAggressive: 55 },
+  { id: 'PRE', label: 'Colacion (pre-entreno)', timeHint: '17:00', carbPct: 32.5, proteinPct: 22.5, fatPct: 0, freeVegetables: false, carbPctAggressive: 45 },
+  { id: 'POST', label: 'Cena (post-entreno)', timeHint: '20:30', carbPct: 37.5, proteinPct: 25, fatPct: 0, freeVegetables: false, carbPctAggressive: 55 },
 ];
 
 const EVENING_3: SlotTemplate[] = [
   { id: 'DESAYUNO', label: 'Desayuno (bajo carbo)', timeHint: '08:30', carbPct: 20, proteinPct: 30, fatPct: 60, freeVegetables: true, carbPctAggressive: 0 },
-  { id: 'PRE', label: 'Comida pre-entreno', timeHint: '14:00', carbPct: 42.5, proteinPct: 32.5, fatPct: 40, freeVegetables: true, carbPctAggressive: 45 },
-  { id: 'POST', label: 'Post-entreno (cena)', timeHint: '20:30', carbPct: 37.5, proteinPct: 37.5, fatPct: 0, freeVegetables: false, carbPctAggressive: 55 },
+  { id: 'PRE', label: 'Comida (pre-entreno)', timeHint: '14:00', carbPct: 42.5, proteinPct: 32.5, fatPct: 40, freeVegetables: true, carbPctAggressive: 45 },
+  { id: 'POST', label: 'Cena (post-entreno)', timeHint: '20:30', carbPct: 37.5, proteinPct: 37.5, fatPct: 0, freeVegetables: false, carbPctAggressive: 55 },
 ];
 
 const EVENING_5: SlotTemplate[] = [
   { id: 'DESAYUNO', label: 'Desayuno (bajo carbo)', timeHint: '08:00', carbPct: 15, proteinPct: 22.5, fatPct: 45, freeVegetables: true, carbPctAggressive: 0 },
   { id: 'COMIDA', label: 'Comida', timeHint: '13:30', carbPct: 10, proteinPct: 22.5, fatPct: 45, freeVegetables: true, carbPctAggressive: 0 },
-  { id: 'PRE', label: 'Pre-entreno', timeHint: '17:00', carbPct: 30, proteinPct: 20, fatPct: 0, freeVegetables: false, carbPctAggressive: 45 },
-  { id: 'POST', label: 'Post-entreno (cena)', timeHint: '20:30', carbPct: 35, proteinPct: 22.5, fatPct: 0, freeVegetables: false, carbPctAggressive: 55 },
+  { id: 'PRE', label: 'Colacion (pre-entreno)', timeHint: '17:00', carbPct: 30, proteinPct: 20, fatPct: 0, freeVegetables: false, carbPctAggressive: 45 },
+  { id: 'POST', label: 'Cena (post-entreno)', timeHint: '20:30', carbPct: 35, proteinPct: 22.5, fatPct: 0, freeVegetables: false, carbPctAggressive: 55 },
   { id: 'SNACK', label: 'Colacion', timeHint: '22:00', carbPct: 10, proteinPct: 12.5, fatPct: 10, freeVegetables: false, carbPctAggressive: 0 },
 ];
 

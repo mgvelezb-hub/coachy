@@ -62,6 +62,8 @@ export type MeResponse = {
     ageRange?: string | null;
     /** Momento del día en que entrena. */
     trainingTime?: "MANANA" | "MEDIODIA" | "TARDE" | "NOCHE";
+    /** Horario por día para quien no entrena siempre a la misma hora. */
+    trainingSchedule?: unknown;
     /** Cómo acomodó su Resumen. El catálogo de paneles vive en la app. */
     summaryLayout?: unknown;
     /** Referencia numérica del objetivo, si capturó una. */
@@ -817,7 +819,19 @@ export type PreferenciasEntrenamiento = {
   timePerDay?: Record<string, number> | null;
   /** Combinar disciplinas compatibles el mismo día, o darle a cada una el suyo (Fase 10). */
   compactDays?: boolean;
+  /**
+   * A qué hora entrena, parejo toda la semana. Cambia la ESTRUCTURA de las
+   * comidas —quien entrena de noche desayuna bajo en carbohidratos— así que
+   * al cambiarlo el servidor rearma el menú y responde `menuRearmado: true`.
+   */
+  trainingTime?: TrainingTime;
+  /** Horario por día para quien no entrena siempre a la misma hora. `null` lo limpia. */
+  trainingSchedule?: Partial<Record<string, TrainingTime | "DESCANSO">> | null;
 };
+
+/** Los cuatro horarios del perfil. */
+export const TRAINING_TIMES = ["MANANA", "MEDIODIA", "TARDE", "NOCHE"] as const;
+export type TrainingTime = (typeof TRAINING_TIMES)[number];
 
 export type PreferenciasEntrenamientoResponse = {
   avoidRepeatGroups: MuscleGroup[];
@@ -825,6 +839,10 @@ export type PreferenciasEntrenamientoResponse = {
   otherDisciplines: DisciplineLoad[];
   swimLevel: SwimLevel;
   compactDays?: boolean;
+  trainingTime?: TrainingTime;
+  trainingSchedule?: Record<string, string> | null;
+  /** true si el cambio de horario obligó a rearmar el menú de la semana. */
+  menuRearmado?: boolean;
 };
 
 /**
