@@ -156,6 +156,30 @@ export default function EnVivoScreen() {
   >(null);
   const [borrador, setBorrador] = useState("");
 
+  /**
+   * Calentamiento dinámico, antes del primer ejercicio (feedback del dueño,
+   * 2026-09: "el calentamiento debería ser previo al primer ejercicio").
+   *
+   * `fase` se decide una sola vez al cargar la sesión (ver `cargar`): abre en
+   * "calentamiento" solo si el plan lo trae y todavía no hay ninguna serie
+   * cerrada. Nunca es obligatorio — "Saltar calentamiento" salta directo a
+   * "entrenando" en cualquier momento.
+   */
+  const [fase, setFase] = useState<"calentamiento" | "entrenando">("entrenando");
+  const [calentamientoIniciado, setCalentamientoIniciado] = useState(false);
+  const [pasoCalentamiento, setPasoCalentamiento] = useState(0);
+  /**
+   * Hora de término del paso actual, igual que `descansoHasta` en
+   * `sesion-viva.ts`: una HORA absoluta, no un contador. iOS congela los
+   * timers con la app en el fondo, así que el tiempo real sale de comparar
+   * esta hora contra el reloj de pared, no de ir restando segundo a segundo.
+   * `null` = el paso actual no está corriendo (calentamiento sin empezar, o
+   * ya terminado).
+   */
+  const [calentamientoHasta, setCalentamientoHasta] = useState<number | null>(null);
+  const [ahoraCalentamiento, setAhoraCalentamiento] = useState(() => Date.now());
+  const calentamientoIntervalo = useRef<ReturnType<typeof setInterval> | null>(null);
+
   // El reloj de pared. El descanso se calcula contra ÉL y no contra un
   // contador que se congela cuando iOS suspende la app.
   const [ahora, setAhora] = useState(() => Date.now());
@@ -257,26 +281,34 @@ export default function EnVivoScreen() {
       // descanso ya venció mientras estabas afuera, entra vencido y la
       // pantalla lo apaga en el primer render, que es lo correcto.
       const enCurso = await leeSesionEnCurso(encontrada.workoutId);
+      let estadoFinal = base;
       if (enCurso && !base.terminada) {
         const ejercicio = ejercicios[enCurso.ejercicioActual];
         const serieValida = ejercicio?.series[enCurso.serieActual] !== undefined;
-        setEstado(
-          serieValida
-            ? {
-                ...base,
-                ejercicioActual: enCurso.ejercicioActual,
-                serieActual: enCurso.serieActual,
-                descansoHasta: enCurso.descansoHasta,
-              }
-            : base,
-        );
         if (serieValida) {
+          estadoFinal = {
+            ...base,
+            ejercicioActual: enCurso.ejercicioActual,
+            serieActual: enCurso.serieActual,
+            descansoHasta: enCurso.descansoHasta,
+          };
           setReps(enCurso.reps);
           setPeso(enCurso.pesoKg);
         }
-      } else {
-        setEstado(base);
       }
+      setEstado(estadoFinal);
+
+      // El calentamiento solo se abre si el plan lo trae y todavía no hay
+      // ninguna serie cerrada: volver a entrar con la sesión ya empezada no
+      // puede mandar de regreso al calentamiento.
+      setFase(
+        encontrada.warmup !== null && progreso(estadoFinal).hechas === 0
+          ? "calentamiento"
+          : "entrenando",
+      );
+      setCalentamientoIniciado(false);
+      setPasoCalentamiento(0);
+      setCalentamientoHasta(null);
     } catch {
       setError("No se pudo abrir tu sesión.");
     }
@@ -324,6 +356,37 @@ export default function EnVivoScreen() {
       }
     };
   }, [estado?.descansoHasta === null]);
+
+  // El reloj del paso de calentamiento en curso. Mismo patrón que el del
+  // descanso arriba: el intervalo solo empuja la hora, nunca resta segundos.
+  useEffect(() => {
+    if (calentamientoHasta === null) {
+      if (calentamientoIntervalo.current) {
+        clearInterval(calentamientoIntervalo.current);
+        calentamientoIntervalo.current = null;
+      }
+      return;
+    }
+
+    if (calentamientoIntervalo.current) return;
+
+    calentamientoIntervalo.current = setInterval(() => setAhoraCalentamiento(Date.now()), TICK_MS);
+
+    return () => {
+      if (calentamientoIntervalo.current) {
+        clearInterval(calentamientoIntervalo.current);
+        calentamientoIntervalo.current = null;
+      }
+    };
+  }, [calentamientoHasta === null]);
+
+  // Cuando el paso actual se agota, avanza solo al siguiente —o, si era el
+  // último, pasa a la primera serie— con una háptica marcando el cambio.
+  useEffect(() => {
+    if (calentamientoHasta === null || ahoraCalentamiento < calentamientoHasta) return;
+    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    avanzarCalentamiento(pasoCalentamiento + 1);
+  }, [calentamientoHasta, ahoraCalentamiento]);
 
   // Al volver de otra app —el video de la técnica, un mensaje— la hora se
   // pone al día de inmediato, sin esperar el siguiente tick.
@@ -461,6 +524,39 @@ export default function EnVivoScreen() {
       appState.remove();
     };
   }, [conReloj, recogerDelReloj]);
+
+  /**
+   * Va al paso `indice` del calentamiento. Si ya no hay paso en ese índice
+   * —se acabó la lista— cierra el calentamiento y pasa a la primera serie,
+   * que es exactamente lo que hace "Saltar calentamiento".
+   */
+  function avanzarCalentamiento(indice: number) {
+    const pasos = sesion?.warmup?.pasos ?? [];
+    const siguiente = pasos[indice];
+    if (!siguiente) {
+      setCalentamientoHasta(null);
+      setFase("entrenando");
+      return;
+    }
+    setPasoCalentamiento(indice);
+    setCalentamientoHasta(Date.now() + siguiente.segundos * 1000);
+  }
+
+  function empezarCalentamiento() {
+    setCalentamientoIniciado(true);
+    avanzarCalentamiento(0);
+  }
+
+  function saltarPasoCalentamiento() {
+    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    avanzarCalentamiento(pasoCalentamiento + 1);
+  }
+
+  /** Nunca es obligatorio: pasa directo a la primera serie, desde donde sea. */
+  function saltarTodoElCalentamiento() {
+    setCalentamientoHasta(null);
+    setFase("entrenando");
+  }
 
   function marcarSerie() {
     if (!estado || !draft || !sesion || estado.terminada) return;
@@ -670,6 +766,29 @@ export default function EnVivoScreen() {
     void guardaPreferenciaDePeso({ unidad, paso: siguiente });
   }
 
+  /**
+   * Terminar la sesión AQUÍ, con lo que se hizo.
+   *
+   * El caso que lo pidió: una sesión de 26 series a la que ya no se le podía
+   * más, y la única salida era darle "serie hecha" a todo lo que faltaba —
+   * capturando series que nunca pasaron, en cero, solo para poder cerrar.
+   * Eso ensucia el historial y la progresión con datos falsos.
+   *
+   * Aquí las series que no se hicieron se quedan SIN capturar, que es la
+   * verdad: la sesión cierra con lo que sí pasó, y la semana siguiente
+   * arranca de esos números reales.
+   */
+  const [confirmandoFin, setConfirmandoFin] = useState(false);
+
+  async function terminarAqui() {
+    if (!draft) return;
+    setConfirmandoFin(false);
+    await persistir({ ...draft, completedAt: new Date().toISOString() });
+    await olvidaSesionEnCurso();
+    void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    router.replace("/rutinas");
+  }
+
   async function cerrarSesion() {
     if (!draft) return;
     await persistir({ ...draft, completedAt: new Date().toISOString() });
@@ -685,6 +804,13 @@ export default function EnVivoScreen() {
   const ejercicio = estado.ejercicios[estado.ejercicioActual];
   const restante = restanteSeg(estado, ahora);
   const descansando = restante !== null && restante > 0;
+
+  const warmup = sesion.warmup;
+  const enCalentamiento = !estado.terminada && fase === "calentamiento" && warmup !== null;
+  const restanteCalentamiento =
+    calentamientoHasta === null
+      ? null
+      : Math.max(0, Math.ceil((calentamientoHasta - ahoraCalentamiento) / 1000));
 
   return (
     <SafeAreaView style={styles.screen} edges={["top", "bottom"]}>
@@ -727,6 +853,58 @@ export default function EnVivoScreen() {
             <Text style={styles.botonPrincipalTexto}>Cerrar sesión</Text>
           </Pressable>
         </ScrollView>
+      ) : enCalentamiento && warmup ? (
+        <ScrollView contentContainerStyle={styles.contenido}>
+          <Text style={styles.ejercicioPaso}>CALENTAMIENTO</Text>
+          <Text style={styles.ejercicioNombre}>
+            Antes de {ejercicio?.nombre ?? "tu primer ejercicio"}
+          </Text>
+
+          {!calentamientoIniciado ? (
+            <View style={styles.serieCaja}>
+              <Text style={styles.seriePlan}>
+                {Math.round(warmup.totalSeg / 60)} min para llegar lista al primer ejercicio:
+                pulso arriba y los músculos de hoy en movimiento, sin estirar estático.
+              </Text>
+              <View style={styles.lista}>
+                {warmup.pasos.map((paso, index) => (
+                  <View key={index} style={styles.listaFila}>
+                    <Text style={styles.listaTexto}>{paso.nombre}</Text>
+                    <Text style={styles.listaValor}>{paso.segundos} s</Text>
+                  </View>
+                ))}
+              </View>
+              <Pressable onPress={empezarCalentamiento} style={styles.botonPrincipal}>
+                <Check size={22} color={colors.pergamino} strokeWidth={2.5} />
+                <Text style={styles.botonPrincipalTexto}>Empezar calentamiento</Text>
+              </Pressable>
+              <Pressable onPress={saltarTodoElCalentamiento} hitSlop={8}>
+                <Text style={styles.cambiarEnlace}>Saltar calentamiento</Text>
+              </Pressable>
+            </View>
+          ) : (
+            <View style={styles.descanso}>
+              <Timer size={20} color={colors.champan} strokeWidth={2} />
+              <Text style={styles.descansoReloj}>{formatoReloj(restanteCalentamiento ?? 0)}</Text>
+              <Text style={styles.descansoTexto}>
+                {warmup.pasos[pasoCalentamiento]?.nombre ?? ""}
+              </Text>
+              <Text style={styles.progresoTexto}>
+                Paso {pasoCalentamiento + 1} de {warmup.pasos.length}
+              </Text>
+
+              <View style={styles.descansoBotones}>
+                <Pressable onPress={saltarPasoCalentamiento} style={styles.botonSecundario}>
+                  <SkipForward size={16} color={colors.marfil} strokeWidth={2} />
+                  <Text style={styles.botonSecundarioTexto}>Saltar paso</Text>
+                </Pressable>
+                <Pressable onPress={saltarTodoElCalentamiento} style={styles.botonSecundario}>
+                  <Text style={styles.botonSecundarioTexto}>Saltar calentamiento</Text>
+                </Pressable>
+              </View>
+            </View>
+          )}
+        </ScrollView>
       ) : (
         <ScrollView contentContainerStyle={styles.contenido}>
           <Text style={styles.ejercicioPaso}>
@@ -748,6 +926,10 @@ export default function EnVivoScreen() {
               que hiciste
             </Text>
 
+            {/* Un campo por renglón: compartir fila encimaba los botones de
+                reps con los de peso, y los chips de salto parecían de las
+                reps. Cada campo con sus controles, y los del peso PEGADOS al
+                peso. */}
             <View style={styles.campos}>
               <Campo
                 etiqueta="Reps que hiciste"
@@ -756,46 +938,48 @@ export default function EnVivoScreen() {
                 onMas={() => setReps((valor) => valor + 1)}
                 onTocarValor={() => abrirCaptura("reps", null)}
               />
-              <Campo
-                etiqueta={unidad === "kg" ? "Kilos" : "Libras"}
-                valor={peso === null ? "—" : formatoPeso(aUnidad(peso, unidad))}
-                onMenos={() => setPeso((valor) => ajustaPeso(valor, -paso, unidad))}
-                onMas={() => setPeso((valor) => ajustaPeso(valor, paso, unidad))}
-                onTocarValor={() => abrirCaptura("peso", null)}
-              />
-            </View>
 
-            {/* El salto de los botones y la unidad, a un toque: la barra sube
-                de 2.5 en 2.5 pero la mancuerna de 0.5, y hay gimnasios donde
-                los discos están marcados en libras. Tocar el número teclea la
-                cantidad exacta, que es lo más rápido cuando el salto es grande. */}
-            <View style={styles.ajustes}>
-              <View style={styles.ajusteGrupo}>
-                {pasosDe(unidad).map((opcion) => (
-                  <Pressable
-                    key={opcion}
-                    onPress={() => cambiarPaso(opcion)}
-                    style={[styles.ajusteChip, paso === opcion && styles.ajusteChipOn]}
-                  >
-                    <Text style={[styles.ajusteTexto, paso === opcion && styles.ajusteTextoOn]}>
-                      ±{formatoPeso(opcion)}
-                    </Text>
-                  </Pressable>
-                ))}
-              </View>
+              <View style={styles.campoPeso}>
+                <Campo
+                  etiqueta={unidad === "kg" ? "Kilos" : "Libras"}
+                  valor={peso === null ? "—" : formatoPeso(aUnidad(peso, unidad))}
+                  onMenos={() => setPeso((valor) => ajustaPeso(valor, -paso, unidad))}
+                  onMas={() => setPeso((valor) => ajustaPeso(valor, paso, unidad))}
+                  onTocarValor={() => abrirCaptura("peso", null)}
+                />
+                {/* El salto de los botones y la unidad del PESO. La barra sube
+                    de 2.5 en 2.5 pero la mancuerna de 0.5, y hay gimnasios con
+                    los discos en libras. Tocar el número teclea la cantidad
+                    exacta. */}
+                <View style={styles.ajustes}>
+                  <View style={styles.ajusteGrupo}>
+                    {pasosDe(unidad).map((opcion) => (
+                      <Pressable
+                        key={opcion}
+                        onPress={() => cambiarPaso(opcion)}
+                        style={[styles.ajusteChip, paso === opcion && styles.ajusteChipOn]}
+                      >
+                        <Text style={[styles.ajusteTexto, paso === opcion && styles.ajusteTextoOn]}>
+                          ±{formatoPeso(opcion)}
+                        </Text>
+                      </Pressable>
+                    ))}
+                  </View>
 
-              <View style={styles.ajusteGrupo}>
-                {(["kg", "lb"] as const).map((opcion) => (
-                  <Pressable
-                    key={opcion}
-                    onPress={() => cambiarUnidad(opcion)}
-                    style={[styles.ajusteChip, unidad === opcion && styles.ajusteChipOn]}
-                  >
-                    <Text style={[styles.ajusteTexto, unidad === opcion && styles.ajusteTextoOn]}>
-                      {opcion}
-                    </Text>
-                  </Pressable>
-                ))}
+                  <View style={styles.ajusteGrupo}>
+                    {(["kg", "lb"] as const).map((opcion) => (
+                      <Pressable
+                        key={opcion}
+                        onPress={() => cambiarUnidad(opcion)}
+                        style={[styles.ajusteChip, unidad === opcion && styles.ajusteChipOn]}
+                      >
+                        <Text style={[styles.ajusteTexto, unidad === opcion && styles.ajusteTextoOn]}>
+                          {opcion}
+                        </Text>
+                      </Pressable>
+                    ))}
+                  </View>
+                </View>
               </View>
             </View>
           </View>
@@ -902,6 +1086,32 @@ export default function EnVivoScreen() {
               </Pressable>
             ))}
           </View>
+
+          {avance.hechas > 0 && (
+            <View style={styles.terminarCaja}>
+              {confirmandoFin ? (
+                <>
+                  <Text style={styles.terminarPregunta}>
+                    ¿Cerrar con {avance.hechas} de {avance.total} series? Las que faltan se quedan
+                    sin registrar — no se inventan ceros.
+                  </Text>
+                  <View style={styles.terminarBotones}>
+                    <Pressable onPress={() => setConfirmandoFin(false)} style={styles.botonSecundario}>
+                      <Text style={styles.botonSecundarioTexto}>Seguir</Text>
+                    </Pressable>
+                    <Pressable onPress={() => void terminarAqui()} style={styles.botonSecundario}>
+                      <Check size={16} color={colors.marfil} strokeWidth={2} />
+                      <Text style={styles.botonSecundarioTexto}>Sí, terminar</Text>
+                    </Pressable>
+                  </View>
+                </>
+              ) : (
+                <Pressable onPress={() => setConfirmandoFin(true)} hitSlop={8}>
+                  <Text style={styles.terminarEnlace}>Hasta aquí llegué hoy · terminar mi sesión</Text>
+                </Pressable>
+              )}
+            </View>
+          )}
 
           <Text style={styles.nota}>
             {conReloj
@@ -1063,7 +1273,8 @@ const makeStyles = (colors: Palette) =>
       gap: spacing.md,
     },
     serieEtiqueta: { fontFamily: fonts.sansSemiBold, ...typeScale.heading, color: colors.champan },
-    campos: { flexDirection: "row", gap: spacing.md },
+    campos: { gap: spacing.md },
+    campoPeso: { gap: spacing.sm },
     campo: { flex: 1, gap: spacing.xs },
     campoEtiqueta: { fontFamily: fonts.sansMedium, ...typeScale.bodySm, color: colors.paloRosa },
     campoFila: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
@@ -1102,6 +1313,16 @@ const makeStyles = (colors: Palette) =>
     ajusteTexto: { fontFamily: fonts.sansMedium, ...typeScale.label, color: colors.marfil },
     ajusteTextoOn: { color: colors.pergamino },
     listaCorregir: { fontFamily: fonts.sans, ...typeScale.label, color: colors.champan },
+    terminarCaja: { marginTop: spacing.lg, gap: spacing.sm },
+    terminarEnlace: {
+      fontFamily: fonts.sansMedium,
+      ...typeScale.bodySm,
+      color: colors.champan,
+      textAlign: "center",
+      paddingVertical: spacing.sm,
+    },
+    terminarPregunta: { fontFamily: fonts.sans, ...typeScale.bodySm, color: colors.marfil },
+    terminarBotones: { flexDirection: "row", gap: spacing.sm },
     campoValorCaja: { minWidth: 96, alignItems: "center", justifyContent: "center", minHeight: 44 },
     tecladoFondo: {
       flex: 1,

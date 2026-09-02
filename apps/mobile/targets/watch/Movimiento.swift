@@ -25,6 +25,11 @@ final class Movimiento: ObservableObject {
     private var muestra: [Double] = []
     private var arranque: Date?
 
+    /// Oyente en vivo de cada magnitud, a 50 Hz. Lo usa el contador de
+    /// repeticiones: la grabación completa sigue viajando al teléfono para
+    /// calibrar, pero el conteo necesita ver la señal MIENTRAS pasa.
+    var alMuestrear: ((Double) -> Void)?
+
     /// `true` si el reloj puede grabar movimiento en este momento.
     var disponible: Bool { manager.isDeviceMotionAvailable }
 
@@ -40,7 +45,9 @@ final class Movimiento: ObservableObject {
             let magnitud = (a.x * a.x + a.y * a.y + a.z * a.z).squareRoot()
             // Tres decimales: el sensor no es más preciso que eso y el JSON
             // pesa la mitad.
-            self.muestra.append((magnitud * 1000).rounded() / 1000)
+            let redondeada = (magnitud * 1000).rounded() / 1000
+            self.muestra.append(redondeada)
+            self.alMuestrear?(redondeada)
 
             // Tope de un minuto (3 000 muestras a 50 Hz). No es prudencia: es
             // el límite de 64 KB por mensaje de WatchConnectivity. Una serie de

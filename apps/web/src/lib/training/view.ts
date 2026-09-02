@@ -22,7 +22,7 @@ import { alternativesFor, type ExerciseAlternative } from "@/lib/training/substi
 import { mondayOf, sundayEndOf } from "@/lib/training/generate";
 import { prefillSets } from "@/lib/training/progression";
 import { SCHEMES } from "@/lib/training/schemes";
-import type { PlannedExercise } from "@/lib/training/types";
+import type { PlannedExercise, Warmup } from "@/lib/training/types";
 
 /**
  * Lo que el modo gimnasio necesita para funcionar sin red: la semana entera,
@@ -63,6 +63,11 @@ export type SessionView = {
    * decisión sigue siendo de quien tiene la barra en las manos.
    */
   readinessNote: string | null;
+  /**
+   * Calentamiento dinámico previo al primer ejercicio. `null` en sesiones
+   * materializadas antes de esta fase — la app simplemente no lo enseña.
+   */
+  warmup: Warmup | null;
   exercises: SessionExerciseView[];
 };
 
@@ -127,6 +132,7 @@ export async function weekView(
       cycleNote: cycleNoteForProfile(profile, date),
       // El sueño de anoche solo habla de la sesión de hoy.
       readinessNote: date === today ? readinessNote(sleepMin) : null,
+      warmup: plan.warmup,
       exercises: plan.exercises.map((exercise) => {
         const previous = last[exercise.name] ?? null;
         const scheme = SCHEMES[exercise.scheme] ?? SCHEMES.PIRAMIDAL;

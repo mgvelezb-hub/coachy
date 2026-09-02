@@ -51,6 +51,10 @@ function profile(overrides: Partial<TrainingProfile> = {}): TrainingProfile {
     // (Fases 1-3). Las pruebas dedicadas de la Fase 10 viven en
     // `training-disciplines.test.ts`, que sí la enciende explícitamente.
     compactDays: false,
+    // "RECOMENDADO" a propósito: estas pruebas fijan el comportamiento de
+    // siempre (la rotación). Las pruebas dedicadas de la preferencia fija
+    // viven en el describe "preferencia de esquema fijo" más abajo.
+    schemePreference: "RECOMENDADO",
     ...overrides,
   };
 }
@@ -332,7 +336,12 @@ describe("rotación de esquemas", () => {
       new Date("2026-01-26T12:00:00"), // ISO 5 → vuelve a empezar
     ];
     expect(weeks.map(isoWeekNumber)).toEqual([1, 2, 3, 4, 5]);
-    expect(weeks.map(schemeForWeek)).toEqual([
+    // `(date) => schemeForWeek(date)` y no `schemeForWeek` a secas: desde que
+    // acepta una `preference` opcional como segundo parámetro, pasarla
+    // directo a `.map` le colaría el índice del arreglo ahí (`schemeForWeek`
+    // lo tolera igual — cualquier valor fuera de `SCHEME_PREFERENCES` cae a
+    // `RECOMENDADO` — pero esta prueba no depende de esa tolerancia).
+    expect(weeks.map((date) => schemeForWeek(date))).toEqual([
       "PIRAMIDAL",
       "FUERZA",
       "METABOLICO",
@@ -360,16 +369,99 @@ describe("rotación de esquemas", () => {
   });
 });
 
+describe("preferencia de esquema fijo", () => {
+  it("RECOMENDADO no cambia la rotación: dos semanas ISO distintas dan esquemas distintos, igual que hoy", () => {
+    const semanaUno = generate(profile({ schemePreference: "RECOMENDADO" }), [], new Date("2026-01-05T12:00:00"));
+    const semanaDos = generate(profile({ schemePreference: "RECOMENDADO" }), [], new Date("2026-01-12T12:00:00"));
+    expect(semanaUno.scheme).toBe("FUERZA");
+    expect(semanaDos.scheme).toBe("METABOLICO");
+    expect(semanaUno.scheme).not.toBe(semanaDos.scheme);
+  });
+
+  it("FUERZA fija el esquema FUERZA todas las semanas, sin importar la rotación", () => {
+    const semanas = [
+      new Date("2025-12-29T12:00:00"), // ISO 1 → rotación daría PIRAMIDAL
+      new Date("2026-01-05T12:00:00"), // ISO 2 → rotación daría FUERZA
+      new Date("2026-01-12T12:00:00"), // ISO 3 → rotación daría METABOLICO
+    ].map((weekStart) => generate(profile({ schemePreference: "FUERZA" }), [], weekStart));
+
+    expect(semanas.map((week) => week.scheme)).toEqual(["FUERZA", "FUERZA", "FUERZA"]);
+    for (const week of semanas) {
+      for (const workout of week.workouts) {
+        for (const exercise of workout.exercises) {
+          // Los de volumen (9 series) y los de rehab siguen su propia regla;
+          // esta prueba solo pide que nadie normal se salga de FUERZA.
+          if (exercise.scheme !== "VOLUMEN_9" && exercise.scheme !== "REHAB") {
+            expect(exercise.scheme).toBe("FUERZA");
+          }
+        }
+      }
+    }
+  });
+
+  it("HIPERTROFIA fija RANGO_MEDIO (no hay esquema propio de hipertrofia en el catálogo)", () => {
+    const week = generate(profile({ schemePreference: "HIPERTROFIA" }), [], new Date("2026-01-05T12:00:00"));
+    expect(week.scheme).toBe("RANGO_MEDIO");
+  });
+
+  it("METABOLICO fija el esquema METABOLICO todas las semanas", () => {
+    const week = generate(profile({ schemePreference: "METABOLICO" }), [], new Date("2025-12-29T12:00:00"));
+    expect(week.scheme).toBe("METABOLICO");
+  });
+
+  it("REHAB le gana a la preferencia: la zona lesionada no se mueve a FUERZA", () => {
+    const week = generate(
+      profile({ liftingDays: 5, conditions: ["lesion_rodilla"], schemePreference: "FUERZA" }),
+    );
+    const legDay = week.workouts.find((w) => w.dayKind.startsWith("PIERNA"));
+    const legExercises = (legDay?.exercises ?? []).filter((e) => e.muscleGroup === "PIERNA");
+    expect(legExercises.length).toBeGreaterThan(0);
+    for (const exercise of legExercises) {
+      expect(exercise.scheme).toBe("REHAB");
+    }
+  });
+
+  it("un valor desconocido de preferencia se trata como RECOMENDADO (parse tolerante)", () => {
+    // Simula lo que hace `toTrainingProfile` con una fila vieja o corrupta:
+    // cualquier cosa fuera de `SCHEME_PREFERENCES` cae de vuelta a la
+    // rotación. Aquí se fuerza el tipo porque el caso de uso real (una
+    // columna `TEXT` sin validar) no puede expresarse con el tipo estricto.
+    const week = generate(
+      profile({ schemePreference: "PESO_MEDIO" as unknown as TrainingProfile["schemePreference"] }),
+      [],
+      new Date("2026-01-12T12:00:00"),
+    );
+    expect(week.scheme).toBe("METABOLICO");
+  });
+});
+
 describe("calentamiento", () => {
-  it("el primer ejercicio abre con series de calentamiento de reps altas", () => {
+  it("el primer ejercicio abre con 1 sola serie de aproximación de 10-12 reps", () => {
     const week = generate(profile());
     for (const workout of week.workouts) {
       const [first, ...rest] = workout.exercises;
       const warmups = first?.sets.filter((s) => s.warmup) ?? [];
-      expect(warmups).toHaveLength(2);
-      expect(warmups.every((s) => s.reps >= 20 && s.reps <= 50)).toBe(true);
+      expect(warmups).toHaveLength(1);
+      expect(warmups.every((s) => s.reps >= 10 && s.reps <= 12)).toBe(true);
       expect(warmups.every((s) => s.weightKg === null)).toBe(true);
       expect(rest.every((e) => e.sets.every((s) => !s.warmup))).toBe(true);
+    }
+  });
+
+  it("cada sesión trae su calentamiento dinámico: empieza con elevar el pulso, dura 6-8 min", () => {
+    const week = generate(profile());
+    for (const workout of week.workouts) {
+      expect(workout.warmup.pasos.length).toBeGreaterThan(0);
+      expect(workout.warmup.pasos[0]?.nombre).toBe(
+        "Eleva el pulso: caminadora, cuerda o saltos suaves",
+      );
+      expect(workout.warmup.pasos[0]?.segundos).toBe(120);
+      expect(workout.warmup.totalSeg).toBeGreaterThanOrEqual(6 * 60);
+      expect(workout.warmup.totalSeg).toBeLessThanOrEqual(8 * 60);
+      for (const paso of workout.warmup.pasos) {
+        expect(paso.segundos).toBeGreaterThanOrEqual(20);
+        expect(paso.segundos).toBeLessThanOrEqual(120);
+      }
     }
   });
 });

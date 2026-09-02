@@ -14,11 +14,16 @@ import { SCHEMES } from "@/lib/training/schemes";
 import type { TargetSet } from "@/lib/training/types";
 
 /**
- * El calentamiento y el prellenado, que son las dos cosas que la atleta ve
- * primero al abrir un ejercicio en el gimnasio.
+ * La serie de aproximación y el prellenado, que son las dos cosas que la
+ * atleta ve primero al abrir el primer ejercicio en el gimnasio.
  *
- * El bug que originó estas pruebas: el calentamiento se pintaba idéntico a la
- * serie 1 — mismas reps, mismo peso — así que no calentaba nada.
+ * El bug que originó estas pruebas: el "calentamiento" se pintaba idéntico a
+ * la serie 1 — mismas reps, mismo peso — así que no calentaba nada. La
+ * solución de entonces (reps altísimas, 20-50) generó una queja nueva del
+ * dueño: se veía y se sentía igual que el primer ejercicio con más
+ * repeticiones. Desde 2026-09 la movilidad general vive ANTES de la sesión
+ * (`calentamiento.ts`); lo que queda aquí es solo la serie de aproximación al
+ * peso de trabajo — 10-12 reps al ~50%, una sola.
  */
 
 function last(overrides: Partial<LastPerformance> = {}): LastPerformance {
@@ -33,59 +38,51 @@ function last(overrides: Partial<LastPerformance> = {}): LastPerformance {
   };
 }
 
-describe("calentamiento", () => {
-  it("nunca repite las reps de la serie más larga del esquema", () => {
+describe("serie de aproximación", () => {
+  it("las reps caen siempre en el rango 10-12, para cualquier esquema", () => {
     for (const scheme of Object.values(SCHEMES)) {
       const reps = warmupRepsFor(scheme);
-      expect(reps).toBeGreaterThan(Math.max(...scheme.reps));
       expect(reps).toBeGreaterThanOrEqual(WARMUP_REPS_MIN);
       expect(reps).toBeLessThanOrEqual(WARMUP_REPS_MAX);
     }
   });
 
-  it("en metabólico calienta por encima de las 30 reps de la serie 1", () => {
-    // El caso del reporte: 3×30-28-25 con calentamiento de 30 reps se veía igual.
-    expect(warmupRepsFor(SCHEMES.METABOLICO)).toBe(40);
-  });
+  it("pesa ~50% del peso de trabajo, al disco de 2.5", () => {
+    const sets = buildWarmupSets(SCHEMES.FUERZA, 60, 1);
 
-  it("pesa entre el 40% y el 50% del peso de trabajo, al disco de 2.5", () => {
-    const sets = buildWarmupSets(SCHEMES.FUERZA, 60, 2);
-
-    expect(sets).toHaveLength(2);
-    expect(sets.map((set) => set.weightKg)).toEqual([25, 30]);
-    expect(sets.every((set) => set.warmup)).toBe(true);
-    for (const set of sets) {
-      expect(roundPlate(set.weightKg as number)).toBe(set.weightKg);
-      expect(set.weightKg as number).toBeLessThan(60 * 0.55);
-    }
+    expect(sets).toHaveLength(1);
+    expect(sets[0]?.weightKg).toBe(30);
+    expect(sets[0]?.warmup).toBe(true);
+    expect(sets[0]?.reps).toBeGreaterThanOrEqual(WARMUP_REPS_MIN);
+    expect(sets[0]?.reps).toBeLessThanOrEqual(WARMUP_REPS_MAX);
+    expect(roundPlate(sets[0]?.weightKg as number)).toBe(sets[0]?.weightKg);
   });
 
   it("deja el peso vacío cuando no hay historial: no se inventa una carga", () => {
-    const sets = buildWarmupSets(SCHEMES.PIRAMIDAL, null, 2);
+    const sets = buildWarmupSets(SCHEMES.PIRAMIDAL, null, 1);
     expect(sets.every((set) => set.weightKg === null)).toBe(true);
   });
 
-  it("el plan del ejercicio nunca empata calentamiento con serie 1", () => {
+  it("el plan del ejercicio nunca empata la aproximación con la serie 1", () => {
     for (const scheme of Object.values(SCHEMES)) {
-      const sets = buildTargetSets(scheme, 80, { warmupSets: 2 });
+      const sets = buildTargetSets(scheme, 80, { warmupSets: 1 });
       const warmups = sets.filter((set) => set.warmup);
       const working = sets.filter((set) => !set.warmup);
       const first = working[0] as TargetSet;
 
-      expect(warmups).toHaveLength(2);
-      for (const warmup of warmups) {
-        const sameReps = warmup.reps === first.reps;
-        const sameWeight = warmup.weightKg === first.weightKg;
-        expect(sameReps && sameWeight).toBe(false);
-        expect(warmup.weightKg as number).toBeLessThan(first.weightKg as number);
-      }
+      expect(warmups).toHaveLength(1);
+      const warmup = warmups[0] as TargetSet;
+      const sameReps = warmup.reps === first.reps;
+      const sameWeight = warmup.weightKg === first.weightKg;
+      expect(sameReps && sameWeight).toBe(false);
+      expect(warmup.weightKg as number).toBeLessThan(first.weightKg as number);
     }
   });
 });
 
 describe("prellenado por serie", () => {
   it("escala el peso serie a serie en piramidal, no repite el mismo en las 5", () => {
-    const empty = buildTargetSets(SCHEMES.PIRAMIDAL, null, { warmupSets: 2 });
+    const empty = buildTargetSets(SCHEMES.PIRAMIDAL, null, { warmupSets: 1 });
     const filled = prefillSets({ name: "Sentadilla" }, SCHEMES.PIRAMIDAL, empty, last());
 
     const working = filled.filter((set) => !set.warmup).map((set) => set.weightKg as number);
@@ -137,25 +134,24 @@ describe("prellenado por serie", () => {
   });
 
   it("no toca lo que el plan ya traía escrito", () => {
-    const planned = buildTargetSets(SCHEMES.PIRAMIDAL, 100, { warmupSets: 2 });
+    const planned = buildTargetSets(SCHEMES.PIRAMIDAL, 100, { warmupSets: 1 });
     const filled = prefillSets({ name: "Sentadilla" }, SCHEMES.PIRAMIDAL, planned, last());
     expect(filled).toEqual(planned);
   });
 
   it("sin historial deja los campos vacíos", () => {
-    const empty = buildTargetSets(SCHEMES.RANGO_MEDIO, null, { warmupSets: 2 });
+    const empty = buildTargetSets(SCHEMES.RANGO_MEDIO, null, { warmupSets: 1 });
     const filled = prefillSets({ name: "Remo" }, SCHEMES.RANGO_MEDIO, empty, null);
     expect(filled.every((set) => set.weightKg === null)).toBe(true);
   });
 
-  it("el calentamiento prellenado sigue siendo más ligero que la serie 1", () => {
-    const empty = buildTargetSets(SCHEMES.METABOLICO, null, { warmupSets: 2 });
+  it("la aproximación prellenada sigue siendo más ligera que la serie 1", () => {
+    const empty = buildTargetSets(SCHEMES.METABOLICO, null, { warmupSets: 1 });
     const filled = prefillSets({ name: "Prensa" }, SCHEMES.METABOLICO, empty, last());
 
     const warmup = filled.find((set) => set.warmup) as TargetSet;
     const first = filled.find((set) => !set.warmup) as TargetSet;
 
     expect(warmup.weightKg as number).toBeLessThan(first.weightKg as number);
-    expect(warmup.reps).not.toBe(first.reps);
   });
 });

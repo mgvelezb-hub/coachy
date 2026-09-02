@@ -18,6 +18,7 @@ import {
   type DisciplineLoad,
   type MeResponse,
   type MuscleGroup,
+  type SchemePreference,
   type SessionView,
   type SwimLevel,
   type WeekView,
@@ -34,6 +35,41 @@ import {
 } from "@/lib/entrenamiento";
 import { DIAS_SEMANA, PROPOSITOS, TIEMPOS_DIA, type Proposito, type WeekDay } from "@/lib/replantear";
 import { fonts, radius, spacing, type as typeScale, withAlpha, type Palette } from "@/lib/theme";
+
+/**
+ * Las cuatro opciones de "Cómo te gusta entrenar".
+ *
+ * "Que la app decida" va PRIMERO: es el default y la recomendación real —
+ * variar el estímulo semana a semana (periodización ondulante) es igual o
+ * mejor que un esquema fijo para ganar fuerza (Rhea et al. 2002). Las otras
+ * tres describen el esquema en el vocabulario de la atleta (peso/reps), no
+ * en el del catálogo (`FUERZA`/`HIPERTROFIA`/`METABOLICO` son las llaves que
+ * entiende el servidor; ver `SCHEME_PREFERENCES` en `schemes.ts` del motor
+ * para el sustento y el mapeo exacto — p. ej. `HIPERTROFIA` fija el esquema
+ * `RANGO_MEDIO` del catálogo, que no tiene uno propio).
+ */
+const OPCIONES_ESQUEMA: Array<{ valor: SchemePreference; nombre: string; detalle: string }> = [
+  {
+    valor: "RECOMENDADO",
+    nombre: "Que la app decida (recomendado)",
+    detalle: "Rota el estímulo cada semana, que es lo que la evidencia respalda.",
+  },
+  {
+    valor: "FUERZA",
+    nombre: "Mucho peso, pocas reps",
+    detalle: "Series de 3–6, descansos largos.",
+  },
+  {
+    valor: "HIPERTROFIA",
+    nombre: "Peso medio, reps medias",
+    detalle: "Series de 8–12, el rango clásico de músculo.",
+  },
+  {
+    valor: "METABOLICO",
+    nombre: "Poco peso, muchas reps",
+    detalle: "Series de 25–30, quema y resistencia.",
+  },
+];
 
 /**
  * "Tu entrenamiento" en Ajustes.
@@ -75,6 +111,10 @@ export function SeccionEntrenamiento({ me }: { me: MeResponse | null }) {
   // vieja de la API todavía en producción).
   const [compactDays, setCompactDays] = useState(true);
   const [compactoMsg, setCompactoMsg] = useState<string | null>(null);
+  // "RECOMENDADO" por default: coincide con el default de `Profile.schemePreference`
+  // en el servidor mientras la respuesta de `/me` no llega.
+  const [schemePreference, setSchemePreference] = useState<SchemePreference>("RECOMENDADO");
+  const [schemeMsg, setSchemeMsg] = useState<string | null>(null);
 
   useEffect(() => {
     if (!me?.profile) return;
@@ -86,6 +126,7 @@ export function SeccionEntrenamiento({ me }: { me: MeResponse | null }) {
       ...(me.profile.disciplineLevels ?? {}),
     });
     setCompactDays(me.profile.compactDays ?? true);
+    setSchemePreference(me.profile.schemePreference ?? "RECOMENDADO");
 
     // Se prellena solo con lo declarado: los días ausentes se quedan en 0
     // ("ese día no"), que es un valor honesto y no un supuesto.
@@ -257,6 +298,30 @@ export function SeccionEntrenamiento({ me }: { me: MeResponse | null }) {
     }
   }
 
+  /**
+   * Guarda el estilo de esquema fijo: "que la app decida" (la rotación de
+   * siempre) o un esquema fijo todas las semanas.
+   *
+   * La rotación (periodización ondulante) sigue siendo LA recomendación —
+   * varía el estímulo semana a semana y eso es igual o mejor que una
+   * progresión lineal para fuerza (Rhea et al. 2002) — por eso "Que la app
+   * decida" va primero y marcada por default. Elegir un esquema fijo no
+   * rompe nada: los días de rehabilitación (lesión activa) nunca se mueven
+   * de su esquema, sin importar lo que se elija aquí.
+   */
+  async function guardarSchemePreference(valor: SchemePreference) {
+    const anterior = schemePreference;
+    setSchemePreference(valor);
+    setSchemeMsg(null);
+    try {
+      await patchEntrenamiento({ schemePreference: valor });
+      setSchemeMsg("Guardado. Aplica desde la próxima semana que se arme.");
+    } catch (error) {
+      setSchemePreference(anterior);
+      setSchemeMsg(error instanceof ApiError ? error.message : "No se pudo guardar tu preferencia");
+    }
+  }
+
   const activas = DISCIPLINAS.filter(
     (disciplina) => disciplina.valor === primaria || otras.some((carga) => carga.discipline === disciplina.valor),
   );
@@ -325,6 +390,41 @@ export function SeccionEntrenamiento({ me }: { me: MeResponse | null }) {
         </View>
 
         {compactoMsg && <Text style={styles.vaultMsg}>{compactoMsg}</Text>}
+      </Card>
+
+      {/* "Cómo te gusta entrenar": esquema fijo, o que la app siga rotando. */}
+      <Card>
+        <SectionLabel>Cómo te gusta entrenar</SectionLabel>
+        <Explicacion titulo="Qué decide esto">
+          <TextoExplicativo>
+            La rutina siempre viene con un esquema de series y reps. Por default la app lo rota
+            cada semana —fuerza, metabólico, rango medio— porque variar el estímulo da mejores
+            resultados que quedarse fijo. Si prefieres no variar, elige un estilo aquí y ese
+            esquema se queda fijo todas las semanas.
+          </TextoExplicativo>
+        </Explicacion>
+
+        <View style={styles.presupuestoLista}>
+          {OPCIONES_ESQUEMA.map((opcion) => {
+            const activo = schemePreference === opcion.valor;
+            return (
+              <Pressable
+                key={opcion.valor}
+                onPress={() => guardarSchemePreference(opcion.valor)}
+                style={[styles.presupuestoFila, activo && styles.presupuestoFilaOn]}
+              >
+                <Text style={[styles.presupuestoNombre, activo && styles.presupuestoNombreOn]}>
+                  {opcion.nombre}
+                </Text>
+                <Text style={styles.presupuestoDetalle}>{opcion.detalle}</Text>
+              </Pressable>
+            );
+          })}
+        </View>
+
+        <Text style={styles.notaCorta}>Aplica desde la próxima semana que se arme.</Text>
+
+        {schemeMsg && <Text style={styles.vaultMsg}>{schemeMsg}</Text>}
       </Card>
 
       {/* 2. "¿Qué tan grande es el cambio?" — los tres niveles, en orden. */}
@@ -651,6 +751,12 @@ const makeStyles = (colors: Palette) =>
     recalibrar: { paddingVertical: spacing.md, marginTop: spacing.md },
     recalibrarTexto: { fontFamily: fonts.sansSemiBold, ...typeScale.body, color: colors.champan },
     linkDetalle: { fontFamily: fonts.sans, ...typeScale.bodySm, color: colors.paloRosaLight, marginTop: 2 },
+    notaCorta: {
+      fontFamily: fonts.sans,
+      ...typeScale.bodySm,
+      color: colors.paloRosaLight,
+      marginTop: spacing.sm,
+    },
     replantear: {
       flexDirection: "row",
       alignItems: "center",

@@ -22,6 +22,7 @@ import {
 import { useRouter } from "expo-router";
 
 import { Card } from "@/components/Card";
+import { InfoTip, TextoInfo } from "@/components/InfoTip";
 import { ScoreCard } from "@/components/ScoreCard";
 import { SectionLabel } from "@/components/SectionLabel";
 import { EmptyState, ErrorState, LoadingState } from "@/components/States";
@@ -43,7 +44,7 @@ import {
   type MenuMeal,
   type NutritionResponse,
 } from "@/lib/api";
-import { DIETA_ACTUAL, PORQUE_DEL_PLAN, PRESUPUESTOS, aguaDelDia } from "@/lib/nutricion";
+import { DIETA_ACTUAL, PRESUPUESTOS, aguaDelDia } from "@/lib/nutricion";
 import { programarComidas } from "@/lib/recordatorio";
 import { fonts, radius, spacing, type as typeScale, type Palette } from "@/lib/theme";
 import { actualizarComidaEnElReloj } from "@/lib/reloj-nativo";
@@ -67,6 +68,7 @@ function isOnboardingIncomplete(error: unknown): boolean {
 }
 
 export default function NutricionScreen() {
+  const router = useRouter();
   const { colors } = useTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
   // Tocar esta pestaña estando en ella regresa el scroll hasta arriba.
@@ -217,6 +219,14 @@ export default function NutricionScreen() {
               }
             : null
         }
+        infoTip={
+          <InfoTip titulo="Sobre el presupuesto">
+            <TextoInfo>
+              El presupuesto se cambia en Ajustes → Nutrición, y entra en tu siguiente check-in: el
+              menú de esta semana ya se compró.
+            </TextoInfo>
+          </InfoTip>
+        }
       >
         <Text style={styles.parrafo}>{DIETA_ACTUAL.resumen}</Text>
         {DIETA_ACTUAL.puntos.map((punto) => (
@@ -224,10 +234,6 @@ export default function NutricionScreen() {
             · {punto}
           </Text>
         ))}
-        <Text style={styles.aviso}>
-          El presupuesto se cambia en Ajustes → Nutrición, y entra en tu siguiente check-in: el
-          menú de esta semana ya se compró.
-        </Text>
       </ScoreCard>
 
       <ScoreCard
@@ -239,31 +245,24 @@ export default function NutricionScreen() {
             ? "Registra tu peso en el check-in para calcularla"
             : `${agua} litros · ${me?.profile?.mealsPerDay ?? 4} tomas de referencia`
         }
-      >
-        <Text style={styles.parrafo}>
-          {agua === null
-            ? "Sale de tu peso: 35 ml por kilo al día, que es la referencia práctica para una persona adulta sana con actividad moderada."
-            : `Son 35 ml por kilo de tu peso (${pesoKg} kg), la referencia práctica para actividad moderada. Sube con el calor y con las sesiones largas; si entrenas fuerte, agrégale medio litro ese día.`}
-        </Text>
-      </ScoreCard>
+        infoTip={
+          <InfoTip titulo="De dónde sale">
+            <TextoInfo>
+              {agua === null
+                ? "Sale de tu peso: 35 ml por kilo al día, que es la referencia práctica para una persona adulta sana con actividad moderada."
+                : `Son 35 ml por kilo de tu peso (${pesoKg} kg), la referencia práctica para actividad moderada. Sube con el calor y con las sesiones largas; si entrenas fuerte, agrégale medio litro ese día.`}
+            </TextoInfo>
+          </InfoTip>
+        }
+      />
 
       <ScoreCard
         icon={Info}
         tint={colors.guindaLight}
         title="Por qué tu plan se ve así"
         summary="Las reglas que arman tu menú, en español"
-      >
-        {PORQUE_DEL_PLAN.map((bloque) => (
-          <View key={bloque.titulo} style={styles.bloque}>
-            <Text style={styles.bloqueTitulo}>{bloque.titulo}</Text>
-            <Text style={styles.parrafo}>{bloque.texto}</Text>
-          </View>
-        ))}
-        <Text style={styles.aviso}>
-          Esto explica un plan generado por reglas; no es una indicación médica. Si tienes una
-          condición que cambie tu alimentación, consúltalo con una especialista.
-        </Text>
-      </ScoreCard>
+        onPress={() => router.push("/porque-plan" as never)}
+      />
 
       {menus.length > 1 && (
         <SelectorDeMenu
@@ -292,22 +291,13 @@ export default function NutricionScreen() {
         title="Lista de súper"
         summary={
           groceries.length === 0
-            ? "Se arma sola con tus menús"
-            : `${groceries.length} ${groceries.length === 1 ? "artículo" : "artículos"} para ${
-                preferencia === "AMBOS" ? "la semana con los dos menús" : "la semana completa"
+            ? "Sin artículos todavía"
+            : `${groceries.length} ${groceries.length === 1 ? "artículo" : "artículos"} · ${
+                preferencia === "AMBOS" ? "los dos menús" : "un menú"
               }`
         }
-      >
-        {groceries.length === 0 ? (
-          <EmptyState message="Cuando tengas menús publicados, la lista se arma sola." />
-        ) : (
-          groceries.map((item) => (
-            <Text key={item.name} style={styles.item}>
-              · {item.name} — {item.portion ? `${item.portion} (${item.grams} g)` : `${item.grams} ${item.unit}`}
-            </Text>
-          ))
-        )}
-      </ScoreCard>
+        onPress={() => router.push("/lista-super" as never)}
+      />
       {/* Abajo lo excepcional: preguntar y cargar estudios se hace de vez en
           cuando; el menú de la semana se abre a diario. */}
       <PreguntaAlPlan />
@@ -376,12 +366,17 @@ function SelectorDeMenu({
 
   return (
     <Card>
-      <SectionLabel>Tus dos menús</SectionLabel>
-      <Text style={styles.parrafo}>
-        No son dos semanas: son dos formas de comer LA MISMA semana, con los mismos macros y
-        distintos alimentos, para que no acabes comiendo lo mismo siete días. Si prefieres cocinar
-        uno solo, dilo aquí y tu lista de súper deja de traer lo del otro.
-      </Text>
+      <View style={styles.selectorHead}>
+        <SectionLabel>Tus dos menús</SectionLabel>
+        <InfoTip titulo="Tus dos menús">
+          <TextoInfo>
+            No son dos semanas: son dos formas de comer LA MISMA semana, con los mismos macros y
+            distintos alimentos, para que no acabes comiendo lo mismo siete días. Si prefieres
+            cocinar uno solo, dilo aquí y tu lista de súper deja de traer lo del otro.
+          </TextoInfo>
+        </InfoTip>
+      </View>
+      <Text style={styles.selectorResumen}>Dos formas de comer la misma semana</Text>
 
       <View style={styles.selectorLista}>
         {OPCIONES.map((opcion) => {
@@ -539,15 +534,25 @@ function ComidaDelMenu({
 
             {expandido && equivalencia && (
               <View style={styles.equivalenciaWrap}>
-                <Text style={styles.equivalenciaAviso}>
-                  {equivalencia.aproximada
-                    ? // El motor a veces no encuentra ninguna opción dentro del ±10% de
-                      // macro del alimento original; en vez de dejar al usuario sin
-                      // cambio, ofrece la más parecida de su catálogo. Se lo decimos
-                      // para que no espere que los números cuadren exacto.
-                      "Cambio aproximado: los macros no quedan idénticos, pero es lo más cercano de tu catálogo. Se queda guardado."
-                    : "El cambio se queda: tu menú, tu widget y tu día lo muestran así."}
-                </Text>
+                {/* El aviso de APROXIMADO se queda a la vista: es una
+                    advertencia sobre ESTE cambio, no una explicación
+                    general, y el motor a veces no encuentra ninguna opción
+                    dentro del ±10% de macro del alimento original — en vez
+                    de dejar a la persona sin cambio, ofrece la más parecida
+                    de su catálogo y hay que decirlo para que no espere que
+                    los números cuadren exacto. El "el cambio se queda" de
+                    siempre sí es una explicación, así que vive en el
+                    globito. */}
+                {equivalencia.aproximada ? (
+                  <Text style={styles.equivalenciaAviso}>
+                    Cambio aproximado: los macros no quedan idénticos, pero es lo más cercano de tu
+                    catálogo. Se queda guardado.
+                  </Text>
+                ) : (
+                  <InfoTip titulo="Sobre este cambio">
+                    <TextoInfo>El cambio se queda: tu menú, tu widget y tu día lo muestran así.</TextoInfo>
+                  </InfoTip>
+                )}
                 {/* Lista desplazable y no una fila de botones: con veinte
                     opciones, envolverlas en pastillas convertía el panel en un
                     muro que empujaba el resto del menú fuera de la pantalla.
@@ -735,18 +740,6 @@ const makeStyles = (colors: Palette) => StyleSheet.create({
     ...typeScale.bodySm,
     color: colors.paloRosaLight,
   },
-  bloque: { gap: spacing.xs },
-  bloqueTitulo: {
-    fontFamily: fonts.sansSemiBold,
-    ...typeScale.body,
-    color: colors.champan,
-  },
-  aviso: {
-    fontFamily: fonts.sans,
-    ...typeScale.bodySm,
-    color: colors.paloRosaLight,
-    marginTop: spacing.sm,
-  },
   screen: {
     flex: 1,
     backgroundColor: colors.obsidiana,
@@ -879,6 +872,18 @@ const makeStyles = (colors: Palette) => StyleSheet.create({
     fontFamily: fonts.sansMedium,
     ...typeScale.bodySm,
     color: colors.marfil,
+  },
+  selectorHead: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: spacing.sm,
+  },
+  selectorResumen: {
+    fontFamily: fonts.sans,
+    ...typeScale.bodySm,
+    color: colors.paloRosaLight,
+    marginTop: 2,
   },
   selectorLista: {
     gap: spacing.sm,

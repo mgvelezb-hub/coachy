@@ -30,6 +30,14 @@ type ScoreCardProps = {
   defaultOpen?: boolean;
   /** Cuando la tarjeta lleva a otra pantalla en vez de desplegar. */
   onPress?: () => void;
+  /**
+   * Un `InfoTip` junto al título, para el "porqué" que no vale su propia
+   * fila desplegable. Va DENTRO del `Pressable` de la cabecera —anidar un
+   * `Pressable` dentro de otro es válido en RN: el toque lo resuelve el más
+   * interno, así que tocar el ícono abre el globito sin además expandir o
+   * navegar la tarjeta.
+   */
+  infoTip?: ReactNode;
 };
 
 /**
@@ -50,6 +58,7 @@ export function ScoreCard({
   children,
   defaultOpen = false,
   onPress,
+  infoTip,
 }: ScoreCardProps) {
   const { colors } = useTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
@@ -84,7 +93,10 @@ export function ScoreCard({
         </View>
 
         <View style={styles.body}>
-          <Text style={styles.title}>{title}</Text>
+          <View style={styles.titleRow}>
+            <Text style={styles.title}>{title}</Text>
+            {infoTip}
+          </View>
           <Text style={styles.summary}>{summary}</Text>
 
           {/* La etiqueta va DEBAJO del resumen, no a su derecha.
@@ -149,6 +161,11 @@ const makeStyles = (colors: Palette) => StyleSheet.create({
   body: {
     flex: 1,
     gap: 2,
+  },
+  titleRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.xs,
   },
   chipRow: {
     flexDirection: "row",

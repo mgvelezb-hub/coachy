@@ -1,4 +1,5 @@
 import { fromISODate, shiftISODate, toISODate, weekdayIn } from "@/lib/format";
+import { calentamientoPara } from "@/lib/training/calentamiento";
 import { gruposFatigados } from "@/lib/training/carga-muscular";
 import {
   buildTargetSets,
@@ -46,8 +47,13 @@ function hasImpact(name: string): boolean {
   return IMPACT_HINTS.some((hint) => lower.includes(hint));
 }
 
-/** Calentamiento: 1-2 series de 20-50 reps con peso bajo, siempre en el primero. */
-const WARMUP_SETS = 2;
+/**
+ * Serie de aproximación del primer ejercicio: 1 sola, al ~50% del peso tope.
+ * El calentamiento general (2-3 min de pulso + movilidad dinámica del grupo
+ * del día) ya no vive aquí — vive en `calentamientoPara`, antes de la
+ * sesión. Ver el docblock de `WARMUP_REPS_MIN` en `progression.ts`.
+ */
+const WARMUP_SETS = 1;
 
 /**
  * Roles pesados: en el día de rehabilitación de la zona lesionada no se tocan.
@@ -219,7 +225,9 @@ export function generateWeek(
   weekStart.setHours(12, 0, 0, 0);
 
   const isoWeek = isoWeekNumber(weekStart);
-  const weekScheme = schemeForWeek(weekStart);
+  // `RECOMENDADO` (o cualquier valor viejo/corrupto) deja la rotación tal
+  // cual siempre se comportó; una preferencia fija la sobreescribe.
+  const weekScheme = schemeForWeek(weekStart, profile.schemePreference);
 
   // El presupuesto semanal se paga antes de repartir la semana: si hay otras
   // disciplinas activas, el gimnasio se queda con los días que sobran, no con
@@ -380,7 +388,7 @@ export function generateWeek(
         note: rehabExercise
           ? "Zona en recuperación: reps altas, peso bajo, sin forzar."
           : isFirst
-            ? `Empieza con ${WARMUP_SETS} series de calentamiento de ${warmupRepsFor(scheme)} reps con peso ligero.`
+            ? `Antes de la serie 1: 1 serie de aproximación de ${warmupRepsFor(scheme)} reps a ~50% del peso.`
             : null,
         sets: buildTargetSets(scheme, suggested, {
           warmupSets: isFirst ? WARMUP_SETS : 0,
@@ -401,6 +409,9 @@ export function generateWeek(
         injury.active || profile.cardioMinWk <= 0
           ? null
           : Math.round(profile.cardioMinWk / Math.max(1, kinds.length)),
+      // El calentamiento dinámico previo, específico del grupo del día —
+      // corre ANTES del primer ejercicio, no dentro de él.
+      warmup: calentamientoPara(kind),
       exercises,
     });
   });

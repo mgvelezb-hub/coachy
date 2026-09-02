@@ -78,28 +78,53 @@ export function roundPlate(value: number): number {
 }
 
 /**
- * Calentamiento (metodología §3: "empieza con reps altas y peso ligero").
+ * Serie de aproximación al peso de trabajo (metodología §3, revisada
+ * 2026-09 tras el feedback directo del dueño: "no nos gustó que el
+ * calentamiento fuera con el primer ejercicio y con un montón de reps. El
+ * calentamiento debería ser previo al primer ejercicio... y un timer de
+ * 5-10 min").
  *
- * Nunca puede verse igual que la serie 1. Las reps del calentamiento salen por
- * encima de la serie más larga del esquema y se acotan a la banda de la
- * biblioteca del coach (20–50), y el peso va al 40–50% del peso de trabajo.
+ * Antes esta función generaba 1-2 series de 20-50 reps con peso ligero —
+ * exactamente lo que se quejó: se veía y se sentía igual que cualquier serie
+ * efectiva del día, solo que con más repeticiones. Esa movilidad general YA
+ * NO vive aquí: vive en el bloque de calentamiento dinámico previo a la
+ * sesión (`calentamientoPara` en `calentamiento.ts`), que corre ANTES del
+ * primer ejercicio — 2-3 min de elevar el pulso + 4-6 movimientos dinámicos
+ * del grupo del día, ~6-8 min en total (protocolo de consenso ACSM/NSCA). Ese
+ * bloque es siempre DINÁMICO, nunca estático: el estiramiento estático
+ * sostenido ≥60 s antes de fuerza REDUCE la producción de fuerza (Simic et
+ * al. 2013).
+ *
+ * Lo que queda aquí, en el primer compuesto de la sesión, es SOLO la serie
+ * de aproximación al peso de trabajo que pide el mismo protocolo de
+ * consenso: UNA serie ligera (~50% del tope) de 10-12 reps — no series de
+ * 20-50. Sigue sin poder verse igual que la serie 1: si el redondeo del
+ * peso los empata, se baja un disco.
  */
-export const WARMUP_REPS_MIN = 20;
-export const WARMUP_REPS_MAX = 50;
+export const WARMUP_REPS_MIN = 10;
+export const WARMUP_REPS_MAX = 12;
 
-/** Porcentaje del peso de trabajo por serie de calentamiento. */
-const WARMUP_LOAD_RAMP = [0.4, 0.5];
+/** Porcentaje del peso de trabajo de la serie de aproximación. */
+const WARMUP_LOAD_FACTOR = 0.5;
 
-export function warmupRepsFor(scheme: Scheme): number {
-  const heaviestSet = Math.max(...scheme.reps);
-  const raw = Math.max(WARMUP_REPS_MIN, heaviestSet + 10);
-  const rounded = Math.round(raw / 5) * 5;
-  return Math.min(WARMUP_REPS_MAX, Math.max(WARMUP_REPS_MIN, rounded));
+/**
+ * Reps de la serie de aproximación. Ya no dependen del esquema —el rango
+ * (10-12) es fijo, es la carga (~50%) la que hace que se sienta ligera— así
+ * que se fija en el punto medio del rango. El parámetro se conserva para no
+ * romper el contrato de quien ya llama a esta función con un esquema en la
+ * mano.
+ */
+export function warmupRepsFor(_scheme: Scheme): number {
+  return Math.round((WARMUP_REPS_MIN + WARMUP_REPS_MAX) / 2);
 }
 
 /**
- * Series de calentamiento del ejercicio. Sin peso de trabajo el campo va vacío
- * — la UI lo etiqueta "peso ligero" y ella escribe el suyo.
+ * Serie(s) de aproximación del ejercicio. Sin peso de trabajo el campo va
+ * vacío — la UI lo etiqueta "peso ligero" y ella escribe el suyo.
+ *
+ * `count` normalmente es 1 (una sola serie de aproximación, ver
+ * `WARMUP_SETS` en `generate.ts`); se conserva como parámetro por si algún
+ * día vuelve a hacer falta más de una.
  */
 export function buildWarmupSets(
   scheme: Scheme,
@@ -108,14 +133,14 @@ export function buildWarmupSets(
 ): TargetSet[] {
   const reps = warmupRepsFor(scheme);
 
-  return Array.from({ length: count }, (_, index): TargetSet => {
-    const factor = WARMUP_LOAD_RAMP[Math.min(index, WARMUP_LOAD_RAMP.length - 1)] as number;
-    // El calentamiento nunca puede pesar lo mismo que la primera serie efectiva:
-    // si el redondeo lo empata, se baja un disco.
-    const raw = topWeightKg === null ? null : Math.max(2.5, roundPlate(topWeightKg * factor));
-    const weightKg = raw !== null && topWeightKg !== null && raw >= topWeightKg
-      ? Math.max(2.5, roundPlate(topWeightKg * 0.4) - 2.5)
-      : raw;
+  return Array.from({ length: count }, (): TargetSet => {
+    const raw = topWeightKg === null ? null : Math.max(2.5, roundPlate(topWeightKg * WARMUP_LOAD_FACTOR));
+    // La aproximación nunca puede pesar lo mismo que la primera serie
+    // efectiva: si el redondeo la empata, se baja un disco.
+    const weightKg =
+      raw !== null && topWeightKg !== null && raw >= topWeightKg
+        ? Math.max(2.5, roundPlate(topWeightKg * WARMUP_LOAD_FACTOR) - 2.5)
+        : raw;
 
     return { reps, weightKg, warmup: true };
   });

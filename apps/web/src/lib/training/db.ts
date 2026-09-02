@@ -8,7 +8,7 @@ import { aplicaCambios, parseCambiosDeBloque } from "@/lib/training/bloques";
 import { emphasisFor } from "@/lib/training/emphasis";
 import { planDisciplines, type OtherSession } from "@/lib/training/disciplines";
 import { generateWeek, mondayOf, sundayEndOf } from "@/lib/training/generate";
-import { isoWeekNumber } from "@/lib/training/schemes";
+import { isoWeekNumber, SCHEME_PREFERENCES } from "@/lib/training/schemes";
 import { WEEK_DAYS, liftingDaysWithinBudget, trainingDaysOf, type WeekDay } from "@/lib/training/split";
 import { lastPerformance, type LastPerformance } from "@/lib/training/progression";
 import { DISCIPLINES, MUSCLE_GROUPS } from "@/lib/training/types";
@@ -23,9 +23,12 @@ import type {
   PlannedExercise,
   Proposito,
   TargetSet,
+  SchemePreference,
   SwimLevel,
   TrainingProfile,
   VolumeBias,
+  Warmup,
+  WarmupStep,
 } from "@/lib/training/types";
 
 /** Mismos valores que `PROPOSITOS` en `replan.ts`, para validar el JSON crudo. */
@@ -137,6 +140,19 @@ function parseExerciseSwaps(json: unknown): Record<string, string> {
   return salida;
 }
 
+/**
+ * `scheme_preference` es `TEXT` libre en la base, no un enum de Postgres
+ * (ver el docblock del campo en `schema.prisma`): tolerante igual que
+ * `other_disciplines` o `time_per_day` — un valor que ya no existe (una
+ * migración vieja, un dato corrupto) cae a `RECOMENDADO` en vez de tumbar la
+ * generación de la semana.
+ */
+export function parseSchemePreference(raw: string): SchemePreference {
+  return (SCHEME_PREFERENCES as readonly string[]).includes(raw)
+    ? (raw as SchemePreference)
+    : "RECOMENDADO";
+}
+
 export function toTrainingProfile(profile: Profile): TrainingProfile {
   const schedule =
     profile.trainingSchedule !== null &&
@@ -163,6 +179,7 @@ export function toTrainingProfile(profile: Profile): TrainingProfile {
     goal: profile.goal,
     timePerDay: parseTimePerDay(profile.timePerDay),
     compactDays: profile.compactDays,
+    schemePreference: parseSchemePreference(profile.schemePreference),
   };
 }
 
@@ -240,8 +257,43 @@ export type StoredPlan = {
   dayKind: string;
   schemeLabel: string;
   cardioMinutes: number | null;
+  /**
+   * El calentamiento dinámico previo a la sesión. `null` en sesiones que ya
+   * estaban guardadas ANTES de esta fase (el generador de entonces no lo
+   * escribía) — la app simplemente no lo enseña, nada truena.
+   */
+  warmup: Warmup | null;
   exercises: PlannedExercise[];
 };
+
+/**
+ * `row.warmup` → el calentamiento tipado, o `null` si no viene, viene
+ * corrupto, o no trae ni un paso utilizable. Tolerante igual que
+ * `other_disciplines` o `time_per_day`: un dato mal formado no puede tumbar
+ * la sesión, solo hace que la app no enseñe el bloque.
+ */
+function parseWarmup(raw: unknown): Warmup | null {
+  if (raw === null || typeof raw !== "object" || Array.isArray(raw)) return null;
+
+  const row = raw as Record<string, unknown>;
+  if (!Array.isArray(row.pasos)) return null;
+
+  const pasos: WarmupStep[] = [];
+  for (const rawPaso of row.pasos) {
+    if (rawPaso === null || typeof rawPaso !== "object") continue;
+    const paso = rawPaso as Record<string, unknown>;
+    if (typeof paso.nombre !== "string" || typeof paso.segundos !== "number") continue;
+    pasos.push({ nombre: paso.nombre, segundos: paso.segundos });
+  }
+  if (pasos.length === 0) return null;
+
+  const totalSeg =
+    typeof row.totalSeg === "number"
+      ? row.totalSeg
+      : pasos.reduce((total, paso) => total + paso.segundos, 0);
+
+  return { pasos, totalSeg };
+}
 
 /**
  * `exercises_json` → el plan tipado.
@@ -251,10 +303,10 @@ export type StoredPlan = {
  */
 export function parseStoredPlan(json: Prisma.JsonValue): StoredPlan {
   if (Array.isArray(json)) {
-    return { dayKind: "", schemeLabel: "", cardioMinutes: null, exercises: parsePlan(json) };
+    return { dayKind: "", schemeLabel: "", cardioMinutes: null, warmup: null, exercises: parsePlan(json) };
   }
   if (json === null || typeof json !== "object") {
-    return { dayKind: "", schemeLabel: "", cardioMinutes: null, exercises: [] };
+    return { dayKind: "", schemeLabel: "", cardioMinutes: null, warmup: null, exercises: [] };
   }
 
   const row = json as Record<string, unknown>;
@@ -262,6 +314,7 @@ export function parseStoredPlan(json: Prisma.JsonValue): StoredPlan {
     dayKind: String(row.dayKind ?? ""),
     schemeLabel: String(row.schemeLabel ?? ""),
     cardioMinutes: typeof row.cardioMinutes === "number" ? row.cardioMinutes : null,
+    warmup: parseWarmup(row.warmup),
     exercises: parsePlan((row.exercises ?? []) as Prisma.JsonValue),
   };
 }
@@ -453,6 +506,7 @@ export async function ensureWeekMaterialized(
           dayKind: workout.dayKind,
           schemeLabel: workout.schemeLabel,
           cardioMinutes: workout.cardioMinutes,
+          warmup: workout.warmup,
           exercises: workout.exercises,
         } as unknown as Prisma.InputJsonValue,
       },

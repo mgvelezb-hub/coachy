@@ -84,6 +84,12 @@ export type MeResponse = {
      * la pantalla lo trata como el default de la base (`true`).
      */
     compactDays?: boolean;
+    /**
+     * Estilo de esquema fijo elegido en preferencias. `undefined` = todavía
+     * no llega el deploy que lo manda; la pantalla lo trata como el default
+     * de la base (`RECOMENDADO`).
+     */
+    schemePreference?: SchemePreference;
   } | null;
 };
 
@@ -536,6 +542,17 @@ export type SessionExerciseView = {
   alternatives: ExerciseAlternative[];
 };
 
+/** Un paso del calentamiento dinámico previo a la sesión. */
+export type WarmupStep = { nombre: string; segundos: number };
+
+/**
+ * El calentamiento dinámico de la sesión: SIEMPRE antepone 2 min de elevar
+ * el pulso, seguidos de los movimientos específicos del grupo del día. `null`
+ * en sesiones materializadas antes de esta fase — la pantalla simplemente no
+ * lo enseña.
+ */
+export type SessionWarmup = { pasos: WarmupStep[]; totalSeg: number };
+
 export type SessionView = {
   workoutId: string;
   date: string;
@@ -548,6 +565,7 @@ export type SessionView = {
   trimmedMinutes: number | null;
   cycleNote: string | null;
   readinessNote: string | null;
+  warmup: SessionWarmup | null;
   exercises: SessionExerciseView[];
 };
 
@@ -843,6 +861,15 @@ export type PreferenciasEntrenamiento = {
   /** Combinar disciplinas compatibles el mismo día, o darle a cada una el suyo (Fase 10). */
   compactDays?: boolean;
   /**
+   * Estilo de esquema fijo. `RECOMENDADO` (default) deja que el generador
+   * siga rotando piramidal → fuerza → metabólico → rango medio cada semana
+   * — la periodización ondulante, que la evidencia respalda igual o mejor
+   * que una progresión lineal para fuerza (Rhea et al. 2002). Los otros tres
+   * valores fijan un único esquema todas las semanas. Ver `SCHEME_PREFERENCES`
+   * en `apps/web/src/lib/training/schemes.ts` para el sustento completo.
+   */
+  schemePreference?: SchemePreference;
+  /**
    * A qué hora entrena, parejo toda la semana. Cambia la ESTRUCTURA de las
    * comidas —quien entrena de noche desayuna bajo en carbohidratos— así que
    * al cambiarlo el servidor rearma el menú y responde `menuRearmado: true`.
@@ -856,12 +883,20 @@ export type PreferenciasEntrenamiento = {
 export const TRAINING_TIMES = ["MANANA", "MEDIODIA", "TARDE", "NOCHE"] as const;
 export type TrainingTime = (typeof TRAINING_TIMES)[number];
 
+/**
+ * Los cuatro estilos de esquema que puede elegir la atleta en preferencias.
+ * `RECOMENDADO` va primero: es y sigue siendo el default (la rotación).
+ */
+export const SCHEME_PREFERENCES = ["RECOMENDADO", "FUERZA", "HIPERTROFIA", "METABOLICO"] as const;
+export type SchemePreference = (typeof SCHEME_PREFERENCES)[number];
+
 export type PreferenciasEntrenamientoResponse = {
   avoidRepeatGroups: MuscleGroup[];
   primaryDiscipline: Discipline;
   otherDisciplines: DisciplineLoad[];
   swimLevel: SwimLevel;
   compactDays?: boolean;
+  schemePreference?: SchemePreference;
   trainingTime?: TrainingTime;
   trainingSchedule?: Record<string, string> | null;
   /** true si el cambio de horario obligó a rearmar el menú de la semana. */

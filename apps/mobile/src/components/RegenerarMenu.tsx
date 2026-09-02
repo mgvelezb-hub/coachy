@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 
-import { Explicacion, TextoExplicativo } from "@/components/Explicacion";
+import { InfoTip, TextoInfo } from "@/components/InfoTip";
 import { useTheme } from "@/context/theme";
 import { ApiError, postRegenerarMenu } from "@/lib/api";
 import { fonts, radius, spacing, type as typeScale, type Palette } from "@/lib/theme";
@@ -19,8 +19,8 @@ import { fonts, radius, spacing, type as typeScale, type Palette } from "@/lib/t
  *
  * Los MACROS no se tocan: el servidor sigue las mismas kcal/proteína/carbo-
  * hidrato/grasa de la decisión vigente. Lo único que cambia es CON QUÉ
- * alimentos se cumplen esos números — eso lo explica el texto colapsado,
- * porque es la letra chica que hace que este botón no sorprenda a nadie.
+ * alimentos se cumplen esos números — eso lo explica el globito del ícono
+ * "?", porque es la letra chica que hace que este botón no sorprenda a nadie.
  *
  * Superficie guinda con borde guindaLight, igual que el resto de los CTAs de
  * acento de la app (ver `.replantear` en ajustes/[seccion].tsx).
@@ -53,16 +53,20 @@ export function RegenerarMenu({ onRegenerado }: { onRegenerado?: () => void }) {
 
   return (
     <View style={styles.wrap}>
-      <Explicacion titulo="Qué hace este botón">
-        <TextoExplicativo>
-          Rearma tus dos menús con tus preferencias de hoy —favoritos, exclusiones, presupuesto,
-          dieta, suplementos y tiempo de cocina— sobre los mismos números de tu decisión: tus
-          calorías, proteína, carbohidrato y grasa no cambian, solo con qué alimentos se cumplen.
-          {"\n\n"}
-          Tiene un costo: tu lista de súper cambia, y lo que ya compraste para esta semana puede
-          sobrar. Por eso lo tocas tú, no pasa solo.
-        </TextoExplicativo>
-      </Explicacion>
+      <View style={styles.head}>
+        <Text style={styles.headLabel}>Regenerar con tus preferencias de hoy</Text>
+        <InfoTip titulo="Qué hace este botón">
+          <TextoInfo>
+            Rearma tus dos menús con tus preferencias de hoy —favoritos, exclusiones, presupuesto,
+            dieta, suplementos y tiempo de cocina— sobre los mismos números de tu decisión: tus
+            calorías, proteína, carbohidrato y grasa no cambian, solo con qué alimentos se cumplen.
+          </TextoInfo>
+          <TextoInfo>
+            Tiene un costo: tu lista de súper cambia, y lo que ya compraste para esta semana puede
+            sobrar. Por eso lo tocas tú, no pasa solo.
+          </TextoInfo>
+        </InfoTip>
+      </View>
 
       <Pressable
         onPress={regenerar}
@@ -82,6 +86,8 @@ export function RegenerarMenu({ onRegenerado }: { onRegenerado?: () => void }) {
 const makeStyles = (colors: Palette) =>
   StyleSheet.create({
     wrap: { marginTop: spacing.md, gap: spacing.sm },
+    head: { flexDirection: "row", alignItems: "center", gap: spacing.xs },
+    headLabel: { fontFamily: fonts.sansMedium, ...typeScale.bodySm, color: colors.paloRosa },
     boton: {
       marginTop: spacing.sm,
       paddingVertical: spacing.lg,

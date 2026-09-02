@@ -40,6 +40,13 @@ export type SchemeId =
   | "REHAB";
 
 /**
+ * Estilo de esquema fijo elegido en preferencias. Igual que
+ * `SCHEME_PREFERENCES` en `schemes.ts` (repetido aquí porque `types.ts` es
+ * puro y no importa ese módulo, igual que `Discipline` o `Proposito`).
+ */
+export type SchemePreference = "RECOMENDADO" | "FUERZA" | "HIPERTROFIA" | "METABOLICO";
+
+/**
  * Cuánto volumen mete el generador en la sesión. Concepto propio del
  * entrenamiento — no una fase de dieta (`Phase` en `prisma/schema.prisma`
  * es del motor de nutrición y este módulo no lo conoce). `db.ts` es el único
@@ -100,6 +107,21 @@ export type PlannedExercise = {
   sets: TargetSet[];
 };
 
+/**
+ * Un paso del calentamiento dinámico previo a la sesión. Ver el docblock de
+ * `calentamientoPara` en `calentamiento.ts` para el sustento completo.
+ */
+export type WarmupStep = { nombre: string; segundos: number };
+
+/**
+ * El calentamiento dinámico de la sesión: SIEMPRE antepone 2 min de elevar
+ * el pulso, seguidos de los movimientos específicos del grupo del día.
+ * Vive ANTES del primer ejercicio — no debe confundirse con la serie de
+ * aproximación (`buildWarmupSets` en `progression.ts`), que es la única
+ * serie ligera que queda dentro del primer ejercicio.
+ */
+export type Warmup = { pasos: WarmupStep[]; totalSeg: number };
+
 export type PlannedWorkout = {
   /** Fecha del día, ISO `YYYY-MM-DD`. */
   date: string;
@@ -111,6 +133,8 @@ export type PlannedWorkout = {
   schemeLabel: string;
   /** Minutos de cardio sugeridos; `null` si toca suspenderlo. */
   cardioMinutes: number | null;
+  /** Calentamiento dinámico previo, antes de tocar `exercises[0]`. */
+  warmup: Warmup;
   exercises: PlannedExercise[];
 };
 
@@ -246,6 +270,13 @@ export type TrainingProfile = {
    * porqué del default.
    */
   compactDays: boolean;
+  /**
+   * Estilo de esquema fijo elegido en preferencias. `RECOMENDADO` (default)
+   * deja que `schemeForWeek` siga rotando; los demás valores fijan un
+   * esquema todas las semanas. Ver el docblock de `SCHEME_PREFERENCES` en
+   * `schemes.ts` para el porqué de cada mapeo y el sustento de evidencia.
+   */
+  schemePreference: SchemePreference;
 };
 
 /**

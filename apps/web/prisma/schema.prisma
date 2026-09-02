@@ -181,6 +181,8 @@ model User {
   notifications      Notification[]
   trainingExamples   TrainingExample[] @relation("TrainingExampleAthlete")
   correctedDecisions Decision[]        @relation("DecisionCorrectedBy")
+  vinculosEmitidos   HouseholdLink[]   @relation("VinculosEmitidos")
+  vinculosRecibidos  HouseholdLink[]   @relation("VinculosRecibidos")
 
   @@map("users")
 }
@@ -353,6 +355,24 @@ model Profile {
    * romper el plan.
    */
   exerciseSwaps     Json?      @map("exercise_swaps")
+
+  /**
+   * Estilo de esquema fijo que la persona eligió en preferencias:
+   * `RECOMENDADO | FUERZA | HIPERTROFIA | METABOLICO` (`SCHEME_PREFERENCES`
+   * en `schemes.ts`).
+   *
+   * `RECOMENDADO` (default) deja que `schemeForWeek` siga rotando piramidal →
+   * fuerza → metabólico → rango medio semana a semana — la periodización
+   * ondulante es igual o superior a la lineal para fuerza (Rhea et al.
+   * 2002), y por eso la rotación sigue siendo la recomendación. Los demás
+   * valores fijan un esquema todas las semanas, para quien prefiere no
+   * variar. `TEXT` y no un enum de Postgres porque este catálogo puede crecer
+   * sin migración; `schemeForWeek` valida el valor y cualquier cosa que no
+   * reconozca cae de vuelta a `RECOMENDADO` (ver `toTrainingProfile` en
+   * `db.ts`). Los días de REHAB nunca respetan esto: la lesión manda sobre la
+   * preferencia (ver `schemeForExercise`).
+   */
+  schemePreference  String     @default("RECOMENDADO") @map("scheme_preference")
 
   /**
    * Horarios de comida propios: `{ "DESAYUNO": "07:30", "COMIDA": "15:00" }`.
@@ -919,4 +939,69 @@ model TrainingExample {
   createdAt DateTime @default(now()) @map("created_at")
 
   @@map("training_examples")
+}
+
+// ---------------------------------------------------------------------------
+// Household (vínculo entre cuentas)
+// ---------------------------------------------------------------------------
+
+/**
+ * Vínculo entre dos cuentas que viven juntas (pareja, roommates). Hoy esta
+ * tabla es solo la BASE: guarda el vínculo y nada más — no comparte ninguna
+ * información todavía y no hay UI en la app que la use. Se construye ahora
+ * porque lo que sí viene pronto (lista de súper compartida, ver el menú del
+ * otro) necesita saber primero QUIÉN está vinculado con quién, y ese vínculo
+ * debe existir de forma estable antes de decidir qué se comparte.
+ *
+ * Por qué CÓDIGO y no buscar por correo: dejar que una cuenta busque a otra
+ * por email expondría quién más usa la app — un dato que no le corresponde
+ * ver a nadie fuera de quien ya trae la invitación en la mano. El código de
+ * 6 caracteres (alfabeto sin ambigüedades: A-Z sin O/I, 2-9 sin 0/1) se
+ * comparte fuera de la app — de palabra, por WhatsApp — y solo sirve para
+ * aceptar una invitación concreta, nunca para explorar quién existe.
+ *
+ * Por qué el modelo es genérico y no "GroceryListShare" o algo específico:
+ * el vínculo en sí (quién está unido con quién) es independiente de QUÉ se
+ * comparte. La lista de súper compartida es el primer caso de uso, pero el
+ * mismo vínculo es la base para lo que siga (ver el menú del otro, por
+ * ejemplo). Modelar "el vínculo" y "lo que se comparte" por separado evita
+ * tener que rehacer esta tabla cuando se agregue el segundo caso de uso.
+ *
+ * Ciclo de vida: una invitación nace PENDIENTE con un código vigente 48
+ * horas. Si alguien la acepta a tiempo pasa a ACTIVO. Cualquiera de los dos
+ * — quien invitó o quien aceptó — puede disolverla en cualquier momento
+ * (ACTIVO → DISUELTO), y una invitación PENDIENTE que nadie acepta también
+ * puede disolverse (o expirar sola). Una cuenta solo puede tener UN vínculo
+ * ACTIVO o PENDIENTE vigente a la vez — no tiene sentido compartir con más
+ * de una persona en la v1, y evita el lío de reconciliar dos listas de súper
+ * a la vez.
+ */
+model HouseholdLink {
+  id String @id @default(uuid()) @db.Uuid
+
+  /// Quién generó el código.
+  inviterId String @map("inviter_id") @db.Uuid
+  inviter   User   @relation("VinculosEmitidos", fields: [inviterId], references: [id], onDelete: Cascade)
+
+  /// Quién lo aceptó. `null` mientras sigue PENDIENTE. Si la cuenta que
+  /// aceptó se borra, el vínculo no debe desaparecer con ella — se queda
+  /// como registro histórico con `inviteeId: null`, no se borra en cascada.
+  inviteeId String? @map("invitee_id") @db.Uuid
+  invitee   User?   @relation("VinculosRecibidos", fields: [inviteeId], references: [id], onDelete: SetNull)
+
+  /// 6 caracteres, alfabeto sin ambigüedades (A-Z sin O/I, 2-9 sin 0/1).
+  code String @unique
+
+  /// `PENDIENTE` | `ACTIVO` | `DISUELTO`.
+  status String @default("PENDIENTE")
+
+  createdAt   DateTime  @default(now()) @map("created_at")
+  /// Vigencia del código: 48 h después de `createdAt`.
+  expiresAt   DateTime  @map("expires_at")
+  acceptedAt  DateTime? @map("accepted_at")
+  dissolvedAt DateTime? @map("dissolved_at")
+
+  @@index([inviterId])
+  @@index([inviteeId])
+  @@map("household_links")
 }

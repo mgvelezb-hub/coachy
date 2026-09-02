@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { parseDisciplineLoads, parseTimePerDay } from "@/lib/training/db";
+import { parseDisciplineLoads, parseSchemePreference, parseTimePerDay } from "@/lib/training/db";
 
 /**
  * `other_disciplines` y `time_per_day` son JSON libre en la base: pruebas
@@ -103,5 +103,25 @@ describe("parseTimePerDay", () => {
 
   it("trunca minutos con decimales", () => {
     expect(parseTimePerDay({ LUN: 59.9 })).toEqual({ LUN: 59 });
+  });
+});
+
+/**
+ * `scheme_preference` es `TEXT` libre en la base, no un enum de Postgres: un
+ * valor viejo o corrupto no puede tumbar la generación de la semana, así que
+ * cae de vuelta a `RECOMENDADO` (la rotación de siempre) en vez de fallar.
+ */
+describe("parseSchemePreference", () => {
+  it("acepta los cuatro valores válidos tal cual", () => {
+    expect(parseSchemePreference("RECOMENDADO")).toBe("RECOMENDADO");
+    expect(parseSchemePreference("FUERZA")).toBe("FUERZA");
+    expect(parseSchemePreference("HIPERTROFIA")).toBe("HIPERTROFIA");
+    expect(parseSchemePreference("METABOLICO")).toBe("METABOLICO");
+  });
+
+  it("un valor desconocido cae a RECOMENDADO", () => {
+    expect(parseSchemePreference("PESO_MEDIO")).toBe("RECOMENDADO");
+    expect(parseSchemePreference("")).toBe("RECOMENDADO");
+    expect(parseSchemePreference("recomendado")).toBe("RECOMENDADO"); // mayúsculas exactas
   });
 });

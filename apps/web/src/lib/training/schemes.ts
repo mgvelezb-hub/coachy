@@ -54,6 +54,33 @@ export const SCHEMES: Record<SchemeId, Scheme> = {
 export const SCHEME_ROTATION: SchemeId[] = ["PIRAMIDAL", "FUERZA", "METABOLICO", "RANGO_MEDIO"];
 
 /**
+ * Lo que la persona puede elegir en preferencias sobre CÓMO se arma su
+ * esquema semanal. `RECOMENDADO` es y sigue siendo el default: deja que
+ * `schemeForWeek` rote piramidal → fuerza → metabólico → rango medio, que es
+ * la periodización ondulante — variar el estímulo semana a semana, que Rhea
+ * et al. (2002) encuentran igual o superior a la periodización lineal para
+ * ganancias de fuerza. Los otros tres valores fijan un único esquema todas
+ * las semanas, para quien prefiere no variar:
+ *
+ * - `FUERZA` fija el esquema `FUERZA` del catálogo (5×6 con peso máximo):
+ *   fuerza máxima vive en 1-5 reps al ≥85% 1RM con descansos largos de 2-5
+ *   min (ACSM).
+ * - `METABOLICO` fija el esquema `METABOLICO` (30-28-25): resistencia
+ *   muscular vive en 15+ reps con carga ligera y descansos cortos (≤60 s).
+ * - `HIPERTROFIA` fija `RANGO_MEDIO` (18-15-12) — no hay un esquema del
+ *   catálogo llamado "hipertrofia", así que se mapea al que más se acerca al
+ *   rango clásico de 6-12 reps al 67-85% 1RM (Schoenfeld et al. 2017,
+ *   meta-análisis de cargas — aunque el espectro completo de cargas produce
+ *   hipertrofia si las series se acercan al fallo, este es el punto medio
+ *   del catálogo existente).
+ *
+ * Los días de `REHAB` NUNCA respetan esta preferencia: la lesión manda sobre
+ * el gusto (`schemeForExercise` revisa `options.rehab` antes que nada).
+ */
+export const SCHEME_PREFERENCES = ["RECOMENDADO", "FUERZA", "HIPERTROFIA", "METABOLICO"] as const;
+export type SchemePreference = (typeof SCHEME_PREFERENCES)[number];
+
+/**
  * Número de semana ISO (lunes = primer día, semana 1 = la del primer jueves).
  * Sirve como semilla: la rotación de esquemas es una función de la semana, no
  * un contador guardado en ningún lado.
@@ -67,8 +94,27 @@ export function isoWeekNumber(date: Date): number {
   return Math.ceil(((copy.getTime() - yearStart) / 86_400_000 + 1) / 7);
 }
 
-/** El esquema de la semana: piramidal → fuerza → metabólico → rango medio. */
-export function schemeForWeek(date: Date): SchemeId {
+/**
+ * El esquema de la semana.
+ *
+ * Sin `preference` (o con `RECOMENDADO`) rota piramidal → fuerza →
+ * metabólico → rango medio, tal cual siempre lo hizo — la rotación sigue
+ * siendo el default porque la evidencia la respalda (ver el docblock de
+ * `SCHEME_PREFERENCES`). Con una preferencia fija, esa semana usa siempre el
+ * mismo esquema, sin importar cuál toque en la rotación.
+ *
+ * Cualquier valor que no sea uno de `SCHEME_PREFERENCES` (dato corrupto, o el
+ * `index` que `Array.prototype.map` le pasaría de colado a un callback de dos
+ * parámetros) cae de vuelta a `RECOMENDADO`: una preferencia rota no puede
+ * dejar a nadie sin rutina.
+ */
+export function schemeForWeek(date: Date, preference?: SchemePreference): SchemeId {
+  if (preference === "FUERZA") return "FUERZA";
+  if (preference === "METABOLICO") return "METABOLICO";
+  // `HIPERTROFIA` no es un esquema del catálogo: se mapea a `RANGO_MEDIO`
+  // (ver el docblock de `SCHEME_PREFERENCES` para el porqué).
+  if (preference === "HIPERTROFIA") return "RANGO_MEDIO";
+
   const index = (isoWeekNumber(date) - 1) % SCHEME_ROTATION.length;
   return SCHEME_ROTATION[index] as SchemeId;
 }

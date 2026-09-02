@@ -60,9 +60,11 @@ final class Descanso: ObservableObject {
 
             self.restante = nil
             self.detener()
-            // Golpe doble, distinto del de cerrar la serie, para que se
-            // distingan sin mirar el reloj.
-            WKInterfaceDevice.current().play(.notification)
+            // `.start` y no `.notification`: el fin del descanso significa
+            // "súbete otra vez", y merece su propia sensación — por rep va
+            // `.click`, al llegar al objetivo `.notification`, al cerrar la
+            // serie `.success`. Cuatro momentos, cuatro golpes distintos.
+            WKInterfaceDevice.current().play(.start)
         }
         // `.common` y no el modo por omisión: sin eso el cronómetro se congela
         // mientras la pantalla se desplaza, y volver a mirarlo diría un número

@@ -1,0 +1,12 @@
+-- Estilo de esquema fijo, elegido en preferencias. "RECOMENDADO" (default) deja
+-- que `schemeForWeek` siga rotando piramidal → fuerza → metabólico → rango
+-- medio semana a semana: la periodización ondulante (variar el estímulo cada
+-- semana) es igual o superior a la lineal para fuerza (Rhea et al. 2002), y
+-- por eso la rotación sigue siendo la recomendación por default.
+--
+-- "FUERZA"/"METABOLICO" fijan ese esquema todas las semanas; "HIPERTROFIA"
+-- fija RANGO_MEDIO, el esquema del catálogo más cercano al rango clásico de
+-- hipertrofia (6-12 reps al 67-85% 1RM — Schoenfeld et al. 2017). Los días de
+-- REHAB nunca respetan esto: la lesión manda sobre la preferencia (ver
+-- `schemeForExercise`).
+ALTER TABLE "profiles" ADD COLUMN "scheme_preference" TEXT NOT NULL DEFAULT 'RECOMENDADO';

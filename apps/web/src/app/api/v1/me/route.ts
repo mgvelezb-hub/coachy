@@ -59,6 +59,9 @@ export async function GET(request: Request): Promise<NextResponse> {
           // Si el planificador combina disciplinas compatibles el mismo día
           // (Fase 10). Ajustes lo pinta prellenado con lo que ya eligió.
           compactDays: profile.compactDays,
+          // Estilo de esquema fijo, o `RECOMENDADO` si dejó la rotación
+          // decidiendo. Ajustes lo pinta prellenado, igual que `compactDays`.
+          schemePreference: profile.schemePreference,
           dietStyle: profile.dietStyle,
           supplements: profile.supplements,
           // A qué hora entrena: la pantalla de dieta lo necesita para avisar

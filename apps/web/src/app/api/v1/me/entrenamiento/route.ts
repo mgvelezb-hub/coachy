@@ -6,6 +6,7 @@ import { apiUser, unauthorized } from "@/lib/api/auth";
 import { materializeMealPlans } from "@/lib/coachy/menu";
 import { prisma } from "@/lib/prisma";
 import { PROPOSITOS } from "@/lib/training/replan";
+import { SCHEME_PREFERENCES } from "@/lib/training/schemes";
 import { WEEK_DAYS } from "@/lib/training/split";
 import { TRAINING_TIMES, bloqueDelMotor } from "@/lib/training/horario";
 import { DISCIPLINES, MUSCLE_GROUPS, SWIM_LEVELS } from "@/lib/training/types";
@@ -29,6 +30,13 @@ import { DISCIPLINES, MUSCLE_GROUPS, SWIM_LEVELS } from "@/lib/training/types";
  * es una preferencia de "cómo armo tu semana", no una respuesta de "cuánto
  * tiempo tengo" — se ajusta un toque en Ajustes, no rehaciendo el
  * cuestionario completo.
+ *
+ * `schemePreference` fija (o no) el esquema de reps: `RECOMENDADO` (default)
+ * deja que `schemeForWeek` siga rotando piramidal → fuerza → metabólico →
+ * rango medio semana a semana — la rotación sigue siendo la recomendación
+ * porque la periodización ondulante es igual o superior a la lineal para
+ * fuerza (Rhea et al. 2002). Ver el docblock de `SCHEME_PREFERENCES` en
+ * `schemes.ts` para el sustento de cada mapeo.
  *
  * Aplica desde la siguiente vez que se arme la rutina; la semana en curso ya
  * está publicada y moverla a medio martes solo confunde.
@@ -77,6 +85,11 @@ const schema = z
      * `schema.prisma` para el porqué del default.
      */
     compactDays: z.boolean().optional(),
+    /**
+     * Estilo de esquema fijo, o `RECOMENDADO` para que la rotación siga
+     * decidiendo. Ver el docblock de `SCHEME_PREFERENCES` en `schemes.ts`.
+     */
+    schemePreference: z.enum(SCHEME_PREFERENCES).optional(),
     /**
      * A qué hora entrena, parejo toda la semana.
      *
@@ -135,6 +148,7 @@ export async function PATCH(request: Request): Promise<NextResponse> {
     disciplineLevels,
     timePerDay,
     compactDays,
+    schemePreference,
     trainingTime,
     trainingSchedule,
   } = parsed.data;
@@ -156,6 +170,7 @@ export async function PATCH(request: Request): Promise<NextResponse> {
       // para no confundirlo con "no tocar este campo".
       ...(timePerDay !== undefined ? { timePerDay: timePerDay ?? Prisma.JsonNull } : {}),
       ...(compactDays !== undefined ? { compactDays } : {}),
+      ...(schemePreference !== undefined ? { schemePreference } : {}),
       ...(trainingTime !== undefined ? { trainingTime } : {}),
       ...(trainingSchedule !== undefined
         ? { trainingSchedule: trainingSchedule ?? Prisma.JsonNull }
@@ -169,6 +184,7 @@ export async function PATCH(request: Request): Promise<NextResponse> {
       disciplineLevels: true,
       timePerDay: true,
       compactDays: true,
+      schemePreference: true,
       trainingTime: true,
       trainingSchedule: true,
     },

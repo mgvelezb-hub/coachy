@@ -14,9 +14,12 @@ import WatchKit
  la app en cuanto bajas el brazo, y de paso trae pulso y calorías y escribe el
  entrenamiento en Salud.
 
- Lo que NO hace todavía: contar repeticiones solo. Graba el movimiento de cada
- serie para poder calibrar ese conteo con sesiones reales, y hasta entonces el
- número lo pones tú.
+ Las repeticiones se cuentan solas cuando ya hay una serie de ese ejercicio
+ cerrada a mano: de esa serie sale la calibración (ver `Contador.swift`), y a
+ partir de ahí cada rep da un golpe en la muñeca, llegar al objetivo da otro y
+ el fin del descanso otro más. La primera serie de cada ejercicio siempre es
+ manual a propósito — es la que enseña cómo se mueve TU muñeca en ESE
+ ejercicio.
  */
 @main
 struct HolyGainsWatchApp: App {
@@ -32,6 +35,14 @@ struct SesionView: View {
     @ObservedObject private var entrenamiento = Entrenamiento.shared
     @ObservedObject private var descanso = Descanso.shared
     @State private var reps: Double = 0
+    /// Kilos de la serie que viene. Se confirma o corrige antes de empezar.
+    @State private var peso: Double = 0
+    /// `preparando`: confirmar reps y peso. `enSerie`: la barra en la mano.
+    @State private var enSerie = false
+    /// Contar las reps con los sensores. Se puede encender cuando ya hay una
+    /// serie de ESTE ejercicio cerrada a mano — de ahi sale la calibracion.
+    @State private var contarSolo = true
+    @ObservedObject private var contador = Contador.shared
     @State private var grabando = false
     /// En qué ejercicio estaba la serie anterior, para saber si el cambio de
     /// serie merece descanso o es un cambio de máquina.
@@ -127,6 +138,7 @@ struct SesionView: View {
         .onAppear {
             entrenamiento.terminar()
             descanso.saltar()
+            contador.limpiar()
         }
     }
 
@@ -145,6 +157,8 @@ struct SesionView: View {
         .onAppear {
             entrenamiento.terminar()
             descanso.saltar()
+            // La calibración era de ESTA sesión: la próxima recalibra.
+            contador.limpiar()
         }
     }
 
@@ -166,7 +180,7 @@ struct SesionView: View {
                 if let restante = descanso.restante {
                     descansando(restante: restante)
                 } else {
-                    capturaDeSerie(ejercicio: ejercicio, serie: serie) {
+                    capturaDeSerie(ejercicio: ejercicio, indiceEjercicio: pendiente.ejercicio, serie: serie) {
                         cerrar(sesion: sesion, pendiente: pendiente, serie: serie)
                     }
                 }
@@ -214,54 +228,99 @@ struct SesionView: View {
 
     // MARK: - Subvistas
 
-    /// Reps y el botón que cierra la serie.
+    /**
+     La captura, en dos pasos.
+
+     **Preparando**: confirmar (o corregir con la corona) las reps que pide el
+     plan y el peso, y darle "Empezar". **En serie**: si el conteo automático
+     está encendido, el número crece solo con un golpe por repetición; si no,
+     el número es el objetivo y se corrige al cerrar. El paso de preparar
+     existe porque la queja real fue al revés: cerrar series sin peso porque no
+     había dónde ponerlo a tiempo.
+     */
     @ViewBuilder
     private func capturaDeSerie(
         ejercicio: EjercicioEnVivo,
+        indiceEjercicio: Int,
         serie: SerieEnVivo,
         alCerrar: @escaping () -> Void
     ) -> some View {
-        // El número grande es lo único que hay que poder leer de reojo con el
-        // brazo a medio camino. La corona lo mueve sin tapar la pantalla con
-        // el dedo, que es para lo que existe la corona.
-        HStack {
-            Button {
-                reps = max(0, reps - 1)
-            } label: {
-                Image(systemName: "minus")
-            }
-            .buttonStyle(.bordered)
+        if !enSerie {
+            // Paso 1 — confirmar reps y peso.
+            HStack {
+                Button { reps = max(0, reps - 1) } label: { Image(systemName: "minus") }
+                    .buttonStyle(.bordered)
 
-            Text("\(Int(reps))")
-                .font(.system(size: 40, weight: .bold, design: .rounded))
+                Text("\(Int(reps))")
+                    .font(.system(size: 34, weight: .bold, design: .rounded))
+                    .frame(maxWidth: .infinity)
+                    .focusable()
+                    .digitalCrownRotation($reps, from: 0, through: 100, by: 1, sensitivity: .low, isContinuous: false)
+
+                Button { reps += 1 } label: { Image(systemName: "plus") }
+                    .buttonStyle(.bordered)
+            }
+            Text("repeticiones")
+                .font(.caption2)
+                .foregroundStyle(.secondary)
+                .frame(maxWidth: .infinity)
+
+            HStack {
+                Button { peso = max(0, peso - 2.5) } label: { Image(systemName: "minus") }
+                    .buttonStyle(.bordered)
+
+                Text(peso > 0 ? String(format: peso.truncatingRemainder(dividingBy: 1) == 0 ? "%.0f" : "%.1f", peso) : "—")
+                    .font(.system(size: 30, weight: .semibold, design: .rounded))
+                    .frame(maxWidth: .infinity)
+
+                Button { peso += 2.5 } label: { Image(systemName: "plus") }
+                    .buttonStyle(.bordered)
+            }
+            Text("kilos")
+                .font(.caption2)
+                .foregroundStyle(.secondary)
+                .frame(maxWidth: .infinity)
+
+            if contador.calibrado(indiceEjercicio) {
+                Toggle(isOn: $contarSolo) {
+                    Text("Contar reps solo")
+                        .font(.caption2)
+                }
+                .tint(.green)
+            } else {
+                Text("Cierra esta serie a mano y las que siguen se cuentan solas.")
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+            }
+
+            Button {
+                empezarSerie(indiceEjercicio: indiceEjercicio)
+            } label: {
+                Label("Empezar", systemImage: "play.fill")
+                    .frame(maxWidth: .infinity)
+            }
+            .buttonStyle(.borderedProminent)
+        } else {
+            // Paso 2 — la serie corriendo.
+            let automatico = contarSolo && contador.calibrado(indiceEjercicio)
+
+            Text(automatico ? "\(contador.reps)" : "\(Int(reps))")
+                .font(.system(size: 44, weight: .bold, design: .rounded))
                 .frame(maxWidth: .infinity)
                 .focusable()
-                .digitalCrownRotation(
-                    $reps,
-                    from: 0,
-                    through: 100,
-                    by: 1,
-                    sensitivity: .low,
-                    isContinuous: false
-                )
+                .digitalCrownRotation($reps, from: 0, through: 100, by: 1, sensitivity: .low, isContinuous: false)
 
-            Button {
-                reps += 1
-            } label: {
-                Image(systemName: "plus")
-            }
-            .buttonStyle(.bordered)
-        }
-
-        Text(serie.pesoKg.map { "objetivo \(serie.objetivo) reps · \(Int($0)) kg" } ?? "objetivo \(serie.objetivo) reps")
-            .font(.caption2)
-            .foregroundStyle(.secondary)
-
-        Button(action: alCerrar) {
-            Label("Serie hecha", systemImage: "checkmark")
+            Text(automatico ? "contando · objetivo \(serie.objetivo)" : "objetivo \(serie.objetivo) reps")
+                .font(.caption2)
+                .foregroundStyle(.secondary)
                 .frame(maxWidth: .infinity)
+
+            Button(action: alCerrar) {
+                Label("Serie hecha", systemImage: "checkmark")
+                    .frame(maxWidth: .infinity)
+            }
+            .buttonStyle(.borderedProminent)
         }
-        .buttonStyle(.borderedProminent)
     }
 
     /// El descanso, que ocupa el lugar del contador mientras corre.
@@ -313,19 +372,50 @@ struct SesionView: View {
         }
     }
 
-    /// Cada serie arranca con las reps del plan puestas: escribir desde cero es
-    /// la fricción que hace que nadie registre.
+    /**
+     Cada serie arranca con lo del plan puesto: reps objetivo y peso sugerido.
+     Escribir desde cero es la fricción que hace que nadie registre.
+
+     La grabación de movimiento YA NO arranca aquí sino en `empezarSerie`: si
+     graba desde que la pantalla pinta, la calibración del conteo se
+     contamina con el descanso y el caminar entre máquinas.
+     */
     private func preparar(serie: SerieEnVivo) {
         reps = Double(serie.objetivo)
-        if !grabando {
-            Movimiento.shared.empezar()
-            grabando = true
+        peso = serie.pesoKg ?? peso
+        enSerie = false
+    }
+
+    /// "Empezar": desde aquí lo que se mueve la muñeca ES la serie.
+    private func empezarSerie(indiceEjercicio: Int) {
+        WKInterfaceDevice.current().play(.start)
+        Movimiento.shared.empezar()
+        grabando = true
+        if contarSolo && contador.calibrado(indiceEjercicio) {
+            contador.empezar(ejercicio: indiceEjercicio, objetivo: Int(reps))
         }
+        enSerie = true
     }
 
     private func cerrar(sesion: SesionEnVivo, pendiente: (ejercicio: Int, serie: Int), serie: SerieEnVivo) {
+        let automatico = contarSolo && contador.calibrado(pendiente.ejercicio)
+        let contadas = contador.detener()
         let grabado = Movimiento.shared.detener()
         grabando = false
+        enSerie = false
+
+        // Con el conteo encendido mandan las contadas; a mano, lo de la
+        // corona. Y una serie manual con grabación decente ES la calibración
+        // del ejercicio: a partir de ella, las siguientes se cuentan solas.
+        let repsFinales = automatico ? max(contadas, 1) : Int(reps)
+        if !automatico {
+            contador.calibrar(
+                ejercicio: pendiente.ejercicio,
+                muestra: grabado.muestra,
+                reps: repsFinales,
+                duracion: grabado.duracion
+            )
+        }
 
         WKInterfaceDevice.current().play(.success)
 
@@ -334,16 +424,12 @@ struct SesionView: View {
                 workoutId: sesion.workoutId,
                 ejercicioIndice: pendiente.ejercicio,
                 serieIndice: pendiente.serie,
-                reps: Int(reps),
-                pesoKg: serie.pesoKg,
+                reps: repsFinales,
+                pesoKg: peso > 0 ? peso : serie.pesoKg,
                 cerradaEn: Date(),
                 muestra: grabado.muestra,
                 duracionSeg: grabado.duracion
             )
         )
-
-        // La siguiente serie vuelve a grabar en cuanto se pinta.
-        Movimiento.shared.empezar()
-        grabando = true
     }
 }
