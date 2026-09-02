@@ -28,3 +28,5 @@ prisma/*.db
 # test output
 .vitest/
 .vercel
+# Videos libres preparados para subir a Storage — pesan 111 MB, no van al repo
+videos-libres/
