@@ -44,6 +44,8 @@ export async function GET(request: Request): Promise<NextResponse> {
       videoUrl: fila.videoUrl
         ? ((videos as Record<string, string>)[fila.videoUrl] ?? null)
         : null,
+      videoLicense: fila.videoLicense,
+      videoAuthor: fila.videoAuthor,
     })),
   });
 }

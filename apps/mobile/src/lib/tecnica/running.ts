@@ -66,6 +66,9 @@ export const RUNNING: EjercicioDisciplina[] = [
     como: "Trote corto llevando el talón al glúteo, con el muslo casi vertical.",
     para: "Trabaja el recobro de la pierna, que es lo que permite subir de cadencia sin gastar más.",
     ojo: "Inclinarse hacia adelante para alcanzar el glúteo. El tronco se queda erguido.",
+    videoPath: "library/taloneo.mp4",
+    videoLicense: "Dominio público",
+    videoAuthor: null,
   },
   {
     id: "zancadas",
@@ -151,6 +154,9 @@ export const RUNNING: EjercicioDisciplina[] = [
     como: "Sube y baja el talón apoyado en un escalón, primero a dos piernas y después a una.",
     para: "El gemelo y el aquíleo aguantan varias veces tu peso en cada zancada. Es la fuerza que más previene lesiones al correr.",
     ojo: "Hacerlo rápido y corto. Se busca recorrido completo y control al bajar.",
+    videoPath: "library/elevacion-de-talon.mp4",
+    videoLicense: "CC-BY-SA 4.0",
+    videoAuthor: "Goulart",
   },
   {
     id: "puente_gluteo",
@@ -160,6 +166,9 @@ export const RUNNING: EjercicioDisciplina[] = [
     como: "Boca arriba, sube la cadera apretando el glúteo sin arquear la lumbar.",
     para: "Un glúteo fuerte estabiliza la cadera en cada apoyo y evita que la rodilla se meta hacia dentro.",
     ojo: "Empujar con la lumbar. Si sientes la espalda baja, baja el rango y aprieta el glúteo.",
+    videoPath: "library/puente-de-gluteo.mp4",
+    videoLicense: "Dominio público",
+    videoAuthor: null,
   },
   {
     id: "sentadilla_unipodal",
@@ -169,5 +178,8 @@ export const RUNNING: EjercicioDisciplina[] = [
     como: "Baja controlado sobre una pierna manteniendo la rodilla alineada con el pie.",
     para: "Correr es saltar de una pierna a la otra: la fuerza que importa es unilateral.",
     ojo: "Dejar caer la cadera del lado libre. Si pasa, sujétate de algo y baja menos.",
+    videoPath: "library/sentadilla-a-una-pierna.mp4",
+    videoLicense: "Dominio público",
+    videoAuthor: null,
   },
 ];

@@ -28,8 +28,12 @@ export type EjercicioDisciplina = {
   para: string;
   /** El error que casi todo el mundo comete. */
   ojo: string;
-  /** Ruta del video, cuando exista. Hoy ninguno lo tiene. */
+  /** Ruta del video, cuando exista: `library/{slug}.mp4` en el bucket privado. */
   videoPath?: string | null;
+  /** `CC-BY-SA 4.0` (wger.de) o `Dominio público` (free-exercise-db). Solo si hay video. */
+  videoLicense?: string | null;
+  /** A quién acreditar cuando la licencia lo pide. Null en dominio público. */
+  videoAuthor?: string | null;
 };
 
 export const NIVEL_LABEL: Record<NivelEjercicio, string> = {

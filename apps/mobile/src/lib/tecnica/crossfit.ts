@@ -23,6 +23,9 @@ export const CROSSFIT: EjercicioDisciplina[] = [
     como: "Pies al ancho de hombros, cadera atrás y abajo hasta pasar la paralela, tronco firme y talones pegados al piso.",
     para: "Es el patrón que aparece en más de la mitad de los WOD. Si no está limpio aquí, con barra encima está peor.",
     ojo: "Talón que se levanta o rodilla que se mete. Si pasa, trabaja movilidad de tobillo antes de sumar carga.",
+    videoPath: "library/sentadilla-al-aire.mp4",
+    videoLicense: "Dominio público",
+    videoAuthor: null,
   },
   {
     id: "deadlift",
@@ -32,6 +35,9 @@ export const CROSSFIT: EjercicioDisciplina[] = [
     como: "Barra pegada a la espinilla, cadera arriba de la rodilla, espalda neutra. Empuja el piso y cierra cadera arriba.",
     para: "El patrón de bisagra más cargado del deporte y la base del clean y del snatch.",
     ojo: "Lumbar redondeada al despegar. Es la lesión clásica del WOD con muchas repeticiones: cuando la espalda se redondea, ese fue el último set válido.",
+    videoPath: "library/peso-muerto.mp4",
+    videoLicense: "Dominio público",
+    videoAuthor: null,
   },
   {
     id: "front_squat",
@@ -41,6 +47,9 @@ export const CROSSFIT: EjercicioDisciplina[] = [
     como: "Barra en los deltoides con codos altos, agarre suelto de dedos, tronco vertical.",
     para: "Es la posición de recepción del clean y la base del thruster. Sin ella, el clean se queda a medias.",
     ojo: "Codos que caen: la barra rueda al frente y la espalda paga la diferencia.",
+    videoPath: "library/sentadilla-frontal.mp4",
+    videoLicense: "CC-BY-SA 4.0",
+    videoAuthor: "Goulart",
   },
   {
     id: "strict_press",
@@ -50,6 +59,9 @@ export const CROSSFIT: EjercicioDisciplina[] = [
     como: "Barra al frente de los hombros, glúteo y abdomen apretados, empuja vertical y mete la cabeza al pasar la barra.",
     para: "El empuje vertical limpio del que salen el push press y el jerk.",
     ojo: "Arquear la espalda para sacar el peso. Si hay que arquear, sobra peso.",
+    videoPath: "library/press-estricto.mp4",
+    videoLicense: "Dominio público",
+    videoAuthor: null,
   },
   {
     id: "burpee",
@@ -68,6 +80,9 @@ export const CROSSFIT: EjercicioDisciplina[] = [
     como: "Salto con los dos pies a un cajón, aterriza con la cadera flexionada y extiende arriba. Baja caminando o de salto según el nivel.",
     para: "Potencia de tren inferior y aterrizaje, que es lo que el gimnasio de pesas no entrena.",
     ojo: "Rebotar al bajar cuando ya hay fatiga. El rasguño de espinilla es la lesión más común del box: si dudas, baja caminando.",
+    videoPath: "library/box-jump.mp4",
+    videoLicense: "Dominio público",
+    videoAuthor: null,
   },
   {
     id: "wall_ball",
@@ -86,6 +101,9 @@ export const CROSSFIT: EjercicioDisciplina[] = [
     como: "Bisagra de cadera —no sentadilla—, la pesa pasa alta entre las piernas y sube por el impulso de la cadera.",
     para: "Enseña el patrón de bisagra explosivo con menos riesgo que la barra.",
     ojo: "Levantar con los brazos y ponerse en cuclillas. Ahí no trabaja la cadena posterior, que es todo el punto.",
+    videoPath: "library/kettlebell-swing.mp4",
+    videoLicense: "Dominio público",
+    videoAuthor: null,
   },
   {
     id: "row",
@@ -106,6 +124,9 @@ export const CROSSFIT: EjercicioDisciplina[] = [
     como: "Primer tirón lento hasta la rodilla, segundo tirón explosivo con extensión de cadera, y recibe la barra en los hombros con codos altos.",
     para: "Es el movimiento que lleva el peso del piso al hombro y aparece en la mitad de los WOD con barra.",
     ojo: "Tirar con los brazos antes de extender la cadera. La barra sube por la cadera; los brazos solo la guían.",
+    videoPath: "library/clean-cargada.mp4",
+    videoLicense: "Dominio público",
+    videoAuthor: null,
   },
   {
     id: "push_press",
@@ -115,6 +136,9 @@ export const CROSSFIT: EjercicioDisciplina[] = [
     como: "Flexión corta de rodilla —un dip de dos dedos—, extiende y usa ese impulso para mandar la barra arriba.",
     para: "Mueve más peso que el press estricto y enseña la coordinación del jerk.",
     ojo: "Bajar demasiado en el dip. Es un impulso, no una sentadilla.",
+    videoPath: "library/push-press.mp4",
+    videoLicense: "Dominio público",
+    videoAuthor: null,
   },
   {
     id: "push_jerk",
@@ -133,6 +157,9 @@ export const CROSSFIT: EjercicioDisciplina[] = [
     como: "Clean completo hasta los hombros, reacomoda el agarre y la respiración, y de ahí el jerk arriba.",
     para: "El levantamiento de más carga total del deporte: es dos movimientos con una pausa deliberada en medio.",
     ojo: "Encadenarlos sin respirar. La pausa en el hombro no es descanso, es parte de la técnica.",
+    videoPath: "library/clean-and-jerk.mp4",
+    videoLicense: "Dominio público",
+    videoAuthor: null,
   },
   {
     id: "thruster",
@@ -142,6 +169,9 @@ export const CROSSFIT: EjercicioDisciplina[] = [
     como: "Sentadilla frontal completa y, sin pausa, empuje arriba usando el impulso de la subida.",
     para: "El movimiento más duro por unidad de tiempo del deporte —Fran son 45 de estos con dominadas—.",
     ojo: "Separar la sentadilla del empuje. El thruster es un solo movimiento; partirlo cuesta el doble de energía.",
+    videoPath: "library/thruster.mp4",
+    videoLicense: "Dominio público",
+    videoAuthor: null,
   },
   {
     id: "toes_to_bar",
@@ -178,6 +208,9 @@ export const CROSSFIT: EjercicioDisciplina[] = [
     como: "Barra bloqueada arriba y ligeramente atrás, hombros activos, sentadilla completa sin que la barra se vaya al frente.",
     para: "Es el examen de movilidad del deporte y la posición de recepción del snatch.",
     ojo: "Forzarla sin movilidad de hombro y de tobillo. Aquí no se compensa con fuerza: o hay rango o no lo hay.",
+    videoPath: "library/sentadilla-por-encima-de-la-cabeza.mp4",
+    videoLicense: "Dominio público",
+    videoAuthor: null,
   },
   {
     id: "wall_walk",
@@ -198,6 +231,9 @@ export const CROSSFIT: EjercicioDisciplina[] = [
     como: "Del piso a por encima de la cabeza en un solo movimiento, con agarre ancho y recepción en sentadilla.",
     para: "El movimiento más técnico y más rápido del deporte. Bien hecho, es el mejor entrenador de potencia que existe.",
     ojo: "No es para aprender por app ni con fatiga. Si la barra se va adelante o el hombro no bloquea, ese peso todavía no es tuyo.",
+    videoPath: "library/snatch-arranque.mp4",
+    videoLicense: "Dominio público",
+    videoAuthor: null,
   },
   {
     id: "muscle_up",
@@ -207,6 +243,9 @@ export const CROSSFIT: EjercicioDisciplina[] = [
     como: "Dominada alta con transición de pecho sobre la barra o anillas, y termina en fondo con brazos bloqueados.",
     para: "La puerta de entrada a los WOD avanzados; junta tirón y empuje en una repetición.",
     ojo: "Intentarlo sin dominar la transición en anillas bajas. El hombro y el codo son los que se llevan la mala transición.",
+    videoPath: "library/muscle-up.mp4",
+    videoLicense: "Dominio público",
+    videoAuthor: null,
   },
   {
     id: "handstand_push_up",
@@ -216,6 +255,9 @@ export const CROSSFIT: EjercicioDisciplina[] = [
     como: "Contra la pared, baja hasta tocar la cabeza en un punto marcado y empuja hasta bloquear brazos.",
     para: "El empuje vertical más exigente sin barra, y de los que más rápido se degrada con fatiga.",
     ojo: "Bajar sin control. Escala con déficit de altura o con banda antes que arriesgar el cuello.",
+    videoPath: "library/flexion-en-el-pino.mp4",
+    videoLicense: "Dominio público",
+    videoAuthor: null,
   },
   {
     id: "squat_clean",

@@ -374,12 +374,28 @@ function EjercicioGymFila({
       )}
 
       {isOpen && reproducible && (
-        <VideoPlayer
-          uri={isDownloaded ? localVideoFile(ejercicio.videoPath!).uri : (ejercicio.videoUrl as string)}
-        />
+        <>
+          <VideoPlayer
+            uri={isDownloaded ? localVideoFile(ejercicio.videoPath!).uri : (ejercicio.videoUrl as string)}
+          />
+          {fuenteLabel(ejercicio.videoLicense, ejercicio.videoAuthor) && (
+            <Text style={styles.atribucion}>
+              {fuenteLabel(ejercicio.videoLicense, ejercicio.videoAuthor)}
+            </Text>
+          )}
+        </>
       )}
     </View>
   );
+}
+
+/** Nombre de la fuente para la línea de atribución discreta bajo el video. */
+function fuenteLabel(licencia: string | null | undefined, autor: string | null | undefined): string | null {
+  if (!licencia) return null;
+  if (licencia.startsWith("CC-BY-SA")) {
+    return `Video: ${autor ?? "wger.de"} · ${licencia} · wger.de`;
+  }
+  return "Ilustración: free-exercise-db · dominio público";
 }
 
 /** Un video sin ficha (biblioteca armada solo con la semana, sin catálogo). */
@@ -507,5 +523,11 @@ const makeStyles = (colors: Palette) =>
       borderRadius: radius.md,
       marginTop: spacing.xs,
       backgroundColor: "#000",
+    },
+    atribucion: {
+      fontFamily: fonts.sans,
+      ...typeScale.label,
+      color: colors.paloRosaLight,
+      marginTop: spacing.xs,
     },
   });

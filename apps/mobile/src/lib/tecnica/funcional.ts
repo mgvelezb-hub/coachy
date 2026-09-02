@@ -37,6 +37,9 @@ export const FUNCIONAL: EjercicioDisciplina[] = [
     como: "Cuerpo inclinado, brazos extendidos y empuje continuo con pasos cortos y potentes, sin dejar de mover el trineo.",
     para: "Fuerza de piernas sin fase excéntrica: cansa mucho y deja poca agujeta, así que cabe cerca de un día de pierna.",
     ojo: "Dar pasos largos. El trineo se mueve con muchos pasos cortos, no con zancadas.",
+    videoPath: "library/empuje-de-trineo.mp4",
+    videoLicense: "Dominio público",
+    videoAuthor: null,
   },
   {
     id: "sled_pull",
@@ -46,6 +49,9 @@ export const FUNCIONAL: EjercicioDisciplina[] = [
     como: "De espaldas al trineo, tira de la cuerda mano sobre mano con la cadera atrás y los pies plantados.",
     para: "El complemento del empuje: trabaja toda la cadena posterior y el agarre.",
     ojo: "Tirar solo con los brazos. La fuerza sale de bajar la cadera y empujar el piso.",
+    videoPath: "library/arrastre-de-trineo.mp4",
+    videoLicense: "Dominio público",
+    videoAuthor: null,
   },
   {
     id: "farmer_carry",
@@ -55,6 +61,9 @@ export const FUNCIONAL: EjercicioDisciplina[] = [
     como: "Una pesa pesada en cada mano, camina erguido con pasos cortos y los hombros atrás.",
     para: "Agarre, core y postura de una sola vez. En cualquier formato de carrera funcional es la estación que más gente subestima.",
     ojo: "Encoger los hombros o inclinarte. Si el cuerpo se dobla, sobra peso.",
+    videoPath: "library/caminata-del-granjero.mp4",
+    videoLicense: "Dominio público",
+    videoAuthor: null,
   },
   {
     id: "sandbag_lunge",
@@ -111,6 +120,9 @@ export const FUNCIONAL: EjercicioDisciplina[] = [
     como: "Bisagra explosiva de cadera; la pesa pasa alta entre las piernas y sube por el impulso hasta la altura del pecho.",
     para: "El mejor puente entre fuerza y cardio: cadena posterior y pulso alto en el mismo movimiento.",
     ojo: "Levantar con los brazos o ponerse en cuclillas. Ahí no trabaja la cadera, que es todo el punto.",
+    videoPath: "library/swing-con-pesa-rusa.mp4",
+    videoLicense: "Dominio público",
+    videoAuthor: null,
   },
   {
     id: "goblet_squat",
@@ -120,6 +132,9 @@ export const FUNCIONAL: EjercicioDisciplina[] = [
     como: "Pesa rusa o mancuerna sujeta al pecho, sentadilla completa con los codos por dentro de las rodillas.",
     para: "El contrapeso al frente endereza el tronco solo: la forma más rápida de aprender a sentarse bien con carga.",
     ojo: "Separar la pesa del pecho al bajar. Si se aleja, el peso lo sostiene la espalda.",
+    videoPath: "library/sentadilla-goblet.mp4",
+    videoLicense: "Dominio público",
+    videoAuthor: null,
   },
   {
     id: "step_over",
@@ -138,6 +153,9 @@ export const FUNCIONAL: EjercicioDisciplina[] = [
     como: "Desde el swing, guía la pesa hasta el hombro rotando la mano por dentro para que aterrice suave en el antebrazo.",
     para: "Enseña a recibir una carga en movimiento sin barra: potencia con mucha menos técnica que el clean olímpico.",
     ojo: "Dejar que la pesa golpee el antebrazo. Si suena, la rotación llegó tarde.",
+    videoPath: "library/clean-con-pesa-rusa.mp4",
+    videoLicense: "Dominio público",
+    videoAuthor: null,
   },
   {
     id: "push_press_mancuerna",
@@ -156,6 +174,9 @@ export const FUNCIONAL: EjercicioDisciplina[] = [
     como: "Sentadilla completa con las mancuernas en los hombros y, sin pausa, empuje arriba.",
     para: "Junta pierna y empuje en un solo movimiento: el que más rápido sube el pulso con carga.",
     ojo: "Separar la sentadilla del empuje. Es un movimiento continuo; partirlo cuesta el doble.",
+    videoPath: "library/thruster-con-mancuernas.mp4",
+    videoLicense: "Dominio público",
+    videoAuthor: null,
   },
   {
     id: "slam_ball",
@@ -192,6 +213,9 @@ export const FUNCIONAL: EjercicioDisciplina[] = [
     como: "Cuerpo recto colgado de las anillas, tira del pecho hacia las manos manteniendo la línea.",
     para: "Tirón horizontal escalable con solo mover los pies: equilibra todo el empuje del circuito.",
     ojo: "Sacar la cadera. El cuerpo sube entero, como una plancha que se acerca.",
+    videoPath: "library/remo-en-anillas-o-trx.mp4",
+    videoLicense: "Dominio público",
+    videoAuthor: null,
   },
 
   // -- Core con equipo -------------------------------------------------------
@@ -203,6 +227,9 @@ export const FUNCIONAL: EjercicioDisciplina[] = [
     como: "De pie y de costado a una polea o banda, empuja las manos al frente resistiendo la rotación.",
     para: "Anti-rotación: entrena al core en su trabajo real, que es impedir movimiento, no producirlo.",
     ojo: "Girar el tronco al empujar. Si giras, la polea ganó.",
+    videoPath: "library/press-pallof.mp4",
+    videoLicense: "Dominio público",
+    videoAuthor: null,
   },
   {
     id: "plancha_arrastre",
@@ -221,6 +248,9 @@ export const FUNCIONAL: EjercicioDisciplina[] = [
     como: "Del suelo a de pie con una pesa sostenida arriba, pasando por cada posición sin perder el brazo vertical.",
     para: "El ejercicio más completo de estabilidad de hombro y control de tronco que existe con una sola pesa.",
     ojo: "Hacerla rápido. Es un movimiento lento y por posiciones; con prisa se pierde el hombro.",
+    videoPath: "library/levantada-turca.mp4",
+    videoLicense: "Dominio público",
+    videoAuthor: null,
   },
   {
     id: "bear_crawl",

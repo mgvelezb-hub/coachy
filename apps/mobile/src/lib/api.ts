@@ -1190,6 +1190,10 @@ export type EjercicioGym = {
   substitutes: string[];
   videoPath: string | null;
   videoUrl: string | null;
+  /** `CC-BY-SA 4.0` (wger.de) o `Dominio público` (free-exercise-db). Null si no hay video. */
+  videoLicense: string | null;
+  /** A quién acreditar cuando la licencia lo pide. Null en dominio público o sin video. */
+  videoAuthor: string | null;
 };
 
 /**
@@ -1200,6 +1204,18 @@ export type EjercicioGym = {
  */
 export function getCatalogoGym(): Promise<{ ejercicios: EjercicioGym[] }> {
   return apiFetch<{ ejercicios: EjercicioGym[] }>("/api/v1/exercises");
+}
+
+/**
+ * `POST /api/v1/exercise-videos/sign` — URLs firmadas para rutas de Storage
+ * que no vienen de la tabla `exercises` (el catálogo de las demás disciplinas
+ * vive en código, no en la base). Mismo bucket privado, mismo TTL de una hora.
+ */
+export function signVideoPaths(paths: string[]): Promise<{ urls: Record<string, string> }> {
+  return apiFetch<{ urls: Record<string, string> }>("/api/v1/exercise-videos/sign", {
+    method: "POST",
+    body: { paths },
+  });
 }
 
 export function getTrainingWeek(date?: string): Promise<WeekView> {

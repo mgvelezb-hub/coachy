@@ -767,6 +767,12 @@ model Exercise {
   muscleGroup String   @map("muscle_group")
   poolRole    String   @map("pool_role")
   videoUrl    String?  @map("video_url")
+  /// Licencia del video actual: `CC-BY-SA 4.0` (wger.de) o `Dominio público` (free-exercise-db). Null si no hay video o es material propio.
+  videoLicense String? @map("video_license")
+  /// Autor a acreditar cuando la licencia lo exige (wger.de). Null en dominio público o sin video.
+  videoAuthor String?  @map("video_author")
+  /// De dónde salió el video: `wger.de` o `free-exercise-db`. Null si no hay video.
+  videoSource String?  @map("video_source")
   substitutes String[]
   /// Ejercicio trazador: se registra carga cada semana.
   isTracker   Boolean  @default(false) @map("is_tracker")
