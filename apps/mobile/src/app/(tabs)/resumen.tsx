@@ -66,6 +66,7 @@ import {
   type TrainingHistoryRow,
   type WeekView,
 } from "@/lib/api";
+import { getGolf, type GolfResponse } from "@/lib/api-golf";
 import { bestStreak, currentStreak, todayISO, trainingDays } from "@/lib/streak";
 import {
   EJERCICIO_META_MIN,
@@ -112,6 +113,8 @@ type ResumenData = {
   me: MeResponse | null;
   labs: LabResult[] | null;
   comidas: ComidasResponse | null;
+  /** Agregados de golf (`getGolf()`) — `null` si el fetch falló, no si no hay rondas. */
+  golf: GolfResponse | null;
 };
 
 /** Cada fuente se tolera por separado: que una falle no tumba la pantalla entera. */
@@ -181,18 +184,32 @@ export default function ResumenScreen() {
   }, []);
 
   const load = useCallback(async () => {
-    const [historyRes, checkinsRes, healthRes, activitiesRes, week, goal, decisionRes, measurementsRes, me] =
-      await Promise.all([
-        safeFetch(getHistoryTraining()),
-        safeFetch(getCheckins()),
-        safeFetch(getHealthDays()),
-        safeFetch(getActivities()),
-        safeFetch(getTrainingWeek()),
-        safeFetch(getGoal()),
-        safeFetch(getDecision()),
-        safeFetch(getHistoryMeasurements()),
-        safeFetch(getMe()),
-      ]);
+    const [
+      historyRes,
+      checkinsRes,
+      healthRes,
+      activitiesRes,
+      week,
+      goal,
+      decisionRes,
+      measurementsRes,
+      me,
+      golf,
+    ] = await Promise.all([
+      safeFetch(getHistoryTraining()),
+      safeFetch(getCheckins()),
+      safeFetch(getHealthDays()),
+      safeFetch(getActivities()),
+      safeFetch(getTrainingWeek()),
+      safeFetch(getGoal()),
+      safeFetch(getDecision()),
+      safeFetch(getHistoryMeasurements()),
+      safeFetch(getMe()),
+      // Solo la alimenta el panel "Avance por disciplina" y solo dice algo
+      // para quien juega golf, pero se pide igual que el resto de fuentes: el
+      // Resumen no sabe, al cargar, qué paneles trae acomodados cada quien.
+      safeFetch(getGolf()),
+    ]);
 
     const labsRes = await safeFetch(getLabs());
     const comidasRes = await safeFetch(getComidasLog());
@@ -210,6 +227,7 @@ export default function ResumenScreen() {
       me,
       labs: labsRes?.labs ?? null,
       comidas: comidasRes ?? null,
+      golf,
     };
 
     if (Object.values(next).every((value) => value === null)) {

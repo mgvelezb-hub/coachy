@@ -198,6 +198,19 @@ export const PANELES: PanelDef[] = [
     porDefecto: { orden: 7, tamano: "mini", vista: "dato" },
   },
   {
+    id: "avance_disciplinas",
+    nombre: "Avance por disciplina",
+    pregunta: "¿Cómo voy en cada disciplina que entreno?",
+    grupo: "Entrenamiento",
+    tamanos: ["mini", "compacta", "completa"],
+    vistas: ["dato", "desglose"],
+    etiquetasVista: {
+      dato: "Solo tu disciplina principal",
+      desglose: "Cada disciplina con su tendencia",
+    },
+    porDefecto: null,
+  },
+  {
     id: "cumplimiento",
     nombre: "Cumplimiento",
     pregunta: "¿Estoy haciendo lo que dice mi plan, de rutina y de dieta?",

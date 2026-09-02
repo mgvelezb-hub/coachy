@@ -44,6 +44,7 @@ import {
   type TrainingHistoryRow,
   type WeekView,
 } from "@/lib/api";
+import type { GolfResponse } from "@/lib/api-golf";
 import { textoDeGlidepath, type Glidepath } from "@/lib/glidepath";
 import { EJERCICIO_META_MIN, PASOS_META, SUENO_META_MIN, formatSleep } from "@/lib/insights";
 import { brechasDelMes, type MetasDelMes } from "@/lib/metas";
@@ -77,6 +78,8 @@ export type VistaResumen = {
     me: MeResponse | null;
     labs: LabResult[] | null;
     comidas: ComidasResponse | null;
+    /** Agregados de golf (`getGolf()`) — `null` si el fetch falló, no si no hay rondas. */
+    golf: GolfResponse | null;
   };
   pasos: { value: number; date: string } | null;
   ejercicio: { value: number; date: string } | null;
@@ -741,6 +744,68 @@ export function PanelResumen({
     }
 
     // -----------------------------------------------------------------------
+    case "avance_disciplinas": {
+      // La primaria manda el esqueleto de la semana; las demás son las que la
+      // persona agregó en Ajustes. Entre las dos arman "lo que entreno hoy" —
+      // no lo que trae la semana generada, que puede ser un subconjunto.
+      const primaria: Discipline = datos.me?.profile?.primaryDiscipline ?? "PESAS";
+      const otras = datos.me?.profile?.otherDisciplines ?? [];
+      const activas = [primaria, ...otras.map((carga) => carga.discipline)].filter(
+        (disciplina, indice, arreglo) => arreglo.indexOf(disciplina) === indice,
+      );
+
+      const filas = activas.map((disciplina) => avanceDeDisciplina(disciplina, datos));
+      const principal = filas[0]!;
+      const IconoPrincipal = iconoDe(primaria);
+
+      if (mini) {
+        return cuadro({
+          icon: IconoPrincipal,
+          tint: colors.paloRosa,
+          title: DISCIPLINE_LABELS[primaria],
+          value: principal.valor,
+          detail: principal.detalle,
+          status: principal.tendencia,
+          onPress: () => navegar(principal.ruta),
+        });
+      }
+
+      return renglon({
+        icon: IconoPrincipal,
+        tint: colors.paloRosa,
+        title: "Avance por disciplina",
+        value: principal.valor,
+        detail: principal.detalle,
+        status: principal.tendencia,
+        onPress: () => navegar(principal.ruta),
+        infoTip: (
+          <InfoTip titulo="Avance por disciplina">
+            <TextoInfo>
+              La tendencia compara tus últimas dos semanas contra las dos anteriores —en golf, tus
+              últimas cinco rondas contra las de antes. Sin ese historial todavía, la fila se queda
+              sin flecha en vez de inventar una.
+            </TextoInfo>
+            <TextoInfo>
+              Golf sale de tus rondas registradas, pesas de tus sesiones cerradas y el resto de las
+              actividades que capturas a mano o sincroniza tu reloj.
+            </TextoInfo>
+          </InfoTip>
+        ),
+        children: (
+          <>
+            {filas.map((fila) => (
+              <FilaAvanceDisciplina
+                key={fila.discipline}
+                fila={fila}
+                onPress={() => navegar(fila.ruta)}
+              />
+            ))}
+          </>
+        ),
+      });
+    }
+
+    // -----------------------------------------------------------------------
     case "cumplimiento": {
       const valor = cumplimiento.rutina === null ? "—" : `${cumplimiento.rutina} %`;
 
@@ -1138,6 +1203,192 @@ function FilaDisciplina({
   );
 }
 
+// -----------------------------------------------------------------------------
+// "avance_disciplinas" — lógica pura, sin JSX, para poder probarla a ojo
+// leyendo el switch: cada disciplina activa sale de una fuente distinta
+// (golf trae su propio endpoint agregado; pesas de las sesiones cerradas;
+// el resto de las actividades registradas) y las tres se resuelven al mismo
+// molde para que la fila no tenga que saber de dónde vino su número.
+// -----------------------------------------------------------------------------
+
+type Tendencia = { label: string; tone: "ok" | "warn" | "neutral" } | null;
+
+type AvanceDisciplina = {
+  discipline: Discipline;
+  /** El número protagonista de la fila. */
+  valor: string;
+  /** La línea de contexto: de qué está hecho ese número. */
+  detalle: string;
+  tendencia: Tendencia;
+  /** A dónde lleva tocar la fila: el detalle de golf, el historial de pesas,
+   * o la captura de actividad para todo lo demás. */
+  ruta: string;
+};
+
+/** Días completos entre una fecha yyyy-MM-dd y hoy, en UTC para no correr el
+ * día por el huso local — mismo criterio que `diasDesde` de la pantalla. */
+function diasDesde(fecha: string): number {
+  const desde = Date.parse(`${fecha}T12:00:00.000Z`);
+  const hoy = Date.parse(`${new Date().toISOString().slice(0, 10)}T12:00:00.000Z`);
+  return Math.round((hoy - desde) / 86_400_000);
+}
+
+/** La flecha va pegada al texto: es el chip completo, no un ícono aparte. */
+function flechaTendencia(direccion: "up" | "down" | "flat"): Tendencia {
+  if (direccion === "up") return { label: "↑ Mejorando", tone: "ok" };
+  if (direccion === "down") return { label: "↓ Empeorando", tone: "warn" };
+  return { label: "→ Estable", tone: "neutral" };
+}
+
+function avanceGolf(golf: GolfResponse | null): Omit<AvanceDisciplina, "discipline" | "ruta"> {
+  if (golf === null) return { valor: "—", detalle: "Sin conexión", tendencia: null };
+  const { agregados } = golf;
+  if (agregados.rondas === 0) return { valor: "—", detalle: "Sin registros aún", tendencia: null };
+
+  const score = agregados.scoreVsPar.ultimas5;
+  const valor = score === null ? `${agregados.rondas} rondas` : `${score > 0 ? "+" : ""}${score} vs par`;
+  const detalle =
+    [
+      agregados.girPct !== null ? `GIR ${agregados.girPct}%` : null,
+      agregados.puttsPromedio !== null ? `${agregados.puttsPromedio} putts` : null,
+    ]
+      .filter((parte): parte is string => parte !== null)
+      .join(" · ") || `${agregados.rondas} rondas jugadas`;
+
+  const tendencia =
+    agregados.tendencia === "MEJORANDO"
+      ? flechaTendencia("up")
+      : agregados.tendencia === "EMPEORANDO"
+        ? flechaTendencia("down")
+        : agregados.tendencia === "ESTABLE"
+          ? flechaTendencia("flat")
+          : null;
+
+  return { valor, detalle, tendencia };
+}
+
+function avancePesas(sessions: TrainingHistoryRow[] | null): Omit<AvanceDisciplina, "discipline" | "ruta"> {
+  if (sessions === null) return { valor: "—", detalle: "Sin conexión", tendencia: null };
+  const cerradas = sessions.filter((sesion) => sesion.completed);
+  if (cerradas.length === 0) return { valor: "—", detalle: "Sin registros aún", tendencia: null };
+
+  const volumenEn = (desde: number, hasta: number) =>
+    cerradas
+      .filter((sesion) => {
+        const dias = diasDesde(sesion.date);
+        return dias >= desde && dias < hasta;
+      })
+      .reduce((suma, sesion) => suma + sesion.volumeKg, 0);
+
+  const reciente = volumenEn(0, 14);
+  const previo = volumenEn(14, 28);
+  const tendencia =
+    previo > 0
+      ? flechaTendencia(reciente > previo * 1.05 ? "up" : reciente < previo * 0.95 ? "down" : "flat")
+      : null;
+
+  return {
+    valor: `${cerradas.length} ${cerradas.length === 1 ? "sesión" : "sesiones"}`,
+    detalle: `${Math.round(reciente).toLocaleString("es-MX")} kg en los últimos 14 días`,
+    tendencia,
+  };
+}
+
+function avanceActividad(
+  discipline: Discipline,
+  activities: Activity[] | null,
+): Omit<AvanceDisciplina, "discipline" | "ruta"> {
+  if (activities === null) return { valor: "—", detalle: "Sin conexión", tendencia: null };
+  const propias = activities.filter((actividad) => actividad.discipline === discipline);
+  if (propias.length === 0) return { valor: "—", detalle: "Sin registros aún", tendencia: null };
+
+  const enRango = (desde: number, hasta: number) =>
+    propias.filter((actividad) => {
+      const dias = diasDesde(actividad.date);
+      return dias >= desde && dias < hasta;
+    });
+
+  const ultimos30 = enRango(0, 30);
+  if (ultimos30.length === 0) {
+    return { valor: "—", detalle: "Nada en los últimos 30 días", tendencia: null };
+  }
+
+  const minutos = ultimos30.reduce((suma, actividad) => suma + actividad.durationMin, 0);
+  const quincenaReciente = enRango(0, 15).length;
+  const quincenaPrevia = enRango(15, 30).length;
+  const tendencia =
+    quincenaPrevia > 0
+      ? flechaTendencia(
+          quincenaReciente > quincenaPrevia ? "up" : quincenaReciente < quincenaPrevia ? "down" : "flat",
+        )
+      : null;
+
+  return {
+    valor: `${ultimos30.length} ${ultimos30.length === 1 ? "sesión" : "sesiones"}`,
+    detalle: `${minutos} min en los últimos 30 días`,
+    tendencia,
+  };
+}
+
+/** A dónde lleva tocar la fila de esa disciplina. */
+function rutaDeDisciplina(discipline: Discipline): string {
+  if (discipline === "GOLF") return "/golf";
+  if (discipline === "PESAS") return "/historial";
+  return "/actividad";
+}
+
+function avanceDeDisciplina(discipline: Discipline, datos: VistaResumen["datos"]): AvanceDisciplina {
+  const base =
+    discipline === "GOLF"
+      ? avanceGolf(datos.golf)
+      : discipline === "PESAS"
+        ? avancePesas(datos.sessions)
+        : avanceActividad(discipline, datos.activities);
+
+  return { discipline, ruta: rutaDeDisciplina(discipline), ...base };
+}
+
+/**
+ * Una disciplina en el desglose de avance: su ícono, su número y su
+ * tendencia, tocable hasta su propio detalle — cada disciplina vive en una
+ * pantalla distinta y la fila no puede llevar a todas con el mismo toque del
+ * encabezado.
+ */
+function FilaAvanceDisciplina({ fila, onPress }: { fila: AvanceDisciplina; onPress: () => void }) {
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
+  const Icono = iconoDe(fila.discipline);
+
+  const toneColor: Record<"ok" | "warn" | "neutral", string> = {
+    ok: colors.champan,
+    warn: colors.paloRosa,
+    neutral: colors.paloRosaLight,
+  };
+
+  return (
+    <Pressable
+      onPress={onPress}
+      style={({ pressed }) => [styles.filaAvance, pressed && styles.pressed]}
+    >
+      <Icono size={18} color={colors.paloRosa} strokeWidth={2} />
+      <View style={styles.filaAvanceTexto}>
+        <Text style={styles.filaSemanaGrupo}>{DISCIPLINE_LABELS[fila.discipline]}</Text>
+        <Text style={styles.filaSemanaEstado} numberOfLines={1}>
+          {fila.detalle}
+        </Text>
+      </View>
+      <View style={styles.filaAvanceDerecha}>
+        <Text style={styles.filaAvanceValor}>{fila.valor}</Text>
+        {fila.tendencia && (
+          <Text style={[styles.filaAvanceTendencia, { color: toneColor[fila.tendencia.tone] }]}>
+            {fila.tendencia.label}
+          </Text>
+        )}
+      </View>
+    </Pressable>
+  );
+}
+
 const makeStyles = (colors: Palette) =>
   StyleSheet.create({
     hero: {
@@ -1233,6 +1484,11 @@ const makeStyles = (colors: Palette) =>
     },
     filaSemanaEstado: { fontFamily: fonts.sans, ...typeScale.bodySm, color: colors.paloRosa },
     filaSemanaHecha: { color: colors.champan, fontFamily: fonts.sansSemiBold },
+    filaAvance: { flexDirection: "row", alignItems: "center", gap: spacing.sm, paddingVertical: 6 },
+    filaAvanceTexto: { flex: 1, gap: 1 },
+    filaAvanceDerecha: { alignItems: "flex-end", gap: 1 },
+    filaAvanceValor: { fontFamily: fonts.sansSemiBold, ...typeScale.bodySm, color: colors.marfil },
+    filaAvanceTendencia: { fontFamily: fonts.sansMedium, ...typeScale.label },
     macros: { flexDirection: "row", gap: spacing.lg },
     macro: { gap: 2 },
     macroLabel: { fontFamily: fonts.sansMedium, ...typeScale.label, color: colors.paloRosa },
