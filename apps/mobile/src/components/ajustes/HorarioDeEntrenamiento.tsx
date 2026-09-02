@@ -3,7 +3,7 @@ import { useCallback, useMemo, useState } from "react";
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from "react-native";
 
 import { Card } from "@/components/Card";
-import { Explicacion, TextoExplicativo } from "@/components/Explicacion";
+import { InfoTip, TextoInfo } from "@/components/InfoTip";
 import { SectionLabel } from "@/components/SectionLabel";
 import { useTheme } from "@/context/theme";
 import {
@@ -101,18 +101,20 @@ export function HorarioDeEntrenamiento({ me }: { me: MeResponse | null }) {
 
   return (
     <Card>
-      <SectionLabel>A qué hora entrenas</SectionLabel>
-      <Explicacion>
-        <TextoExplicativo>
-          Esto no es una etiqueta: decide cómo se reparte tu comida. Si entrenas en la mañana,
-          desayunas antes de entrenar y comes fuerte después. Si entrenas de noche, tu desayuno va
-          bajo en carbohidratos y esos carbohidratos se guardan para la tarde.
-        </TextoExplicativo>
-        <TextoExplicativo>
-          Al cambiarlo se rearma tu menú con los mismos alimentos: lo que se mueve es cuándo comes
-          qué.
-        </TextoExplicativo>
-      </Explicacion>
+      <View style={styles.sectionHeader}>
+        <SectionLabel>A qué hora entrenas</SectionLabel>
+        <InfoTip titulo="A qué hora entrenas">
+          <TextoInfo>
+            Esto no es una etiqueta: decide cómo se reparte tu comida. Si entrenas en la mañana,
+            desayunas antes de entrenar y comes fuerte después. Si entrenas de noche, tu desayuno
+            va bajo en carbohidratos y esos carbohidratos se guardan para la tarde.
+          </TextoInfo>
+          <TextoInfo>
+            Al cambiarlo se rearma tu menú con los mismos alimentos: lo que se mueve es cuándo
+            comes qué.
+          </TextoInfo>
+        </InfoTip>
+      </View>
 
       <View style={styles.opciones}>
         {HORARIOS.map((horario) => {
@@ -208,6 +210,7 @@ function leeHorarioPorDia(json: unknown): Partial<Record<WeekDay, HorarioDeDia>>
 
 const makeStyles = (colors: Palette) =>
   StyleSheet.create({
+    sectionHeader: { flexDirection: "row", alignItems: "center", gap: spacing.xs },
     opciones: { flexDirection: "row", flexWrap: "wrap", gap: spacing.sm, marginTop: spacing.md },
     opcion: {
       flexDirection: "row",

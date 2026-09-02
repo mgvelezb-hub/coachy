@@ -3,7 +3,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { ActivityIndicator, Modal, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 
 import { Card } from "@/components/Card";
-import { Explicacion, TextoExplicativo } from "@/components/Explicacion";
+import { InfoTip, TextoInfo } from "@/components/InfoTip";
 import { SectionLabel } from "@/components/SectionLabel";
 import { useTheme } from "@/context/theme";
 import {
@@ -135,19 +135,21 @@ export function SeccionHorariosComida() {
 
   return (
     <Card>
-      <SectionLabel>A qué hora comes</SectionLabel>
-      <Explicacion>
-        <TextoExplicativo>
-          Las horas que trae tu menú son una sugerencia armada sobre un día estándar. Si entras a
-          trabajar temprano, comes tarde o entrenas de noche, muévelas: el recordatorio de cada
-          comida sigue la hora que dejes aquí.
-        </TextoExplicativo>
-        <TextoExplicativo>
-          Hay tres cosas que no te va a dejar hacer, y no es capricho: cambiar el orden de tus
-          comidas, dejarlas a menos de hora y media una de otra —tan pegadas se vuelven una sola
-          del doble de volumen— o programarlas de madrugada.
-        </TextoExplicativo>
-      </Explicacion>
+      <View style={styles.sectionHeader}>
+        <SectionLabel>A qué hora comes</SectionLabel>
+        <InfoTip titulo="A qué hora comes">
+          <TextoInfo>
+            Las horas que trae tu menú son una sugerencia armada sobre un día estándar. Si entras
+            a trabajar temprano, comes tarde o entrenas de noche, muévelas: el recordatorio de
+            cada comida sigue la hora que dejes aquí.
+          </TextoInfo>
+          <TextoInfo>
+            Hay tres cosas que no te va a dejar hacer, y no es capricho: cambiar el orden de tus
+            comidas, dejarlas a menos de hora y media una de otra —tan pegadas se vuelven una sola
+            del doble de volumen— o programarlas de madrugada.
+          </TextoInfo>
+        </InfoTip>
+      </View>
 
       {cargando ? (
         <ActivityIndicator size="small" color={colors.champan} style={{ marginTop: spacing.md }} />
@@ -272,6 +274,7 @@ function sumaMinutos(hora: string, minutos: number): string | null {
 
 const makeStyles = (colors: Palette) =>
   StyleSheet.create({
+    sectionHeader: { flexDirection: "row", alignItems: "center", gap: spacing.xs },
     lista: { gap: spacing.sm, marginTop: spacing.md },
     fila: {
       flexDirection: "row",

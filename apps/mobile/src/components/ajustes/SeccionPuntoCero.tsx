@@ -3,7 +3,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from "react-native";
 
 import { Card } from "@/components/Card";
-import { Explicacion, TextoExplicativo } from "@/components/Explicacion";
+import { InfoTip, TextoInfo } from "@/components/InfoTip";
 import { SectionLabel } from "@/components/SectionLabel";
 import { useTheme } from "@/context/theme";
 import {
@@ -79,19 +79,21 @@ export function SeccionPuntoCero({
 
   return (
     <Card>
-      <SectionLabel>Tu punto cero</SectionLabel>
-      <Explicacion>
-        <TextoExplicativo>
-          Si llevas tiempo sin entrenar, compararte contra tus medidas de hace meses no te dice
-          nada útil: cualquier avance de hoy se ve chico al lado de otra etapa de tu vida. Marca un
-          check-in como tu punto cero y desde ahí arrancan tus gráficas, tus avances y la
-          comparación de fotos.
-        </TextoExplicativo>
-        <TextoExplicativo>
-          Nada se borra. Tu historial anterior sigue guardado y vuelve a contar en cuanto quites la
-          marca.
-        </TextoExplicativo>
-      </Explicacion>
+      <View style={styles.sectionHeader}>
+        <SectionLabel>Tu punto cero</SectionLabel>
+        <InfoTip titulo="Tu punto cero">
+          <TextoInfo>
+            Si llevas tiempo sin entrenar, compararte contra tus medidas de hace meses no te dice
+            nada útil: cualquier avance de hoy se ve chico al lado de otra etapa de tu vida. Marca
+            un check-in como tu punto cero y desde ahí arrancan tus gráficas, tus avances y la
+            comparación de fotos.
+          </TextoInfo>
+          <TextoInfo>
+            Nada se borra. Tu historial anterior sigue guardado y vuelve a contar en cuanto quites
+            la marca.
+          </TextoInfo>
+        </InfoTip>
+      </View>
 
       {puntoCero ? (
         <View style={styles.estado}>
@@ -159,6 +161,7 @@ function fechaLarga(iso: string): string {
 
 const makeStyles = (colors: Palette) =>
   StyleSheet.create({
+    sectionHeader: { flexDirection: "row", alignItems: "center", gap: spacing.xs },
     estado: {
       flexDirection: "row",
       alignItems: "center",

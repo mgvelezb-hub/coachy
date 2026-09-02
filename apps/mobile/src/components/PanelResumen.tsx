@@ -21,6 +21,7 @@ import { Pressable, StyleSheet, Text, View } from "react-native";
 import { ActivityRings, type Ring } from "@/components/ActivityRings";
 import { ChartBoundary } from "@/components/ChartBoundary";
 import { GapChart, type Brecha } from "@/components/GapChart";
+import { InfoTip, TextoInfo } from "@/components/InfoTip";
 import { LineChart } from "@/components/LineChart";
 import { PanelGrande } from "@/components/PanelGrande";
 import { RadarChart, type Eje } from "@/components/RadarChart";
@@ -281,6 +282,8 @@ export function PanelResumen({
     formato?: (valor: number) => string;
     /** Meta a marcar en la gráfica, si la hay. */
     meta?: number | null;
+    /** El "porqué" del panel, guardado junto al título en vez de amontonado en el cuerpo. */
+    infoTip?: React.ReactNode;
   }) {
     const cuerpo = conDesglose
       ? props.children
@@ -309,6 +312,7 @@ export function PanelResumen({
         // En compacta la tendencia cabe como chispa; la gráfica grande es de
         // la completa.
         serie={conTendencia && !completa ? props.serie : undefined}
+        infoTip={props.infoTip}
       >
         {cuerpo}
       </PanelGrande>
@@ -516,6 +520,12 @@ export function PanelResumen({
               <GapChart brechas={conDesglose ? brechas : brechas.slice(0, 3)} />
             </ChartBoundary>
           </View>
+
+          <Pressable onPress={() => navegar("/objetivo")} hitSlop={6}>
+            <Text style={styles.glidepathLink}>
+              {conDesglose ? "Ver tu objetivo →" : `Ver las ${brechas.length} zonas →`}
+            </Text>
+          </Pressable>
         </View>
       );
     }
@@ -594,18 +604,18 @@ export function PanelResumen({
             : "desde el último",
         status: estado,
         onPress: () => navegar("/checkin"),
-        children: (
-          <>
-            <Text style={styles.panelNota}>
+        infoTip: (
+          <InfoTip titulo="Check-in">
+            <TextoInfo>
               {datos.me?.profile?.checkinHour != null
                 ? `Te avisa a las ${datos.me.profile.checkinHour}:00, con recordatorio en el teléfono.`
                 : "Elige día y hora en Ajustes para que te avise."}
-            </Text>
-            <Text style={styles.panelNota}>
+            </TextoInfo>
+            <TextoInfo>
               Seis campos: cintura, peso y cuatro escalas. Brazos y piernas van una vez al mes, y
               el cumplimiento llega prellenado.
-            </Text>
-          </>
+            </TextoInfo>
+          </InfoTip>
         ),
       });
     }
@@ -704,26 +714,27 @@ export function PanelResumen({
         value: valor,
         detail: reparto,
         onPress: () => navegar("/rutinas"),
+        infoTip: (
+          <InfoTip titulo="Tus disciplinas">
+            <TextoInfo>
+              Agrega otra disciplina en Ajustes y se reparte sola en tu semana, gastando del mismo
+              presupuesto de sesiones.
+            </TextoInfo>
+          </InfoTip>
+        ),
         children: (
           <>
             <FilaDisciplina
               discipline="PESAS"
               detalle={`${sesionesTotal} ${sesionesTotal === 1 ? "sesión" : "sesiones"}`}
             />
-            {otras.length === 0 ? (
-              <Text style={styles.panelNota}>
-                Agrega otra disciplina en Ajustes y se reparte sola en tu semana, gastando del
-                mismo presupuesto de sesiones.
-              </Text>
-            ) : (
-              (Object.entries(conteo) as Array<[Discipline, number]>).map(([disciplina, cuantas]) => (
-                <FilaDisciplina
-                  key={disciplina}
-                  discipline={disciplina}
-                  detalle={`${cuantas} ${cuantas === 1 ? "sesión" : "sesiones"}`}
-                />
-              ))
-            )}
+            {(Object.entries(conteo) as Array<[Discipline, number]>).map(([disciplina, cuantas]) => (
+              <FilaDisciplina
+                key={disciplina}
+                discipline={disciplina}
+                detalle={`${cuantas} ${cuantas === 1 ? "sesión" : "sesiones"}`}
+              />
+            ))}
           </>
         ),
       });
@@ -753,6 +764,14 @@ export function PanelResumen({
           cumplimiento.dieta === null ? "sin datos" : `${cumplimiento.dieta} %`
         }`,
         onPress: () => navegar("/checkin"),
+        infoTip: (
+          <InfoTip titulo="Cumplimiento">
+            <TextoInfo>
+              Los dos se cuentan solos: la rutina con lo que cierras y sube el reloj, y la dieta
+              con las comidas que confirmas.
+            </TextoInfo>
+          </InfoTip>
+        ),
         children: (
           <>
             <View style={styles.filaSemana}>
@@ -771,11 +790,14 @@ export function PanelResumen({
                     : `${cumplimiento.dieta} % en tu último check-in`}
               </Text>
             </View>
-            <Text style={styles.panelNota}>
-              {cumplimiento.dietaMedida
-                ? "Los dos se cuentan solos: la rutina con lo que cierras y sube el reloj, y la dieta con las comidas que confirmas."
-                : "La rutina se cuenta sola. Para que la dieta también, confirma tus comidas desde Hoy o desde el aviso."}
-            </Text>
+            {/* Aviso accionable: falta dato real (comidas confirmadas), no
+                explicación de mecánica — se queda visible, no va al InfoTip. */}
+            {!cumplimiento.dietaMedida && (
+              <Text style={styles.panelNota}>
+                La rutina se cuenta sola. Para que la dieta también, confirma tus comidas desde
+                Hoy o desde el aviso.
+              </Text>
+            )}
           </>
         ),
       });
@@ -845,6 +867,14 @@ export function PanelResumen({
         detail: detalle,
         status: estado,
         onPress: () => navegar("/laboratorios"),
+        infoTip: (
+          <InfoTip titulo="Tus estudios">
+            <TextoInfo>
+              Se guardan y se grafican. La app no los interpreta: lo que salga fuera del rango de
+              tu laboratorio lo revisa un médico.
+            </TextoInfo>
+          </InfoTip>
+        ),
         children: (
           <>
             {(ultimoLab?.values ?? []).slice(0, 5).map((dato) => (
@@ -857,10 +887,6 @@ export function PanelResumen({
                 </Text>
               </View>
             ))}
-            <Text style={styles.panelNota}>
-              Se guardan y se grafican. La app no los interpreta: lo que salga fuera del rango de
-              tu laboratorio lo revisa un médico.
-            </Text>
           </>
         ),
       });

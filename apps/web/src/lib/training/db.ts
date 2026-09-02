@@ -451,20 +451,34 @@ export async function ensureWeekMaterialized(
   });
 
   const planned = plannedDatesOf(profile, monday);
-  const existingDates = new Set(existing.map((workout) => isoFromDateColumn(workout.date)));
-  const missing = planned.filter((date) => !existingDates.has(date));
 
   const todayISO = toISODate(reference);
   const plannedSet = new Set(planned);
   const stale = existing.filter((workout) => {
     const date = isoFromDateColumn(workout.date);
-    return (
-      !plannedSet.has(date) &&
-      date >= todayISO &&
-      workout.completedAt === null &&
-      workout._count.sets === 0
-    );
+    // Un día futuro sin nada capturado se puede rearmar sin perder nada.
+    const intocado = date >= todayISO && workout.completedAt === null && workout._count.sets === 0;
+    if (!intocado) return false;
+
+    if (!plannedSet.has(date)) return true;
+
+    // El plan guardado es de ANTES de que existiera el bloque de
+    // calentamiento: se generó con las series de 20-50 reps que se
+    // reemplazaron. Sin esto, quien ya tenía su semana materializada seguía
+    // viendo el formato viejo hasta la próxima semana — que fue exactamente
+    // lo que pasó en la primera prueba real.
+    return parseStoredPlan(workout.exercisesJson).warmup === null;
   });
+
+  const staleDates = new Set(stale.map((workout) => isoFromDateColumn(workout.date)));
+  const existingDates = new Set(
+    existing
+      .map((workout) => isoFromDateColumn(workout.date))
+      // Lo que se va a borrar cuenta como faltante: si no, un día planeado
+      // que se rearma quedaría borrado y nunca recreado.
+      .filter((date) => !staleDates.has(date)),
+  );
+  const missing = planned.filter((date) => !existingDates.has(date));
 
   if (missing.length === 0 && stale.length === 0) {
     return existing.map(({ _count, ...workout }) => workout);

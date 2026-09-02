@@ -31,6 +31,7 @@ export function PanelGrande({
   onPress,
   children,
   serie,
+  infoTip,
 }: {
   icon: ComponentType<IconProps>;
   tint?: string;
@@ -48,6 +49,12 @@ export function PanelGrande({
    * gráfica completa vive en `children`; esto es lo que cabe sin crecer.
    */
   serie?: number[];
+  /**
+   * Un `InfoTip` junto al título, para el "porqué" que no vale su propio
+   * renglón en `children`. Igual que en `ScoreCard`: va dentro del
+   * `Pressable` de la cabecera, así que tocarlo no dispara `onPress`.
+   */
+  infoTip?: ReactNode;
 }) {
   const { colors } = useTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
@@ -67,9 +74,12 @@ export function PanelGrande({
       </View>
 
       <View style={styles.textos}>
-        <Text style={styles.titulo} numberOfLines={1}>
-          {title}
-        </Text>
+        <View style={styles.tituloRow}>
+          <Text style={styles.titulo} numberOfLines={1}>
+            {title}
+          </Text>
+          {infoTip}
+        </View>
         {detail ? (
           <Text style={styles.detalle} numberOfLines={2}>
             {detail}
@@ -165,7 +175,14 @@ const makeStyles = (colors: Palette) =>
       justifyContent: "center",
     },
     textos: { flex: 1, gap: 2 },
-    titulo: { fontFamily: fonts.sansSemiBold, ...typeScale.subheading, color: colors.marfil },
+    tituloRow: { flexDirection: "row", alignItems: "center", gap: spacing.xs },
+    titulo: {
+      fontFamily: fonts.sansSemiBold,
+      ...typeScale.subheading,
+      color: colors.marfil,
+      flexShrink: 1,
+      minWidth: 0,
+    },
     detalle: { fontFamily: fonts.sans, ...typeScale.bodySm, color: colors.paloRosa },
     valor: {
       fontFamily: fonts.sansBold,

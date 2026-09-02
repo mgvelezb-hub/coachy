@@ -5,6 +5,7 @@ import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from "r
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import { Card } from "@/components/Card";
+import { InfoTip, TextoInfo } from "@/components/InfoTip";
 import { ErrorState, LoadingState } from "@/components/States";
 import { SectionLabel } from "@/components/SectionLabel";
 import { useTheme } from "@/context/theme";
@@ -328,7 +329,15 @@ function Recuperacion({ days, goal }: { days: HealthDayPayload[]; goal: string }
       <InsightCard insight={insight} />
 
       <Card>
-        <SectionLabel>Tus signos en reposo</SectionLabel>
+        <View style={styles.sectionHead}>
+          <SectionLabel>Tus signos en reposo</SectionLabel>
+          <InfoTip titulo="Tus signos en reposo">
+            <TextoInfo>
+              Estos tres se guardan y se grafican, no se interpretan. Si alguno te preocupa, eso
+              lo ve un médico, no una app.
+            </TextoInfo>
+          </InfoTip>
+        </View>
         <View style={styles.resumenRow}>
           <Dato label="FC en reposo" valor={fcReposo === null ? "—" : `${Math.round(fcReposo)}`} />
           <Dato
@@ -337,10 +346,6 @@ function Recuperacion({ days, goal }: { days: HealthDayPayload[]; goal: string }
           />
           <Dato label="Oxígeno" valor={oxigeno === null ? "—" : `${oxigeno.toFixed(1)} %`} />
         </View>
-        <Text style={styles.aviso}>
-          Estos tres se guardan y se grafican, no se interpretan. Si alguno te preocupa, eso lo ve
-          un médico, no una app.
-        </Text>
       </Card>
 
       <Tendencia
@@ -387,15 +392,19 @@ function Condicion({ days }: { days: HealthDayPayload[] }) {
       <InsightCard insight={insight} />
 
       <Card>
-        <SectionLabel>Tu marca</SectionLabel>
+        <View style={styles.sectionHead}>
+          <SectionLabel>Tu marca</SectionLabel>
+          <InfoTip titulo="Tu marca">
+            <TextoInfo>
+              Lo estima el reloj en caminatas y carreras al aire libre, no en las pesas: por eso
+              puede pasar semanas sin moverse.
+            </TextoInfo>
+          </InfoTip>
+        </View>
         <View style={styles.resumenRow}>
           <Dato label="Mejor registro" valor={maximo === null ? "—" : `${maximo}`} />
           <Dato label="Mediciones" valor={`${conDato.length}`} />
         </View>
-        <Text style={styles.aviso}>
-          Lo estima el reloj en caminatas y carreras al aire libre, no en las pesas: por eso puede
-          pasar semanas sin moverse.
-        </Text>
       </Card>
 
       <Tendencia
@@ -660,6 +669,12 @@ const makeStyles = (colors: Palette) => StyleSheet.create({
     ...typeScale.body,
     color: colors.paloRosa,
   },
+  sectionHead: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: spacing.sm,
+  },
   encabezado: {
     alignItems: "center",
     gap: spacing.xs,
@@ -808,12 +823,6 @@ const makeStyles = (colors: Palette) => StyleSheet.create({
     fontFamily: fonts.sansSemiBold,
     ...typeScale.body,
     color: colors.marfil,
-  },
-  aviso: {
-    fontFamily: fonts.sans,
-    ...typeScale.bodySm,
-    color: colors.paloRosaLight,
-    marginTop: spacing.md,
   },
   vacio: {
     fontFamily: fonts.serifItalic,

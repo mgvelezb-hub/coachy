@@ -17,7 +17,7 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import { Card } from "@/components/Card";
-import { Explicacion, TextoExplicativo } from "@/components/Explicacion";
+import { InfoTip, TextoInfo } from "@/components/InfoTip";
 import { ErrorState, LoadingState } from "@/components/States";
 import { PrimaryButton } from "@/components/PrimaryButton";
 import { RegenerarMenu } from "@/components/RegenerarMenu";
@@ -595,14 +595,16 @@ export default function AjustesDetalleScreen() {
 
         {activa === "checkin" && (
         <Card>
-          <SectionLabel>Cuándo cierras tu semana</SectionLabel>
-          <Explicacion>
-            <TextoExplicativo>
-              El día que elijas es el que la app espera tu check-in, y a esa hora te manda un
-              recordatorio que abre el formulario. El aviso lo programa tu teléfono: funciona sin
-              señal y sin servidor.
-            </TextoExplicativo>
-          </Explicacion>
+          <View style={styles.sectionHeader}>
+            <SectionLabel>Cuándo cierras tu semana</SectionLabel>
+            <InfoTip titulo="Cuándo cierras tu semana">
+              <TextoInfo>
+                El día que elijas es el que la app espera tu check-in, y a esa hora te manda un
+                recordatorio que abre el formulario. El aviso lo programa tu teléfono: funciona
+                sin señal y sin servidor.
+              </TextoInfo>
+            </InfoTip>
+          </View>
 
           <Text style={styles.cierreLabel}>Día</Text>
           <View style={styles.cierreRow}>
@@ -676,13 +678,15 @@ export default function AjustesDetalleScreen() {
         </Card>
 
         <Card>
-          <SectionLabel>Tu tipo de dieta</SectionLabel>
-          <Explicacion>
-            <TextoExplicativo>
-              Cada estilo cambia una cosa y nada más. Lo eliges tú: la app no decide sola qué
-              filosofía sigues, y te dice qué implica cada una antes de cambiar.
-            </TextoExplicativo>
-          </Explicacion>
+          <View style={styles.sectionHeader}>
+            <SectionLabel>Tu tipo de dieta</SectionLabel>
+            <InfoTip titulo="Tu tipo de dieta">
+              <TextoInfo>
+                Cada estilo cambia una cosa y nada más. Lo eliges tú: la app no decide sola qué
+                filosofía sigues, y te dice qué implica cada una antes de cambiar.
+              </TextoInfo>
+            </InfoTip>
+          </View>
 
           <View style={styles.presupuestoLista}>
             {ESTILOS_DIETA.map((estilo) => (
@@ -740,14 +744,16 @@ export default function AjustesDetalleScreen() {
         </Card>
 
         <Card>
-          <SectionLabel>Presupuesto de despensa</SectionLabel>
-          <Explicacion>
-            <TextoExplicativo>
-              Acota con qué alimentos se arma tu menú. Los tres niveles cubren proteína,
-              carbohidrato, grasa y vegetales: ninguno te deja sin con qué comer, cambian la
-              variedad y el precio.
-            </TextoExplicativo>
-          </Explicacion>
+          <View style={styles.sectionHeader}>
+            <SectionLabel>Presupuesto de despensa</SectionLabel>
+            <InfoTip titulo="Presupuesto de despensa">
+              <TextoInfo>
+                Acota con qué alimentos se arma tu menú. Los tres niveles cubren proteína,
+                carbohidrato, grasa y vegetales: ninguno te deja sin con qué comer, cambian la
+                variedad y el precio.
+              </TextoInfo>
+            </InfoTip>
+          </View>
 
           <View style={styles.presupuestoLista}>
             {PRESUPUESTOS.map((opcion) => (
@@ -781,17 +787,20 @@ export default function AjustesDetalleScreen() {
         </Card>
 
         <Card>
-          <SectionLabel>Cuánto quieres cocinar</SectionLabel>
-          <Explicacion>
-            <TextoExplicativo>
-              El tiempo se mide **el día que comes**, no el día que cocinas. El arroz tarda media
-              hora en la olla, pero si se hace el domingo y entre semana se calienta la porción,
-              cuenta como calentar — así que sigue entrando aunque elijas poco tiempo.
-              {"\n\n"}
-              Es una preferencia y no una regla: si el tope dejara una comida sin proteína, manda
-              comer.
-            </TextoExplicativo>
-          </Explicacion>
+          <View style={styles.sectionHeader}>
+            <SectionLabel>Cuánto quieres cocinar</SectionLabel>
+            <InfoTip titulo="Cuánto quieres cocinar">
+              <TextoInfo>
+                El tiempo se mide **el día que comes**, no el día que cocinas. El arroz tarda
+                media hora en la olla, pero si se hace el domingo y entre semana se calienta la
+                porción, cuenta como calentar — así que sigue entrando aunque elijas poco tiempo.
+              </TextoInfo>
+              <TextoInfo>
+                Es una preferencia y no una regla: si el tope dejara una comida sin proteína,
+                manda comer.
+              </TextoInfo>
+            </InfoTip>
+          </View>
 
           <View style={styles.presupuestoLista}>
             {TIEMPOS_COCINA.map((opcion) => {
@@ -813,14 +822,16 @@ export default function AjustesDetalleScreen() {
         </Card>
 
         <Card>
-          <SectionLabel>Lo que tienes en la alacena</SectionLabel>
-          <Explicacion>
-            <TextoExplicativo>
-              Se pregunta qué tienes, no qué deberías comprar: la app no recomienda productos. Lo
-              que marques entra a tu plan —el polvo como un alimento más del menú, la creatina y el
-              omega como pauta del día— y lo que no, simplemente no aparece.
-            </TextoExplicativo>
-          </Explicacion>
+          <View style={styles.sectionHeader}>
+            <SectionLabel>Lo que tienes en la alacena</SectionLabel>
+            <InfoTip titulo="Lo que tienes en la alacena">
+              <TextoInfo>
+                Se pregunta qué tienes, no qué deberías comprar: la app no recomienda productos.
+                Lo que marques entra a tu plan —el polvo como un alimento más del menú, la
+                creatina y el omega como pauta del día— y lo que no, simplemente no aparece.
+              </TextoInfo>
+            </InfoTip>
+          </View>
 
           <View style={styles.presupuestoLista}>
             {SUPLEMENTOS.map((opcion) => {
@@ -845,14 +856,16 @@ export default function AjustesDetalleScreen() {
         </Card>
 
         <Card>
-          <SectionLabel>Lo que sí y lo que no</SectionLabel>
-          <Explicacion>
-            <TextoExplicativo>
-              Separa con comas. Lo que te gusta aparece más seguido; lo que no comes sale del menú
-              y de la lista de súper. Las alergias no se editan aquí: esas las lleva tu perfil y
-              nunca entran, ni por equivalencia.
-            </TextoExplicativo>
-          </Explicacion>
+          <View style={styles.sectionHeader}>
+            <SectionLabel>Lo que sí y lo que no</SectionLabel>
+            <InfoTip titulo="Lo que sí y lo que no">
+              <TextoInfo>
+                Separa con comas. Lo que te gusta aparece más seguido; lo que no comes sale del
+                menú y de la lista de súper. Las alergias no se editan aquí: esas las lleva tu
+                perfil y nunca entran, ni por equivalencia.
+              </TextoInfo>
+            </InfoTip>
+          </View>
 
           <Text style={styles.cierreLabel}>Lo que sí te gusta</Text>
           <TextInput
@@ -1199,6 +1212,7 @@ const swatchStyles = StyleSheet.create({
 });
 
 const makeStyles = (colors: Palette) => StyleSheet.create({
+  sectionHeader: { flexDirection: "row", alignItems: "center", gap: spacing.xs },
   presupuestoLista: { gap: spacing.sm, marginTop: spacing.md },
   replantear: {
     flexDirection: "row",

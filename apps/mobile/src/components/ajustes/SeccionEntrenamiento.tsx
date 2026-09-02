@@ -5,7 +5,8 @@ import { Pressable, StyleSheet, Text, View } from "react-native";
 
 import { Card } from "@/components/Card";
 import { Collapsible } from "@/components/Collapsible";
-import { Explicacion, TextoExplicativo } from "@/components/Explicacion";
+import { InfoTip, TextoInfo } from "@/components/InfoTip";
+import { TextoExplicativo } from "@/components/Explicacion";
 import { NumberStepper } from "@/components/NumberStepper";
 import { ScoreCard } from "@/components/ScoreCard";
 import { SectionLabel } from "@/components/SectionLabel";
@@ -355,15 +356,17 @@ export function SeccionEntrenamiento({ me }: { me: MeResponse | null }) {
 
       {/* "Cómo se arma tu semana" (Fase 10): combinar por gusto o repartir. */}
       <Card>
-        <SectionLabel>Cómo se arma tu semana</SectionLabel>
-        <Explicacion titulo="Qué decide esto">
-          <TextoExplicativo>
-            El orden dentro de un día combinado no se pregunta: la app siempre cierra con la
-            alberca (recuperación activa) y abre con el impacto —squash, box— cuando las piernas
-            todavía están frescas. Esto solo decide si combina disciplinas compatibles el mismo
-            día, o si le da a cada una su propio día.
-          </TextoExplicativo>
-        </Explicacion>
+        <View style={styles.sectionHeader}>
+          <SectionLabel>Cómo se arma tu semana</SectionLabel>
+          <InfoTip titulo="Qué decide esto">
+            <TextoInfo>
+              El orden dentro de un día combinado no se pregunta: la app siempre cierra con la
+              alberca (recuperación activa) y abre con el impacto —squash, box— cuando las piernas
+              todavía están frescas. Esto solo decide si combina disciplinas compatibles el mismo
+              día, o si le da a cada una su propio día.
+            </TextoInfo>
+          </InfoTip>
+        </View>
 
         <View style={styles.presupuestoLista}>
           <Pressable
@@ -394,15 +397,17 @@ export function SeccionEntrenamiento({ me }: { me: MeResponse | null }) {
 
       {/* "Cómo te gusta entrenar": esquema fijo, o que la app siga rotando. */}
       <Card>
-        <SectionLabel>Cómo te gusta entrenar</SectionLabel>
-        <Explicacion titulo="Qué decide esto">
-          <TextoExplicativo>
-            La rutina siempre viene con un esquema de series y reps. Por default la app lo rota
-            cada semana —fuerza, metabólico, rango medio— porque variar el estímulo da mejores
-            resultados que quedarse fijo. Si prefieres no variar, elige un estilo aquí y ese
-            esquema se queda fijo todas las semanas.
-          </TextoExplicativo>
-        </Explicacion>
+        <View style={styles.sectionHeader}>
+          <SectionLabel>Cómo te gusta entrenar</SectionLabel>
+          <InfoTip titulo="Qué decide esto">
+            <TextoInfo>
+              La rutina siempre viene con un esquema de series y reps. Por default la app lo rota
+              cada semana —fuerza, metabólico, rango medio— porque variar el estímulo da mejores
+              resultados que quedarse fijo. Si prefieres no variar, elige un estilo aquí y ese
+              esquema se queda fijo todas las semanas.
+            </TextoInfo>
+          </InfoTip>
+        </View>
 
         <View style={styles.presupuestoLista}>
           {OPCIONES_ESQUEMA.map((opcion) => {
@@ -429,14 +434,16 @@ export function SeccionEntrenamiento({ me }: { me: MeResponse | null }) {
 
       {/* 2. "¿Qué tan grande es el cambio?" — los tres niveles, en orden. */}
       <Card>
-        <SectionLabel>Cambiar tu plan</SectionLabel>
-        <Explicacion titulo="Qué nivel de cambio necesitas">
-          <TextoExplicativo>
-            Tres tamaños de cambio, de menor a mayor: ajustar una pieza (las tarjetas de abajo,
-            disciplina por disciplina), repartir el peso entre las que ya tienes activas, o empezar
-            de cero cuando cambió algo más grande que una preferencia.
-          </TextoExplicativo>
-        </Explicacion>
+        <View style={styles.sectionHeader}>
+          <SectionLabel>Cambiar tu plan</SectionLabel>
+          <InfoTip titulo="Qué nivel de cambio necesitas">
+            <TextoInfo>
+              Tres tamaños de cambio, de menor a mayor: ajustar una pieza (las tarjetas de abajo,
+              disciplina por disciplina), repartir el peso entre las que ya tienes activas, o
+              empezar de cero cuando cambió algo más grande que una preferencia.
+            </TextoInfo>
+          </InfoTip>
+        </View>
 
         <Pressable onPress={() => router.push("/recalibrar")} style={styles.recalibrar}>
           <View style={{ flex: 1 }}>
@@ -508,14 +515,16 @@ export function SeccionEntrenamiento({ me }: { me: MeResponse | null }) {
 
       {/* Tiempo por día (Fase 7): lo que hace honesto el reparto de un día combinado. */}
       <Card>
-        <SectionLabel>Tiempo por día</SectionLabel>
-        <Explicacion titulo="Para qué sirve esto">
-          <TextoExplicativo>
-            Un día con dos disciplinas —gym y alberca, squash y funcional— solo reparte bien el
-            tiempo si sabe cuánto hay de verdad ese día. Hasta ahora esto solo se declaraba rehaciendo
-            el flujo completo de "Empezar de cero"; aquí se ajusta un día a la vez.
-          </TextoExplicativo>
-        </Explicacion>
+        <View style={styles.sectionHeader}>
+          <SectionLabel>Tiempo por día</SectionLabel>
+          <InfoTip titulo="Para qué sirve esto">
+            <TextoInfo>
+              Un día con dos disciplinas —gym y alberca, squash y funcional— solo reparte bien el
+              tiempo si sabe cuánto hay de verdad ese día. Hasta ahora esto solo se declaraba
+              rehaciendo el flujo completo de "Empezar de cero"; aquí se ajusta un día a la vez.
+            </TextoInfo>
+          </InfoTip>
+        </View>
 
         {DIAS_SEMANA.map((dia) => (
           <View key={dia.valor} style={styles.diaFila}>
@@ -546,12 +555,14 @@ export function SeccionEntrenamiento({ me }: { me: MeResponse | null }) {
           de una tarjeta colapsable para no estorbar el flujo de arriba. */}
       <Card>
         <Collapsible title="Grupos que no quieres repetir">
-          <Explicacion titulo="Cómo funciona">
-            <TextoExplicativo>
-              El grupo que marques se entrena una vez a la semana. Los días que lo repetían no
-              desaparecen: pasan a trabajar otra cosa, así que sigues entrenando los mismos días.
-            </TextoExplicativo>
-          </Explicacion>
+          <View style={styles.infoTipRow}>
+            <InfoTip titulo="Cómo funciona">
+              <TextoInfo>
+                El grupo que marques se entrena una vez a la semana. Los días que lo repetían no
+                desaparecen: pasan a trabajar otra cosa, así que sigues entrenando los mismos días.
+              </TextoInfo>
+            </InfoTip>
+          </View>
 
           <View style={styles.cierreRow}>
             {GRUPOS.map((grupo) => {
@@ -729,6 +740,11 @@ function avisosDeLaSemana(semana: WeekView | null): string[] {
 
 const makeStyles = (colors: Palette) =>
   StyleSheet.create({
+    sectionHeader: { flexDirection: "row", alignItems: "center", gap: spacing.xs },
+    // Fila propia para el InfoTip anidado dentro de un `Collapsible`: ese
+    // componente no expone un slot junto a su título, así que el globito va
+    // como primer renglón del cuerpo en vez de pegado al título cerrado.
+    infoTipRow: { flexDirection: "row", justifyContent: "flex-end" },
     semanaLista: { gap: spacing.xs, marginTop: spacing.sm },
     semanaFila: { flexDirection: "row", alignItems: "center", gap: spacing.md },
     semanaDia: {

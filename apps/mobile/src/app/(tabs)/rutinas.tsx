@@ -6,6 +6,7 @@ import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from "react-nati
 import { Chip } from "@/components/Chip";
 import { CalendarRange, PlayCircle, Timer } from "lucide-react-native";
 import { Collapsible } from "@/components/Collapsible";
+import { InfoTip, TextoInfo } from "@/components/InfoTip";
 import { ScoreCard } from "@/components/ScoreCard";
 import { ExerciseCapture } from "@/components/ExerciseCapture";
 import { EmptyState, ErrorState, LoadingState } from "@/components/States";
@@ -650,6 +651,14 @@ function TiempoDeHoy({
           : `${session.exercises.length} ejercicios · si hoy no te da el tiempo, se reacomoda`
       }
       status={recortada ? { label: "Recortada", tone: "warn" } : null}
+      infoTip={
+        <InfoTip titulo="Cómo recorta la sesión">
+          <TextoInfo>
+            Se queda lo compuesto y se suelta el accesorio. Queda marcada como recortada, no como
+            incompleta: cerrar bien una sesión corta es un día entrenado.
+          </TextoInfo>
+        </InfoTip>
+      }
     >
       <View style={styles.trimLista}>
         {RECORTES.map((opcion) => {
@@ -684,11 +693,6 @@ function TiempoDeHoy({
           </Pressable>
         )}
       </View>
-
-      <Text style={styles.trimNota}>
-        Se queda lo compuesto y se suelta el accesorio. Queda marcada como recortada, no como
-        incompleta: cerrar bien una sesión corta es un día entrenado.
-      </Text>
 
       {error && <Text style={styles.trimError}>{error}</Text>}
     </ScoreCard>
@@ -727,6 +731,17 @@ function OtraDisciplina({
           : `${session.minutes} min · la app registra la sesión, no la prescribe`
       }
       status={session.sesion?.deload ? { label: "Descarga", tone: "warn" } : null}
+      infoTip={
+        session.sesion ? undefined : (
+          <InfoTip titulo="Por qué no hay plan todavía">
+            <TextoInfo>
+              Todavía no armamos la sesión de {nombre.toLowerCase()}: el día está reservado y lo
+              que entrenes se registra desde el reloj o a mano. La prescripción por disciplina va
+              llegando una a una.
+            </TextoInfo>
+          </InfoTip>
+        )
+      }
     >
       <Text style={styles.swimNote}>{session.note}</Text>
 
@@ -756,13 +771,7 @@ function OtraDisciplina({
             </Text>
           ))}
         </View>
-      ) : (
-        <Text style={styles.swimNote}>
-          Todavía no armamos la sesión de {nombre.toLowerCase()}: el día está reservado y lo que
-          entrenes se registra desde el reloj o a mano. La prescripción por disciplina va llegando
-          una a una.
-        </Text>
-      )}
+      ) : null}
 
       {/* Dos maneras de cerrar el ciclo, y el orden importa: entrenarla con el
           cronómetro es lo que da duración real y pulso por tramo; registrarla a
@@ -1173,7 +1182,6 @@ const makeStyles = (colors: Palette) => StyleSheet.create({
   trimChipDisabled: { opacity: 0.5 },
   trimChipText: { fontFamily: fonts.sansMedium, ...typeScale.bodySm, color: colors.marfil },
   trimChipTextSelected: { color: colors.pergamino },
-  trimNota: { fontFamily: fonts.sans, ...typeScale.bodySm, color: colors.paloRosaLight },
   trimError: { fontFamily: fonts.sansMedium, ...typeScale.bodySm, color: colors.error },
   weekList: { gap: spacing.sm },
   weekRow: {

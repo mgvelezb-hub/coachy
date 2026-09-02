@@ -36,7 +36,13 @@ struct SesionView: View {
     @ObservedObject private var descanso = Descanso.shared
     @State private var reps: Double = 0
     /// Kilos de la serie que viene. Se confirma o corrige antes de empezar.
+    /// SIEMPRE kilos por dentro: las libras son cómo se pinta, no cómo se
+    /// guarda — igual que en el teléfono.
     @State private var peso: Double = 0
+    /// El salto de los botones ±, en la unidad que se está viendo.
+    @State private var paso: Double = 2.5
+    /// Pintar el peso en libras (los discos de algunos gimnasios).
+    @State private var enLibras = false
     /// `preparando`: confirmar reps y peso. `enSerie`: la barra en la mano.
     @State private var enSerie = false
     /// Contar las reps con los sensores. Se puede encender cuando ya hay una
@@ -266,20 +272,41 @@ struct SesionView: View {
                 .frame(maxWidth: .infinity)
 
             HStack {
-                Button { peso = max(0, peso - 2.5) } label: { Image(systemName: "minus") }
+                Button { ajustarPeso(-paso) } label: { Image(systemName: "minus") }
                     .buttonStyle(.bordered)
 
-                Text(peso > 0 ? String(format: peso.truncatingRemainder(dividingBy: 1) == 0 ? "%.0f" : "%.1f", peso) : "—")
+                Text(pesoPintado)
                     .font(.system(size: 30, weight: .semibold, design: .rounded))
                     .frame(maxWidth: .infinity)
 
-                Button { peso += 2.5 } label: { Image(systemName: "plus") }
+                Button { ajustarPeso(paso) } label: { Image(systemName: "plus") }
                     .buttonStyle(.bordered)
             }
-            Text("kilos")
-                .font(.caption2)
-                .foregroundStyle(.secondary)
-                .frame(maxWidth: .infinity)
+
+            // El salto y la unidad, en una sola fila: la barra sube de 2.5 en
+            // 2.5 pero la mancuerna de 0.5, y hay gimnasios con los discos en
+            // libras. Mismos controles que el teléfono, tamaño muñeca.
+            HStack(spacing: 3) {
+                ForEach([0.5, 1.0, 2.5], id: \.self) { opcion in
+                    Button {
+                        paso = opcion
+                    } label: {
+                        Text(opcion == 0.5 ? "±.5" : String(format: "±%.0f", opcion))
+                            .font(.system(size: 11, weight: paso == opcion ? .bold : .regular))
+                    }
+                    .buttonStyle(.bordered)
+                    .tint(paso == opcion ? .green : .gray)
+                }
+
+                Button {
+                    enLibras.toggle()
+                } label: {
+                    Text(enLibras ? "lb" : "kg")
+                        .font(.system(size: 11, weight: .bold))
+                }
+                .buttonStyle(.bordered)
+                .tint(.orange)
+            }
 
             if contador.calibrado(indiceEjercicio) {
                 Toggle(isOn: $contarSolo) {
@@ -370,6 +397,29 @@ struct SesionView: View {
             // Cambio de máquina: el traslado ya es el descanso.
             descanso.saltar()
         }
+    }
+
+    /// El peso como se lee: en la unidad elegida, sin decimales de sobra.
+    private var pesoPintado: String {
+        guard peso > 0 else { return "—" }
+        let mostrado = enLibras ? peso * 2.2046226218 : peso
+        let redondeado = (mostrado * 10).rounded() / 10
+        return redondeado.truncatingRemainder(dividingBy: 1) == 0
+            ? String(format: "%.0f", redondeado)
+            : String(format: "%.1f", redondeado)
+    }
+
+    /**
+     Suma el paso EN LA UNIDAD que se está viendo y guarda kilos.
+
+     La suma va sobre lo pintado —si subes de 135 a 140 lb quieres 140
+     exactas— y se cuadra al múltiplo del paso, igual que en el teléfono.
+     */
+    private func ajustarPeso(_ delta: Double) {
+        let factor = enLibras ? 2.2046226218 : 1.0
+        let mostrado = peso * factor
+        let siguiente = ((mostrado + delta) / abs(delta)).rounded() * abs(delta)
+        peso = max(0, siguiente) / factor
     }
 
     /**
