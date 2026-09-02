@@ -5,6 +5,7 @@ import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import { Card } from "@/components/Card";
+import { InfoTip, TextoInfo } from "@/components/InfoTip";
 import { SectionLabel } from "@/components/SectionLabel";
 import { ErrorState, LoadingState } from "@/components/States";
 import { useTheme } from "@/context/theme";
@@ -153,11 +154,15 @@ export default function ReplantearScreen() {
 
         {pideEdad && (
           <Card>
-            <SectionLabel>Tu edad</SectionLabel>
-            <Text style={styles.ayuda}>
-              El gasto de tu cuerpo cambia con la edad. Sin este dato la app supone 30 años, que es
-              suponer.
-            </Text>
+            <View style={styles.sectionHeader}>
+              <SectionLabel>Tu edad</SectionLabel>
+              <InfoTip titulo="Por qué se pregunta">
+                <TextoInfo>
+                  El gasto de tu cuerpo cambia con la edad. Sin este dato la app supone 30 años,
+                  que es suponer.
+                </TextoInfo>
+              </InfoTip>
+            </View>
             <View style={styles.chips}>
               {RANGOS_EDAD.map((rango) => (
                 <Pressable
@@ -177,11 +182,15 @@ export default function ReplantearScreen() {
         )}
 
         <Card>
-          <SectionLabel>Cuánto tiempo tienes cada día</SectionLabel>
-          <Text style={styles.ayuda}>
-            En frases, no en minutos: nadie sabe si le quedan 25 o 40, pero todo el mundo sabe si
-            un martes trae prisa.
-          </Text>
+          <View style={styles.sectionHeader}>
+            <SectionLabel>Cuánto tiempo tienes cada día</SectionLabel>
+            <InfoTip titulo="Por qué en frases">
+              <TextoInfo>
+                En frases, no en minutos: nadie sabe si le quedan 25 o 40, pero todo el mundo sabe
+                si un martes trae prisa.
+              </TextoInfo>
+            </InfoTip>
+          </View>
 
           <Text style={styles.subLabel}>Todos los días igual</Text>
           <View style={styles.chips}>
@@ -223,11 +232,15 @@ export default function ReplantearScreen() {
         </Card>
 
         <Card>
-          <SectionLabel>Qué disciplina manda</SectionLabel>
-          <Text style={styles.ayuda}>
-            La primaria arma el esqueleto de tu semana y se lleva los días con más tiempo. Las
-            demás caen alrededor.
-          </Text>
+          <View style={styles.sectionHeader}>
+            <SectionLabel>Qué disciplina manda</SectionLabel>
+            <InfoTip titulo="Qué hace la primaria">
+              <TextoInfo>
+                La primaria arma el esqueleto de tu semana y se lleva los días con más tiempo. Las
+                demás caen alrededor.
+              </TextoInfo>
+            </InfoTip>
+          </View>
 
           <View style={styles.chips}>
             {(Object.keys(DISCIPLINE_LABELS) as Discipline[])
@@ -273,11 +286,15 @@ export default function ReplantearScreen() {
         </Card>
 
         <Card>
-          <SectionLabel>Qué más entrenas</SectionLabel>
-          <Text style={styles.ayuda}>
-            Y para qué: lo que entrenas en serio pide sesiones completas; un pasatiempo pide un
-            hueco, no un plan.
-          </Text>
+          <View style={styles.sectionHeader}>
+            <SectionLabel>Qué más entrenas</SectionLabel>
+            <InfoTip titulo="Y para qué">
+              <TextoInfo>
+                Lo que entrenas en serio pide sesiones completas; un pasatiempo pide un hueco, no
+                un plan.
+              </TextoInfo>
+            </InfoTip>
+          </View>
 
           {(Object.keys(DISCIPLINE_LABELS) as Discipline[])
             .filter((disciplina) => disciplina !== primaria && disciplina !== "OTRO")
@@ -360,7 +377,15 @@ function Resultado({
 
   return (
     <Card>
-      <SectionLabel>Tu semana</SectionLabel>
+      <View style={styles.sectionHeader}>
+        <SectionLabel>Tu semana</SectionLabel>
+        <InfoTip titulo="Qué más se mueve con esto">
+          <TextoInfo>
+            Tu alimentación y tu camino al objetivo se recalculan con esta semana en tu siguiente
+            check-in: los dos dependen de cuánto entrenas.
+          </TextoInfo>
+        </InfoTip>
+      </View>
 
       {resultado.asignadas.length === 0 ? (
         <Text style={styles.ayuda}>No se pudo armar ninguna sesión con ese tiempo.</Text>
@@ -386,11 +411,6 @@ function Resultado({
         </Text>
       ))}
 
-      <Text style={styles.ayuda}>
-        Tu alimentación y tu camino al objetivo se recalculan con esta semana en tu siguiente
-        check-in: los dos dependen de cuánto entrenas.
-      </Text>
-
       <Pressable onPress={onVer} style={styles.boton}>
         <Text style={styles.botonTexto}>Ver mis rutinas</Text>
       </Pressable>
@@ -402,6 +422,7 @@ const makeStyles = (colors: Palette) =>
   StyleSheet.create({
     screen: { flex: 1, backgroundColor: colors.obsidiana },
     content: { padding: spacing.lg, gap: spacing.md, paddingBottom: spacing.huge },
+    sectionHeader: { flexDirection: "row", alignItems: "center", gap: spacing.xs },
     back: { flexDirection: "row", alignItems: "center", gap: 2, paddingVertical: spacing.sm },
     backText: { fontFamily: fonts.sansMedium, ...typeScale.body, color: colors.paloRosa },
     title: { fontFamily: fonts.sansBold, ...typeScale.title, color: colors.marfil },

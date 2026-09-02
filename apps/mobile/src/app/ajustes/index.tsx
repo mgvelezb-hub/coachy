@@ -55,13 +55,34 @@ const ENTRADAS: Entrada[] = [
   { seccion: "sesion", icon: LogOut, detalle: "Cerrar sesión" },
 ];
 
+/** El nombre de cada preferencia de tema, para el renglón de Apariencia. */
+const NOMBRE_TEMA: Record<string, string> = {
+  system: "Sistema",
+  light: "Claro",
+  dark: "Oscuro",
+  champan: "Champán",
+};
+
 export default function AjustesScreen() {
   const router = useRouter();
-  const { colors } = useTheme();
+  const { colors, preference } = useTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
 
   const entradas = ENTRADAS.filter((entrada) => !entrada.soloIOS || Platform.OS === "ios");
   const version = Constants.expoConfig?.version ?? "—";
+
+  /**
+   * El estado actual, solo cuando ya está cargado gratis: el tema vive en el
+   * contexto que esta pantalla ya consume. Los demás renglones pedirían una
+   * llamada al servidor nada más para decorar el menú, así que conservan su
+   * descripción fija.
+   */
+  function detalleDe(entrada: Entrada): string {
+    if (entrada.seccion === "apariencia") {
+      return `Ahora: ${NOMBRE_TEMA[preference] ?? "Sistema"}`;
+    }
+    return entrada.detalle;
+  }
 
   return (
     <SafeAreaView style={styles.screen} edges={["top"]}>
@@ -93,7 +114,7 @@ export default function AjustesScreen() {
 
                 <View style={styles.textos}>
                   <Text style={styles.nombre}>{SECCIONES[entrada.seccion]}</Text>
-                  <Text style={styles.detalle}>{entrada.detalle}</Text>
+                  <Text style={styles.detalle}>{detalleDe(entrada)}</Text>
                 </View>
 
                 <ChevronRight size={19} color={colors.paloRosa} strokeWidth={2} />

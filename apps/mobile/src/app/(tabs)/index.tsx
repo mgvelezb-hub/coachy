@@ -1,8 +1,9 @@
 import { useRouter } from "expo-router";
 import {
+  Dumbbell,
+  Flame,
   Footprints,
   Moon,
-  Plus,
   Ruler,
   Settings,
   UtensilsCrossed,
@@ -20,11 +21,9 @@ import {
   getHistoryTraining,
   getMe,
   getNotifications,
-  getComidasLog,
   getNutrition,
   getTrainingToday,
   getTrainingWeek,
-  postComidaLog,
   markNotificationsRead,
   type Activity,
   type CheckInRow,
@@ -37,13 +36,11 @@ import {
   type NutritionResponse,
   type TodayCard,
 } from "@/lib/api";
-import { Card } from "@/components/Card";
-import { Collapsible } from "@/components/Collapsible";
 import { HeroCard } from "@/components/HeroCard";
+import { InfoTip, TextoInfo } from "@/components/InfoTip";
 import { ScoreCard } from "@/components/ScoreCard";
 import { StatRow } from "@/components/StatRow";
-import { EmptyState, ErrorState, LoadingState } from "@/components/States";
-import { SectionLabel } from "@/components/SectionLabel";
+import { ErrorState, LoadingState } from "@/components/States";
 import { useTheme } from "@/context/theme";
 import { useScrollTop } from "@/lib/scroll-top";
 import { bestStreak, currentStreak, todayISO, trainingDays } from "@/lib/streak";
@@ -53,11 +50,9 @@ import {
   shadow,
   spacing,
   type as typeScale,
-  withAlpha,
   type Palette,
 } from "@/lib/theme";
 import { CambiarBloque } from "@/components/CambiarBloque";
-import { iconoDe } from "@/lib/disciplinas";
 import { nombreDelRecorte, ordenarBloquesDelDia } from "@/lib/entrenamiento";
 import { formatMealItem, pickNextMeal, syncWidgetData } from "@/lib/widget";
 import { enviarResumenAlReloj } from "@/lib/reloj-nativo";
@@ -70,6 +65,13 @@ import { enviarResumenAlReloj } from "@/lib/reloj-nativo";
  * súper, ni los menús completos de la semana, ni nada del check-in — todo eso
  * se resuelve en Nutrición o en Resumen. Lo que sí: la sesión de hoy, los
  * datos del reloj del día, la comida de hoy y lo que Coachy te diría ahorita.
+ *
+ * LEY DE DISEÑO: los bloques de sesión (`TodayTrainingCard`, en `HeroCard`)
+ * son el corazón y se quedan siempre visibles. Todo lo demás —comida del día,
+ * decisión de nutrición, notificaciones, actividades recientes— se compacta a
+ * `ScoreCard` de una línea; el detalle de cada uno vive en su propia hoja
+ * (`/comida-hoy`, `/decision`, `/actividades-recientes`). Nada se abre hacia
+ * abajo dentro de esta pantalla.
  */
 
 type HomeData = {
@@ -320,21 +322,27 @@ export default function HoyScreen() {
         />
       </View>
 
-      <ComidaDeHoy nutrition={nutrition} />
+      <ComidaDeHoy nutrition={nutrition} onPress={() => router.push("/comida-hoy")} />
 
-      <DecisionCard decision={decision} />
+      <DecisionCard decision={decision} onPress={() => router.push("/decision")} />
 
       {/* Registrar a mano es la excepción desde que el reloj sube los
           entrenamientos solo: va al final, debajo de lo que sí hay que hacer
-          hoy. */}
+          hoy. El botón de registrar vive dentro de la hoja de zoom. */}
       <ActivitiesCard
         activities={data.activities}
-        onAdd={() => router.push("/actividad")}
+        onPress={() => router.push("/actividades-recientes")}
       />
     </ScrollView>
   );
 }
 
+/**
+ * Un aviso, de una línea. El título es lo que se ve siempre; el cuerpo —el
+ * porqué, más largo— vive en un `InfoTip` que solo se abre si alguien lo
+ * pide, y el aviso sigue accionable: se descarta con el mismo toque de
+ * siempre, sin abrir ninguna hoja.
+ */
 function NotificationBanner({
   notification,
   onDismiss,
@@ -346,10 +354,14 @@ function NotificationBanner({
   const styles = useMemo(() => makeStyles(colors), [colors]);
   return (
     <View style={styles.banner}>
-      <View style={styles.bannerText}>
-        <Text style={styles.bannerTitle}>{notification.title}</Text>
-        <Text style={styles.bannerBody}>{notification.body}</Text>
-      </View>
+      <Text style={styles.bannerTitle} numberOfLines={1}>
+        {notification.title}
+      </Text>
+      {notification.body ? (
+        <InfoTip titulo={notification.title}>
+          <TextoInfo>{notification.body}</TextoInfo>
+        </InfoTip>
+      ) : null}
       <Text onPress={onDismiss} style={styles.bannerClose} suppressHighlighting>
         ✕
       </Text>
@@ -440,165 +452,81 @@ function TodayTrainingCard({
 }
 
 /**
- * Lo que se entrenó fuera del gym. Es el único lugar donde una sesión de bici,
- * box o alberca existe: el modo gimnasio solo sabe de pesas serie a serie.
+ * Lo que se entrenó fuera del gym, resumido en una línea. El detalle completo
+ * —y el botón de registrar a mano— vive en `/actividades-recientes`.
  */
 function ActivitiesCard({
   activities,
-  onAdd,
+  onPress,
 }: {
   activities: Activity[];
-  onAdd: () => void;
+  onPress: () => void;
 }) {
   const { colors } = useTheme();
-  const styles = useMemo(() => makeStyles(colors), [colors]);
-  const recent = activities.slice(0, 4);
+  const ultima = activities[0] ?? null;
+  const summary =
+    activities.length === 0
+      ? "Sin registros todavía"
+      : `${activities.length} ${activities.length === 1 ? "reciente" : "recientes"} · última: ${DISCIPLINE_LABELS[ultima!.discipline]}`;
 
   return (
-    <Card>
-      <View style={styles.cardHeader}>
-        <SectionLabel>Otras disciplinas</SectionLabel>
-        <Pressable onPress={onAdd} hitSlop={8} style={styles.addButton}>
-          <Plus size={18} color={colors.pergamino} strokeWidth={2.5} />
-          <Text style={styles.addLabel}>Registrar</Text>
-        </Pressable>
-      </View>
-
-      {recent.length === 0 ? (
-        <EmptyState message="Bici, box, alberca, funcional: lo que hagas fuera del gym se registra aquí y cuenta para tu racha." />
-      ) : (
-        <View style={styles.activityList}>
-          {recent.map((activity) => (
-            <View key={activity.id} style={styles.activityRow}>
-              <View style={styles.activityIcon}>
-                {(() => {
-                  // Una bici para todo lo que no fuera pesas: nadar, boxear y
-                  // jugar squash salían con el mismo ícono.
-                  const Icono = iconoDe(activity.discipline);
-                  return <Icono size={20} color={colors.champan} strokeWidth={2} />;
-                })()}
-              </View>
-              <View style={styles.activityText}>
-                <Text style={styles.activityName}>{DISCIPLINE_LABELS[activity.discipline]}</Text>
-                <Text style={styles.activityMeta}>
-                  {activity.date} · {activity.durationMin} min
-                  {activity.source === "HEALTHKIT" ? " · del reloj" : ""}
-                </Text>
-              </View>
-            </View>
-          ))}
-        </View>
-      )}
-    </Card>
+    <ScoreCard
+      icon={Dumbbell}
+      tint={colors.champan}
+      title="Otras disciplinas"
+      summary={summary}
+      onPress={onPress}
+    />
   );
 }
 
-function DecisionCard({ decision }: { decision: Decision | null }) {
+function DecisionCard({ decision, onPress }: { decision: Decision | null; onPress: () => void }) {
   const { colors } = useTheme();
-  const styles = useMemo(() => makeStyles(colors), [colors]);
   if (!decision) {
     return (
-      <Card>
-        <SectionLabel>Tu decisión</SectionLabel>
-        <EmptyState message="Tu coach todavía está armando tu siguiente decisión." />
-      </Card>
+      <ScoreCard
+        icon={Flame}
+        tint={colors.champan}
+        title="Tu decisión"
+        summary="Tu coach todavía está armando tu siguiente decisión."
+      />
     );
   }
 
-  const longText = (decision.texto?.length ?? 0) > 220;
+  const summary = `${decision.kcal} kcal${decision.meta ? ` · ${decision.meta}` : ""}`;
 
   return (
-    <HeroCard eyebrow={decision.phase.replace(/_/g, " ")} title={`${decision.kcal} kcal`} subtitle={decision.meta}>
-      <View style={styles.macroRow}>
-        <View style={styles.macro}>
-          <Text style={styles.macroValue}>{decision.proteinG}g</Text>
-          <Text style={styles.macroLabel}>Proteína</Text>
-        </View>
-        <View style={styles.macro}>
-          <Text style={styles.macroValue}>{decision.carbsG}g</Text>
-          <Text style={styles.macroLabel}>Carbos</Text>
-        </View>
-        <View style={styles.macro}>
-          <Text style={styles.macroValue}>{decision.fatG}g</Text>
-          <Text style={styles.macroLabel}>Grasas</Text>
-        </View>
-      </View>
-
-      {decision.texto &&
-        (longText ? (
-          <Collapsible title="Mensaje de Coachy" onAccent>
-            <Text style={styles.decisionText}>{decision.texto}</Text>
-          </Collapsible>
-        ) : (
-          <Text style={styles.decisionText}>{decision.texto}</Text>
-        ))}
-    </HeroCard>
+    <ScoreCard icon={Flame} tint={colors.champan} title="Tu decisión" summary={summary} onPress={onPress} />
   );
 }
 
 /**
- * La comida de hoy. Un solo menú —el primero—, cerrado, con la siguiente
- * comida a la vista sin abrir.
- *
- * Los menús completos y la lista de súper se fueron a Nutrición: son
- * decisiones de semana, se miran al planear o al ir al mercado, no entre
- * series.
+ * La comida de hoy, resumida en una línea: qué sigue y a qué hora. El menú
+ * completo y la confirmación de cada comida viven en `/comida-hoy`.
  */
-function ComidaDeHoy({ nutrition }: { nutrition: NutritionResponse | null }) {
+function ComidaDeHoy({
+  nutrition,
+  onPress,
+}: {
+  nutrition: NutritionResponse | null;
+  onPress: () => void;
+}) {
   const { colors } = useTheme();
-  const styles = useMemo(() => makeStyles(colors), [colors]);
   const menu = nutrition?.menus[0] ?? null;
-
-  /**
-   * Lo confirmado de hoy.
-   *
-   * El apego a la dieta era el último número que dependía de la memoria del
-   * domingo. Confirmar en el momento cuesta un toque, y el check-in llega
-   * prellenado con la cuenta real.
-   */
-  const [registros, setRegistros] = useState<Record<string, boolean>>({});
-
-  useEffect(() => {
-    let vivo = true;
-    getComidasLog()
-      .then((respuesta) => {
-        if (!vivo) return;
-        const hoy = todayISO();
-        setRegistros(
-          Object.fromEntries(
-            respuesta.registros
-              .filter((registro) => registro.date === hoy)
-              .map((registro) => [registro.slot, registro.taken]),
-          ),
-        );
-      })
-      .catch(() => {
-        // Sin registros la tarjeta se pinta igual, solo sin marcar nada.
-      });
-    return () => {
-      vivo = false;
-    };
-  }, []);
-
-  function confirmar(slot: string, taken: boolean) {
-    setRegistros((previos) => ({ ...previos, [slot]: taken }));
-    void postComidaLog({ date: todayISO(), slot, taken }).catch(() => {
-      // Se reintenta la próxima vez que se toque: un error aquí no vale una
-      // alerta a media comida.
-    });
-  }
 
   if (!menu) {
     return (
-      <Card>
-        <SectionLabel>Tu comida de hoy</SectionLabel>
-        <EmptyState message="Tu menú se sirve en cuanto tu coach publique tu decisión." />
-      </Card>
+      <ScoreCard
+        icon={UtensilsCrossed}
+        tint={colors.guindaLight}
+        title="Tu comida de hoy"
+        summary="Tu menú se sirve en cuanto tu coach publique tu decisión."
+      />
     );
   }
 
   const siguiente = pickNextMeal(menu.meals);
-  const resumen = siguiente
+  const summary = siguiente
     ? `Sigue ${siguiente.label.toLowerCase()} · ${siguiente.timeHint}`
     : `${menu.meals.length} comidas hoy`;
 
@@ -607,61 +535,13 @@ function ComidaDeHoy({ nutrition }: { nutrition: NutritionResponse | null }) {
       icon={UtensilsCrossed}
       tint={colors.guindaLight}
       title="Tu comida de hoy"
-      summary={resumen}
-    >
-      {menu.meals.map((meal) => {
-        const respuesta = registros[meal.slot];
-        return (
-          <View key={meal.slot} style={styles.meal}>
-            <Text style={styles.mealLabel}>
-              {meal.label} · {meal.timeHint}
-            </Text>
-            {meal.items.map((item) => (
-              <Text key={item.name} style={styles.mealItem}>
-                · {item.name} {item.free ? "(libre)" : `— ${item.grams} g`}
-              </Text>
-            ))}
-
-            {/* Dos botones y nada más: "la hice" o "no". Un deslizador de
-                porcentaje por comida sería precisión inventada. */}
-            <View style={styles.mealBotones}>
-              <Pressable
-                onPress={() => confirmar(meal.slot, true)}
-                style={[styles.mealBoton, respuesta === true && styles.mealBotonSi]}
-              >
-                <Text style={[styles.mealBotonTexto, respuesta === true && styles.mealBotonTextoOn]}>
-                  La hice
-                </Text>
-              </Pressable>
-              <Pressable
-                onPress={() => confirmar(meal.slot, false)}
-                style={[styles.mealBoton, respuesta === false && styles.mealBotonNo]}
-              >
-                <Text style={[styles.mealBotonTexto, respuesta === false && styles.mealBotonTextoOn]}>
-                  No
-                </Text>
-              </Pressable>
-            </View>
-          </View>
-        );
-      })}
-    </ScoreCard>
+      summary={summary}
+      onPress={onPress}
+    />
   );
 }
 
 const makeStyles = (colors: Palette) => StyleSheet.create({
-  mealBotones: { flexDirection: "row", gap: spacing.sm, marginTop: spacing.sm },
-  mealBoton: {
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.sm,
-    borderRadius: radius.full,
-    borderWidth: 1,
-    borderColor: colors.cardBorder,
-  },
-  mealBotonSi: { backgroundColor: colors.guinda, borderColor: colors.guindaLight },
-  mealBotonNo: { backgroundColor: withAlpha(colors.error, 0.7), borderColor: colors.error },
-  mealBotonTexto: { fontFamily: fonts.sansMedium, ...typeScale.bodySm, color: colors.marfil },
-  mealBotonTextoOn: { color: colors.pergamino, fontFamily: fonts.sansSemiBold },
   screen: {
     flex: 1,
     backgroundColor: colors.obsidiana,
@@ -701,123 +581,27 @@ const makeStyles = (colors: Palette) => StyleSheet.create({
   },
   banner: {
     flexDirection: "row",
-    alignItems: "flex-start",
+    alignItems: "center",
     backgroundColor: colors.cardBg,
     borderWidth: 1,
     borderColor: colors.champanSoft,
     borderRadius: radius.xl,
-    padding: spacing.lg,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.md,
     gap: spacing.sm,
+    minHeight: 44,
     ...shadow.card,
   },
-  bannerText: {
-    flex: 1,
-    gap: 2,
-  },
   bannerTitle: {
+    flex: 1,
     fontFamily: fonts.sansSemiBold,
     ...typeScale.body,
     color: colors.marfil,
-  },
-  bannerBody: {
-    fontFamily: fonts.sans,
-    ...typeScale.bodySm,
-    color: colors.paloRosaLight,
   },
   bannerClose: {
     fontFamily: fonts.sans,
     ...typeScale.body,
     color: colors.paloRosaLight,
     padding: spacing.xs,
-  },
-  cardHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    gap: spacing.sm,
-  },
-  addButton: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-    borderRadius: radius.full,
-    backgroundColor: colors.guinda,
-  },
-  addLabel: {
-    fontFamily: fonts.sansSemiBold,
-    ...typeScale.label,
-    color: colors.pergamino,
-  },
-  activityList: {
-    marginTop: spacing.md,
-    gap: spacing.md,
-  },
-  activityRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: spacing.md,
-  },
-  activityIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: radius.full,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: withAlpha(colors.champan, 0.14),
-  },
-  activityText: {
-    flex: 1,
-    gap: 2,
-  },
-  activityName: {
-    fontFamily: fonts.sansSemiBold,
-    ...typeScale.body,
-    color: colors.marfil,
-  },
-  activityMeta: {
-    fontFamily: fonts.sans,
-    ...typeScale.bodySm,
-    color: colors.paloRosa,
-  },
-  macroRow: {
-    flexDirection: "row",
-    gap: spacing.xl,
-    marginTop: spacing.lg,
-  },
-  macro: {
-    gap: 2,
-  },
-  macroValue: {
-    fontFamily: fonts.sansBold,
-    ...typeScale.heading,
-    color: colors.pergamino,
-  },
-  macroLabel: {
-    fontFamily: fonts.sansMedium,
-    ...typeScale.label,
-    color: colors.pergaminoSoft,
-  },
-  decisionText: {
-    fontFamily: fonts.sans,
-    ...typeScale.body,
-    color: colors.pergamino,
-    marginTop: spacing.md,
-  },
-  meal: {
-    paddingVertical: spacing.sm,
-    gap: 2,
-  },
-  mealLabel: {
-    fontFamily: fonts.sansSemiBold,
-    ...typeScale.bodySm,
-    color: colors.paloRosa,
-    marginBottom: 2,
-  },
-  mealItem: {
-    fontFamily: fonts.sans,
-    ...typeScale.body,
-    color: colors.marfil,
   },
 });

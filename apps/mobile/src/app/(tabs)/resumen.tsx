@@ -69,7 +69,6 @@ import {
 import { getGolf, type GolfResponse } from "@/lib/api-golf";
 import { bestStreak, currentStreak, todayISO, trainingDays } from "@/lib/streak";
 import {
-  EJERCICIO_META_MIN,
   GOAL_LABEL,
   PASOS_META,
   SUENO_META_MIN,
@@ -80,6 +79,7 @@ import { brechasDeObjetivo, enfasisDeObjetivo, perfilDeEjes } from "@/lib/perfil
 import { layoutPorDefecto, sanearLayout, type PanelConfig } from "@/lib/paneles";
 import { brechasDelMes, metasDelMes } from "@/lib/metas";
 import { glidepathDeCintura, textoDeGlidepath } from "@/lib/glidepath";
+import { metaDeHoy } from "@/lib/plan-ejercicio";
 import { fonts, radius, spacing, type as typeScale, withAlpha, type Palette } from "@/lib/theme";
 import { syncWidgetData } from "@/lib/widget";
 
@@ -314,9 +314,21 @@ export default function ResumenScreen() {
     hoy: todayISO(),
   });
 
+  // La meta del anillo de Ejercicio sale del PLAN DEL DÍA, no de un número
+  // fijo: 30 min es la guía general de actividad, pero a quien entrena de
+  // verdad —pesas más otra disciplina— le puede tocar el triple. Con la
+  // guía fija, esa persona cierra el anillo con el calentamiento y el resto
+  // del día el anillo miente. Ver `lib/plan-ejercicio.ts` para el orden de
+  // fuentes (declarado en Ajustes > sesiones de hoy > día de descanso).
+  const metaEjercicioHoy = metaDeHoy({
+    timePerDay: data.me?.profile?.timePerDay,
+    hoyISO: todayISO(),
+    week: data.week,
+  });
+
   const rings: Ring[] = [
     { label: "Pasos", value: pasos?.value ?? null, goal: PASOS_META, color: colors.champan },
-    { label: "Ejercicio", value: ejercicio?.value ?? null, goal: EJERCICIO_META_MIN, color: colors.guindaLight },
+    { label: "Ejercicio", value: ejercicio?.value ?? null, goal: metaEjercicioHoy.minutos, color: colors.guindaLight },
     { label: "Sueño", value: sueno?.value ?? null, goal: SUENO_META_MIN, color: colors.paloRosa },
   ];
 

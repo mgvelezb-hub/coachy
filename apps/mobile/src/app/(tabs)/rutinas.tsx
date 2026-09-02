@@ -638,64 +638,82 @@ function TiempoDeHoy({
 }) {
   const { colors } = useTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
+  const [abierto, setAbierto] = useState(false);
   const recortada = session.trimmedMinutes !== null;
 
   return (
-    <ScoreCard
-      icon={Timer}
-      tint={colors.champan}
-      title={recortada ? "Sesión recortada" : "¿Cuánto tiempo tienes?"}
-      summary={
-        recortada
-          ? `${nombreDelRecorte(session.trimmedMinutes)} · ${session.exercises.length} ejercicios`
-          : `${session.exercises.length} ejercicios · si hoy no te da el tiempo, se reacomoda`
-      }
-      status={recortada ? { label: "Recortada", tone: "warn" } : null}
-      infoTip={
-        <InfoTip titulo="Cómo recorta la sesión">
-          <TextoInfo>
-            Se queda lo compuesto y se suelta el accesorio. Queda marcada como recortada, no como
-            incompleta: cerrar bien una sesión corta es un día entrenado.
-          </TextoInfo>
-        </InfoTip>
-      }
-    >
-      <View style={styles.trimLista}>
-        {RECORTES.map((opcion) => {
-          const activo = session.trimmedMinutes === opcion.minutos;
-          return (
-            <Pressable
-              key={opcion.nombre}
-              disabled={working}
-              onPress={() => onTrim(opcion.minutos)}
-              style={[
-                styles.trimOpcion,
-                activo && styles.trimOpcionOn,
-                working && styles.trimChipDisabled,
-              ]}
-            >
-              <Text style={[styles.trimOpcionNombre, activo && styles.trimOpcionNombreOn]}>
-                {opcion.nombre}
-              </Text>
-              <Text style={styles.trimOpcionDetalle}>{opcion.detalle}</Text>
-            </Pressable>
-          );
-        })}
+    <>
+      <ScoreCard
+        icon={Timer}
+        tint={colors.champan}
+        title={recortada ? "Sesión recortada" : "¿Cuánto tiempo tienes?"}
+        summary={
+          recortada
+            ? `${nombreDelRecorte(session.trimmedMinutes)} · ${session.exercises.length} ejercicios`
+            : `${session.exercises.length} ejercicios · si hoy no te da el tiempo, se reacomoda`
+        }
+        status={recortada ? { label: "Recortada", tone: "warn" } : null}
+        infoTip={
+          <InfoTip titulo="Cómo recorta la sesión">
+            <TextoInfo>
+              Se queda lo compuesto y se suelta el accesorio. Queda marcada como recortada, no como
+              incompleta: cerrar bien una sesión corta es un día entrenado.
+            </TextoInfo>
+          </InfoTip>
+        }
+        onPress={() => setAbierto(true)}
+      />
 
-        {recortada && (
-          <Pressable
-            disabled={working}
-            onPress={() => onTrim(null)}
-            style={[styles.trimOpcion, working && styles.trimChipDisabled]}
-          >
-            <Text style={styles.trimOpcionNombre}>Rutina completa</Text>
-            <Text style={styles.trimOpcionDetalle}>Como venía en tu plan</Text>
+      <Modal visible={abierto} transparent animationType="fade" onRequestClose={() => setAbierto(false)}>
+        <Pressable style={styles.fondo} onPress={() => setAbierto(false)}>
+          <Pressable style={styles.hoja} onPress={() => {}}>
+            <Text style={styles.hojaTitulo}>¿Cuánto tiempo tienes?</Text>
+
+            <View style={styles.trimLista}>
+              {RECORTES.map((opcion) => {
+                const activo = session.trimmedMinutes === opcion.minutos;
+                return (
+                  <Pressable
+                    key={opcion.nombre}
+                    disabled={working}
+                    onPress={() => {
+                      onTrim(opcion.minutos);
+                      setAbierto(false);
+                    }}
+                    style={[
+                      styles.trimOpcion,
+                      activo && styles.trimOpcionOn,
+                      working && styles.trimChipDisabled,
+                    ]}
+                  >
+                    <Text style={[styles.trimOpcionNombre, activo && styles.trimOpcionNombreOn]}>
+                      {opcion.nombre}
+                    </Text>
+                    <Text style={styles.trimOpcionDetalle}>{opcion.detalle}</Text>
+                  </Pressable>
+                );
+              })}
+
+              {recortada && (
+                <Pressable
+                  disabled={working}
+                  onPress={() => {
+                    onTrim(null);
+                    setAbierto(false);
+                  }}
+                  style={[styles.trimOpcion, working && styles.trimChipDisabled]}
+                >
+                  <Text style={styles.trimOpcionNombre}>Rutina completa</Text>
+                  <Text style={styles.trimOpcionDetalle}>Como venía en tu plan</Text>
+                </Pressable>
+              )}
+            </View>
+
+            {error && <Text style={styles.trimError}>{error}</Text>}
           </Pressable>
-        )}
-      </View>
-
-      {error && <Text style={styles.trimError}>{error}</Text>}
-    </ScoreCard>
+        </Pressable>
+      </Modal>
+    </>
   );
 }
 
@@ -717,101 +735,117 @@ function OtraDisciplina({
   const router = useRouter();
   const { colors } = useTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
+  const [abierto, setAbierto] = useState(false);
   const nombre = DISCIPLINE_LABELS[session.discipline];
   const Icono = iconoDe(session.discipline);
 
   return (
-    <ScoreCard
-      icon={Icono}
-      tint={colors.paloRosa}
-      title={isToday ? `Hoy también: ${nombre.toLowerCase()}` : nombre}
-      summary={
-        session.sesion
-          ? `${session.sesion.cargaTotal} ${session.sesion.unidad} · ${session.sesion.focus} · ${session.minutes} min`
-          : `${session.minutes} min · la app registra la sesión, no la prescribe`
-      }
-      status={session.sesion?.deload ? { label: "Descarga", tone: "warn" } : null}
-      infoTip={
-        session.sesion ? undefined : (
-          <InfoTip titulo="Por qué no hay plan todavía">
-            <TextoInfo>
-              Todavía no armamos la sesión de {nombre.toLowerCase()}: el día está reservado y lo
-              que entrenes se registra desde el reloj o a mano. La prescripción por disciplina va
-              llegando una a una.
-            </TextoInfo>
-          </InfoTip>
-        )
-      }
-    >
-      <Text style={styles.swimNote}>{session.note}</Text>
-
-      {session.sesion ? (
-        <View style={styles.swimBlocks}>
-          {session.sesion.blocks.map((block) => (
-            <View key={block.title} style={styles.swimBlock}>
-              <View style={styles.swimBlockHead}>
-                <Text style={styles.swimBlockTitle}>{block.title}</Text>
-                {block.carga !== null && (
-                  <Text style={styles.swimBlockMeters}>
-                    {block.carga} {session.sesion!.unidad}
-                  </Text>
-                )}
-              </View>
-              <Text style={styles.swimBlockDetail}>
-                {block.detail}
-                {block.restSeconds !== null ? ` · ${block.restSeconds} s de descanso` : " · continuo"}
-              </Text>
-              <Text style={styles.swimBlockNote}>{block.note}</Text>
-            </View>
-          ))}
-
-          {session.sesion.notes.map((note) => (
-            <Text key={note} style={styles.swimNote}>
-              {note}
-            </Text>
-          ))}
-        </View>
-      ) : null}
-
-      {/* Dos maneras de cerrar el ciclo, y el orden importa: entrenarla con el
-          cronómetro es lo que da duración real y pulso por tramo; registrarla a
-          mano es para cuando ya pasó. */}
-      {isToday && (
-        <Pressable
-          onPress={() =>
-            router.push({
-              pathname: "/sesion-libre",
-              // La disciplina va en el param: un día puede tener DOS sesiones
-              // con la misma fecha, y sin ella "empezar" siempre abriría la primera.
-              params: { fecha: session.date, discipline: session.discipline },
-            })
-          }
-          style={styles.enVivoOtra}
-        >
-          <PlayCircle size={20} color={colors.pergamino} strokeWidth={2} />
-          <View style={{ flex: 1 }}>
-            <Text style={styles.enVivoTitulo}>Empezar la sesión</Text>
-            <Text style={styles.enVivoDetalle}>
-              Con cronómetro, tramo por tramo y el pulso de tu reloj
-            </Text>
-          </View>
-        </Pressable>
-      )}
-
-      <Pressable
-        onPress={() =>
-          router.push({
-            pathname: "/actividad",
-            params: { discipline: session.discipline, minutes: `${session.minutes}` },
-          })
+    <>
+      <ScoreCard
+        icon={Icono}
+        tint={colors.paloRosa}
+        title={isToday ? `Hoy también: ${nombre.toLowerCase()}` : nombre}
+        summary={
+          session.sesion
+            ? `${session.sesion.cargaTotal} ${session.sesion.unidad} · ${session.sesion.focus} · ${session.minutes} min`
+            : `${session.minutes} min · la app registra la sesión, no la prescribe`
         }
-        style={styles.registrarOtra}
-      >
-        <Text style={styles.registrarOtraTexto}>
-          {isToday ? "Ya la hice: registrarla a mano" : "Registrar esta sesión"}
-        </Text>
-      </Pressable>
-    </ScoreCard>
+        status={session.sesion?.deload ? { label: "Descarga", tone: "warn" } : null}
+        infoTip={
+          session.sesion ? undefined : (
+            <InfoTip titulo="Por qué no hay plan todavía">
+              <TextoInfo>
+                Todavía no armamos la sesión de {nombre.toLowerCase()}: el día está reservado y lo
+                que entrenes se registra desde el reloj o a mano. La prescripción por disciplina va
+                llegando una a una.
+              </TextoInfo>
+            </InfoTip>
+          )
+        }
+        onPress={() => setAbierto(true)}
+      />
+
+      <Modal visible={abierto} transparent animationType="fade" onRequestClose={() => setAbierto(false)}>
+        <Pressable style={styles.fondo} onPress={() => setAbierto(false)}>
+          <Pressable style={styles.hoja} onPress={() => {}}>
+            <ScrollView contentContainerStyle={styles.hojaScroll}>
+              <Text style={styles.hojaTitulo}>{nombre}</Text>
+              <Text style={styles.swimNote}>{session.note}</Text>
+
+              {session.sesion ? (
+                <View style={styles.swimBlocks}>
+                  {session.sesion.blocks.map((block) => (
+                    <View key={block.title} style={styles.swimBlock}>
+                      <View style={styles.swimBlockHead}>
+                        <Text style={styles.swimBlockTitle}>{block.title}</Text>
+                        {block.carga !== null && (
+                          <Text style={styles.swimBlockMeters}>
+                            {block.carga} {session.sesion!.unidad}
+                          </Text>
+                        )}
+                      </View>
+                      <Text style={styles.swimBlockDetail}>
+                        {block.detail}
+                        {block.restSeconds !== null ? ` · ${block.restSeconds} s de descanso` : " · continuo"}
+                      </Text>
+                      <Text style={styles.swimBlockNote}>{block.note}</Text>
+                    </View>
+                  ))}
+
+                  {session.sesion.notes.map((note) => (
+                    <Text key={note} style={styles.swimNote}>
+                      {note}
+                    </Text>
+                  ))}
+                </View>
+              ) : null}
+
+              {/* Dos maneras de cerrar el ciclo, y el orden importa: entrenarla
+                  con el cronómetro es lo que da duración real y pulso por
+                  tramo; registrarla a mano es para cuando ya pasó. */}
+              {isToday && (
+                <Pressable
+                  onPress={() => {
+                    setAbierto(false);
+                    router.push({
+                      pathname: "/sesion-libre",
+                      // La disciplina va en el param: un día puede tener DOS
+                      // sesiones con la misma fecha, y sin ella "empezar"
+                      // siempre abriría la primera.
+                      params: { fecha: session.date, discipline: session.discipline },
+                    });
+                  }}
+                  style={styles.enVivoOtra}
+                >
+                  <PlayCircle size={20} color={colors.pergamino} strokeWidth={2} />
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.enVivoTitulo}>Empezar la sesión</Text>
+                    <Text style={styles.enVivoDetalle}>
+                      Con cronómetro, tramo por tramo y el pulso de tu reloj
+                    </Text>
+                  </View>
+                </Pressable>
+              )}
+
+              <Pressable
+                onPress={() => {
+                  setAbierto(false);
+                  router.push({
+                    pathname: "/actividad",
+                    params: { discipline: session.discipline, minutes: `${session.minutes}` },
+                  });
+                }}
+                style={styles.registrarOtra}
+              >
+                <Text style={styles.registrarOtraTexto}>
+                  {isToday ? "Ya la hice: registrarla a mano" : "Registrar esta sesión"}
+                </Text>
+              </Pressable>
+            </ScrollView>
+          </Pressable>
+        </Pressable>
+      </Modal>
+    </>
   );
 }
 
@@ -848,20 +882,26 @@ function WeekOverview({
         : "hoy: descanso",
   ].join(" · ");
 
+  const status =
+    hechas === week.sessions.length && week.sessions.length > 0
+      ? { label: "Completa", tone: "ok" as const }
+      : hechas > 0
+        ? { label: "En curso", tone: "warn" as const }
+        : null;
+
   return (
-    <ScoreCard
-      icon={CalendarRange}
-      tint={colors.paloRosa}
-      title="Planeación semanal"
-      summary={resumen}
-      status={
-        hechas === week.sessions.length && week.sessions.length > 0
-          ? { label: "Completa", tone: "ok" }
-          : hechas > 0
-            ? { label: "En curso", tone: "warn" }
-            : null
-      }
-    >
+    <View style={styles.weekCard}>
+      <View style={styles.weekHead}>
+        <View style={[styles.weekIconRing, { backgroundColor: withAlpha(colors.paloRosa, 0.18) }]}>
+          <CalendarRange size={22} color={colors.paloRosa} strokeWidth={2} />
+        </View>
+        <View style={styles.weekHeadText}>
+          <Text style={styles.weekTitle}>Planeación semanal</Text>
+          <Text style={styles.weekSummary}>{resumen}</Text>
+        </View>
+        {status && <Chip label={status.label} tone={status.tone === "ok" ? "champan" : "default"} selected />}
+      </View>
+
       <View style={styles.weekList}>
         {days.map((date) => {
           const daySession = week.sessions.find((entry) => entry.date === date) ?? null;
@@ -926,7 +966,7 @@ function WeekOverview({
           );
         })}
       </View>
-    </ScoreCard>
+    </View>
   );
 }
 
@@ -1183,6 +1223,46 @@ const makeStyles = (colors: Palette) => StyleSheet.create({
   trimChipText: { fontFamily: fonts.sansMedium, ...typeScale.bodySm, color: colors.marfil },
   trimChipTextSelected: { color: colors.pergamino },
   trimError: { fontFamily: fonts.sansMedium, ...typeScale.bodySm, color: colors.error },
+  fondo: { flex: 1, backgroundColor: "rgba(0,0,0,0.65)", justifyContent: "flex-end" },
+  hoja: {
+    maxHeight: "85%",
+    backgroundColor: colors.cardBg,
+    borderTopLeftRadius: radius.xl,
+    borderTopRightRadius: radius.xl,
+    borderWidth: 1,
+    borderColor: colors.cardBorder,
+    padding: spacing.lg,
+  },
+  hojaScroll: { gap: spacing.sm },
+  hojaTitulo: {
+    fontFamily: fonts.sansBold,
+    ...typeScale.heading,
+    color: colors.marfil,
+    marginBottom: spacing.sm,
+  },
+  weekCard: {
+    borderRadius: radius.xxl,
+    borderWidth: 1,
+    borderColor: colors.cardBorder,
+    backgroundColor: colors.cardBg,
+    padding: spacing.lg,
+    gap: spacing.md,
+  },
+  weekHead: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.md,
+  },
+  weekIconRing: {
+    width: 44,
+    height: 44,
+    borderRadius: radius.full,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  weekHeadText: { flex: 1, gap: 2 },
+  weekTitle: { fontFamily: fonts.sansSemiBold, ...typeScale.subheading, color: colors.marfil },
+  weekSummary: { fontFamily: fonts.sans, ...typeScale.bodySm, color: colors.paloRosa },
   weekList: { gap: spacing.sm },
   weekRow: {
     flexDirection: "row",

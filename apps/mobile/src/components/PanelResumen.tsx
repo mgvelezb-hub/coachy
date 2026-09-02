@@ -151,6 +151,9 @@ function Leyenda({
           {label} · {meta}
         </Text>
       </View>
+      {/* La flecha en CADA renglón dice "esto abre algo" sin un letrero
+          arriba: era la queja literal sobre el "toca cualquiera". */}
+      <ChevronRight size={14} color={colors.pergaminoSoft} strokeWidth={2} />
     </Pressable>
   );
 }
@@ -338,7 +341,6 @@ export function PanelResumen({
         <View style={styles.hero}>
           <View style={styles.heroHead}>
             <Text style={styles.heroTitle}>Tu día</Text>
-            <Text style={styles.heroPista}>toca cualquiera ›</Text>
           </View>
 
           <View style={styles.heroBody}>
@@ -359,8 +361,11 @@ export function PanelResumen({
                   color={colors.guindaLight}
                   label="Ejercicio"
                   valor={ejercicio ? `${ejercicio.value} min` : "—"}
-                  meta={`de ${EJERCICIO_META_MIN} min`}
-                  onPress={() => navegar("/salud/pasos")}
+                  // La meta viene del anillo, que ya la calcula del plan real
+                  // del día (metaDeHoy): decir "de 30 min" a quien entrena 120
+                  // era la queja literal.
+                  meta={`de ${rings.find((r) => r.label === "Ejercicio")?.goal ?? EJERCICIO_META_MIN} min`}
+                  onPress={() => navegar("/salud/ejercicio")}
                 />
                 <Leyenda
                   icon={Moon}

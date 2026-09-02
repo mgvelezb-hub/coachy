@@ -1,6 +1,7 @@
 import { BOX } from "@/lib/training/disciplinas/box";
 import { CROSSFIT } from "@/lib/training/disciplinas/crossfit";
 import { FUNCIONAL } from "@/lib/training/disciplinas/funcional";
+import { GOLF } from "@/lib/training/disciplinas/golf";
 import { NATACION } from "@/lib/training/disciplinas/natacion";
 import { RUNNING } from "@/lib/training/disciplinas/running";
 import { SQUASH } from "@/lib/training/disciplinas/squash";
@@ -31,6 +32,7 @@ const PRESCRIPTORES: Partial<Record<Discipline, Prescriptor>> = {
   FUNCIONAL,
   CARDIO: RUNNING,
   CROSSFIT,
+  GOLF,
 };
 
 /** Las disciplinas con prescripción, para la app y para el editor de ajustes. */

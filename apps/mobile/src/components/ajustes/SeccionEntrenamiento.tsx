@@ -1,13 +1,19 @@
-import { useRouter } from "expo-router";
-import { CalendarRange, Plus, RotateCcw } from "lucide-react-native";
+import { useFocusEffect, useRouter } from "expo-router";
+import {
+  CalendarRange,
+  Clock,
+  LayoutGrid,
+  Plus,
+  Repeat,
+  RotateCcw,
+  Shield,
+  Sunrise,
+} from "lucide-react-native";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 
 import { Card } from "@/components/Card";
-import { Collapsible } from "@/components/Collapsible";
 import { InfoTip, TextoInfo } from "@/components/InfoTip";
-import { TextoExplicativo } from "@/components/Explicacion";
-import { NumberStepper } from "@/components/NumberStepper";
 import { ScoreCard } from "@/components/ScoreCard";
 import { SectionLabel } from "@/components/SectionLabel";
 import { useTheme } from "@/context/theme";
@@ -18,135 +24,66 @@ import {
   type Discipline,
   type DisciplineLoad,
   type MeResponse,
-  type MuscleGroup,
-  type SchemePreference,
-  type SessionView,
   type SwimLevel,
   type WeekView,
 } from "@/lib/api";
 import { iconoDe } from "@/lib/disciplinas";
+import { DISCIPLINAS, GRUPOS, NIVELES_POR_DISCIPLINA, diasDeGimnasio } from "@/lib/entrenamiento";
+import { DIAS_SEMANA, PROPOSITOS } from "@/lib/replantear";
+import { HORARIOS, leeHorarioPorDia } from "@/components/ajustes/HorarioDeEntrenamiento";
 import {
-  DISCIPLINAS,
-  GRUPOS,
-  NIVELES_POR_DISCIPLINA,
-  type BloqueDelDia,
-  diasDeGimnasio,
-  etiquetaDelDia,
-  ordenarBloquesDelDia,
-} from "@/lib/entrenamiento";
-import { DIAS_SEMANA, PROPOSITOS, TIEMPOS_DIA, type Proposito, type WeekDay } from "@/lib/replantear";
+  OPCIONES_ESQUEMA,
+  avisosDeLaSemana,
+  diasResumenDe,
+  disciplinaNombre,
+} from "@/components/ajustes/detalle/EditoresEntrenamiento";
 import { fonts, radius, spacing, type as typeScale, withAlpha, type Palette } from "@/lib/theme";
-
-/**
- * Las cuatro opciones de "Cómo te gusta entrenar".
- *
- * "Que la app decida" va PRIMERO: es el default y la recomendación real —
- * variar el estímulo semana a semana (periodización ondulante) es igual o
- * mejor que un esquema fijo para ganar fuerza (Rhea et al. 2002). Las otras
- * tres describen el esquema en el vocabulario de la atleta (peso/reps), no
- * en el del catálogo (`FUERZA`/`HIPERTROFIA`/`METABOLICO` son las llaves que
- * entiende el servidor; ver `SCHEME_PREFERENCES` en `schemes.ts` del motor
- * para el sustento y el mapeo exacto — p. ej. `HIPERTROFIA` fija el esquema
- * `RANGO_MEDIO` del catálogo, que no tiene uno propio).
- */
-const OPCIONES_ESQUEMA: Array<{ valor: SchemePreference; nombre: string; detalle: string }> = [
-  {
-    valor: "RECOMENDADO",
-    nombre: "Que la app decida (recomendado)",
-    detalle: "Rota el estímulo cada semana, que es lo que la evidencia respalda.",
-  },
-  {
-    valor: "FUERZA",
-    nombre: "Mucho peso, pocas reps",
-    detalle: "Series de 3–6, descansos largos.",
-  },
-  {
-    valor: "HIPERTROFIA",
-    nombre: "Peso medio, reps medias",
-    detalle: "Series de 8–12, el rango clásico de músculo.",
-  },
-  {
-    valor: "METABOLICO",
-    nombre: "Poco peso, muchas reps",
-    detalle: "Series de 25–30, quema y resistencia.",
-  },
-];
 
 /**
  * "Tu entrenamiento" en Ajustes.
  *
- * EL PROBLEMA que resuelve este componente: la sección había crecido por
- * acreción —grupos a no repetir, disciplinas con stepper, niveles en otra
- * lista, la consecuencia, dos botones de replanteo— sin jerarquía de "qué
- * toco cuándo", y con las preferencias de cada disciplina (sesiones,
- * propósito, nivel) regadas en tres listas distintas que había que cruzar a
- * mano para entender una sola disciplina.
+ * EL PROBLEMA que resolvía la versión anterior era de jerarquía; el que
+ * resuelve esta es de densidad. La sección había vuelto a crecer: catálogos
+ * con descripciones, la rejilla de tiempo por día y un Collapsible de grupos
+ * apilados en una pantalla de puro scroll.
  *
- * EL REDISEÑO ordena la pantalla en tres preguntas, en este orden:
- *  1. "¿Qué tengo?" — Tu semana, arriba de todo, ANTES de tocar nada.
- *  2. "¿Qué tan grande es el cambio que quiero?" — tres niveles explícitos:
- *     ajustar una pieza (las tarjetas de abajo), repartir el peso entre
- *     disciplinas (/recalibrar) o empezar de cero (/replantear).
- *  3. "¿Qué toco de esa disciplina?" — una tarjeta por disciplina activa que
- *     junta sesiones, propósito y nivel, que antes vivían en listas separadas.
+ * EL REDISEÑO aplica la ley de la app: la sección es una lista de renglones
+ * de una línea que ya contestan el estado actual ("Mañana · 2 excepciones",
+ * "Días compactos") y cada zoom-in abre una HOJA nueva en
+ * `/ajustes/detalle/<tema>` donde vive el editor completo (ver
+ * `components/ajustes/detalle/EditoresEntrenamiento.tsx`). Aquí solo quedan
+ * las acciones directas (agregar una disciplina, los dos replanteos) y los
+ * avisos del planificador.
  *
- * Vive en su propio archivo (y no en `[seccion].tsx`) para no seguir
- * engordando ese archivo, que ya reúne seis secciones de Ajustes.
+ * Los resúmenes se leen de `me` directo — la sección recarga `/me` al
+ * recuperar el foco (ver `[seccion].tsx`), así que lo guardado en una hoja
+ * se refleja al volver sin duplicar estado aquí.
  */
 export function SeccionEntrenamiento({ me }: { me: MeResponse | null }) {
   const router = useRouter();
   const { colors } = useTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
 
-  const [sinRepetir, setSinRepetir] = useState<MuscleGroup[]>([]);
   const [primaria, setPrimaria] = useState<Discipline>("PESAS");
   const [otras, setOtras] = useState<DisciplineLoad[]>([]);
-  const [niveles, setNiveles] = useState<Partial<Record<Discipline, SwimLevel>>>({});
-  const [tiempoPorDia, setTiempoPorDia] = useState<Record<WeekDay, number>>(() =>
-    Object.fromEntries(DIAS_SEMANA.map((dia) => [dia.valor, 0])) as Record<WeekDay, number>,
-  );
   const [entrenoMsg, setEntrenoMsg] = useState<string | null>(null);
-  const [tiempoMsg, setTiempoMsg] = useState<string | null>(null);
-  // `true` por default: coincide con `Profile.compactDays` en el servidor
-  // mientras la respuesta de `/me` no llega (deploy en progreso, o versión
-  // vieja de la API todavía en producción).
-  const [compactDays, setCompactDays] = useState(true);
-  const [compactoMsg, setCompactoMsg] = useState<string | null>(null);
-  // "RECOMENDADO" por default: coincide con el default de `Profile.schemePreference`
-  // en el servidor mientras la respuesta de `/me` no llega.
-  const [schemePreference, setSchemePreference] = useState<SchemePreference>("RECOMENDADO");
-  const [schemeMsg, setSchemeMsg] = useState<string | null>(null);
 
   useEffect(() => {
     if (!me?.profile) return;
-    setSinRepetir(me.profile.avoidRepeatGroups ?? []);
     setPrimaria(me.profile.primaryDiscipline ?? "PESAS");
     setOtras(me.profile.otherDisciplines ?? []);
-    setNiveles({
-      NATACION: me.profile.swimLevel ?? "PRINCIPIANTE",
-      ...(me.profile.disciplineLevels ?? {}),
-    });
-    setCompactDays(me.profile.compactDays ?? true);
-    setSchemePreference(me.profile.schemePreference ?? "RECOMENDADO");
-
-    // Se prellena solo con lo declarado: los días ausentes se quedan en 0
-    // ("ese día no"), que es un valor honesto y no un supuesto.
-    const declarado = me.profile.timePerDay;
-    if (declarado) {
-      setTiempoPorDia(
-        Object.fromEntries(
-          DIAS_SEMANA.map((dia) => [dia.valor, declarado[dia.valor] ?? 0]),
-        ) as Record<WeekDay, number>,
-      );
-    }
   }, [me]);
 
   const presupuestoSemanal = me?.profile?.trainingDaysPerWeek ?? 0;
   const diasGym = diasDeGimnasio(presupuestoSemanal, otras, primaria);
+  const niveles: Partial<Record<Discipline, SwimLevel>> = {
+    NATACION: me?.profile?.swimLevel ?? "PRINCIPIANTE",
+    ...(me?.profile?.disciplineLevels ?? {}),
+  };
 
   // "Tu semana": la consecuencia real, pedida al servidor. Va arriba de todo
-  // lo demás porque contesta "¿qué tengo?" antes de tocar ningún ajuste — un
-  // ajuste que dice "guardado" y no enseña qué cambió pide un acto de fe.
+  // porque contesta "¿qué tengo?" antes de tocar ningún ajuste. Se recarga
+  // al recuperar el foco: las hojas de detalle la cambian al guardar.
   const [semana, setSemana] = useState<WeekView | null>(null);
   const cargarSemana = useCallback(async () => {
     try {
@@ -155,9 +92,11 @@ export function SeccionEntrenamiento({ me }: { me: MeResponse | null }) {
       // Sin semana no hay "Tu semana" que mostrar; los ajustes se guardaron igual.
     }
   }, []);
-  useEffect(() => {
-    void cargarSemana();
-  }, [cargarSemana]);
+  useFocusEffect(
+    useCallback(() => {
+      void cargarSemana();
+    }, [cargarSemana]),
+  );
 
   const diasDeLaSemana = useMemo(() => diasResumenDe(semana), [semana]);
   const avisos = useMemo(() => avisosDeLaSemana(semana), [semana]);
@@ -169,50 +108,58 @@ export function SeccionEntrenamiento({ me }: { me: MeResponse | null }) {
       : `${conSesion} ${conSesion === 1 ? "día" : "días"} con sesión de 7`;
   }, [semana, diasDeLaSemana]);
 
-  async function guardarSinRepetir(grupo: MuscleGroup) {
-    const siguiente = sinRepetir.includes(grupo)
-      ? sinRepetir.filter((valor) => valor !== grupo)
-      : [...sinRepetir, grupo];
+  // Renglones-resumen: el estado actual en una línea, leído de lo ya cargado.
+  const porDia = leeHorarioPorDia(me?.profile?.trainingSchedule);
+  const excepciones = Object.keys(porDia).length;
+  const nombreHorario =
+    HORARIOS.find((horario) => horario.valor === (me?.profile?.trainingTime ?? "MANANA"))?.nombre ??
+    "Mañana";
+  const resumenHorario =
+    excepciones > 0
+      ? `${nombreHorario} · ${excepciones} ${excepciones === 1 ? "excepción" : "excepciones"}`
+      : nombreHorario;
 
-    setSinRepetir(siguiente);
-    setEntrenoMsg(null);
-    try {
-      await patchEntrenamiento({ avoidRepeatGroups: siguiente });
-      void cargarSemana();
-      setEntrenoMsg(
-        siguiente.length === 0
-          ? "Sin restricciones: la semana vuelve al split completo."
-          : "Guardado. Esos grupos se entrenan una vez y los días que los repetían pasan a otra cosa.",
-      );
-    } catch (error) {
-      setSinRepetir(sinRepetir);
-      setEntrenoMsg(error instanceof ApiError ? error.message : "No se pudo guardar tu preferencia");
-    }
-  }
+  const resumenArmado = (me?.profile?.compactDays ?? true) ? "Días compactos" : "Días repartidos";
+
+  const resumenEsquema =
+    OPCIONES_ESQUEMA.find(
+      (opcion) => opcion.valor === (me?.profile?.schemePreference ?? "RECOMENDADO"),
+    )?.corto ?? "Que la app decida";
+
+  const declarado = me?.profile?.timePerDay;
+  const diasConTiempo = declarado
+    ? DIAS_SEMANA.filter((dia) => (declarado[dia.valor] ?? 0) > 0).length
+    : 0;
+  const resumenTiempo =
+    diasConTiempo === 0
+      ? "Sin declarar todavía"
+      : `${diasConTiempo} ${diasConTiempo === 1 ? "día" : "días"} con tiempo declarado`;
+
+  const sinRepetir = me?.profile?.avoidRepeatGroups ?? [];
+  const nombresGrupos = sinRepetir.map(
+    (grupo) => GRUPOS.find((entrada) => entrada.valor === grupo)?.nombre ?? grupo,
+  );
+  const resumenGrupos =
+    nombresGrupos.length === 0
+      ? "Ninguno: split completo"
+      : nombresGrupos.length <= 2
+        ? nombresGrupos.join(" · ")
+        : `${nombresGrupos.length} grupos protegidos`;
 
   /**
-   * Guarda sesiones, propósito o importancia de UNA disciplina.
-   *
-   * Junta los tres en una sola función porque los tres viven en la misma
-   * tarjeta y se mandan igual: el entry COMPLETO de esa disciplina dentro de
-   * `otherDisciplines`. Mandar solo el campo que cambió perdería los otros
-   * dos en el camino.
+   * Agregar una disciplina desde las pastillas: entra con 1 sesión y sus
+   * defaults; el ajuste fino (sesiones, propósito, nivel) vive en su hoja.
+   * Es la única escritura que se queda en la sección porque es una acción de
+   * un toque, no un editor.
    */
-  async function actualizarCarga(
-    disciplina: Discipline,
-    cambios: Partial<Pick<DisciplineLoad, "sessionsPerWeek" | "proposito" | "importancia">>,
-  ) {
-    const actual = otras.find((carga) => carga.discipline === disciplina);
+  async function agregarDisciplina(disciplina: Discipline) {
     const entry: DisciplineLoad = {
       discipline: disciplina,
-      sessionsPerWeek: Math.max(0, Math.min(7, cambios.sessionsPerWeek ?? actual?.sessionsPerWeek ?? 0)),
-      proposito: cambios.proposito ?? actual?.proposito ?? "COMPLEMENTO",
-      importancia: cambios.importancia ?? actual?.importancia ?? 2,
+      sessionsPerWeek: 1,
+      proposito: "COMPLEMENTO",
+      importancia: 2,
     };
-    const siguiente =
-      entry.sessionsPerWeek > 0
-        ? [...otras.filter((carga) => carga.discipline !== disciplina), entry]
-        : otras.filter((carga) => carga.discipline !== disciplina);
+    const siguiente = [...otras.filter((carga) => carga.discipline !== disciplina), entry];
 
     setOtras(siguiente);
     setEntrenoMsg(null);
@@ -221,9 +168,7 @@ export function SeccionEntrenamiento({ me }: { me: MeResponse | null }) {
       void cargarSemana();
       const restantes = diasDeGimnasio(presupuestoSemanal, siguiente, primaria);
       setEntrenoMsg(
-        entry.sessionsPerWeek === 0
-          ? `Quitada. Te quedan ${restantes} ${restantes === 1 ? "día" : "días"} de gimnasio a la semana.`
-          : `Guardado: te quedan ${restantes} ${restantes === 1 ? "día" : "días"} de gimnasio a la semana.`,
+        `Guardado: te quedan ${restantes} ${restantes === 1 ? "día" : "días"} de gimnasio a la semana.`,
       );
     } catch (error) {
       setOtras(otras);
@@ -231,216 +176,105 @@ export function SeccionEntrenamiento({ me }: { me: MeResponse | null }) {
     }
   }
 
-  async function guardarNivel(disciplina: Discipline, nivel: SwimLevel) {
-    const anterior = niveles;
-    const siguiente = { ...niveles, [disciplina]: nivel };
-    setNiveles(siguiente);
-    setEntrenoMsg(null);
-    try {
-      // Natación además mantiene `swimLevel`, que existía antes de que el
-      // nivel fuera por disciplina y sigue siendo su respaldo.
-      await patchEntrenamiento({
-        disciplineLevels: siguiente,
-        ...(disciplina === "NATACION" ? { swimLevel: nivel } : {}),
-      });
-      void cargarSemana();
-      setEntrenoMsg("Guardado. Entra en tu siguiente sesión de esa disciplina.");
-    } catch (error) {
-      setNiveles(anterior);
-      setEntrenoMsg(error instanceof ApiError ? error.message : "No se pudo guardar tu nivel");
-    }
-  }
-
-  /**
-   * Guarda el tiempo de UN día (Fase 7).
-   *
-   * Hasta hoy, declarar cuánto tiempo hay cada día solo se podía hacer
-   * rehaciendo el flujo completo de "Empezar de cero". Es el dato que hace
-   * honesto el reparto de un día combinado: sin él, el generador no sabe si
-   * un sábado con dos disciplinas de verdad tiene tiempo para las dos.
-   */
-  async function guardarTiempoDia(dia: WeekDay, minutos: number) {
-    const anterior = tiempoPorDia;
-    const siguiente = { ...tiempoPorDia, [dia]: minutos };
-    setTiempoPorDia(siguiente);
-    setTiempoMsg(null);
-    try {
-      await patchEntrenamiento({ timePerDay: siguiente });
-      void cargarSemana();
-      setTiempoMsg("Guardado. Entra en tu siguiente semana.");
-    } catch (error) {
-      setTiempoPorDia(anterior);
-      setTiempoMsg(error instanceof ApiError ? error.message : "No se pudo guardar tu tiempo");
-    }
-  }
-
-  /**
-   * Guarda cómo se arma la semana (Fase 10): días compactos o repartidos.
-   *
-   * El orden DENTRO de un día combinado nunca se pregunta —eso lo decide la
-   * app (la alberca al final, el impacto primero)—; esto solo decide SI se
-   * combinan disciplinas compatibles el mismo día.
-   */
-  async function guardarCompactDays(valor: boolean) {
-    const anterior = compactDays;
-    setCompactDays(valor);
-    setCompactoMsg(null);
-    try {
-      await patchEntrenamiento({ compactDays: valor });
-      void cargarSemana();
-      setCompactoMsg(
-        valor
-          ? "Guardado. Desde tu siguiente semana, lo que combine bien cae el mismo día."
-          : "Guardado. Desde tu siguiente semana, cada disciplina vuelve a tener su propio día.",
-      );
-    } catch (error) {
-      setCompactDays(anterior);
-      setCompactoMsg(error instanceof ApiError ? error.message : "No se pudo guardar tu preferencia");
-    }
-  }
-
-  /**
-   * Guarda el estilo de esquema fijo: "que la app decida" (la rotación de
-   * siempre) o un esquema fijo todas las semanas.
-   *
-   * La rotación (periodización ondulante) sigue siendo LA recomendación —
-   * varía el estímulo semana a semana y eso es igual o mejor que una
-   * progresión lineal para fuerza (Rhea et al. 2002) — por eso "Que la app
-   * decida" va primero y marcada por default. Elegir un esquema fijo no
-   * rompe nada: los días de rehabilitación (lesión activa) nunca se mueven
-   * de su esquema, sin importar lo que se elija aquí.
-   */
-  async function guardarSchemePreference(valor: SchemePreference) {
-    const anterior = schemePreference;
-    setSchemePreference(valor);
-    setSchemeMsg(null);
-    try {
-      await patchEntrenamiento({ schemePreference: valor });
-      setSchemeMsg("Guardado. Aplica desde la próxima semana que se arme.");
-    } catch (error) {
-      setSchemePreference(anterior);
-      setSchemeMsg(error instanceof ApiError ? error.message : "No se pudo guardar tu preferencia");
-    }
-  }
-
   const activas = DISCIPLINAS.filter(
-    (disciplina) => disciplina.valor === primaria || otras.some((carga) => carga.discipline === disciplina.valor),
+    (disciplina) =>
+      disciplina.valor === primaria || otras.some((carga) => carga.discipline === disciplina.valor),
   );
   const inactivas = DISCIPLINAS.filter(
-    (disciplina) => disciplina.valor !== primaria && !otras.some((carga) => carga.discipline === disciplina.valor),
+    (disciplina) =>
+      disciplina.valor !== primaria && !otras.some((carga) => carga.discipline === disciplina.valor),
   );
+
+  /** El resumen de una disciplina activa, igual al que tenía su tarjeta. */
+  function resumenDisciplina(discipline: Discipline): string {
+    const opciones = NIVELES_POR_DISCIPLINA[discipline] ?? [];
+    const nivel = niveles[discipline] ?? "PRINCIPIANTE";
+    const nombreNivel = opciones.find((opcion) => opcion.valor === nivel)?.nombre ?? "Principiante";
+    const carga = otras.find((entrada) => entrada.discipline === discipline);
+    const nombreProposito =
+      PROPOSITOS.find((opcion) => opcion.valor === carga?.proposito)?.nombre ?? null;
+
+    const partes: string[] = [];
+    if (discipline === primaria) {
+      partes.push(`${diasGym} ${diasGym === 1 ? "día" : "días"} de gimnasio`);
+    } else if (carga) {
+      partes.push(`${carga.sessionsPerWeek} ${carga.sessionsPerWeek === 1 ? "sesión" : "sesiones"}`);
+      if (nombreProposito) partes.push(nombreProposito.toLowerCase());
+    }
+    partes.push(nombreNivel.toLowerCase());
+    return partes.join(" · ");
+  }
 
   return (
     <>
       {/* 1. "¿Qué tengo?" — la consecuencia real, antes de tocar nada. */}
-      <ScoreCard icon={CalendarRange} tint={colors.paloRosa} title="Tu semana" summary={resumenSemana}>
-        {diasDeLaSemana.length === 0 ? (
-          <TextoExplicativo>Todavía no hay semana armada.</TextoExplicativo>
-        ) : (
-          <View style={styles.semanaLista}>
-            {diasDeLaSemana.map((dia) => (
-              <View key={dia.date} style={styles.semanaFila}>
-                <Text style={styles.semanaDia}>{dia.abrev}</Text>
-                <Text style={styles.semanaEtiqueta}>{dia.etiqueta}</Text>
-              </View>
-            ))}
-          </View>
-        )}
+      <ScoreCard
+        icon={CalendarRange}
+        tint={colors.paloRosa}
+        title="Tu semana"
+        summary={resumenSemana}
+        onPress={() => router.push("/ajustes/detalle/semana")}
+      />
 
-        {avisos.map((aviso) => (
-          <Text key={aviso} style={styles.aviso}>
-            {aviso}
-          </Text>
-        ))}
-      </ScoreCard>
+      {/* Los avisos del planificador se quedan a la vista: son lo único de
+          esta pantalla que puede pedir una decisión hoy. */}
+      {avisos.map((aviso) => (
+        <Text key={aviso} style={styles.aviso}>
+          {aviso}
+        </Text>
+      ))}
 
-      {/* "Cómo se arma tu semana" (Fase 10): combinar por gusto o repartir. */}
-      <Card>
-        <View style={styles.sectionHeader}>
-          <SectionLabel>Cómo se arma tu semana</SectionLabel>
-          <InfoTip titulo="Qué decide esto">
-            <TextoInfo>
-              El orden dentro de un día combinado no se pregunta: la app siempre cierra con la
-              alberca (recuperación activa) y abre con el impacto —squash, box— cuando las piernas
-              todavía están frescas. Esto solo decide si combina disciplinas compatibles el mismo
-              día, o si le da a cada una su propio día.
-            </TextoInfo>
-          </InfoTip>
-        </View>
+      {/* 2. El estado actual, un renglón por decisión. El editor de cada una
+          vive en su hoja de `/ajustes/detalle/`. */}
+      <ScoreCard
+        icon={Sunrise}
+        tint={colors.champan}
+        title="A qué hora entrenas"
+        summary={resumenHorario}
+        onPress={() => router.push("/ajustes/detalle/horario")}
+      />
 
-        <View style={styles.presupuestoLista}>
-          <Pressable
-            onPress={() => guardarCompactDays(true)}
-            style={[styles.presupuestoFila, compactDays && styles.presupuestoFilaOn]}
-          >
-            <Text style={[styles.presupuestoNombre, compactDays && styles.presupuestoNombreOn]}>
-              Días compactos
-            </Text>
-            <Text style={styles.presupuestoDetalle}>
-              Combina disciplinas compatibles el mismo día y te deja más días de descanso
-              completo.
-            </Text>
-          </Pressable>
-          <Pressable
-            onPress={() => guardarCompactDays(false)}
-            style={[styles.presupuestoFila, !compactDays && styles.presupuestoFilaOn]}
-          >
-            <Text style={[styles.presupuestoNombre, !compactDays && styles.presupuestoNombreOn]}>
-              Días repartidos
-            </Text>
-            <Text style={styles.presupuestoDetalle}>Una disciplina por día, sesiones más frescas.</Text>
-          </Pressable>
-        </View>
+      <ScoreCard
+        icon={LayoutGrid}
+        tint={colors.champan}
+        title="Cómo se arma tu semana"
+        summary={resumenArmado}
+        onPress={() => router.push("/ajustes/detalle/armado")}
+      />
 
-        {compactoMsg && <Text style={styles.vaultMsg}>{compactoMsg}</Text>}
-      </Card>
+      <ScoreCard
+        icon={Repeat}
+        tint={colors.champan}
+        title="Cómo te gusta entrenar"
+        summary={resumenEsquema}
+        onPress={() => router.push("/ajustes/detalle/esquema")}
+      />
 
-      {/* "Cómo te gusta entrenar": esquema fijo, o que la app siga rotando. */}
-      <Card>
-        <View style={styles.sectionHeader}>
-          <SectionLabel>Cómo te gusta entrenar</SectionLabel>
-          <InfoTip titulo="Qué decide esto">
-            <TextoInfo>
-              La rutina siempre viene con un esquema de series y reps. Por default la app lo rota
-              cada semana —fuerza, metabólico, rango medio— porque variar el estímulo da mejores
-              resultados que quedarse fijo. Si prefieres no variar, elige un estilo aquí y ese
-              esquema se queda fijo todas las semanas.
-            </TextoInfo>
-          </InfoTip>
-        </View>
+      <ScoreCard
+        icon={Clock}
+        tint={colors.champan}
+        title="Tiempo por día"
+        summary={resumenTiempo}
+        onPress={() => router.push("/ajustes/detalle/tiempo")}
+      />
 
-        <View style={styles.presupuestoLista}>
-          {OPCIONES_ESQUEMA.map((opcion) => {
-            const activo = schemePreference === opcion.valor;
-            return (
-              <Pressable
-                key={opcion.valor}
-                onPress={() => guardarSchemePreference(opcion.valor)}
-                style={[styles.presupuestoFila, activo && styles.presupuestoFilaOn]}
-              >
-                <Text style={[styles.presupuestoNombre, activo && styles.presupuestoNombreOn]}>
-                  {opcion.nombre}
-                </Text>
-                <Text style={styles.presupuestoDetalle}>{opcion.detalle}</Text>
-              </Pressable>
-            );
-          })}
-        </View>
+      <ScoreCard
+        icon={Shield}
+        tint={colors.champan}
+        title="Grupos que no repites"
+        summary={resumenGrupos}
+        onPress={() => router.push("/ajustes/detalle/grupos")}
+      />
 
-        <Text style={styles.notaCorta}>Aplica desde la próxima semana que se arme.</Text>
-
-        {schemeMsg && <Text style={styles.vaultMsg}>{schemeMsg}</Text>}
-      </Card>
-
-      {/* 2. "¿Qué tan grande es el cambio?" — los tres niveles, en orden. */}
+      {/* 3. "¿Qué tan grande es el cambio?" — los dos replanteos, en orden. */}
       <Card>
         <View style={styles.sectionHeader}>
           <SectionLabel>Cambiar tu plan</SectionLabel>
           <InfoTip titulo="Qué nivel de cambio necesitas">
             <TextoInfo>
-              Tres tamaños de cambio, de menor a mayor: ajustar una pieza (las tarjetas de abajo,
-              disciplina por disciplina), repartir el peso entre las que ya tienes activas, o
-              empezar de cero cuando cambió algo más grande que una preferencia.
+              Tres tamaños de cambio, de menor a mayor: ajustar una pieza (los renglones de esta
+              pantalla, disciplina por disciplina), repartir el peso entre las que ya tienes
+              activas, o empezar de cero cuando cambió algo más grande que una preferencia.
             </TextoInfo>
           </InfoTip>
         </View>
@@ -463,34 +297,19 @@ export function SeccionEntrenamiento({ me }: { me: MeResponse | null }) {
         </Pressable>
       </Card>
 
-      {/* 3. "¿Qué toco de esa disciplina?" — una tarjeta por disciplina activa. */}
+      {/* 4. "¿Qué toco de esa disciplina?" — un renglón por disciplina activa. */}
       <SectionLabel>Ajuste fino, por disciplina</SectionLabel>
 
-      <TarjetaDisciplina
-        discipline={primaria}
-        esPrimaria
-        diasGym={diasGym}
-        nivel={niveles[primaria] ?? "PRINCIPIANTE"}
-        onGuardarNivel={(nivel) => guardarNivel(primaria, nivel)}
-      />
-
-      {activas
-        .filter((disciplina) => disciplina.valor !== primaria)
-        .map((disciplina) => {
-          const carga = otras.find((entrada) => entrada.discipline === disciplina.valor)!;
-          return (
-            <TarjetaDisciplina
-              key={disciplina.valor}
-              discipline={disciplina.valor}
-              esPrimaria={false}
-              carga={carga}
-              nivel={niveles[disciplina.valor] ?? "PRINCIPIANTE"}
-              onGuardarSesiones={(sesiones) => actualizarCarga(disciplina.valor, { sessionsPerWeek: sesiones })}
-              onGuardarProposito={(proposito) => actualizarCarga(disciplina.valor, { proposito })}
-              onGuardarNivel={(nivel) => guardarNivel(disciplina.valor, nivel)}
-            />
-          );
-        })}
+      {activas.map((disciplina) => (
+        <ScoreCard
+          key={disciplina.valor}
+          icon={iconoDe(disciplina.valor)}
+          tint={colors.champan}
+          title={disciplinaNombre(disciplina.valor)}
+          summary={resumenDisciplina(disciplina.valor)}
+          onPress={() => router.push(`/ajustes/detalle/disciplina?d=${disciplina.valor}`)}
+        />
+      ))}
 
       {entrenoMsg && <Text style={styles.vaultMsg}>{entrenoMsg}</Text>}
 
@@ -501,7 +320,7 @@ export function SeccionEntrenamiento({ me }: { me: MeResponse | null }) {
             return (
               <Pressable
                 key={disciplina.valor}
-                onPress={() => actualizarCarga(disciplina.valor, { sessionsPerWeek: 1 })}
+                onPress={() => agregarDisciplina(disciplina.valor)}
                 style={({ pressed }) => [styles.pastilla, pressed && styles.pastillaPresionada]}
               >
                 <Plus size={14} color={colors.champan} strokeWidth={2.5} />
@@ -512,266 +331,28 @@ export function SeccionEntrenamiento({ me }: { me: MeResponse | null }) {
           })}
         </View>
       )}
-
-      {/* Tiempo por día (Fase 7): lo que hace honesto el reparto de un día combinado. */}
-      <Card>
-        <View style={styles.sectionHeader}>
-          <SectionLabel>Tiempo por día</SectionLabel>
-          <InfoTip titulo="Para qué sirve esto">
-            <TextoInfo>
-              Un día con dos disciplinas —gym y alberca, squash y funcional— solo reparte bien el
-              tiempo si sabe cuánto hay de verdad ese día. Hasta ahora esto solo se declaraba
-              rehaciendo el flujo completo de "Empezar de cero"; aquí se ajusta un día a la vez.
-            </TextoInfo>
-          </InfoTip>
-        </View>
-
-        {DIAS_SEMANA.map((dia) => (
-          <View key={dia.valor} style={styles.diaFila}>
-            <Text style={styles.diaNombre}>{dia.nombre}</Text>
-            <View style={styles.diaOpciones}>
-              {TIEMPOS_DIA.map((opcion) => {
-                const activo = (tiempoPorDia[dia.valor] ?? 0) === opcion.minutos;
-                return (
-                  <Pressable
-                    key={opcion.nombre}
-                    onPress={() => guardarTiempoDia(dia.valor, opcion.minutos)}
-                    style={[styles.diaChip, activo && styles.diaChipOn]}
-                  >
-                    <Text style={[styles.diaChipTexto, activo && styles.diaChipTextoOn]}>
-                      {opcion.corto}
-                    </Text>
-                  </Pressable>
-                );
-              })}
-            </View>
-          </View>
-        ))}
-
-        {tiempoMsg && <Text style={styles.vaultMsg}>{tiempoMsg}</Text>}
-      </Card>
-
-      {/* Grupos a no repetir: se queda tal cual estaba, solo que ahora dentro
-          de una tarjeta colapsable para no estorbar el flujo de arriba. */}
-      <Card>
-        <Collapsible title="Grupos que no quieres repetir">
-          <View style={styles.infoTipRow}>
-            <InfoTip titulo="Cómo funciona">
-              <TextoInfo>
-                El grupo que marques se entrena una vez a la semana. Los días que lo repetían no
-                desaparecen: pasan a trabajar otra cosa, así que sigues entrenando los mismos días.
-              </TextoInfo>
-            </InfoTip>
-          </View>
-
-          <View style={styles.cierreRow}>
-            {GRUPOS.map((grupo) => {
-              const activo = sinRepetir.includes(grupo.valor);
-              return (
-                <Pressable
-                  key={grupo.valor}
-                  onPress={() => guardarSinRepetir(grupo.valor)}
-                  style={[styles.cierreChip, activo && styles.cierreChipOn]}
-                >
-                  <Text style={[styles.cierreChipText, activo && styles.cierreChipTextOn]}>
-                    {grupo.nombre}
-                  </Text>
-                </Pressable>
-              );
-            })}
-          </View>
-        </Collapsible>
-      </Card>
     </>
   );
-}
-
-/**
- * Una disciplina activa, colapsable: cerrada ya contesta cuánto se entrena,
- * para qué y en qué nivel. Adentro van juntos el stepper de sesiones, los
- * chips de propósito y el selector de nivel — antes vivían en tres listas
- * distintas y para entender UNA disciplina había que cruzarlas a mano.
- */
-function TarjetaDisciplina({
-  discipline,
-  esPrimaria,
-  carga,
-  diasGym,
-  nivel,
-  onGuardarSesiones,
-  onGuardarProposito,
-  onGuardarNivel,
-}: {
-  discipline: Discipline;
-  esPrimaria: boolean;
-  carga?: DisciplineLoad;
-  diasGym?: number;
-  nivel: SwimLevel;
-  onGuardarSesiones?: (sesiones: number) => void;
-  onGuardarProposito?: (proposito: Proposito) => void;
-  onGuardarNivel: (nivel: SwimLevel) => void;
-}) {
-  const { colors } = useTheme();
-  const styles = useMemo(() => makeStyles(colors), [colors]);
-  const Icono = iconoDe(discipline);
-  const opciones = NIVELES_POR_DISCIPLINA[discipline] ?? [];
-  const nombreNivel = opciones.find((opcion) => opcion.valor === nivel)?.nombre ?? "Principiante";
-  const nombreProposito = PROPOSITOS.find((opcion) => opcion.valor === carga?.proposito)?.nombre ?? null;
-
-  const partes: string[] = [];
-  if (esPrimaria) {
-    partes.push(`${diasGym ?? 0} ${(diasGym ?? 0) === 1 ? "día" : "días"} de gimnasio`);
-  } else if (carga) {
-    partes.push(`${carga.sessionsPerWeek} ${carga.sessionsPerWeek === 1 ? "sesión" : "sesiones"}`);
-    if (nombreProposito) partes.push(nombreProposito.toLowerCase());
-  }
-  partes.push(nombreNivel.toLowerCase());
-
-  return (
-    <ScoreCard icon={Icono} tint={colors.champan} title={disciplinaNombre(discipline)} summary={partes.join(" · ")}>
-      {!esPrimaria && carga && onGuardarSesiones && (
-        <NumberStepper
-          label="Sesiones por semana"
-          value={carga.sessionsPerWeek}
-          onChange={onGuardarSesiones}
-          step={1}
-          min={0}
-        />
-      )}
-
-      {!esPrimaria && carga && onGuardarProposito && (
-        <View style={styles.propositos}>
-          {PROPOSITOS.map((opcion) => (
-            <Pressable
-              key={opcion.valor}
-              onPress={() => onGuardarProposito(opcion.valor)}
-              style={[styles.cierreChip, carga.proposito === opcion.valor && styles.cierreChipOn]}
-            >
-              <Text
-                style={[styles.cierreChipText, carga.proposito === opcion.valor && styles.cierreChipTextOn]}
-              >
-                {opcion.nombre}
-              </Text>
-            </Pressable>
-          ))}
-        </View>
-      )}
-
-      {opciones.length > 0 && (
-        <View style={styles.presupuestoLista}>
-          {opciones.map((opcion) => (
-            <Pressable
-              key={opcion.valor}
-              onPress={() => onGuardarNivel(opcion.valor)}
-              style={[styles.presupuestoFila, nivel === opcion.valor && styles.presupuestoFilaOn]}
-            >
-              <Text
-                style={[styles.presupuestoNombre, nivel === opcion.valor && styles.presupuestoNombreOn]}
-              >
-                {opcion.nombre}
-              </Text>
-              <Text style={styles.presupuestoDetalle}>{opcion.detalle}</Text>
-            </Pressable>
-          ))}
-        </View>
-      )}
-    </ScoreCard>
-  );
-}
-
-function disciplinaNombre(discipline: Discipline): string {
-  return DISCIPLINAS.find((entrada) => entrada.valor === discipline)?.nombre ?? discipline;
-}
-
-/** Suma días a una fecha ISO. Misma cuenta que en `(tabs)/rutinas.tsx`. */
-function addDaysISO(dateISO: string, days: number): string {
-  const [year, month, day] = dateISO.split("-").map(Number);
-  const date = new Date(year!, month! - 1, day!);
-  date.setDate(date.getDate() + days);
-  const nextMonth = String(date.getMonth() + 1).padStart(2, "0");
-  const nextDay = String(date.getDate()).padStart(2, "0");
-  return `${date.getFullYear()}-${nextMonth}-${nextDay}`;
-}
-
-const WEEKDAY_ABBR_BY_DOW = ["DOM", "LUN", "MAR", "MIÉ", "JUE", "VIE", "SÁB"];
-
-/** "SÁB" a partir de una fecha ISO. */
-function weekdayAbbrOf(dateISO: string): string {
-  const [year, month, day] = dateISO.split("-").map(Number);
-  return WEEKDAY_ABBR_BY_DOW[new Date(year!, month! - 1, day!).getDay()]!;
-}
-
-/** Un día de "Tu semana", ya resuelto a su etiqueta ("Squash → Natación"). */
-type DiaResumen = { date: string; abrev: string; etiqueta: string };
-
-function diasResumenDe(semana: WeekView | null): DiaResumen[] {
-  if (!semana) return [];
-  const dias: DiaResumen[] = [];
-  for (let index = 0; index < 7; index += 1) {
-    const date = addDaysISO(semana.weekStart, index);
-    const gym = semana.sessions.find((sesion) => sesion.date === date) ?? null;
-    const otrasDia = semana.otherSessions?.filter((otra) => otra.date === date) ?? [];
-    const bloques: Array<BloqueDelDia<SessionView>> = ordenarBloquesDelDia(gym, otrasDia);
-    if (bloques.length === 0) continue;
-    dias.push({ date, abrev: weekdayAbbrOf(date), etiqueta: etiquetaDelDia(bloques) });
-  }
-  return dias;
-}
-
-/**
- * Los avisos del planificador para "Tu semana": el porqué de un día
- * combinado (la `note` que ya escribió el servidor) y las semanas de
- * descarga. No se inventa copy nuevo — se sube lo que el servidor ya declaró.
- */
-function avisosDeLaSemana(semana: WeekView | null): string[] {
-  if (!semana) return [];
-  const otras = semana.otherSessions ?? [];
-  const avisos = new Set<string>();
-
-  for (const otra of otras) {
-    const comparteConGym = semana.sessions.some((sesion) => sesion.date === otra.date);
-    const comparteConOtra = otras.some((entrada) => entrada !== otra && entrada.date === otra.date);
-    if ((comparteConGym || comparteConOtra) && otra.note) avisos.add(otra.note);
-    if (otra.sesion?.deload) avisos.add(`Semana de descarga en ${otra.discipline.toLowerCase()}.`);
-  }
-
-  return Array.from(avisos);
 }
 
 const makeStyles = (colors: Palette) =>
   StyleSheet.create({
     sectionHeader: { flexDirection: "row", alignItems: "center", gap: spacing.xs },
-    // Fila propia para el InfoTip anidado dentro de un `Collapsible`: ese
-    // componente no expone un slot junto a su título, así que el globito va
-    // como primer renglón del cuerpo en vez de pegado al título cerrado.
-    infoTipRow: { flexDirection: "row", justifyContent: "flex-end" },
-    semanaLista: { gap: spacing.xs, marginTop: spacing.sm },
-    semanaFila: { flexDirection: "row", alignItems: "center", gap: spacing.md },
-    semanaDia: {
-      width: 40,
-      fontFamily: fonts.sansSemiBold,
-      ...typeScale.label,
-      letterSpacing: 1,
-      color: colors.paloRosa,
-    },
-    semanaEtiqueta: { flex: 1, fontFamily: fonts.sansMedium, ...typeScale.bodySm, color: colors.marfil },
     aviso: {
       fontFamily: fonts.sans,
       ...typeScale.bodySm,
       color: colors.champan,
-      marginTop: spacing.md,
       backgroundColor: withAlpha(colors.champan, 0.1),
       borderRadius: radius.md,
       padding: spacing.md,
     },
     recalibrar: { paddingVertical: spacing.md, marginTop: spacing.md },
     recalibrarTexto: { fontFamily: fonts.sansSemiBold, ...typeScale.body, color: colors.champan },
-    linkDetalle: { fontFamily: fonts.sans, ...typeScale.bodySm, color: colors.paloRosaLight, marginTop: 2 },
-    notaCorta: {
+    linkDetalle: {
       fontFamily: fonts.sans,
       ...typeScale.bodySm,
       color: colors.paloRosaLight,
-      marginTop: spacing.sm,
+      marginTop: 2,
     },
     replantear: {
       flexDirection: "row",
@@ -790,20 +371,6 @@ const makeStyles = (colors: Palette) =>
       ...typeScale.bodySm,
       color: withAlpha(colors.pergamino, 0.85),
     },
-    propositos: { flexDirection: "row", flexWrap: "wrap", gap: spacing.sm, marginTop: spacing.md },
-    presupuestoLista: { gap: spacing.sm, marginTop: spacing.md },
-    presupuestoFila: {
-      borderRadius: radius.xl,
-      borderWidth: 1,
-      borderColor: colors.cardBorder,
-      backgroundColor: colors.cardBg,
-      padding: spacing.lg,
-      gap: 2,
-    },
-    presupuestoFilaOn: { backgroundColor: colors.guinda, borderColor: colors.guindaLight },
-    presupuestoNombre: { fontFamily: fonts.sansSemiBold, ...typeScale.body, color: colors.marfil },
-    presupuestoNombreOn: { color: colors.pergamino },
-    presupuestoDetalle: { fontFamily: fonts.sans, ...typeScale.bodySm, color: colors.paloRosa },
     pastillas: { flexDirection: "row", flexWrap: "wrap", gap: spacing.sm },
     pastilla: {
       flexDirection: "row",
@@ -817,31 +384,10 @@ const makeStyles = (colors: Palette) =>
     },
     pastillaPresionada: { opacity: 0.7 },
     pastillaTexto: { fontFamily: fonts.sansMedium, ...typeScale.bodySm, color: colors.marfil },
-    diaFila: { flexDirection: "row", alignItems: "center", gap: spacing.sm, marginTop: spacing.sm },
-    diaNombre: { width: 40, fontFamily: fonts.sansMedium, ...typeScale.bodySm, color: colors.marfil },
-    diaOpciones: { flexDirection: "row", gap: 6, flex: 1 },
-    diaChip: {
-      flex: 1,
-      alignItems: "center",
-      borderRadius: radius.md,
-      borderWidth: 1,
-      borderColor: colors.cardBorder,
-      paddingVertical: 6,
+    vaultMsg: {
+      fontFamily: fonts.sans,
+      ...typeScale.bodySm,
+      color: colors.champan,
+      marginTop: spacing.md,
     },
-    diaChipOn: { backgroundColor: colors.guinda, borderColor: colors.guindaLight },
-    diaChipTexto: { fontFamily: fonts.sansMedium, ...typeScale.label, color: colors.marfil },
-    diaChipTextoOn: { color: colors.pergamino },
-    cierreRow: { flexDirection: "row", flexWrap: "wrap", gap: spacing.sm, marginTop: spacing.sm },
-    cierreChip: {
-      paddingHorizontal: spacing.md,
-      paddingVertical: spacing.sm,
-      borderRadius: radius.full,
-      borderWidth: 1,
-      borderColor: colors.cardBorder,
-      backgroundColor: colors.cardBg,
-    },
-    cierreChipOn: { backgroundColor: colors.guinda, borderColor: colors.guindaLight },
-    cierreChipText: { fontFamily: fonts.sansMedium, ...typeScale.bodySm, color: colors.marfil },
-    cierreChipTextOn: { color: colors.pergamino },
-    vaultMsg: { fontFamily: fonts.sans, ...typeScale.bodySm, color: colors.champan, marginTop: spacing.md },
   });

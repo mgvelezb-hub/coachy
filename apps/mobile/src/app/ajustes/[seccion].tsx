@@ -1,6 +1,16 @@
 import Constants from "expo-constants";
-import { useLocalSearchParams, useRouter } from "expo-router";
-import { Check, RotateCcw } from "lucide-react-native";
+import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
+import {
+  CalendarClock,
+  Check,
+  ChefHat,
+  Clock,
+  Heart,
+  Package,
+  RotateCcw,
+  Salad,
+  Wallet,
+} from "lucide-react-native";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   Alert,
@@ -21,35 +31,26 @@ import { InfoTip, TextoInfo } from "@/components/InfoTip";
 import { ErrorState, LoadingState } from "@/components/States";
 import { PrimaryButton } from "@/components/PrimaryButton";
 import { RegenerarMenu } from "@/components/RegenerarMenu";
+import { ScoreCard } from "@/components/ScoreCard";
 import { SectionLabel } from "@/components/SectionLabel";
 import { SeccionEntrenamiento } from "@/components/ajustes/SeccionEntrenamiento";
-import { HorarioDeEntrenamiento } from "@/components/ajustes/HorarioDeEntrenamiento";
 import { SeccionHogar } from "@/components/ajustes/SeccionHogar";
-import { SeccionHorariosComida } from "@/components/ajustes/SeccionHorariosComida";
 import { SeccionPuntoCero } from "@/components/ajustes/SeccionPuntoCero";
 import { useTheme } from "@/context/theme";
 import type { ThemePreference } from "@/context/theme";
 import {
   ApiError,
   getActivities,
+  getHorariosComida,
   getMe,
   getPuntoCero,
-  patchCheckinSchedule,
-  patchNutricion,
-  patchPresupuesto,
   type PuntoCero,
   type MeResponse,
-  type DietStyle,
+  type TiempoDeComida,
 } from "@/lib/api";
-import {
-  ESTILOS_DIETA,
-  PRESUPUESTOS,
-  SUPLEMENTOS,
-  VENTANAS_AYUNO,
-  avisoDeDieta,
-} from "@/lib/nutricion";
+import { ESTILOS_DIETA, PRESUPUESTOS, avisoDeDieta } from "@/lib/nutricion";
 import { estadoDelReloj } from "@/lib/reloj-nativo";
-import { TIEMPOS_COCINA, listaDeAlimentos } from "@/lib/entrenamiento";
+import { TIEMPOS_COCINA } from "@/lib/entrenamiento";
 import {
   connectHealth,
   ensureCurrentPermissions,
@@ -71,7 +72,7 @@ import {
   type as typeScale,
 } from "@/lib/theme";
 import { countPendingSessions } from "@/lib/training-db";
-import { DIAS, programarRecordatorio } from "@/lib/recordatorio";
+import { DIAS } from "@/lib/recordatorio";
 import {
   MAX_PIN_LENGTH,
   MIN_PIN_LENGTH,
@@ -89,9 +90,11 @@ import { supabase } from "@/lib/supabase";
 /**
  * Ajustes — fuera de tabs, empujada con back (igual que /objetivo).
  *
- * 4 bloques: apariencia (el selector de tema), perfil de solo lectura (viene
- * de `GET /api/v1/me`, no hay endpoint de edición todavía), estado de los
- * datos locales del modo gimnasio/biblioteca, y sesión (versión + logout).
+ * La ley de diseño: cada sección es una lista de renglones de una línea con
+ * el estado actual ("Dieta: Estándar", "Domingo · 9:00"); NADA se abre hacia
+ * abajo, y cada zoom-in empuja una hoja nueva en `/ajustes/detalle/<tema>`
+ * donde vive el editor completo. Aquí solo quedan los editores que caben en
+ * una pantalla por sí solos (apariencia, fotos, teléfono, reloj, sesión).
  */
 
 const THEME_OPTIONS: Array<{ value: ThemePreference; label: string; palette: Palette | null }> = [
@@ -190,9 +193,14 @@ export default function AjustesDetalleScreen() {
     }
   }, []);
 
-  useEffect(() => {
-    void loadMe();
-  }, [loadMe]);
+  // Se recarga al recuperar el foco, no solo al montar: los editores viven
+  // en hojas de `/ajustes/detalle/` y al volver de una los renglones-resumen
+  // deben decir lo recién guardado.
+  useFocusEffect(
+    useCallback(() => {
+      void loadMe();
+    }, [loadMe]),
+  );
 
   useEffect(() => {
     const unsubscribe = subscribePendingCount(setPendingCount);
@@ -208,194 +216,26 @@ export default function AjustesDetalleScreen() {
     refreshVideoCount();
   }, [refreshVideoCount]);
 
-  // Cierre de semana: el día y la hora que la persona elige, y el
-  // recordatorio local que se programa con ellos.
-  const [diaCierre, setDiaCierre] = useState<number | null>(null);
-  const [horaCierre, setHoraCierre] = useState<number | null>(null);
-  const [cierreMsg, setCierreMsg] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (!me?.profile) return;
-    setDiaCierre(me.profile.checkinWeekday);
-    setHoraCierre(me.profile.checkinHour);
-  }, [me]);
-
-  async function guardarCierre(weekday: number | null, hour: number | null) {
-    setDiaCierre(weekday);
-    setHoraCierre(hour);
-    setCierreMsg(null);
-    try {
-      await patchCheckinSchedule(weekday, hour);
-      const programado = await programarRecordatorio(weekday, hour);
-      setCierreMsg(
-        weekday === null || hour === null
-          ? "Sin recordatorio: nadie te va a avisar."
-          : programado
-            ? `Listo: te aviso los ${DIAS[weekday]} a las ${hour}:00.`
-            : "Guardado, pero falta permiso de notificaciones para avisarte.",
-      );
-    } catch (error) {
-      setCierreMsg(error instanceof ApiError ? error.message : "No se pudo guardar tu día de cierre");
-    }
-  }
-
-  // Presupuesto de despensa: cambia el catálogo con el que se arma el menú.
-  const [presupuesto, setPresupuesto] = useState<"BAJO" | "MEDIO" | "ALTO" | null>(null);
-  const [presupuestoMsg, setPresupuestoMsg] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (me?.profile) setPresupuesto(me.profile.budget);
-  }, [me]);
-
-  async function guardarPresupuesto(valor: "BAJO" | "MEDIO" | "ALTO") {
-    setPresupuesto(valor);
-    setPresupuestoMsg(null);
-    try {
-      await patchPresupuesto(valor);
-      setPresupuestoMsg(
-        "Guardado — regenera tu menú abajo para verlo hoy, o espera a tu siguiente check-in.",
-      );
-    } catch (error) {
-      setPresupuestoMsg(
-        error instanceof ApiError ? error.message : "No se pudo guardar tu presupuesto",
-      );
-    }
-  }
-
-  // Tiempo de cocina y alimentos: las preferencias que el motor sí usa al
-  // armar el menú (el tope de minutos filtra el catálogo, los favoritos pesan
-  // en la elección y los excluidos salen).
-  const [tiempoCocina, setTiempoCocina] = useState<number | null>(null);
-  const [favoritos, setFavoritos] = useState("");
-  const [excluidos, setExcluidos] = useState("");
-  const [alimentosMsg, setAlimentosMsg] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (!me?.profile) return;
-    setTiempoCocina(me.profile.maxPrepMin ?? null);
-    setFavoritos((me.profile.favoriteFoods ?? []).join(", "));
-    setExcluidos((me.profile.excludedFoods ?? []).join(", "));
-  }, [me]);
-
-  /**
-   * Lo que la persona tiene en la alacena.
-   *
-   * Se pregunta qué TIENES, no qué deberías comprar: la app no recomienda
-   * productos. Lo marcado entra al plan —el polvo como alimento del menú, la
-   * creatina y el omega como pauta diaria— y lo no marcado no existe.
-   */
-  const [suplementos, setSuplementos] = useState<Array<"WHEY" | "CREATINA" | "OMEGA3">>([]);
-  const [suplementosMsg, setSuplementosMsg] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (!me?.profile) return;
-    setSuplementos(
-      ((me.profile.supplements ?? []) as Array<"WHEY" | "CREATINA" | "OMEGA3">).filter((valor) =>
-        SUPLEMENTOS.some((opcion) => opcion.valor === valor),
-      ),
-    );
-  }, [me]);
-
-  async function alternarSuplemento(valor: "WHEY" | "CREATINA" | "OMEGA3") {
-    const siguiente = suplementos.includes(valor)
-      ? suplementos.filter((entrada) => entrada !== valor)
-      : [...suplementos, valor];
-
-    setSuplementos(siguiente);
-    setSuplementosMsg(null);
-    try {
-      await patchNutricion({ supplements: siguiente });
-      setSuplementosMsg(
-        "Guardado — regenera tu menú abajo para verlo hoy, o espera a tu siguiente check-in.",
-      );
-    } catch (error) {
-      setSuplementos(suplementos);
-      setSuplementosMsg(
-        error instanceof ApiError ? error.message : "No se pudo guardar tus suplementos",
-      );
-    }
-  }
-
-  async function guardarTiempoCocina(minutos: number | null) {
-    setTiempoCocina(minutos);
-    setAlimentosMsg(null);
-    try {
-      await patchNutricion({ maxPrepMin: minutos });
-      setAlimentosMsg(
-        minutos === null
-          ? "Sin tope: el menú puede pedir cocinar en el momento."
-          : "Listo. Lo que se cocina en lote sigue entrando: cuenta como calentar.",
-      );
-    } catch (error) {
-      setAlimentosMsg(
-        error instanceof ApiError ? error.message : "No se pudo guardar tu tiempo de cocina",
-      );
-    }
-  }
-
-  async function guardarAlimentos() {
-    setAlimentosMsg(null);
-    try {
-      const guardado = await patchNutricion({
-        favoriteFoods: listaDeAlimentos(favoritos),
-        excludedFoods: listaDeAlimentos(excluidos),
-      });
-      setFavoritos(guardado.favoriteFoods.join(", "));
-      setExcluidos(guardado.excludedFoods.join(", "));
-      setAlimentosMsg(
-        "Guardado — regenera tu menú abajo para verlo hoy, o espera a tu siguiente check-in.",
-      );
-    } catch (error) {
-      setAlimentosMsg(
-        error instanceof ApiError ? error.message : "No se pudieron guardar tus alimentos",
-      );
-    }
-  }
-
-  // Estilo de dieta y, si es ayuno, la ventana en la que sí se come.
-  const [dieta, setDieta] = useState<DietStyle>("ESTANDAR");
-  const [ventana, setVentana] = useState<{ inicio: number | null; fin: number | null }>({
-    inicio: null,
-    fin: null,
-  });
-  const [dietaMsg, setDietaMsg] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (!me?.profile) return;
-    setDieta(me.profile.dietStyle ?? "ESTANDAR");
-    setVentana({
-      inicio: me.profile.fastingStartHour ?? null,
-      fin: me.profile.fastingEndHour ?? null,
-    });
-  }, [me]);
-
-  async function guardarDieta(valor: DietStyle) {
-    const anterior = dieta;
-    setDieta(valor);
-    setDietaMsg(null);
-    try {
-      await patchNutricion({ dietStyle: valor });
-      setDietaMsg(
-        "Guardado — regenera tu menú abajo para verlo hoy, o espera a tu siguiente check-in.",
-      );
-    } catch (error) {
-      setDieta(anterior);
-      setDietaMsg(error instanceof ApiError ? error.message : "No se pudo guardar tu dieta");
-    }
-  }
-
-  async function guardarVentana(inicio: number, fin: number) {
-    const anterior = ventana;
-    setVentana({ inicio, fin });
-    setDietaMsg(null);
-    try {
-      await patchNutricion({ fastingStartHour: inicio, fastingEndHour: fin });
-      setDietaMsg(`Listo: comes entre las ${inicio}:00 y las ${fin}:00.`);
-    } catch (error) {
-      setVentana(anterior);
-      setDietaMsg(error instanceof ApiError ? error.message : "No se pudo guardar tu ventana");
-    }
-  }
+  // Horarios de comida: solo para el renglón-resumen de Nutrición ("4 tiempos
+  // · 08:00–20:00"). El editor completo vive en su hoja de detalle y hace su
+  // propia carga; aquí un fallo se queda callado y el renglón lo dice.
+  const [tiemposComida, setTiemposComida] = useState<TiempoDeComida[] | null>(null);
+  useFocusEffect(
+    useCallback(() => {
+      if (activa !== "nutricion") return;
+      let vivo = true;
+      getHorariosComida()
+        .then((respuesta) => {
+          if (vivo) setTiemposComida(respuesta.tiempos);
+        })
+        .catch(() => {
+          if (vivo) setTiemposComida(null);
+        });
+      return () => {
+        vivo = false;
+      };
+    }, [activa]),
+  );
 
   // Bóveda de fotos: clave propia del teléfono + biometría opcional.
   const [tieneClave, setTieneClave] = useState(false);
@@ -591,81 +431,99 @@ export default function AjustesDetalleScreen() {
         <Text style={styles.title}>{activa ? SECCIONES[activa] : "Ajustes"}</Text>
 
         {activa === "checkin" && (
+        <>
         <SeccionPuntoCero puntoCero={puntoCero} onCambio={setPuntoCero} />
+
+        {/* El editor de día/hora vive en su hoja; aquí solo el estado. */}
+        <ScoreCard
+          icon={CalendarClock}
+          tint={colors.champan}
+          title="Cuándo cierras tu semana"
+          summary={resumenCierre(me)}
+          onPress={() => router.push("/ajustes/detalle/cierre")}
+        />
+        </>
         )}
-
-        {activa === "checkin" && (
-        <Card>
-          <View style={styles.sectionHeader}>
-            <SectionLabel>Cuándo cierras tu semana</SectionLabel>
-            <InfoTip titulo="Cuándo cierras tu semana">
-              <TextoInfo>
-                El día que elijas es el que la app espera tu check-in, y a esa hora te manda un
-                recordatorio que abre el formulario. El aviso lo programa tu teléfono: funciona
-                sin señal y sin servidor.
-              </TextoInfo>
-            </InfoTip>
-          </View>
-
-          <Text style={styles.cierreLabel}>Día</Text>
-          <View style={styles.cierreRow}>
-            {DIAS.map((dia, indice) => (
-              <Pressable
-                key={dia}
-                onPress={() => guardarCierre(indice, horaCierre ?? 9)}
-                style={[styles.cierreChip, diaCierre === indice && styles.cierreChipOn]}
-              >
-                <Text
-                  style={[styles.cierreChipText, diaCierre === indice && styles.cierreChipTextOn]}
-                >
-                  {dia.slice(0, 3)}
-                </Text>
-              </Pressable>
-            ))}
-          </View>
-
-          <Text style={styles.cierreLabel}>Hora</Text>
-          <View style={styles.cierreRow}>
-            {[7, 9, 12, 18, 20, 21].map((hora) => (
-              <Pressable
-                key={hora}
-                onPress={() => guardarCierre(diaCierre ?? 0, hora)}
-                style={[styles.cierreChip, horaCierre === hora && styles.cierreChipOn]}
-              >
-                <Text
-                  style={[styles.cierreChipText, horaCierre === hora && styles.cierreChipTextOn]}
-                >
-                  {hora}:00
-                </Text>
-              </Pressable>
-            ))}
-          </View>
-
-          {cierreMsg && <Text style={styles.vaultMsg}>{cierreMsg}</Text>}
-
-          {(diaCierre !== null || horaCierre !== null) && (
-            <Pressable onPress={() => guardarCierre(null, null)} hitSlop={8} style={{ marginTop: spacing.lg }}>
-              <Text style={styles.vaultLinkSoft}>Quitar recordatorio</Text>
-            </Pressable>
-          )}
-        </Card>
-        )}
-
-        {activa === "entrenamiento" && <HorarioDeEntrenamiento me={me} />}
 
         {activa === "entrenamiento" && <SeccionEntrenamiento me={me} />}
 
-        {activa === "nutricion" && <SeccionHorariosComida />}
-
         {activa === "nutricion" && (
         <>
+        {/* La sección es una lista de renglones con el estado actual; cada
+            editor completo vive en su hoja de `/ajustes/detalle/`. */}
+        <ScoreCard
+          icon={Clock}
+          tint={colors.champan}
+          title="A qué hora comes"
+          summary={resumenHorariosComida(tiemposComida)}
+          onPress={() => router.push("/ajustes/detalle/horarios-comida")}
+        />
+
+        <ScoreCard
+          icon={Salad}
+          tint={colors.champan}
+          title="Tu tipo de dieta"
+          summary={resumenDieta(me)}
+          status={
+            avisoDeDieta(me?.profile?.dietStyle ?? "ESTANDAR", {
+              entrenaTemprano: (me?.profile?.trainingTime ?? "MANANA") === "MANANA",
+              inicioVentana: me?.profile?.fastingStartHour ?? null,
+            })
+              ? { label: "Revisar", tone: "warn" }
+              : null
+          }
+          onPress={() => router.push("/ajustes/detalle/dieta")}
+        />
+
+        <ScoreCard
+          icon={Wallet}
+          tint={colors.champan}
+          title="Presupuesto de despensa"
+          summary={
+            PRESUPUESTOS.find((opcion) => opcion.valor === me?.profile?.budget)?.nombre ??
+            "Sin definir"
+          }
+          onPress={() => router.push("/ajustes/detalle/presupuesto")}
+        />
+
+        <ScoreCard
+          icon={ChefHat}
+          tint={colors.champan}
+          title="Cuánto quieres cocinar"
+          summary={
+            TIEMPOS_COCINA.find((opcion) => opcion.valor === (me?.profile?.maxPrepMin ?? null))
+              ?.nombre ?? "Sin restricción"
+          }
+          onPress={() => router.push("/ajustes/detalle/cocina")}
+        />
+
+        <ScoreCard
+          icon={Package}
+          tint={colors.champan}
+          title="Tu alacena"
+          summary={resumenAlacena(me)}
+          onPress={() => router.push("/ajustes/detalle/alacena")}
+        />
+
+        <ScoreCard
+          icon={Heart}
+          tint={colors.champan}
+          title="Lo que sí y lo que no"
+          summary={resumenGustos(me)}
+          onPress={() => router.push("/ajustes/detalle/gustos")}
+        />
+
         <Card>
-          <SectionLabel>Rearmar tu alimentación</SectionLabel>
-          <Text style={styles.vaultIntro}>
-            Cambiar una cosa se hace aquí abajo. Cuando cambió el conjunto —otro objetivo, otro
-            estilo, otro presupuesto— conviene volver a mirar todas las respuestas juntas y ver qué
-            implica cada una.
-          </Text>
+          <View style={styles.sectionHeader}>
+            <SectionLabel>Rearmar tu alimentación</SectionLabel>
+            <InfoTip titulo="Rearmar tu alimentación">
+              <TextoInfo>
+                Cambiar una cosa se hace en los renglones de arriba. Cuando cambió el conjunto
+                —otro objetivo, otro estilo, otro presupuesto— conviene volver a mirar todas las
+                respuestas juntas y ver qué implica cada una.
+              </TextoInfo>
+            </InfoTip>
+          </View>
 
           <Pressable onPress={() => router.push("/replantear-dieta")} style={styles.replantear}>
             <RotateCcw size={18} color={colors.pergamino} strokeWidth={2} />
@@ -679,226 +537,7 @@ export default function AjustesDetalleScreen() {
         </Card>
 
         <Card>
-          <View style={styles.sectionHeader}>
-            <SectionLabel>Tu tipo de dieta</SectionLabel>
-            <InfoTip titulo="Tu tipo de dieta">
-              <TextoInfo>
-                Cada estilo cambia una cosa y nada más. Lo eliges tú: la app no decide sola qué
-                filosofía sigues, y te dice qué implica cada una antes de cambiar.
-              </TextoInfo>
-            </InfoTip>
-          </View>
-
-          <View style={styles.presupuestoLista}>
-            {ESTILOS_DIETA.map((estilo) => (
-              <Pressable
-                key={estilo.valor}
-                onPress={() => guardarDieta(estilo.valor)}
-                style={[styles.presupuestoFila, dieta === estilo.valor && styles.presupuestoFilaOn]}
-              >
-                <Text
-                  style={[
-                    styles.presupuestoNombre,
-                    dieta === estilo.valor && styles.presupuestoNombreOn,
-                  ]}
-                >
-                  {estilo.nombre}
-                </Text>
-                <Text style={styles.presupuestoDetalle}>{estilo.detalle}</Text>
-              </Pressable>
-            ))}
-          </View>
-
-          {dieta === "AYUNO" && (
-            <>
-              <Text style={styles.cierreLabel}>Tu ventana para comer</Text>
-              <View style={styles.cierreRow}>
-                {VENTANAS_AYUNO.map((opcion) => {
-                  const activo = ventana.inicio === opcion.inicio && ventana.fin === opcion.fin;
-                  return (
-                    <Pressable
-                      key={opcion.nombre}
-                      onPress={() => guardarVentana(opcion.inicio, opcion.fin)}
-                      style={[styles.cierreChip, activo && styles.cierreChipOn]}
-                    >
-                      <Text style={[styles.cierreChipText, activo && styles.cierreChipTextOn]}>
-                        {opcion.nombre}
-                      </Text>
-                    </Pressable>
-                  );
-                })}
-              </View>
-            </>
-          )}
-
-          {(() => {
-            const aviso = avisoDeDieta(dieta, {
-              // La hora que importa es la del entrenamiento, no la del
-              // recordatorio del check-in.
-              entrenaTemprano: (me?.profile?.trainingTime ?? "MANANA") === "MANANA",
-              inicioVentana: ventana.inicio,
-            });
-            return aviso ? <Text style={styles.vaultMsg}>{aviso}</Text> : null;
-          })()}
-
-          {dietaMsg && <Text style={styles.vaultMsg}>{dietaMsg}</Text>}
-        </Card>
-
-        <Card>
-          <View style={styles.sectionHeader}>
-            <SectionLabel>Presupuesto de despensa</SectionLabel>
-            <InfoTip titulo="Presupuesto de despensa">
-              <TextoInfo>
-                Acota con qué alimentos se arma tu menú. Los tres niveles cubren proteína,
-                carbohidrato, grasa y vegetales: ninguno te deja sin con qué comer, cambian la
-                variedad y el precio.
-              </TextoInfo>
-            </InfoTip>
-          </View>
-
-          <View style={styles.presupuestoLista}>
-            {PRESUPUESTOS.map((opcion) => (
-              <Pressable
-                key={opcion.valor}
-                onPress={() => guardarPresupuesto(opcion.valor)}
-                style={[
-                  styles.presupuestoFila,
-                  presupuesto === opcion.valor && styles.presupuestoFilaOn,
-                ]}
-              >
-                <Text
-                  style={[
-                    styles.presupuestoNombre,
-                    presupuesto === opcion.valor && styles.presupuestoNombreOn,
-                  ]}
-                >
-                  {opcion.nombre}
-                </Text>
-                <Text style={styles.presupuestoDetalle}>{opcion.detalle}</Text>
-              </Pressable>
-            ))}
-          </View>
-
-          {presupuestoMsg && <Text style={styles.vaultMsg}>{presupuestoMsg}</Text>}
-
-          <Text style={styles.vaultIntro}>
-            Cambiarlo no rehace el menú de esta semana: ese ya se compró, y rehacerlo a media
-            semana obliga a tirar comida.
-          </Text>
-        </Card>
-
-        <Card>
-          <View style={styles.sectionHeader}>
-            <SectionLabel>Cuánto quieres cocinar</SectionLabel>
-            <InfoTip titulo="Cuánto quieres cocinar">
-              <TextoInfo>
-                El tiempo se mide **el día que comes**, no el día que cocinas. El arroz tarda
-                media hora en la olla, pero si se hace el domingo y entre semana se calienta la
-                porción, cuenta como calentar — así que sigue entrando aunque elijas poco tiempo.
-              </TextoInfo>
-              <TextoInfo>
-                Es una preferencia y no una regla: si el tope dejara una comida sin proteína,
-                manda comer.
-              </TextoInfo>
-            </InfoTip>
-          </View>
-
-          <View style={styles.presupuestoLista}>
-            {TIEMPOS_COCINA.map((opcion) => {
-              const activo = tiempoCocina === opcion.valor;
-              return (
-                <Pressable
-                  key={opcion.nombre}
-                  onPress={() => guardarTiempoCocina(opcion.valor)}
-                  style={[styles.presupuestoFila, activo && styles.presupuestoFilaOn]}
-                >
-                  <Text style={[styles.presupuestoNombre, activo && styles.presupuestoNombreOn]}>
-                    {opcion.nombre}
-                  </Text>
-                  <Text style={styles.presupuestoDetalle}>{opcion.detalle}</Text>
-                </Pressable>
-              );
-            })}
-          </View>
-        </Card>
-
-        <Card>
-          <View style={styles.sectionHeader}>
-            <SectionLabel>Lo que tienes en la alacena</SectionLabel>
-            <InfoTip titulo="Lo que tienes en la alacena">
-              <TextoInfo>
-                Se pregunta qué tienes, no qué deberías comprar: la app no recomienda productos.
-                Lo que marques entra a tu plan —el polvo como un alimento más del menú, la
-                creatina y el omega como pauta del día— y lo que no, simplemente no aparece.
-              </TextoInfo>
-            </InfoTip>
-          </View>
-
-          <View style={styles.presupuestoLista}>
-            {SUPLEMENTOS.map((opcion) => {
-              const activo = suplementos.includes(opcion.valor);
-              return (
-                <Pressable
-                  key={opcion.valor}
-                  onPress={() => alternarSuplemento(opcion.valor)}
-                  style={[styles.presupuestoFila, activo && styles.presupuestoFilaOn]}
-                >
-                  <Text style={[styles.presupuestoNombre, activo && styles.presupuestoNombreOn]}>
-                    {activo ? "✓ " : ""}
-                    {opcion.nombre}
-                  </Text>
-                  <Text style={styles.presupuestoDetalle}>{opcion.detalle}</Text>
-                </Pressable>
-              );
-            })}
-          </View>
-
-          {suplementosMsg && <Text style={styles.vaultMsg}>{suplementosMsg}</Text>}
-        </Card>
-
-        <Card>
-          <View style={styles.sectionHeader}>
-            <SectionLabel>Lo que sí y lo que no</SectionLabel>
-            <InfoTip titulo="Lo que sí y lo que no">
-              <TextoInfo>
-                Separa con comas. Lo que te gusta aparece más seguido; lo que no comes sale del
-                menú y de la lista de súper. Las alergias no se editan aquí: esas las lleva tu
-                perfil y nunca entran, ni por equivalencia.
-              </TextoInfo>
-            </InfoTip>
-          </View>
-
-          <Text style={styles.cierreLabel}>Lo que sí te gusta</Text>
-          <TextInput
-            value={favoritos}
-            onChangeText={setFavoritos}
-            onBlur={guardarAlimentos}
-            placeholder="pollo, avena, camote"
-            placeholderTextColor={colors.paloRosaLight}
-            autoCapitalize="none"
-            style={styles.vaultInput}
-          />
-
-          <Text style={styles.cierreLabel}>Lo que no comes</Text>
-          <TextInput
-            value={excluidos}
-            onChangeText={setExcluidos}
-            onBlur={guardarAlimentos}
-            placeholder="salmón, brócoli"
-            placeholderTextColor={colors.paloRosaLight}
-            autoCapitalize="none"
-            style={styles.vaultInput}
-          />
-
-          {alimentosMsg && <Text style={styles.vaultMsg}>{alimentosMsg}</Text>}
-        </Card>
-
-        <Card>
           <SectionLabel>Regenerar tu menú</SectionLabel>
-          <Text style={styles.vaultIntro}>
-            Ya guardaste tus cambios arriba. Si no quieres esperar a tu siguiente check-in, aquí
-            rearmas tu menú de hoy con lo que acabas de elegir.
-          </Text>
           <RegenerarMenu />
         </Card>
         </>
@@ -1165,6 +804,67 @@ export default function AjustesDetalleScreen() {
   );
 }
 
+/*
+ * Los renglones-resumen de las secciones: el estado actual en una línea,
+ * leído de lo que la pantalla ya cargó (`/me` y, en Nutrición, los horarios
+ * de comida). El editor de cada uno vive en su hoja de `/ajustes/detalle/`.
+ */
+
+/** "Domingo · 9:00", o la verdad: sin recordatorio nadie avisa. */
+function resumenCierre(me: MeResponse | null): string {
+  const weekday = me?.profile?.checkinWeekday ?? null;
+  const hour = me?.profile?.checkinHour ?? null;
+  if (weekday === null || hour === null) return "Sin recordatorio";
+  const dia = DIAS[weekday] ?? "";
+  return `${dia.charAt(0).toUpperCase()}${dia.slice(1)} · ${hour}:00`;
+}
+
+/** "4 tiempos · 08:00–20:00", con cuántos ya son horas propias. */
+function resumenHorariosComida(tiempos: TiempoDeComida[] | null): string {
+  if (!tiempos || tiempos.length === 0) return "Sin menú publicado todavía";
+  const primera = tiempos[0]!.hora;
+  const ultima = tiempos[tiempos.length - 1]!.hora;
+  const propias = tiempos.filter((tiempo) => tiempo.propia).length;
+  const base = `${tiempos.length} tiempos · ${primera}–${ultima}`;
+  return propias > 0 ? `${base} · ${propias} ${propias === 1 ? "propia" : "propias"}` : base;
+}
+
+/** El estilo elegido y, si es ayuno, su ventana ("Ayuno intermitente · 12–20 h"). */
+function resumenDieta(me: MeResponse | null): string {
+  const estilo = me?.profile?.dietStyle ?? "ESTANDAR";
+  const nombre = ESTILOS_DIETA.find((opcion) => opcion.valor === estilo)?.nombre ?? "Estándar";
+  if (estilo === "AYUNO") {
+    const inicio = me?.profile?.fastingStartHour ?? null;
+    const fin = me?.profile?.fastingEndHour ?? null;
+    if (inicio !== null && fin !== null) return `${nombre} · ${inicio}–${fin} h`;
+  }
+  return nombre;
+}
+
+/** Nombres cortos para que la alacena quepa en un renglón. */
+const ALACENA_CORTA: Record<string, string> = {
+  WHEY: "Proteína",
+  CREATINA: "Creatina",
+  OMEGA3: "Omega-3",
+};
+
+function resumenAlacena(me: MeResponse | null): string {
+  const marcados = (me?.profile?.supplements ?? [])
+    .map((valor) => ALACENA_CORTA[valor])
+    .filter((nombre): nombre is string => Boolean(nombre));
+  return marcados.length === 0 ? "Nada marcado todavía" : marcados.join(" · ");
+}
+
+function resumenGustos(me: MeResponse | null): string {
+  const favoritos = me?.profile?.favoriteFoods?.length ?? 0;
+  const excluidos = me?.profile?.excludedFoods?.length ?? 0;
+  if (favoritos === 0 && excluidos === 0) return "Sin preferencias declaradas";
+  const partes: string[] = [];
+  if (favoritos > 0) partes.push(`${favoritos} ${favoritos === 1 ? "favorito" : "favoritos"}`);
+  if (excluidos > 0) partes.push(`${excluidos} ${excluidos === 1 ? "excluido" : "excluidos"}`);
+  return partes.join(" · ");
+}
+
 function InfoRow({ label, value, styles }: { label: string; value: string; styles: ReturnType<typeof makeStyles> }) {
   return (
     <View style={styles.infoRow}>
@@ -1218,7 +918,6 @@ const swatchStyles = StyleSheet.create({
 
 const makeStyles = (colors: Palette) => StyleSheet.create({
   sectionHeader: { flexDirection: "row", alignItems: "center", gap: spacing.xs },
-  presupuestoLista: { gap: spacing.sm, marginTop: spacing.md },
   replantear: {
     flexDirection: "row",
     alignItems: "center",
@@ -1236,38 +935,6 @@ const makeStyles = (colors: Palette) => StyleSheet.create({
     ...typeScale.bodySm,
     color: withAlpha(colors.pergamino, 0.85),
   },
-  presupuestoFila: {
-    borderRadius: radius.xl,
-    borderWidth: 1,
-    borderColor: colors.cardBorder,
-    backgroundColor: colors.cardBg,
-    padding: spacing.lg,
-    gap: 2,
-  },
-  presupuestoFilaOn: { backgroundColor: colors.guinda, borderColor: colors.guindaLight },
-  presupuestoNombre: { fontFamily: fonts.sansSemiBold, ...typeScale.body, color: colors.marfil },
-  presupuestoNombreOn: { color: colors.pergamino },
-  presupuestoDetalle: { fontFamily: fonts.sans, ...typeScale.bodySm, color: colors.paloRosa },
-  cierreLabel: {
-    fontFamily: fonts.sansSemiBold,
-    ...typeScale.label,
-    letterSpacing: 1,
-    color: colors.paloRosa,
-    marginTop: spacing.lg,
-    marginBottom: spacing.sm,
-  },
-  cierreRow: { flexDirection: "row", flexWrap: "wrap", gap: spacing.sm },
-  cierreChip: {
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-    borderRadius: radius.full,
-    borderWidth: 1,
-    borderColor: colors.cardBorder,
-    backgroundColor: colors.cardBg,
-  },
-  cierreChipOn: { backgroundColor: colors.guinda, borderColor: colors.guindaLight },
-  cierreChipText: { fontFamily: fonts.sansMedium, ...typeScale.bodySm, color: colors.marfil },
-  cierreChipTextOn: { color: colors.pergamino },
   vaultAviso: {
     fontFamily: fonts.sansMedium,
     ...typeScale.bodySm,

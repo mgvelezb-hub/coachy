@@ -32,9 +32,14 @@ import { fonts, radius, spacing, type as typeScale, type Palette } from "@/lib/t
  * El horario por día existe para quien no entrena siempre a la misma hora
  * (mañana entre semana, tarde el sábado). Mientras no se declare, manda el
  * horario parejo.
+ *
+ * Este editor vive en la hoja `/ajustes/detalle/horario`; en la sección solo
+ * queda un renglón con el estado ("Mañana · 2 excepciones"). Por eso la
+ * rejilla por día ya no se esconde detrás de un toggle: la hoja ES el zoom y
+ * aquí todo se enseña de una vez.
  */
 
-const HORARIOS: Array<{ valor: TrainingTime; nombre: string; icono: typeof Sun }> = [
+export const HORARIOS: Array<{ valor: TrainingTime; nombre: string; icono: typeof Sun }> = [
   { valor: "MANANA", nombre: "Mañana", icono: Sunrise },
   { valor: "MEDIODIA", nombre: "Mediodía", icono: Sun },
   { valor: "TARDE", nombre: "Tarde", icono: Sunset },
@@ -53,9 +58,6 @@ export function HorarioDeEntrenamiento({ me }: { me: MeResponse | null }) {
   );
   const [porDia, setPorDia] = useState<Partial<Record<WeekDay, HorarioDeDia>>>(
     leeHorarioPorDia(me?.profile?.trainingSchedule),
-  );
-  const [abiertoPorDia, setAbiertoPorDia] = useState(
-    Object.keys(leeHorarioPorDia(me?.profile?.trainingSchedule)).length > 0,
   );
   const [guardando, setGuardando] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -136,57 +138,51 @@ export function HorarioDeEntrenamiento({ me }: { me: MeResponse | null }) {
         })}
       </View>
 
-      <Pressable onPress={() => setAbiertoPorDia((abierto) => !abierto)} style={styles.toggle}>
-        <Text style={styles.toggleTexto}>
-          {abiertoPorDia ? "− " : "+ "}
-          No entreno a la misma hora todos los días
+      {/* La rejilla por día siempre a la vista: esta hoja ES el zoom, y un
+          toggle que abre hacia abajo es justo lo que el rediseño prohibió. */}
+      <Text style={styles.subLabel}>Si no entrenas igual todos los días</Text>
+      <View style={styles.dias}>
+        <Text style={styles.diasNota}>
+          Los días que no marques siguen tu horario de arriba. Toca dos veces para quitar la
+          excepción.
         </Text>
-      </Pressable>
-
-      {abiertoPorDia && (
-        <View style={styles.dias}>
-          <Text style={styles.diasNota}>
-            Los días que no marques siguen tu horario de arriba. Toca dos veces para quitar la
-            excepción.
-          </Text>
-          {DIAS_SEMANA.map(({ valor: dia, nombre }) => (
-            <View key={dia} style={styles.diaFila}>
-              <Text style={styles.diaNombre}>{nombre}</Text>
-              <View style={styles.diaOpciones}>
-                {HORARIOS.map((horario) => {
-                  const activo = porDia[dia] === horario.valor;
-                  return (
-                    <Pressable
-                      key={horario.valor}
-                      onPress={() => eligeDia(dia, horario.valor)}
-                      disabled={guardando}
-                      style={[styles.diaChip, activo && styles.diaChipOn]}
-                    >
-                      <Text style={[styles.diaChipTexto, activo && styles.diaChipTextoOn]}>
-                        {horario.nombre.slice(0, 3)}
-                      </Text>
-                    </Pressable>
-                  );
-                })}
-                <Pressable
-                  onPress={() => eligeDia(dia, "DESCANSO")}
-                  disabled={guardando}
-                  style={[styles.diaChip, porDia[dia] === "DESCANSO" && styles.diaChipOn]}
-                >
-                  <Text
-                    style={[
-                      styles.diaChipTexto,
-                      porDia[dia] === "DESCANSO" && styles.diaChipTextoOn,
-                    ]}
+        {DIAS_SEMANA.map(({ valor: dia, nombre }) => (
+          <View key={dia} style={styles.diaFila}>
+            <Text style={styles.diaNombre}>{nombre}</Text>
+            <View style={styles.diaOpciones}>
+              {HORARIOS.map((horario) => {
+                const activo = porDia[dia] === horario.valor;
+                return (
+                  <Pressable
+                    key={horario.valor}
+                    onPress={() => eligeDia(dia, horario.valor)}
+                    disabled={guardando}
+                    style={[styles.diaChip, activo && styles.diaChipOn]}
                   >
-                    Desc
-                  </Text>
-                </Pressable>
-              </View>
+                    <Text style={[styles.diaChipTexto, activo && styles.diaChipTextoOn]}>
+                      {horario.nombre.slice(0, 3)}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+              <Pressable
+                onPress={() => eligeDia(dia, "DESCANSO")}
+                disabled={guardando}
+                style={[styles.diaChip, porDia[dia] === "DESCANSO" && styles.diaChipOn]}
+              >
+                <Text
+                  style={[
+                    styles.diaChipTexto,
+                    porDia[dia] === "DESCANSO" && styles.diaChipTextoOn,
+                  ]}
+                >
+                  Desc
+                </Text>
+              </Pressable>
             </View>
-          ))}
-        </View>
-      )}
+          </View>
+        ))}
+      </View>
 
       {guardando && <ActivityIndicator size="small" color={colors.champan} style={styles.spinner} />}
       {aviso && <Text style={styles.aviso}>{aviso}</Text>}
@@ -195,8 +191,10 @@ export function HorarioDeEntrenamiento({ me }: { me: MeResponse | null }) {
   );
 }
 
-/** El `trainingSchedule` del perfil, sin confiar en su forma. */
-function leeHorarioPorDia(json: unknown): Partial<Record<WeekDay, HorarioDeDia>> {
+/** El `trainingSchedule` del perfil, sin confiar en su forma. Exportada para
+ * que la sección arme su renglón-resumen ("Mañana · 2 excepciones") sin
+ * duplicar el parseo. */
+export function leeHorarioPorDia(json: unknown): Partial<Record<WeekDay, HorarioDeDia>> {
   if (typeof json !== "object" || json === null || Array.isArray(json)) return {};
   const validos = new Set<string>([...HORARIOS.map((h) => h.valor), "DESCANSO"]);
   const salida: Partial<Record<WeekDay, HorarioDeDia>> = {};
@@ -227,8 +225,14 @@ const makeStyles = (colors: Palette) =>
     opcionOn: { backgroundColor: colors.guinda, borderColor: colors.guindaLight },
     opcionTexto: { fontFamily: fonts.sansMedium, ...typeScale.bodySm, color: colors.marfil },
     opcionTextoOn: { color: colors.pergamino },
-    toggle: { marginTop: spacing.md, minHeight: 44, justifyContent: "center" },
-    toggleTexto: { fontFamily: fonts.sansMedium, ...typeScale.bodySm, color: colors.champan },
+    subLabel: {
+      fontFamily: fonts.sansSemiBold,
+      ...typeScale.label,
+      letterSpacing: 1,
+      color: colors.paloRosa,
+      marginTop: spacing.lg,
+      marginBottom: spacing.sm,
+    },
     dias: { gap: spacing.sm },
     diasNota: {
       fontFamily: fonts.sans,

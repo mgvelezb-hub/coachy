@@ -1,5 +1,15 @@
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { Activity, ChevronLeft, Footprints, HeartPulse, Moon, Ruler, Timer } from "lucide-react-native";
+import {
+  Activity,
+  ChevronLeft,
+  Dumbbell,
+  Flame,
+  Footprints,
+  HeartPulse,
+  Moon,
+  Ruler,
+  Timer,
+} from "lucide-react-native";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -11,15 +21,22 @@ import { SectionLabel } from "@/components/SectionLabel";
 import { useTheme } from "@/context/theme";
 import {
   ApiError,
+  getActivities,
   getCheckins,
   getHealthDays,
+  getHistoryTraining,
   getMe,
+  type Activity as ActivityLog,
   type CheckInRow,
+  type Discipline,
+  DISCIPLINE_LABELS,
   type HealthDayPayload,
   type MeResponse,
+  type TrainingHistoryRow,
 } from "@/lib/api";
 import { ChartBoundary } from "@/components/ChartBoundary";
 import { LineChart, type Punto } from "@/components/LineChart";
+import { iconoDe } from "@/lib/disciplinas";
 import {
   EJERCICIO_META_MIN,
   PASOS_META,
@@ -34,6 +51,8 @@ import {
   type Insight,
   type Trend,
 } from "@/lib/insights";
+import { estadoDelDia, metaDelDia, type EstadoCumplimiento } from "@/lib/plan-ejercicio";
+import { bestStreak, currentStreak, todayISO } from "@/lib/streak";
 import {
   fonts,
   radius,
@@ -68,6 +87,9 @@ type Data = {
   me: MeResponse;
   days: HealthDayPayload[];
   checkIns: CheckInRow[];
+  /** Solo se piden para "ejercicio" — ver el fetch condicional en `load()`. */
+  activities: ActivityLog[];
+  trainingSessions: TrainingHistoryRow[];
 };
 
 export default function DetalleMetricaScreen() {
@@ -82,17 +104,28 @@ export default function DetalleMetricaScreen() {
 
   const load = useCallback(async () => {
     try {
-      const [me, healthRes, checkinsRes] = await Promise.all([
+      // El desglose por disciplina solo lo pinta "ejercicio": las otras
+      // cuatro métricas no lo usan, así que no vale la pena pedirlo siempre.
+      const quiereDesglose = metrica === "ejercicio";
+      const [me, healthRes, checkinsRes, activitiesRes, historyRes] = await Promise.all([
         getMe(),
         getHealthDays().catch(() => null),
         getCheckins().catch(() => null),
+        quiereDesglose ? getActivities().catch(() => null) : Promise.resolve(null),
+        quiereDesglose ? getHistoryTraining().catch(() => null) : Promise.resolve(null),
       ]);
-      setData({ me, days: healthRes?.dias ?? [], checkIns: checkinsRes?.checkIns ?? [] });
+      setData({
+        me,
+        days: healthRes?.dias ?? [],
+        checkIns: checkinsRes?.checkIns ?? [],
+        activities: activitiesRes?.actividades ?? [],
+        trainingSessions: historyRes?.sessions ?? [],
+      });
       setError(null);
     } catch (e) {
       setError(e instanceof ApiError ? e.message : "No se pudo cargar el detalle");
     }
-  }, []);
+  }, [metrica]);
 
   useEffect(() => {
     load();
@@ -127,7 +160,15 @@ export default function DetalleMetricaScreen() {
         </Pressable>
 
         {metrica === "pasos" && <Pasos days={data.days} goal={goal} />}
-        {metrica === "ejercicio" && <Ejercicio days={data.days} goal={goal} />}
+        {metrica === "ejercicio" && (
+          <Ejercicio
+            days={data.days}
+            goal={goal}
+            timePerDay={data.me.profile?.timePerDay}
+            activities={data.activities}
+            trainingSessions={data.trainingSessions}
+          />
+        )}
         {metrica === "descanso" && <Descanso days={data.days} goal={goal} />}
         {metrica === "recuperacion" && <Recuperacion days={data.days} goal={goal} />}
         {metrica === "condicion" && <Condicion days={data.days} />}
@@ -196,7 +237,34 @@ function Pasos({ days, goal }: { days: HealthDayPayload[]; goal: string }) {
 // Minutos de ejercicio
 // ---------------------------------------------------------------------------
 
-function Ejercicio({ days, goal }: { days: HealthDayPayload[]; goal: string }) {
+/**
+ * El zoom-in propio de Ejercicio.
+ *
+ * Antes el anillo de Ejercicio caía en esta pantalla por un bug de
+ * navegación (mandaba a `/salud/pasos`); el dueño lo vio como "el mismo
+ * análisis que pasos". Esta vista es la propia: no repite pasos con otro
+ * campo, agrega lo que pasos no tiene y ejercicio sí necesita — cumplimiento
+ * contra la meta del PLAN (no un genérico fijo), racha de días cumplidos, y
+ * desglose por disciplina.
+ *
+ * `timePerDay`/`activities`/`trainingSessions` son opcionales a propósito:
+ * son datos de Fase 7 o requieren fetches extra, y una cuenta vieja o sin
+ * conexión a esas fuentes tiene que poder seguir viendo el resto de la
+ * pantalla sin que truene.
+ */
+function Ejercicio({
+  days,
+  goal,
+  timePerDay,
+  activities,
+  trainingSessions,
+}: {
+  days: HealthDayPayload[];
+  goal: string;
+  timePerDay?: Record<string, number> | null;
+  activities: ActivityLog[];
+  trainingSessions: TrainingHistoryRow[];
+}) {
   const { colors } = useTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
   const insight = exerciseInsight(days, goal);
@@ -206,6 +274,37 @@ function Ejercicio({ days, goal }: { days: HealthDayPayload[]; goal: string }) {
   const ultimo = conDato[0]?.exerciseMin ?? null;
   const kcal = promedioDe(ordenados.map((day) => day.activeKcal));
   const cumplidos = conDato.filter((day) => (day.exerciseMin ?? 0) >= EJERCICIO_META_MIN).length;
+
+  // Cumplimiento día por día contra la meta del PLAN — no contra el
+  // genérico de 30 min. `metaDelDia` aplica hacia atrás el molde semanal
+  // declarado en Ajustes (`timePerDay`); sin molde, cae al mismo genérico
+  // que ya usa la lectura de arriba. Del más viejo al más reciente, para
+  // que la racha se lea de izquierda a derecha igual que la gráfica.
+  const cronologico = [...ordenados].reverse();
+  const cumplimiento = cronologico.map((day) => {
+    const meta = metaDelDia(day.date, timePerDay);
+    return {
+      date: day.date,
+      minutos: day.exerciseMin ?? null,
+      meta,
+      estado: estadoDelDia(day.exerciseMin, meta),
+    };
+  });
+
+  const diasHecho = new Set(
+    cumplimiento.filter((dia) => dia.estado === "hecho").map((dia) => dia.date),
+  );
+  const racha = currentStreak(diasHecho, todayISO());
+  const mejorRacha = bestStreak(diasHecho);
+
+  // Misma ventana que el resto de la pantalla (`DIAS_VISIBLES`), calculada
+  // aparte de `ordenados`: el desglose tiene que decir "últimos 14 días" de
+  // verdad, sin depender de que el reloj haya mandado datos esos días.
+  const corteVentana = fechaHaceNDias(DIAS_VISIBLES - 1, todayISO());
+  const desglose = desgloseDeDisciplina(
+    activities.filter((actividad) => actividad.date >= corteVentana),
+    trainingSessions.filter((sesion) => sesion.date >= corteVentana),
+  );
 
   return (
     <>
@@ -220,7 +319,16 @@ function Ejercicio({ days, goal }: { days: HealthDayPayload[]; goal: string }) {
       <InsightCard insight={insight} />
 
       <Card>
-        <SectionLabel>Tu esfuerzo</SectionLabel>
+        <View style={styles.sectionHead}>
+          <SectionLabel>Tu esfuerzo</SectionLabel>
+          <InfoTip titulo="Días de 30+">
+            <TextoInfo>
+              Es la guía general de actividad física (150-300 min/semana), no tu plan de
+              entrenamiento. Tu meta real, la que sí sube cuando entrenas más, está abajo en
+              "Cumplimiento con tu plan".
+            </TextoInfo>
+          </InfoTip>
+        </View>
         <View style={styles.resumenRow}>
           <Dato label={`Días de ${EJERCICIO_META_MIN}+`} valor={`${cumplidos}`} />
           <Dato label="Kcal activas" valor={kcal === null ? "—" : `${Math.round(kcal)}`} />
@@ -228,11 +336,87 @@ function Ejercicio({ days, goal }: { days: HealthDayPayload[]; goal: string }) {
         </View>
       </Card>
 
+      <Card>
+        <View style={styles.sectionHead}>
+          <SectionLabel>Cumplimiento con tu plan</SectionLabel>
+          <InfoTip titulo="Cumplimiento con tu plan">
+            <TextoInfo>
+              La meta de cada día sale de lo que declaraste en Ajustes (minutos disponibles por
+              día). Sin eso declarado, se usa el genérico de actividad de arriba.
+            </TextoInfo>
+            <TextoInfo>
+              Hecho: llegaste o pasaste la meta. Parcial: la mitad o más. Nada: menos de la mitad.
+              Sin dato: el reloj no trajo minutos ese día — no es lo mismo que "nada".
+            </TextoInfo>
+          </InfoTip>
+        </View>
+
+        <View style={styles.rachaRow}>
+          <Flame size={20} color={colors.champan} strokeWidth={2} />
+          <Text style={styles.rachaTexto}>
+            {racha === 0
+              ? "Hoy es un gran día para empezar la racha."
+              : `${racha} ${racha === 1 ? "día" : "días"} seguidos cumpliendo tu meta`}
+            {mejorRacha > racha ? ` · mejor racha: ${mejorRacha}` : ""}
+          </Text>
+        </View>
+
+        {cumplimiento.length === 0 ? (
+          <Text style={styles.vacio}>El reloj todavía no manda días.</Text>
+        ) : (
+          <View style={styles.serie}>
+            {cumplimiento.map((dia) => (
+              <FilaCumplimiento key={dia.date} {...dia} />
+            ))}
+          </View>
+        )}
+      </Card>
+
+      <Card>
+        <View style={styles.sectionHead}>
+          <SectionLabel>Por disciplina</SectionLabel>
+          <InfoTip titulo="Por disciplina">
+            <TextoInfo>
+              Pesas no trae minutos propios —el plan la deja en series y reps, nunca en un reloj—
+              así que se cuenta en sesiones. Las demás disciplinas sí traen minutos reales, del
+              reloj o capturados a mano.
+            </TextoInfo>
+          </InfoTip>
+        </View>
+
+        {desglose.pesasSesiones === 0 && desglose.filas.length === 0 ? (
+          <Text style={styles.vacio}>
+            Todavía no hay sesiones registradas en los últimos {DIAS_VISIBLES} días.
+          </Text>
+        ) : (
+          <View style={styles.desgloseLista}>
+            {desglose.pesasSesiones > 0 && (
+              <FilaDisciplina
+                icon={Dumbbell}
+                nombre="Pesas"
+                detalle={`${desglose.pesasSesiones} ${desglose.pesasSesiones === 1 ? "sesión cerrada" : "sesiones cerradas"}`}
+              />
+            )}
+            {desglose.filas.map((fila) => (
+              <FilaDisciplina
+                key={fila.discipline}
+                icon={iconoDe(fila.discipline)}
+                nombre={DISCIPLINE_LABELS[fila.discipline]}
+                detalle={`${fila.sesiones} ${fila.sesiones === 1 ? "sesión" : "sesiones"} · ${fila.minutos} min`}
+              />
+            ))}
+          </View>
+        )}
+      </Card>
+
       <Tendencia
         titulo="Últimos días"
         puntos={serieDe(ordenados, "exerciseMin")}
         color={colors.guindaLight}
-        meta={EJERCICIO_META_MIN}
+        // Sin meta fija: la del plan cambia de día a día (ver la tarjeta de
+        // cumplimiento de arriba), así que una sola línea punteada aquí
+        // volvería a decir el mismo número engañoso para todos los días.
+        meta={null}
         format={(v) => `${Math.round(v)} min`}
         filas={ordenados.map((day) => ({
           date: day.date,
@@ -241,6 +425,105 @@ function Ejercicio({ days, goal }: { days: HealthDayPayload[]; goal: string }) {
         }))}
       />
     </>
+  );
+}
+
+/** Color y etiqueta de cada estado de cumplimiento — mismo esquema de
+ * semáforo que `TREND_LABEL`: champán = bien, palo rosa = neutral, el color
+ * de error solo para "nada", nunca para "sin dato". */
+const ESTADO_LABEL: Record<EstadoCumplimiento, string> = {
+  hecho: "Hecho",
+  parcial: "Parcial",
+  nada: "Nada",
+  sin_dato: "Sin dato",
+};
+
+function colorDeEstado(estado: EstadoCumplimiento, colors: Palette): string {
+  if (estado === "hecho") return colors.champan;
+  if (estado === "parcial") return colors.paloRosa;
+  if (estado === "nada") return colors.error;
+  return colors.paloRosaLight;
+}
+
+function FilaCumplimiento({
+  date,
+  minutos,
+  meta,
+  estado,
+}: {
+  date: string;
+  minutos: number | null;
+  meta: number;
+  estado: EstadoCumplimiento;
+}) {
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
+  const color = colorDeEstado(estado, colors);
+
+  return (
+    <View style={styles.serieRow}>
+      <Text style={styles.serieFecha}>{diaCorto(date)}</Text>
+      <View style={[styles.estadoPunto, { backgroundColor: color }]} />
+      <Text style={[styles.estadoTexto, { color }]}>{ESTADO_LABEL[estado]}</Text>
+      <Text style={styles.cumplimientoValor}>
+        {minutos === null ? "—" : `${minutos} de ${meta} min`}
+      </Text>
+    </View>
+  );
+}
+
+type FilaDisciplinaData = { discipline: Discipline; minutos: number; sesiones: number };
+
+/**
+ * Agrupa lo registrado en la ventana visible por disciplina.
+ *
+ * Pesas se cuenta APARTE (sesiones cerradas en la app, sin minutos: ver el
+ * docblock de `Ejercicio`) y no se mezcla con `activities` — si además hay
+ * un entrenamiento de fuerza detectado por el reloj, aparece como su propia
+ * fila de "Pesas" entre las demás disciplinas, sin fundirse con las
+ * sesiones cerradas. Mezclar ambas fuentes sin poder saber si son el mismo
+ * entrenamiento sería inventar una precisión que no existe.
+ */
+function desgloseDeDisciplina(
+  activities: ActivityLog[],
+  trainingSessions: TrainingHistoryRow[],
+): { pesasSesiones: number; filas: FilaDisciplinaData[] } {
+  const porDisciplina = new Map<Discipline, { minutos: number; sesiones: number }>();
+
+  for (const actividad of activities) {
+    const actual = porDisciplina.get(actividad.discipline) ?? { minutos: 0, sesiones: 0 };
+    actual.minutos += actividad.durationMin;
+    actual.sesiones += 1;
+    porDisciplina.set(actividad.discipline, actual);
+  }
+
+  const filas = Array.from(porDisciplina.entries())
+    .map(([discipline, { minutos, sesiones }]) => ({ discipline, minutos, sesiones }))
+    .sort((a, b) => b.minutos - a.minutos);
+
+  return {
+    pesasSesiones: trainingSessions.filter((sesion) => sesion.completed).length,
+    filas,
+  };
+}
+
+function FilaDisciplina({
+  icon: Icon,
+  nombre,
+  detalle,
+}: {
+  icon: React.ComponentType<{ size?: number; color?: string; strokeWidth?: number }>;
+  nombre: string;
+  detalle: string;
+}) {
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
+  return (
+    <View style={styles.desgloseFila}>
+      <Icon size={18} color={colors.paloRosa} strokeWidth={2} />
+      <Text style={styles.desgloseNombre}>{nombre}</Text>
+      <Text style={styles.desgloseDetalle}>{detalle}</Text>
+    </View>
   );
 }
 
@@ -635,6 +918,19 @@ function diaCorto(iso: string): string {
   return `${dia}/${mes}`;
 }
 
+/** `hoyISO` menos `n` días, en LOCAL (mismo criterio que `todayISO()` de
+ * `lib/streak.ts`) — la ventana de "por disciplina" no depende de qué días
+ * mandó el reloj, solo del calendario. */
+function fechaHaceNDias(n: number, hoyISO: string): string {
+  const [year, month, day] = hoyISO.split("-").map(Number) as [number, number, number];
+  const fecha = new Date(year, month - 1, day);
+  fecha.setDate(fecha.getDate() - n);
+  const y = fecha.getFullYear();
+  const m = String(fecha.getMonth() + 1).padStart(2, "0");
+  const d = String(fecha.getDate()).padStart(2, "0");
+  return `${y}-${m}-${d}`;
+}
+
 function promedioDe(values: Array<number | null | undefined>): number | null {
   const presentes = values.filter((value): value is number => value !== null && value !== undefined);
   if (presentes.length === 0) return null;
@@ -792,6 +1088,56 @@ const makeStyles = (colors: Palette) => StyleSheet.create({
     fontFamily: fonts.sansSemiBold,
     ...typeScale.bodySm,
     color: colors.marfil,
+  },
+  estadoPunto: {
+    width: 10,
+    height: 10,
+    borderRadius: radius.full,
+  },
+  estadoTexto: {
+    flex: 1,
+    fontFamily: fonts.sansMedium,
+    ...typeScale.bodySm,
+  },
+  cumplimientoValor: {
+    width: 100,
+    textAlign: "right",
+    fontFamily: fonts.sansSemiBold,
+    ...typeScale.bodySm,
+    color: colors.marfil,
+  },
+  rachaRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.sm,
+    marginTop: spacing.md,
+    marginBottom: spacing.sm,
+  },
+  rachaTexto: {
+    flex: 1,
+    fontFamily: fonts.sansMedium,
+    ...typeScale.bodySm,
+    color: colors.marfil,
+  },
+  desgloseLista: {
+    marginTop: spacing.md,
+    gap: spacing.md,
+  },
+  desgloseFila: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.sm,
+  },
+  desgloseNombre: {
+    flex: 1,
+    fontFamily: fonts.sansMedium,
+    ...typeScale.body,
+    color: colors.marfil,
+  },
+  desgloseDetalle: {
+    fontFamily: fonts.sansSemiBold,
+    ...typeScale.bodySm,
+    color: colors.paloRosa,
   },
   tabla: {
     marginTop: spacing.md,
