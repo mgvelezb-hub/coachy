@@ -19,6 +19,7 @@ export const DISCIPLINES = [
   "BOX",
   "SQUASH",
   "CARDIO",
+  "GOLF",
   "OTRO",
 ] as const;
 
@@ -33,6 +34,7 @@ export const DISCIPLINE_LABELS: Record<Discipline, string> = {
   BOX: "Box",
   SQUASH: "Squash",
   CARDIO: "Cardio",
+  GOLF: "Golf",
   OTRO: "Otra",
 };
 

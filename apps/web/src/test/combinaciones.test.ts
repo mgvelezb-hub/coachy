@@ -92,6 +92,22 @@ describe("compatibilidad: el puntaje", () => {
 
     expect(conTraslape).toBeLessThan(sinTraslape);
   });
+
+  it("golf puntúa mejor con el día de torso que con el día de hombro y core", () => {
+    const GOLF: BloqueDia = { discipline: "GOLF" };
+    const HOMBRO_GYM: BloqueDia = { discipline: "PESAS", dayKind: "HOMBRO" }; // hombro + core, el patrón del swing
+
+    const conTorso = compatibilidad(TORSO_GYM, GOLF)!;
+    const conHombro = compatibilidad(HOMBRO_GYM, GOLF)!;
+
+    expect(conTorso).toBeGreaterThan(conHombro);
+  });
+
+  it("golf + día de hombro no es una regla dura, solo un puntaje peor: sí se ofrece", () => {
+    const GOLF: BloqueDia = { discipline: "GOLF" };
+    const HOMBRO_GYM: BloqueDia = { discipline: "PESAS", dayKind: "HOMBRO" };
+    expect(compatibilidad(HOMBRO_GYM, GOLF)).not.toBeNull();
+  });
 });
 
 describe("ordenar", () => {

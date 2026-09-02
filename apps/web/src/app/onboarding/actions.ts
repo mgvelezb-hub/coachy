@@ -3,20 +3,11 @@
 import type { OnboardingState } from "./state";
 export type { OnboardingState };
 import { redirect } from "next/navigation";
-import { Prisma } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 
 import { requireUser } from "@/lib/auth";
-import { DEFAULT_CYCLE_LENGTH, parseCycleSettings } from "@/lib/cycle";
-import { PHOTO_CONSENT_VERSION } from "@/lib/env";
-import { prisma } from "@/lib/prisma";
-import { fromISODate } from "@/lib/format";
-import {
-  coerceOnboardingPayload,
-  initialPhase,
-  onboardingSchema,
-  deriveFromSchedule,
-} from "@/lib/validation/onboarding";
+import { saveOnboarding } from "@/lib/onboarding";
+import { coerceOnboardingPayload, onboardingSchema } from "@/lib/validation/onboarding";
 
 /** Guarda el cuestionario inicial y crea (o actualiza) el Profile del atleta. */
 export async function submitOnboarding(
@@ -41,69 +32,11 @@ export async function submitOnboarding(
     return { error: "Revisa los campos marcados.", fieldErrors };
   }
 
-  const input = parsed.data;
-  const now = new Date();
-  const derived = deriveFromSchedule(input);
-
-  const consentFields = input.photoConsent
-    ? { photoConsentAt: now, photoConsentVersion: PHOTO_CONSENT_VERSION }
-    : { photoConsentAt: null, photoConsentVersion: null };
-
-  /**
-   * Ciclo menstrual (Fase 7): opt-in explícito, y opcional de verdad. Se valida
-   * aparte del cuestionario porque una fecha mal escrita aquí no debe impedir
-   * terminar el onboarding — simplemente no se guarda el bloque.
-   */
-  const cycle = parseCycleSettings(raw);
-  const cycleFields =
-    cycle && cycle.cycleTrackingEnabled
-      ? {
-          cycleTrackingEnabled: true,
-          cycleLastPeriodStart: cycle.cycleLastPeriodStart
-            ? fromISODate(cycle.cycleLastPeriodStart)
-            : null,
-          cycleAvgLength: cycle.cycleAvgLength,
-        }
-      : {
-          cycleTrackingEnabled: false,
-          cycleLastPeriodStart: null,
-          cycleAvgLength: DEFAULT_CYCLE_LENGTH,
-        };
-
-  const data = {
-    displayName: input.displayName,
-    sex: input.sex,
-    birthDate: fromISODate(input.birthDate),
-    heightCm: input.heightCm.toFixed(1),
-    weightKg: input.weightKg.toFixed(1),
-    leanMassKg: input.leanMassKg ? input.leanMassKg.toFixed(1) : null,
-    liftingDays: derived.liftingDays,
-    cardioMinWk: input.cardioMinWk,
-    sessionMinutes: input.sessionMinutes,
-    work: input.work,
-    trainingTime: derived.trainingTime,
-    trainingSchedule: input.trainingSchedule ?? Prisma.JsonNull,
-    mealsPerDay: input.mealsPerDay,
-    budget: input.budget,
-    favoriteFoods: input.favoriteFoods,
-    excludedFoods: input.excludedFoods,
-    allergies: input.allergies,
-    conditions: input.conditions,
-    goal: input.goal,
-    ...consentFields,
-    ...cycleFields,
-  };
-
-  await prisma.profile.upsert({
-    where: { userId: user.id },
-    create: {
-      userId: user.id,
-      ...data,
-      currentPhase: initialPhase({ liftingDays: derived.liftingDays }),
-      onboardingCompletedAt: now,
-    },
-    update: { ...data, onboardingCompletedAt: now },
-  });
+  // El guardado en sí —fase inicial, defaults del ciclo, consentimiento de
+  // fotos, upsert— vive en `saveOnboarding` (`@/lib/onboarding`): es el mismo
+  // punto de escritura que usa `POST /api/v1/onboarding` para la app nativa.
+  // Ver el docblock de esa función para el porqué.
+  await saveOnboarding(user.id, parsed.data, raw);
 
   revalidatePath("/app", "layout");
   redirect("/app");

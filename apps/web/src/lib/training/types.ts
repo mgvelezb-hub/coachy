@@ -181,6 +181,7 @@ export const DISCIPLINES = [
   "BOX",
   "SQUASH",
   "CARDIO",
+  "GOLF",
   "OTRO",
 ] as const;
 

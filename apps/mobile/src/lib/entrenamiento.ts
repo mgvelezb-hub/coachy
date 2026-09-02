@@ -43,11 +43,17 @@ export const DISCIPLINAS: Array<{ valor: Discipline; nombre: string; planeada: b
   "BOX",
   "SQUASH",
   "CARDIO",
+  "GOLF",
   "OTRO",
 ].map((valor) => ({
   valor: valor as Discipline,
   nombre: DISCIPLINE_LABELS[valor as Discipline],
-  planeada: valor === "PESAS",
+  // GOLF sí tiene su propia pantalla de registro (`app/golf.tsx`) con
+  // agregados propios (score vs par, GIR%, balance de práctica), aunque el
+  // generador semanal no le arme sesión — por eso cuenta como "planeada"
+  // igual que PESAS, a diferencia de las demás secundarias que solo
+  // reservan el día.
+  planeada: valor === "PESAS" || valor === "GOLF",
 }));
 
 /** Topes de tiempo de cocina que se ofrecen, más "sin tope". */
@@ -202,6 +208,15 @@ export const NIVELES_POR_DISCIPLINA: Partial<
     { valor: "PRINCIPIANTE", nombre: "Principiante", detalle: "Primeros meses. Peso corporal, progresiones y nada de olímpicos." },
     { valor: "INTERMEDIO", nombre: "Intermedio", detalle: "Escalas los WOD. Barra ligera y metcons completos." },
     { valor: "AVANZADO", nombre: "Avanzado", detalle: "WOD prescrito. Más rondas y más carga." },
+  ],
+  // GOLF no tiene prescriptor de sesión (no hay circuito que armar), así que
+  // estos niveles no cambian ninguna prescripción — se declaran igual que
+  // las demás para que Ajustes pueda mostrarlos, con los mismos tres
+  // escalones genéricos que ya usa el resto.
+  GOLF: [
+    { valor: "PRINCIPIANTE", nombre: "Principiante", detalle: "Empiezas o juegas poco. Todavía no llevas la cuenta de tus estadísticas." },
+    { valor: "INTERMEDIO", nombre: "Intermedio", detalle: "Juegas seguido y rompes 100 con cierta regularidad." },
+    { valor: "AVANZADO", nombre: "Avanzado", detalle: "Compites o llevas hándicap bajo. Rompes 90 casi siempre." },
   ],
 };
 

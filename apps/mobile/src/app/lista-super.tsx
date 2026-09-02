@@ -1,12 +1,13 @@
-import { useRouter } from "expo-router";
-import { CheckCircle2, ChevronLeft, Circle } from "lucide-react-native";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useFocusEffect, useRouter } from "expo-router";
+import { CheckCircle2, ChevronLeft, Circle, Users } from "lucide-react-native";
+import { useCallback, useMemo, useState } from "react";
 import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import { EmptyState, ErrorState, LoadingState } from "@/components/States";
 import { useTheme } from "@/context/theme";
 import { ApiError, getNutrition, type GroceryItem } from "@/lib/api";
+import { getSuperCompartido, putSuperCompartido } from "@/lib/api-household";
 import { guardaComprados, leeComprados } from "@/lib/lista-super";
 import { fonts, radius, spacing, type as typeScale, type Palette } from "@/lib/theme";
 
@@ -23,8 +24,13 @@ import { fonts, radius, spacing, type as typeScale, type Palette } from "@/lib/t
  * que puede tener veinte renglones. Ahora es su propia página — Nutrición
  * solo se queda con una tarjeta compacta que trae aquí.
  *
- * Lo tachado se guarda SOLO en el teléfono (`lib/lista-super.ts`): es
- * progreso de compra, no un dato del plan, y el servidor no se entera.
+ * Lo tachado se guarda SOLO en el teléfono (`lib/lista-super.ts`) — EXCEPTO
+ * con un vínculo de hogar ACTIVO: ahí vive en el servidor (`superComprados`
+ * del vínculo) para que uno tache en el súper y el otro lo vea. Sin
+ * websockets: se relee al enfocar esta pantalla y después de cada toque —
+ * optimista en el teléfono, PUT atrás; si el PUT falla se revierte el toque
+ * y se avisa discreto, nunca se deja la pantalla mintiendo sobre qué se
+ * guardó.
  */
 export default function ListaSuperScreen() {
   const router = useRouter();
@@ -33,23 +39,44 @@ export default function ListaSuperScreen() {
 
   const [groceries, setGroceries] = useState<GroceryItem[] | null>(null);
   const [comprados, setComprados] = useState<string[]>([]);
+  // Si hay un vínculo ACTIVO, el tachado es del hogar (servidor); si no, es
+  // solo de este teléfono (AsyncStorage), como siempre fue.
+  const [compartida, setCompartida] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [syncError, setSyncError] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
 
   const load = useCallback(async () => {
     try {
-      const [nutrition, guardados] = await Promise.all([getNutrition(), leeComprados()]);
+      const nutrition = await getNutrition();
       setGroceries(nutrition.groceries);
-      setComprados(guardados);
       setError(null);
     } catch (e) {
       setError(e instanceof ApiError ? e.message : "No se pudo cargar tu lista de súper");
+      return;
     }
+
+    // El estado del hogar es secundario: si esta llamada falla (sin red,
+    // por ejemplo) la pantalla no se rompe, simplemente se cae a local.
+    try {
+      const compartido = await getSuperCompartido();
+      if (compartido.compartida) {
+        setCompartida(true);
+        setComprados(compartido.items);
+        return;
+      }
+    } catch {
+      // Sigue abajo con el comportamiento local de siempre.
+    }
+    setCompartida(false);
+    setComprados(await leeComprados());
   }, []);
 
-  useEffect(() => {
-    void load();
-  }, [load]);
+  useFocusEffect(
+    useCallback(() => {
+      void load();
+    }, [load]),
+  );
 
   async function onRefresh() {
     setRefreshing(true);
@@ -57,19 +84,45 @@ export default function ListaSuperScreen() {
     setRefreshing(false);
   }
 
-  function marcar(nombre: string) {
-    setComprados((previo) => {
-      const siguiente = previo.includes(nombre)
-        ? previo.filter((n) => n !== nombre)
-        : [...previo, nombre];
+  async function marcar(nombre: string) {
+    const anterior = comprados;
+    const siguiente = anterior.includes(nombre)
+      ? anterior.filter((n) => n !== nombre)
+      : [...anterior, nombre];
+    setComprados(siguiente);
+    setSyncError(null);
+
+    if (!compartida) {
       void guardaComprados(siguiente);
-      return siguiente;
-    });
+      return;
+    }
+
+    try {
+      await putSuperCompartido(siguiente);
+    } catch {
+      // El servidor no lo tiene: se revierte el toque en vez de dejar la
+      // pantalla mostrando algo que la otra persona nunca va a ver.
+      setComprados(anterior);
+      setSyncError("No se pudo guardar. Vuelve a intentar.");
+    }
   }
 
-  function empezarDeNuevo() {
+  async function empezarDeNuevo() {
+    const anterior = comprados;
     setComprados([]);
-    void guardaComprados([]);
+    setSyncError(null);
+
+    if (!compartida) {
+      void guardaComprados([]);
+      return;
+    }
+
+    try {
+      await putSuperCompartido([]);
+    } catch {
+      setComprados(anterior);
+      setSyncError("No se pudo guardar. Vuelve a intentar.");
+    }
   }
 
   if (!groceries && !error) return <LoadingState label="Cargando tu lista..." />;
@@ -102,6 +155,13 @@ export default function ListaSuperScreen() {
             ? "Sin artículos todavía"
             : `Quedan ${pendientes.length} de ${groceries.length}`}
         </Text>
+
+        {compartida && (
+          <View style={styles.compartidaFila}>
+            <Users size={14} color={colors.paloRosaLight} strokeWidth={2} />
+            <Text style={styles.compartidaTexto}>Lista compartida con tu hogar</Text>
+          </View>
+        )}
 
         {groceries.length === 0 ? (
           <EmptyState message="Cuando tengas menús publicados, la lista se arma sola." />
@@ -137,6 +197,8 @@ export default function ListaSuperScreen() {
             <Text style={styles.resetTexto}>Empezar de nuevo</Text>
           </Pressable>
         )}
+
+        {syncError && <Text style={styles.syncError}>{syncError}</Text>}
       </ScrollView>
     </SafeAreaView>
   );
@@ -161,6 +223,8 @@ const makeStyles = (colors: Palette) =>
       marginBottom: -spacing.xs,
     },
     subtitulo: { fontFamily: fonts.sansMedium, ...typeScale.bodySm, color: colors.paloRosa },
+    compartidaFila: { flexDirection: "row", alignItems: "center", gap: spacing.xs },
+    compartidaTexto: { fontFamily: fonts.sans, ...typeScale.label, color: colors.paloRosaLight },
     lista: { gap: spacing.xs, marginTop: spacing.sm },
     fila: {
       flexDirection: "row",
@@ -185,4 +249,11 @@ const makeStyles = (colors: Palette) =>
       borderColor: colors.cardBorder,
     },
     resetTexto: { fontFamily: fonts.sansMedium, ...typeScale.bodySm, color: colors.paloRosa },
+    syncError: {
+      fontFamily: fonts.sans,
+      ...typeScale.bodySm,
+      color: colors.error,
+      textAlign: "center",
+      marginTop: spacing.sm,
+    },
   });

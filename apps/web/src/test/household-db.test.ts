@@ -6,13 +6,16 @@ import {
   aceptarInvitacion,
   crearInvitacion,
   disolver,
+  guardaSuperComprados,
+  superCompradosDe,
   vinculoDe,
 } from "@/lib/household";
 import { prisma } from "@/lib/prisma";
 
 /**
  * El vínculo entre cuentas, de punta a punta contra Postgres: crear
- * invitación, aceptarla, ver el vínculo con correo enmascarado, disolverlo.
+ * invitación, aceptarla, ver el vínculo con correo enmascarado, disolverlo,
+ * y la lista de súper compartida que vive sobre ese vínculo.
  *
  * Se salta sola si no hay Postgres, igual que las demás pruebas de base.
  */
@@ -139,5 +142,52 @@ describe.skipIf(!available)("vínculo de household contra la base", () => {
 
   it("disolver sin vínculo vigente da un error claro", async () => {
     await expect(disolver(aId)).rejects.toThrow(HouseholdError);
+  });
+
+  describe("lista de súper compartida", () => {
+    it("sin vínculo, superCompradosDe da null y guardar rechaza con error claro", async () => {
+      expect(await superCompradosDe(aId)).toBeNull();
+      await expect(guardaSuperComprados(aId, ["leche"])).rejects.toThrow(HouseholdError);
+    });
+
+    it("con vínculo PENDIENTE (sin aceptar todavía), sigue sin compartir", async () => {
+      await crearInvitacion(aId);
+      expect(await superCompradosDe(aId)).toBeNull();
+      await expect(guardaSuperComprados(aId, ["leche"])).rejects.toThrow(HouseholdError);
+    });
+
+    it("con vínculo ACTIVO, empieza vacía y lo que guarda uno lo ve el otro", async () => {
+      const { code } = await crearInvitacion(aId);
+      await aceptarInvitacion(bId, code);
+
+      expect(await superCompradosDe(aId)).toEqual([]);
+      expect(await superCompradosDe(bId)).toEqual([]);
+
+      await guardaSuperComprados(aId, ["leche", "huevo"]);
+
+      expect(await superCompradosDe(aId)).toEqual(["leche", "huevo"]);
+      expect(await superCompradosDe(bId)).toEqual(["leche", "huevo"]);
+    });
+
+    it("guardar reemplaza la lista completa, no la combina con la anterior", async () => {
+      const { code } = await crearInvitacion(aId);
+      await aceptarInvitacion(bId, code);
+
+      await guardaSuperComprados(aId, ["leche", "huevo"]);
+      await guardaSuperComprados(bId, ["pan"]);
+
+      expect(await superCompradosDe(aId)).toEqual(["pan"]);
+    });
+
+    it("al disolver el vínculo, vuelve a no haber lista compartida", async () => {
+      const { code } = await crearInvitacion(aId);
+      await aceptarInvitacion(bId, code);
+      await guardaSuperComprados(aId, ["leche"]);
+
+      await disolver(aId);
+
+      expect(await superCompradosDe(aId)).toBeNull();
+      expect(await superCompradosDe(bId)).toBeNull();
+    });
   });
 });

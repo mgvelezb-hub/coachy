@@ -1,11 +1,12 @@
 import { describe, expect, it } from "vitest";
 
-import { enmascaraCorreo, generaCodigo } from "@/lib/household";
+import { HouseholdError, enmascaraCorreo, generaCodigo, validaSuperComprados } from "@/lib/household";
 
 /**
- * Lo puro de `@/lib/household`: generación de código y enmascarado de
- * correo, sin tocar Postgres. Lo que sí necesita base vive en
- * `household-db.test.ts`, que se salta solo si no hay Postgres levantado.
+ * Lo puro de `@/lib/household`: generación de código, enmascarado de correo
+ * y los límites de la lista de súper compartida — nada de esto toca
+ * Postgres. Lo que sí necesita base vive en `household-db.test.ts`, que se
+ * salta solo si no hay Postgres levantado.
  */
 
 describe("generaCodigo", () => {
@@ -45,5 +46,29 @@ describe("enmascaraCorreo", () => {
     expect(enmascarado).not.toBe(correo);
     expect(enmascarado.endsWith("@vpconsulting.mx")).toBe(true);
     expect(enmascarado.startsWith("m***")).toBe(true);
+  });
+});
+
+describe("validaSuperComprados", () => {
+  it("acepta una lista vacía", () => {
+    expect(() => validaSuperComprados([])).not.toThrow();
+  });
+
+  it("acepta hasta 200 artículos", () => {
+    const items = Array.from({ length: 200 }, (_, i) => `artículo ${i}`);
+    expect(() => validaSuperComprados(items)).not.toThrow();
+  });
+
+  it("rechaza más de 200 artículos", () => {
+    const items = Array.from({ length: 201 }, (_, i) => `artículo ${i}`);
+    expect(() => validaSuperComprados(items)).toThrow(HouseholdError);
+  });
+
+  it("acepta un artículo de exactamente 120 caracteres", () => {
+    expect(() => validaSuperComprados(["a".repeat(120)])).not.toThrow();
+  });
+
+  it("rechaza un artículo de más de 120 caracteres", () => {
+    expect(() => validaSuperComprados(["a".repeat(121)])).toThrow(HouseholdError);
   });
 });

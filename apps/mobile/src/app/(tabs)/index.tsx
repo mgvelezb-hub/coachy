@@ -371,6 +371,7 @@ function TodayTrainingCard({
   onReload: () => void | Promise<void>;
 }) {
   const { colors } = useTheme();
+  const router = useRouter();
   const bloques = ordenarBloquesDelDia(today, otherSessions);
 
   if (bloques.length === 0) {
@@ -410,6 +411,11 @@ function TodayTrainingCard({
         }
 
         const otra = bloque.data;
+        // El golf tiene su propia pantalla de registro (score, GIR, putts,
+        // castigos) — no le sirve el destino genérico de las demás
+        // secundarias, que es "Rutinas" (donde no hay nada de golf que ver).
+        const onPressBloque =
+          otra.discipline === "GOLF" ? () => router.push("/golf" as never) : onPress;
         return (
           <View key={`otra-${otra.discipline}-${index}`}>
             <HeroCard
@@ -421,7 +427,7 @@ function TodayTrainingCard({
                   : `${otra.minutes} min · tú eliges cómo la entrenas`
               }
               color={color}
-              onPress={onPress}
+              onPress={onPressBloque}
             />
             {/* La cancha ocupada o la alberca cerrada no deberían costar el
                 día: el bloque se cambia por otra cosa desde aquí. */}

@@ -107,10 +107,14 @@ function useDrenarComidas() {
 function RootNavigator() {
   useResponderNotificacion();
   useDrenarComidas();
-  const { session, loading } = useSession();
+  const { session, loading, onboarded } = useSession();
   const { colors } = useTheme();
 
-  if (loading) return null;
+  // Con sesión y `onboarded` todavía en `null` (el `GET /me` de
+  // `refreshOnboarded` no ha vuelto) se espera aquí en vez de decidir: es lo
+  // mismo que ya hacía `loading` con la sesión, y evita el parpadeo de
+  // (tabs) → /onboarding en cuanto esa consulta sí contesta.
+  if (loading || (session && onboarded === null)) return null;
 
   return (
     <Stack
@@ -125,7 +129,14 @@ function RootNavigator() {
       <Stack.Protected guard={!session}>
         <Stack.Screen name="login" />
       </Stack.Protected>
-      <Stack.Protected guard={Boolean(session)}>
+      {/* Cuenta creada pero sin cuestionario: la única ruta disponible es el
+          onboarding nativo. Antes de esto, quien entraba desde el teléfono
+          se topaba con el 403 "onboarding incompleto" de cualquier endpoint
+          que lo exigiera y no tenía cómo completarlo sin un navegador. */}
+      <Stack.Protected guard={Boolean(session) && onboarded === false}>
+        <Stack.Screen name="onboarding/index" />
+      </Stack.Protected>
+      <Stack.Protected guard={Boolean(session) && onboarded !== false}>
         <Stack.Screen name="(tabs)" />
         <Stack.Screen name="objetivo" />
         <Stack.Screen name="ajustes/index" />

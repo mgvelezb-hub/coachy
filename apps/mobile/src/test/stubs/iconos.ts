@@ -14,3 +14,4 @@
 export const Activity = () => null;
 export const Dumbbell = () => null;
 export const Waves = () => null;
+export const FlagTriangleRight = () => null;

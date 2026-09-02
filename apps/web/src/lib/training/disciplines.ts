@@ -64,7 +64,14 @@ import type { DayKind, Discipline, DisciplineLoad } from "@/lib/training/types";
 /** Disciplinas de alto impacto: pisan fuerte y compiten con la pierna. */
 const HIGH_IMPACT: Discipline[] = ["BOX", "SQUASH", "CROSSFIT", "FUNCIONAL"];
 
-/** Minutos por defecto de una sesión secundaria, por disciplina. */
+/**
+ * Minutos por defecto de una sesión secundaria, por disciplina.
+ *
+ * `GOLF` en 90: es el default para lo que este planificador semanal sabe
+ * repartir, una sesión de práctica (range/juego corto/putting), no una ronda
+ * de competencia — esa se registra aparte con `POST /api/v1/golf/ronda` y
+ * dura lo que dure el campo, no lo que quepa en la semana de gimnasio.
+ */
 const DEFAULT_MINUTES: Record<Discipline, number> = {
   PESAS: 60,
   FUNCIONAL: 45,
@@ -73,6 +80,7 @@ const DEFAULT_MINUTES: Record<Discipline, number> = {
   BOX: 60,
   SQUASH: 60,
   CARDIO: 30,
+  GOLF: 90,
   OTRO: 45,
 };
 
@@ -85,6 +93,7 @@ const NOMBRE_AVISO: Record<Discipline, string> = {
   BOX: "Una sesión de box",
   SQUASH: "Una sesión de squash",
   CARDIO: "Una sesión de cardio",
+  GOLF: "Una sesión de golf",
   OTRO: "Una sesión de otra actividad",
 };
 

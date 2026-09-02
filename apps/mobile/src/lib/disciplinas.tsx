@@ -1,4 +1,5 @@
-import { Activity, Dumbbell, Waves } from "lucide-react-native";
+import {
+  FlagTriangleRight, Activity, Dumbbell, Waves } from "lucide-react-native";
 import type { ComponentType } from "react";
 
 import {
@@ -34,6 +35,10 @@ export const DISCIPLINE_ICON: Record<Discipline, ComponentType<IconProps>> = {
   NATACION: Waves,
   BOX: GuantesBox,
   SQUASH: RaquetaSquash,
+  // El banderín del hoyo: entre las opciones del set (`LandPlot`,
+  // `FlagTriangleRight`), el banderín solo es el que se lee como golf de un
+  // vistazo, que es lo único que un ícono tiene que hacer.
+  GOLF: FlagTriangleRight,
   CARDIO: PersonaCorriendo,
   FUNCIONAL: ZancadaFuncional,
   CROSSFIT: LevantamientoClean,

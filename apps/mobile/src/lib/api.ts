@@ -734,7 +734,13 @@ export class ApiError extends Error {
  * Supabase, agrega el Bearer, y si el backend responde 401 (sesión muerta)
  * cierra la sesión local para forzar el regreso a /login.
  */
-async function apiFetch<T>(
+/**
+ * Exportado para los módulos de API por dominio (`api-golf.ts`,
+ * `api-household.ts`): este archivo ya pasa de 1 400 líneas y cada dominio
+ * nuevo lo engordaba más. Los dominios nuevos viven en su propio archivo y
+ * comparten el transporte desde aquí.
+ */
+export async function apiFetch<T>(
   path: string,
   options: { method?: string; body?: unknown } = {},
 ): Promise<T> {
@@ -1380,6 +1386,7 @@ export const DISCIPLINES = [
   "BOX",
   "SQUASH",
   "CARDIO",
+  "GOLF",
   "OTRO",
 ] as const;
 export type Discipline = (typeof DISCIPLINES)[number];
@@ -1392,6 +1399,7 @@ export const DISCIPLINE_LABELS: Record<Discipline, string> = {
   BOX: "Box",
   SQUASH: "Squash",
   CARDIO: "Cardio",
+  GOLF: "Golf",
   OTRO: "Otro",
 };
 
@@ -1469,4 +1477,176 @@ export function postManualActivity(input: ManualActivityInput): Promise<PostActi
       notes: input.notes?.trim() ? input.notes.trim() : null,
     },
   ]);
+}
+
+// ---------------------------------------------------------------------------
+// Onboarding (guardia de onboarding incompleto) — contrato EXACTO de
+// `onboardingSchema` en apps/web/src/lib/validation/onboarding.ts. La app
+// manda JSON con el shape de ENTRADA de ese schema (antes de sus
+// `.transform`/`.default`), no el de FormData de la web: los tres campos de
+// comida van como texto separado por comas —igual que el textarea web—, no
+// como arreglos, porque `commaList` del lado del servidor es quien los
+// convierte.
+//
+// Lo que la web sí conoce y este contrato NO pregunta, a propósito:
+//   - `ageRange` como alternativa a `birthDate`: no existe en
+//     `onboardingSchema` (solo se usa después, al replantear —ver
+//     `app/replantear.tsx`— cuando falta la fecha de nacimiento). Pedirla
+//     aquí inventaría un campo que `POST /api/v1/onboarding` no espera.
+//   - El bloque de ciclo menstrual (`cycleTrackingEnabled`/...): tampoco
+//     vive en `onboardingSchema`, es un opt-in aparte que `saveOnboarding`
+//     (apps/web/src/lib/onboarding.ts) tolera ausente — se deja para cuando
+//     la atleta lo prenda desde su check-in, no para bloquear el alta.
+//   - `primaryDiscipline` y suplementos: tampoco están en `onboardingSchema`.
+// ---------------------------------------------------------------------------
+
+export const ONBOARDING_SEXES = ["FEMALE", "MALE", "OTHER"] as const;
+export type OnboardingSex = (typeof ONBOARDING_SEXES)[number];
+
+export const ONBOARDING_SEX_LABELS: Record<OnboardingSex, string> = {
+  FEMALE: "Mujer",
+  MALE: "Hombre",
+  OTHER: "Otro",
+};
+
+export const ONBOARDING_GOALS = [
+  "RECOMPOSICION",
+  "PERDIDA_GRASA",
+  "GANANCIA_MUSCULO",
+  "SALUD",
+  "RENDIMIENTO",
+] as const;
+export type OnboardingGoal = (typeof ONBOARDING_GOALS)[number];
+
+export const ONBOARDING_GOAL_LABELS: Record<OnboardingGoal, string> = {
+  RECOMPOSICION: "Recomposición (bajar grasa y subir músculo)",
+  PERDIDA_GRASA: "Bajar grasa",
+  GANANCIA_MUSCULO: "Subir músculo",
+  SALUD: "Salud y hábitos",
+  RENDIMIENTO: "Rendimiento",
+};
+
+export const ONBOARDING_WORK_SCHEDULES = ["SEDENTARIO", "ACTIVO"] as const;
+export type OnboardingWorkSchedule = (typeof ONBOARDING_WORK_SCHEDULES)[number];
+
+export const ONBOARDING_WORK_LABELS: Record<OnboardingWorkSchedule, string> = {
+  SEDENTARIO: "Sentada la mayor parte del día",
+  ACTIVO: "De pie o moviéndome todo el día",
+};
+
+export const ONBOARDING_TRAINING_TIMES = ["MANANA", "MEDIODIA", "TARDE", "NOCHE"] as const;
+export type OnboardingTrainingTime = (typeof ONBOARDING_TRAINING_TIMES)[number];
+
+export const ONBOARDING_TRAINING_TIME_LABELS: Record<OnboardingTrainingTime, string> = {
+  MANANA: "Mañana",
+  MEDIODIA: "Mediodía",
+  TARDE: "Tarde",
+  NOCHE: "Noche",
+};
+
+export const ONBOARDING_WEEK_DAYS = ["LUN", "MAR", "MIE", "JUE", "VIE", "SAB", "DOM"] as const;
+export type OnboardingWeekDay = (typeof ONBOARDING_WEEK_DAYS)[number];
+
+export const ONBOARDING_WEEK_DAY_LABELS: Record<OnboardingWeekDay, string> = {
+  LUN: "Lunes",
+  MAR: "Martes",
+  MIE: "Miércoles",
+  JUE: "Jueves",
+  VIE: "Viernes",
+  SAB: "Sábado",
+  DOM: "Domingo",
+};
+
+export const ONBOARDING_DAY_SLOTS = [...ONBOARDING_TRAINING_TIMES, "DESCANSO"] as const;
+export type OnboardingDaySlot = (typeof ONBOARDING_DAY_SLOTS)[number];
+
+export const ONBOARDING_DAY_SLOT_LABELS: Record<OnboardingDaySlot, string> = {
+  ...ONBOARDING_TRAINING_TIME_LABELS,
+  DESCANSO: "Descanso",
+};
+
+export const ONBOARDING_BUDGETS = ["BAJO", "MEDIO", "ALTO"] as const;
+export type OnboardingBudget = (typeof ONBOARDING_BUDGETS)[number];
+
+export const ONBOARDING_BUDGET_LABELS: Record<OnboardingBudget, string> = {
+  BAJO: "Ajustado",
+  MEDIO: "Normal",
+  ALTO: "Holgado",
+};
+
+export const ONBOARDING_CONDITIONS = [
+  "glucosa_alta",
+  "lesion_activa",
+  "hipotiroidismo",
+  "sop",
+  "hipertension",
+  "colesterol_alto",
+  "ciclo_tracking",
+] as const;
+export type OnboardingCondition = (typeof ONBOARDING_CONDITIONS)[number];
+
+export const ONBOARDING_CONDITION_LABELS: Record<OnboardingCondition, string> = {
+  glucosa_alta: "Glucosa alta",
+  lesion_activa: "Lesión activa",
+  hipotiroidismo: "Hipotiroidismo",
+  sop: "SOP",
+  hipertension: "Presión alta",
+  colesterol_alto: "Colesterol alto",
+  ciclo_tracking: "Quiero registrar mi ciclo",
+};
+
+/** Horario por día cuando varía; ver `trainingSchedule` en `OnboardingPayload`. */
+export type OnboardingSchedule = Record<OnboardingWeekDay, OnboardingDaySlot>;
+
+/** Payload EXACTO de `POST /api/v1/onboarding` — shape de ENTRADA de `onboardingSchema`. */
+export type OnboardingPayload = {
+  displayName: string;
+  sex: OnboardingSex;
+  /** ISO `yyyy-MM-dd`. */
+  birthDate: string;
+  heightCm: number;
+  weightKg: number;
+  leanMassKg?: number | null;
+  liftingDays: number;
+  cardioMinWk?: number;
+  sessionMinutes?: number;
+  work?: OnboardingWorkSchedule;
+  trainingTime?: OnboardingTrainingTime;
+  /** Horario por día si varía; `null`/ausente = mismo horario todos los días. */
+  trainingSchedule?: OnboardingSchedule | null;
+  mealsPerDay: number;
+  budget?: OnboardingBudget;
+  /** Separado por comas, igual que el textarea web — NO arreglo. */
+  favoriteFoods?: string;
+  excludedFoods?: string;
+  allergies?: string;
+  conditions?: OnboardingCondition[];
+  goal: OnboardingGoal;
+  photoConsent?: boolean;
+};
+
+/** Perfil mínimo que trae la respuesta, para arrancar sin un segundo round-trip a `getMe()`. */
+export type OnboardingResponse = {
+  onboarded: true;
+  profile: {
+    displayName: string;
+    sex: OnboardingSex;
+    heightCm: number | null;
+    currentPhase: string;
+    goal: string;
+    trainingDaysPerWeek: number;
+    mealsPerDay: number;
+    budget: OnboardingBudget;
+    trainingTime: OnboardingTrainingTime;
+  };
+};
+
+/**
+ * `POST /api/v1/onboarding` — completa el cuestionario inicial desde el
+ * teléfono. `ApiError.status === 409` si el perfil ya estaba completo (no
+ * reenviar dos veces); `422` con `ApiError.detalles` por campo si algo no
+ * pasa `onboardingSchema`, con las mismas llaves y mensajes que la web.
+ */
+export function postOnboarding(payload: OnboardingPayload): Promise<OnboardingResponse> {
+  return apiFetch<OnboardingResponse>("/api/v1/onboarding", { method: "POST", body: payload });
 }

@@ -57,6 +57,17 @@ export const CARGA_POR_DISCIPLINA: Record<Discipline, CargaMuscular> = {
   /** Correr, bici, elíptica: pierna a volumen, sin carga de tren superior. */
   CARDIO: { PIERNA: 2 },
 
+  /**
+   * El swing es rotación explosiva de core y hombro, pero son un puñado de
+   * segundos por golpe repartidos en cuatro horas de ronda — el volumen
+   * articular real es bajo, por eso ninguno de los dos llega a `2`. La
+   * caminata de una ronda de 18 hoyos suma varios kilómetros, pero a paso de
+   * caminata: no deja la pierna con nada parecido a la fatiga de una sesión
+   * de piernas, así que ni siquiera entra al mapa (ver el criterio de "no
+   * aparece" arriba).
+   */
+  GOLF: { ABDOMEN: 1, HOMBRO: 1 },
+
   /** La cubeta de lo que se registra sin planearse: no se supone nada. */
   OTRO: {},
 };

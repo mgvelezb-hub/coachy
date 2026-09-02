@@ -131,6 +131,7 @@ enum Discipline {
   BOX
   SQUASH
   CARDIO
+  GOLF
   OTRO
 }
 
@@ -183,6 +184,8 @@ model User {
   correctedDecisions Decision[]        @relation("DecisionCorrectedBy")
   vinculosEmitidos   HouseholdLink[]   @relation("VinculosEmitidos")
   vinculosRecibidos  HouseholdLink[]   @relation("VinculosRecibidos")
+  golfRounds         GolfRound[]
+  golfPractices      GolfPractice[]
 
   @@map("users")
 }
@@ -1003,5 +1006,80 @@ model HouseholdLink {
 
   @@index([inviterId])
   @@index([inviteeId])
+  /// Lo tachado de la lista de súper COMPARTIDA: `{ items: string[] }`.
+  /// Vive en el vínculo y no en cada perfil porque la compra es del hogar:
+  /// uno tacha en el súper y el otro lo ve desde la casa.
+  superComprados Json?    @map("super_comprados")
+
   @@map("household_links")
+}
+
+/**
+ * Una ronda de golf: el registro que de verdad mueve el score.
+ *
+ * Las métricas no son adorno — son las que la investigación del deporte
+ * (Broadie, "strokes gained"; estadísticas USGA/PGA) señala como las que
+ * explican el score: GIR (greens en regulación) es el mejor predictor
+ * individual, putts por ronda separa el juego corto, FIR dice si el drive
+ * está costando golpes y los castigos son los golpes regalados. Con esas
+ * cuatro por ronda se puede decir DÓNDE se está fugando el score, que es lo
+ * que un jugador de competencia necesita saber para entrenar lo correcto.
+ *
+ * Todo salvo el score es opcional: una ronda casual con solo score y hoyos
+ * también cuenta, y exigir la tarjeta completa mataría el registro.
+ */
+model GolfRound {
+  id     String @id @default(uuid()) @db.Uuid
+  userId String @map("user_id") @db.Uuid
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  date  DateTime @db.Date
+  /// 9 o 18.
+  holes Int
+  /// Par del campo (o de los hoyos jugados). Permite score relativo.
+  par   Int?
+  score Int
+
+  putts          Int?
+  /// Fairways embocados / fairways con oportunidad (los par 3 no cuentan).
+  fairwaysHit    Int?
+  fairwaysTotal  Int?
+  /// Greens en regulación alcanzados.
+  girHit         Int?
+  penalties      Int?
+
+  course String?
+  notes  String?
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([userId, date])
+  @@map("golf_rounds")
+}
+
+/**
+ * Práctica de golf fuera del campo: range, juego corto o putting.
+ *
+ * Se separa de la ronda porque mejora cosas distintas y el balance importa:
+ * la evidencia del deporte es consistente en que el juego corto y el putting
+ * explican más score del que se les practica. Registrar el TIPO de práctica
+ * es lo que permite enseñar ese desbalance.
+ */
+model GolfPractice {
+  id     String @id @default(uuid()) @db.Uuid
+  userId String @map("user_id") @db.Uuid
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  date    DateTime @db.Date
+  /// RANGE | JUEGO_CORTO | PUTTING.
+  kind    String
+  minutes Int
+  /// Bolas pegadas, cuando se cuentan.
+  balls   Int?
+  notes   String?
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([userId, date])
+  @@map("golf_practices")
 }

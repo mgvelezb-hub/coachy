@@ -227,3 +227,74 @@ export async function disolver(userId: string): Promise<void> {
     data: { status: "DISUELTO", dissolvedAt: new Date() },
   });
 }
+
+// ---------------------------------------------------------------------------
+// Lista de súper compartida
+// ---------------------------------------------------------------------------
+//
+// Primer caso de uso real del vínculo: lo tachado de la lista de súper vive
+// en el vínculo (`superComprados`), no en cada perfil, porque la compra es
+// del HOGAR — uno tacha en el súper y el otro lo ve desde la casa. Sin
+// websockets: la app relee al enfocar la pantalla y después de cada toggle,
+// así que esto es un GET/PUT normal, no un canal en vivo.
+
+const SUPER_MAX_ITEMS = 200;
+const SUPER_ITEM_MAX_LENGTH = 120;
+
+/**
+ * Límites del tachado compartido — puro, no toca la base, para poder
+ * probarlo sin Postgres. Un teléfono desincronizado o un bug de cliente
+ * podría mandar una lista absurda; esto es lo que la detiene antes de que
+ * llegue a la base, no una validación de negocio real (una lista de súper
+ * real nunca se acerca a 200 artículos).
+ */
+export function validaSuperComprados(items: string[]): void {
+  if (items.length > SUPER_MAX_ITEMS) {
+    throw new HouseholdError(`Demasiados artículos: el máximo es ${SUPER_MAX_ITEMS}.`);
+  }
+  const demasiadoLargo = items.find((item) => item.length > SUPER_ITEM_MAX_LENGTH);
+  if (demasiadoLargo !== undefined) {
+    throw new HouseholdError(
+      `Un artículo es demasiado largo (máximo ${SUPER_ITEM_MAX_LENGTH} caracteres).`,
+    );
+  }
+}
+
+/** Lee `{ items: string[] }` de un `Json?` sin confiar en su forma. */
+function leeItems(json: Prisma.JsonValue | null): string[] {
+  if (json === null || typeof json !== "object" || Array.isArray(json)) return [];
+  const items = (json as { items?: unknown }).items;
+  if (!Array.isArray(items)) return [];
+  return items.filter((item): item is string => typeof item === "string");
+}
+
+/**
+ * Los artículos tachados de la lista de súper compartida. `null` —no lista
+ * vacía— cuando no hay vínculo ACTIVO: la ruta necesita distinguir "sin
+ * hogar que compartir" de "hogar con la lista limpia" para decidir si la
+ * pantalla de móvil debe seguir local o pasarse al servidor.
+ */
+export async function superCompradosDe(userId: string): Promise<string[] | null> {
+  const link = await vinculoVigente(userId);
+  if (!link || link.status !== "ACTIVO") return null;
+  return leeItems(link.superComprados);
+}
+
+/**
+ * Guarda el tachado compartido. Solo tiene sentido con un vínculo ACTIVO —
+ * sin hogar no hay dónde compartir nada, así que se rechaza con un mensaje
+ * claro en vez de guardar en el vacío.
+ */
+export async function guardaSuperComprados(userId: string, items: string[]): Promise<void> {
+  validaSuperComprados(items);
+
+  const link = await vinculoVigente(userId);
+  if (!link || link.status !== "ACTIVO") {
+    throw new HouseholdError("No tienes un vínculo activo con quién compartir la lista.");
+  }
+
+  await prisma.householdLink.update({
+    where: { id: link.id },
+    data: { superComprados: { items } as unknown as Prisma.InputJsonValue },
+  });
+}

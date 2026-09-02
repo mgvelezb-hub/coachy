@@ -78,6 +78,30 @@ function esCrossfitConGym(a: BloqueDia, b: BloqueDia): boolean {
   return a.discipline === "CROSSFIT" && b.discipline === "PESAS";
 }
 
+/**
+ * El día de HOMBRO del split (`DAY_GROUPS.HOMBRO = ["HOMBRO", "ABDOMEN"]`) es,
+ * de todo el split, el que más se parece al patrón del swing: press y
+ * rotación de hombro más trabajo de core. Es justo el que el golf debería
+ * evitar el mismo día — no por riesgo de lesión (no es alto impacto, no hay
+ * regla dura), sino porque llegar a una ronda con el hombro y el core ya
+ * cargados de pesas pesadas resta calidad al swing. Se modela como penalización
+ * de puntaje, no como `null`: es una preferencia de rendimiento, no una
+ * incompatibilidad física como pierna+alto impacto.
+ */
+function esDiaDeHombroYCore(bloque: BloqueDia): boolean {
+  return bloque.discipline === "PESAS" && bloque.dayKind === "HOMBRO";
+}
+
+/**
+ * El día de TORSO (`DAY_GROUPS.TORSO = ["PECHO", "ESPALDA", "HOMBRO"]`) es
+ * empuje y jalón horizontal, sin el énfasis de rotación de core del día de
+ * HOMBRO — es el que mejor convive con el golf: complementa el tren superior
+ * sin pisarle al swing.
+ */
+function esDiaDeTorso(bloque: BloqueDia): boolean {
+  return bloque.discipline === "PESAS" && bloque.dayKind === "TORSO";
+}
+
 function esSquashOBox(bloque: BloqueDia): boolean {
   return bloque.discipline === "SQUASH" || bloque.discipline === "BOX";
 }
@@ -108,6 +132,13 @@ function redondearA5(minutos: number): number {
  * - **Misma disciplina consigo misma**: dos bloques de pesas, o dos de squash,
  *   no son una "combinación" — son la misma sesión partida en dos, y eso lo
  *   resuelve la duración de la sesión, no este módulo.
+ *
+ * Además de las reglas duras, hay un ajuste de puntaje específico de golf:
+ * combina mejor con el día de TORSO del split (empuje/jalón, sin énfasis de
+ * rotación) y peor con el día de HOMBRO (hombro + core, el patrón más
+ * parecido al swing) — llegar a una ronda con eso ya cargado resta calidad al
+ * swing, aunque no sea una incompatibilidad física que amerite bloquear la
+ * combinación.
  */
 export function compatibilidad(a: BloqueDia, b: BloqueDia): number | null {
   if (a.discipline === b.discipline) return null;
@@ -134,6 +165,13 @@ export function compatibilidad(a: BloqueDia, b: BloqueDia): number | null {
   // experiencia que reportan las atletas es literal: "la alberca post
   // refresca". Por eso combina mejor que cualquier otro par.
   if (a.discipline === "NATACION" || b.discipline === "NATACION") score += 20;
+
+  // Golf: mejor con el torso genérico, peor con el día que ya carga hombro y
+  // core como el swing (ver el docblock de `esDiaDeHombroYCore`).
+  if (a.discipline === "GOLF" || b.discipline === "GOLF") {
+    if (esDiaDeTorso(a) || esDiaDeTorso(b)) score += 15;
+    if (esDiaDeHombroYCore(a) || esDiaDeHombroYCore(b)) score -= 25;
+  }
 
   return score;
 }
@@ -209,6 +247,7 @@ const NOMBRES_DISCIPLINA: Record<Discipline, string> = {
   BOX: "box",
   SQUASH: "squash",
   CARDIO: "el cardio",
+  GOLF: "el golf",
   OTRO: "esa actividad",
 };
 
