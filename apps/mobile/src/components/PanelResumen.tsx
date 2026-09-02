@@ -2,6 +2,7 @@ import { useRouter } from "expo-router";
 import {
   Activity as ActivityIcon,
   CalendarCheck,
+  ChevronRight,
   ClipboardCheck,
   Dumbbell,
   Flame,
@@ -806,7 +807,10 @@ export function PanelResumen({
               <FilaAvanceDisciplina
                 key={fila.discipline}
                 fila={fila}
-                onPress={() => navegar(fila.ruta)}
+                // La hoja de zoom, no la captura directa: GIR%, putts,
+                // volumen semanal y el resto del detalle viven ahí, no en
+                // este renglón ya compactado a un vistazo.
+                onPress={() => navegar(`/avance/${fila.discipline}`)}
               />
             ))}
           </>
@@ -1358,10 +1362,14 @@ function avanceDeDisciplina(discipline: Discipline, datos: VistaResumen["datos"]
 }
 
 /**
- * Una disciplina en el desglose de avance: su ícono, su número y su
- * tendencia, tocable hasta su propio detalle — cada disciplina vive en una
- * pantalla distinta y la fila no puede llevar a todas con el mismo toque del
- * encabezado.
+ * Una disciplina en el desglose de avance: ícono, nombre, UN valor
+ * protagonista y su tendencia — el chevron dice que hay más atrás.
+ *
+ * Antes el renglón traía una segunda línea con GIR%, putts, minutos o
+ * sesiones (lo que `avanceGolf`/`avancePesas`/`avanceActividad` calculan
+ * como `detalle`). El pedido del dueño fue colapsar eso: el renglón es un
+ * scorecard mínimo y ese detalle se mudó entero a la hoja de zoom
+ * (`app/avance/[disciplina].tsx`), que es a donde lleva el toque.
  */
 function FilaAvanceDisciplina({ fila, onPress }: { fila: AvanceDisciplina; onPress: () => void }) {
   const { colors } = useTheme();
@@ -1380,12 +1388,9 @@ function FilaAvanceDisciplina({ fila, onPress }: { fila: AvanceDisciplina; onPre
       style={({ pressed }) => [styles.filaAvance, pressed && styles.pressed]}
     >
       <Icono size={18} color={colors.paloRosa} strokeWidth={2} />
-      <View style={styles.filaAvanceTexto}>
-        <Text style={styles.filaSemanaGrupo}>{DISCIPLINE_LABELS[fila.discipline]}</Text>
-        <Text style={styles.filaSemanaEstado} numberOfLines={1}>
-          {fila.detalle}
-        </Text>
-      </View>
+      <Text style={styles.filaAvanceNombre} numberOfLines={1}>
+        {DISCIPLINE_LABELS[fila.discipline]}
+      </Text>
       <View style={styles.filaAvanceDerecha}>
         <Text style={styles.filaAvanceValor}>{fila.valor}</Text>
         {fila.tendencia && (
@@ -1394,6 +1399,7 @@ function FilaAvanceDisciplina({ fila, onPress }: { fila: AvanceDisciplina; onPre
           </Text>
         )}
       </View>
+      <ChevronRight size={18} color={colors.paloRosaLight} strokeWidth={2} />
     </Pressable>
   );
 }
@@ -1494,7 +1500,7 @@ const makeStyles = (colors: Palette) =>
     filaSemanaEstado: { fontFamily: fonts.sans, ...typeScale.bodySm, color: colors.paloRosa },
     filaSemanaHecha: { color: colors.champan, fontFamily: fonts.sansSemiBold },
     filaAvance: { flexDirection: "row", alignItems: "center", gap: spacing.sm, paddingVertical: 6 },
-    filaAvanceTexto: { flex: 1, gap: 1 },
+    filaAvanceNombre: { flex: 1, fontFamily: fonts.sansMedium, ...typeScale.bodySm, color: colors.marfil },
     filaAvanceDerecha: { alignItems: "flex-end", gap: 1 },
     filaAvanceValor: { fontFamily: fonts.sansSemiBold, ...typeScale.bodySm, color: colors.marfil },
     filaAvanceTendencia: { fontFamily: fonts.sansMedium, ...typeScale.label },
