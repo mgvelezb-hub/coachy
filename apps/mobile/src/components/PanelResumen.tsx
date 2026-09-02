@@ -754,6 +754,15 @@ export function PanelResumen({
         (disciplina, indice, arreglo) => arreglo.indexOf(disciplina) === indice,
       );
 
+      // Una disciplina con DATOS aparece aunque no esté en el plan: quien
+      // registra rondas de golf sin tener golf como disciplina activa tenía
+      // sus estadísticas guardadas y NINGÚN lugar donde verlas — el panel
+      // filtraba por plan y la fila jamás se pintaba. Los datos mandan sobre
+      // la configuración: si existen, se enseñan.
+      if (!activas.includes("GOLF") && (datos.golf?.rondas?.length ?? 0) > 0) {
+        activas.push("GOLF");
+      }
+
       const filas = activas.map((disciplina) => avanceDeDisciplina(disciplina, datos));
       const principal = filas[0]!;
       const IconoPrincipal = iconoDe(primaria);
