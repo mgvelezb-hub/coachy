@@ -53,8 +53,17 @@ export type EstadoSesion = {
   ejercicioActual: number;
   /** En qué serie de ese ejercicio va. */
   serieActual: number;
-  /** Segundos que faltan de descanso, o `null` si no está descansando. */
-  descansoRestante: number | null;
+  /**
+   * Cuándo termina el descanso, en milisegundos epoch. `null` = no descansa.
+   *
+   * Es una HORA y no un contador de segundos a propósito. Antes se restaba un
+   * segundo por tick, y iOS congela los timers cuando la app se va al fondo:
+   * quien contestaba un mensaje a media serie volvía con el descanso parado
+   * en el segundo en que salió, marcando un minuto que ya había pasado. Una
+   * hora de término se lee igual de bien después de cinco minutos en el
+   * fondo, con la pantalla apagada o tras un reinicio de la pantalla.
+   */
+  descansoHasta: number | null;
   /** La sesión ya no tiene series pendientes. */
   terminada: boolean;
 };
@@ -65,7 +74,7 @@ export function estadoInicial(ejercicios: EjercicioVivo[]): EstadoSesion {
     ejercicios,
     ejercicioActual: primera?.ejercicio ?? 0,
     serieActual: primera?.serie ?? 0,
-    descansoRestante: null,
+    descansoHasta: null,
     terminada: primera === null,
   };
 }
@@ -92,6 +101,7 @@ export function primeraPendiente(
 export function cerrarSerie(
   estado: EstadoSesion,
   valores: { reps: number; pesoKg: number | null },
+  ahora: number = Date.now(),
 ): { estado: EstadoSesion; siguiente: "descanso" | "otro_ejercicio" | "fin" } {
   const ejercicios = estado.ejercicios.map((ejercicio, e) => {
     if (e !== estado.ejercicioActual) return ejercicio;
@@ -108,7 +118,7 @@ export function cerrarSerie(
   const pendiente = primeraPendiente(ejercicios);
   if (pendiente === null) {
     return {
-      estado: { ...estado, ejercicios, descansoRestante: null, terminada: true },
+      estado: { ...estado, ejercicios, descansoHasta: null, terminada: true },
       siguiente: "fin",
     };
   }
@@ -122,35 +132,87 @@ export function cerrarSerie(
       ejercicios,
       ejercicioActual: pendiente.ejercicio,
       serieActual: pendiente.serie,
-      // Entre ejercicios no se cuenta descanso: el traslado a la otra máquina
-      // ya es el descanso, y un cronómetro corriendo mientras caminas solo
-      // sirve para llegar tarde a tu propia serie.
-      descansoRestante: cambiaEjercicio ? null : descanso > 0 ? descanso : null,
+      // La última serie de un ejercicio TAMBIÉN descansa.
+      //
+      // Antes no: se asumía que el traslado a la otra máquina ya era el
+      // descanso. En el gimnasio no se cumple —la otra máquina suele estar a
+      // diez pasos— y quien acababa una serie pesada arrancaba la siguiente
+      // sin nada de por medio, o se quedaba mirando el teléfono sin saber
+      // cuánto llevaba parado. Si el traslado ya fue suficiente está el botón
+      // "Ya estoy", que cuesta un toque; adivinar por la persona costaba una
+      // serie mal descansada.
+      descansoHasta: descanso > 0 ? ahora + descanso * 1000 : null,
       terminada: false,
     },
     siguiente: cambiaEjercicio ? "otro_ejercicio" : "descanso",
   };
 }
 
-/** Un segundo menos de descanso. Al llegar a cero, el descanso se apaga. */
-export function tick(estado: EstadoSesion): { estado: EstadoSesion; termino: boolean } {
-  if (estado.descansoRestante === null) return { estado, termino: false };
-
-  const restante = estado.descansoRestante - 1;
-  if (restante > 0) return { estado: { ...estado, descansoRestante: restante }, termino: false };
-
-  return { estado: { ...estado, descansoRestante: null }, termino: true };
+/**
+ * Corrige una serie YA cerrada: los kilos que no se anotaron, o las reps que
+ * salieron mal.
+ *
+ * Existe porque cerrar una serie sin peso no tenía vuelta atrás: la serie
+ * quedaba capturada en cero y la única salida era rehacer la sesión. Aquí no
+ * se mueve el cursor —quien corrige la serie 2 sigue en la 4— ni se toca el
+ * descanso en curso.
+ */
+export function editarSerie(
+  estado: EstadoSesion,
+  ejercicioIndice: number,
+  serieIndice: number,
+  valores: { reps: number; pesoKg: number | null },
+): EstadoSesion {
+  return {
+    ...estado,
+    ejercicios: estado.ejercicios.map((ejercicio, e) =>
+      e !== ejercicioIndice
+        ? ejercicio
+        : {
+            ...ejercicio,
+            series: ejercicio.series.map((serie, s) =>
+              s !== serieIndice ? serie : { ...serie, hechas: valores.reps, pesoKg: valores.pesoKg },
+            ),
+          },
+    ),
+  };
 }
 
-/** Suma (o resta) segundos al descanso en curso. */
-export function ajustarDescanso(estado: EstadoSesion, segundos: number): EstadoSesion {
-  if (estado.descansoRestante === null) return estado;
-  const restante = estado.descansoRestante + segundos;
-  return { ...estado, descansoRestante: restante > 0 ? restante : null };
+/**
+ * Segundos que faltan de descanso ahora mismo. `null` si no está descansando.
+ *
+ * Se calcula contra el reloj, no contra un contador: es lo que hace que el
+ * descanso siga corriendo con la app en el fondo o la pantalla apagada.
+ */
+export function restanteSeg(estado: EstadoSesion, ahora: number = Date.now()): number | null {
+  if (estado.descansoHasta === null) return null;
+  const restante = Math.ceil((estado.descansoHasta - ahora) / 1000);
+  return restante > 0 ? restante : 0;
+}
+
+/** El descanso ya se agotó (llegó a cero) pero sigue marcado como en curso. */
+export function descansoTermino(estado: EstadoSesion, ahora: number = Date.now()): boolean {
+  return estado.descansoHasta !== null && ahora >= estado.descansoHasta;
+}
+
+/** Apaga el descanso agotado. Se llama al detectar que llegó a cero. */
+export function cerrarDescanso(estado: EstadoSesion): EstadoSesion {
+  return { ...estado, descansoHasta: null };
+}
+
+/** Suma (o resta) segundos al descanso en curso, moviendo su hora de término. */
+export function ajustarDescanso(
+  estado: EstadoSesion,
+  segundos: number,
+  ahora: number = Date.now(),
+): EstadoSesion {
+  if (estado.descansoHasta === null) return estado;
+  const hasta = estado.descansoHasta + segundos * 1000;
+  return { ...estado, descansoHasta: hasta > ahora ? hasta : null };
 }
 
 export function saltarDescanso(estado: EstadoSesion): EstadoSesion {
-  return { ...estado, descansoRestante: null };
+  return { ...estado, descansoHasta: null };
 }
 
 /** Cuántas series de la sesión ya se cerraron, y cuántas hay. */

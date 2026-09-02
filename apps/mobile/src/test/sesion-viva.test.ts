@@ -2,22 +2,28 @@ import { describe, expect, it } from "vitest";
 
 import {
   ajustarDescanso,
+  cerrarDescanso,
   cerrarSerie,
+  descansoTermino,
+  editarSerie,
   estadoInicial,
   formatoReloj,
   primeraPendiente,
   progreso,
+  restanteSeg,
   saltarDescanso,
-  tick,
   volumenKg,
   type EjercicioVivo,
 } from "@/lib/sesion-viva";
+
+/** Una hora fija: el descanso se mide contra el reloj y las pruebas no lo leen. */
+const AHORA = new Date("2026-09-01T18:00:00Z").getTime();
 
 /**
  * La máquina de la sesión en vivo.
  *
  * Lo que se prueba son las reglas que se sienten en el gimnasio: que el
- * descanso arranque solo, que no arranque al cambiar de máquina, y que
+ * descanso arranque solo, que también corra al cambiar de máquina, y que
  * retomar una sesión a medias caiga en la serie correcta.
  */
 
@@ -55,19 +61,30 @@ describe("sesión en vivo", () => {
 
   it("al cerrar una serie arranca el descanso solo", () => {
     const estado = estadoInicial([ejercicio("Sentadilla", 3, 120)]);
-    const { estado: siguiente, siguiente: que } = cerrarSerie(estado, { reps: 10, pesoKg: 60 });
+    const { estado: siguiente, siguiente: que } = cerrarSerie(
+      estado,
+      { reps: 10, pesoKg: 60 },
+      AHORA,
+    );
 
     expect(que).toBe("descanso");
-    expect(siguiente.descansoRestante).toBe(120);
+    expect(siguiente.descansoHasta).toBe(AHORA + 120_000);
     expect(siguiente.serieActual).toBe(1);
   });
 
-  it("entre ejercicios NO cuenta descanso: el traslado ya es el descanso", () => {
-    const estado = estadoInicial([ejercicio("Sentadilla", 1), ejercicio("Prensa", 3)]);
-    const { estado: siguiente, siguiente: que } = cerrarSerie(estado, { reps: 10, pesoKg: 60 });
+  it("la última serie de un ejercicio TAMBIÉN descansa", () => {
+    // Antes no: se asumía que el traslado a la otra máquina era el descanso.
+    // En el gimnasio la otra máquina está a diez pasos, y quien acababa una
+    // serie pesada arrancaba la siguiente sin nada de por medio.
+    const estado = estadoInicial([ejercicio("Sentadilla", 1, 120), ejercicio("Prensa", 3)]);
+    const { estado: siguiente, siguiente: que } = cerrarSerie(
+      estado,
+      { reps: 10, pesoKg: 60 },
+      AHORA,
+    );
 
     expect(que).toBe("otro_ejercicio");
-    expect(siguiente.descansoRestante).toBeNull();
+    expect(siguiente.descansoHasta).toBe(AHORA + 120_000);
     expect(siguiente.ejercicioActual).toBe(1);
     expect(siguiente.serieActual).toBe(0);
   });
@@ -78,31 +95,45 @@ describe("sesión en vivo", () => {
 
     expect(que).toBe("fin");
     expect(siguiente.terminada).toBe(true);
-    expect(siguiente.descansoRestante).toBeNull();
+    expect(siguiente.descansoHasta).toBeNull();
   });
 
-  it("el descanso baja de segundo en segundo y avisa una sola vez al terminar", () => {
-    let estado = estadoInicial([ejercicio("Sentadilla", 3, 2)]);
-    estado = cerrarSerie(estado, { reps: 10, pesoKg: 60 }).estado;
+  it("el descanso se mide contra el reloj, no contra los ticks de la app", () => {
+    // iOS congela los timers en segundo plano: quien contesta un mensaje a
+    // media serie volvía con el descanso parado en el segundo en que salió.
+    let estado = estadoInicial([ejercicio("Sentadilla", 3, 120)]);
+    estado = cerrarSerie(estado, { reps: 10, pesoKg: 60 }, AHORA).estado;
 
-    const primero = tick(estado);
-    expect(primero.termino).toBe(false);
-    expect(primero.estado.descansoRestante).toBe(1);
+    expect(restanteSeg(estado, AHORA)).toBe(120);
+    expect(restanteSeg(estado, AHORA + 30_000)).toBe(90);
 
-    const segundo = tick(primero.estado);
-    expect(segundo.termino).toBe(true);
-    expect(segundo.estado.descansoRestante).toBeNull();
-
-    // Ya sin descanso corriendo, otro tick no vuelve a avisar.
-    expect(tick(segundo.estado).termino).toBe(false);
+    // Cinco minutos en el fondo: al volver, el descanso ya se acabó.
+    expect(restanteSeg(estado, AHORA + 300_000)).toBe(0);
+    expect(descansoTermino(estado, AHORA + 300_000)).toBe(true);
+    expect(cerrarDescanso(estado).descansoHasta).toBeNull();
   });
 
   it("se puede alargar o saltar el descanso", () => {
     let estado = estadoInicial([ejercicio("Sentadilla", 3, 60)]);
-    estado = cerrarSerie(estado, { reps: 10, pesoKg: 60 }).estado;
+    estado = cerrarSerie(estado, { reps: 10, pesoKg: 60 }, AHORA).estado;
 
-    expect(ajustarDescanso(estado, 30).descansoRestante).toBe(90);
-    expect(saltarDescanso(estado).descansoRestante).toBeNull();
+    expect(restanteSeg(ajustarDescanso(estado, 30, AHORA), AHORA)).toBe(90);
+    expect(saltarDescanso(estado).descansoHasta).toBeNull();
+  });
+
+  it("una serie ya cerrada se puede corregir sin mover dónde vas", () => {
+    // Cerrar una serie sin peso no tenía vuelta atrás: quedaba capturada en
+    // cero y la única salida era rehacer la sesión.
+    let estado = estadoInicial([ejercicio("Sentadilla", 3, 60)]);
+    estado = cerrarSerie(estado, { reps: 10, pesoKg: null }, AHORA).estado;
+    estado = cerrarSerie(estado, { reps: 9, pesoKg: 60 }, AHORA).estado;
+
+    const corregido = editarSerie(estado, 0, 0, { reps: 10, pesoKg: 62.5 });
+
+    expect(corregido.ejercicios[0]!.series[0]).toMatchObject({ hechas: 10, pesoKg: 62.5 });
+    // El cursor no se mueve: quien corrige la serie 1 sigue en la 3.
+    expect(corregido.serieActual).toBe(estado.serieActual);
+    expect(corregido.descansoHasta).toBe(estado.descansoHasta);
   });
 
   it("el progreso cuenta todas las series de la sesión", () => {

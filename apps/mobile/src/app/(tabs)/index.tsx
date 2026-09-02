@@ -56,6 +56,7 @@ import {
   withAlpha,
   type Palette,
 } from "@/lib/theme";
+import { CambiarBloque } from "@/components/CambiarBloque";
 import { iconoDe } from "@/lib/disciplinas";
 import { nombreDelRecorte, ordenarBloquesDelDia } from "@/lib/entrenamiento";
 import { formatMealItem, pickNextMeal, syncWidgetData } from "@/lib/widget";
@@ -289,6 +290,7 @@ export default function HoyScreen() {
         today={today}
         otherSessions={data.todayOthers}
         onPress={() => router.push("/rutinas")}
+        onReload={load}
       />
 
       <View style={styles.stats}>
@@ -359,11 +361,14 @@ function TodayTrainingCard({
   today,
   otherSessions,
   onPress,
+  onReload,
 }: {
   today: TodayCard | null;
   /** Hasta dos (Fase 7), ya sin ordenar: `ordenarBloquesDelDia` decide el orden. */
   otherSessions: OtherSessionView[];
   onPress: () => void;
+  /** Recargar Hoy después de cambiar un bloque por otra disciplina. */
+  onReload: () => void | Promise<void>;
 }) {
   const { colors } = useTheme();
   const bloques = ordenarBloquesDelDia(today, otherSessions);
@@ -406,18 +411,22 @@ function TodayTrainingCard({
 
         const otra = bloque.data;
         return (
-          <HeroCard
-            key={`otra-${otra.discipline}-${index}`}
-            eyebrow={esPrimera ? "Hoy toca" : "Hoy también"}
-            title={DISCIPLINE_LABELS[otra.discipline]}
-            subtitle={
-              otra.sesion
-                ? `${otra.sesion.cargaTotal} ${otra.sesion.unidad} · ${otra.sesion.focus} · ${otra.minutes} min`
-                : `${otra.minutes} min · tú eliges cómo la entrenas`
-            }
-            color={color}
-            onPress={onPress}
-          />
+          <View key={`otra-${otra.discipline}-${index}`}>
+            <HeroCard
+              eyebrow={esPrimera ? "Hoy toca" : "Hoy también"}
+              title={DISCIPLINE_LABELS[otra.discipline]}
+              subtitle={
+                otra.sesion
+                  ? `${otra.sesion.cargaTotal} ${otra.sesion.unidad} · ${otra.sesion.focus} · ${otra.minutes} min`
+                  : `${otra.minutes} min · tú eliges cómo la entrenas`
+              }
+              color={color}
+              onPress={onPress}
+            />
+            {/* La cancha ocupada o la alberca cerrada no deberían costar el
+                día: el bloque se cambia por otra cosa desde aquí. */}
+            <CambiarBloque fecha={todayISO()} actual={otra.discipline} onCambiado={onReload} />
+          </View>
         );
       })}
     </>

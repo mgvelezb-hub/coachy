@@ -3,6 +3,7 @@ import { gruposFatigados } from "@/lib/training/carga-muscular";
 import {
   buildTargetSets,
   lastPerformance,
+  repsObjetivo,
   roundWeight,
   suggestTopWeight,
   warmupRepsFor,
@@ -124,6 +125,8 @@ type PickContext = {
   /** Grupos donde hoy no se admite nada pesado (día de rehabilitación). */
   lightOnly: MuscleGroup[];
   /** Nivel de la atleta en el gimnasio. */
+  /** Lo que esta persona ya cambió: `{originalId: reemplazoId}`. */
+  exerciseSwaps?: Record<string, string>;
   gymLevel: string;
   seed: number;
 };
@@ -136,8 +139,36 @@ type PickContext = {
  * semana pasada. El desempate rota con la semana, así que la selección varía
  * sin dejar de ser determinista.
  */
+/** ¿El reemplazo elegido sigue sirviendo para este hueco? */
+function reemplazoCabe(
+  reemplazoId: string,
+  slot: Slot,
+  context: PickContext,
+  permitidos: readonly string[],
+): boolean {
+  const reemplazo = context.catalog.find((exercise) => exercise.id === reemplazoId);
+  if (!reemplazo) return false;
+  if (context.usedToday.has(reemplazo.id)) return false;
+
+  return (
+    permitidos.includes(reemplazo.level) &&
+    slot.groups.includes(reemplazo.muscleGroup as MuscleGroup) &&
+    slot.roles.includes(reemplazo.poolRole) &&
+    !(context.noImpact && hasImpact(reemplazo.name)) &&
+    !(
+      context.lightOnly.includes(reemplazo.muscleGroup as MuscleGroup) &&
+      HEAVY_ROLES.has(reemplazo.poolRole)
+    )
+  );
+}
+
 function pickExercise(slot: Slot, context: PickContext): ExerciseOption | null {
   const permitidos = NIVELES_PERMITIDOS[context.gymLevel] ?? NIVELES_PERMITIDOS.PRINCIPIANTE!;
+
+  // Lo que esta persona ya cambió, y por cuál. Se aplica ANTES de puntuar:
+  // proponer otra vez el ejercicio que ya rechazó —y obligarla a cambiarlo
+  // cada semana— es la definición de no escuchar.
+  const cambiados = context.exerciseSwaps ?? {};
 
   const candidates = context.catalog.filter(
     (exercise) =>
@@ -145,6 +176,11 @@ function pickExercise(slot: Slot, context: PickContext): ExerciseOption | null {
       slot.groups.includes(exercise.muscleGroup as MuscleGroup) &&
       slot.roles.includes(exercise.poolRole) &&
       !context.usedToday.has(exercise.id) &&
+      // El que ya cambió no vuelve, siempre que su reemplazo siga cabiendo en
+      // este hueco: si el reemplazo ya no aplica (cambió el grupo del día, o
+      // una lesión lo prohíbe), el original vuelve a ser candidato antes que
+      // dejar el hueco vacío.
+      !(cambiados[exercise.id] !== undefined && reemplazoCabe(cambiados[exercise.id]!, slot, context, permitidos)) &&
       !(context.noImpact && hasImpact(exercise.name)) &&
       !(
         context.lightOnly.includes(exercise.muscleGroup as MuscleGroup) &&
@@ -156,6 +192,9 @@ function pickExercise(slot: Slot, context: PickContext): ExerciseOption | null {
 
   const scored = candidates.map((exercise) => {
     let score = 0;
+    // El reemplazo que la persona eligió con sus manos gana a cualquier
+    // heurística de catálogo.
+    if (Object.values(cambiados).includes(exercise.id)) score += 6;
     if (exercise.videoUrl) score += 4;
     if (exercise.isTracker && slot.priority === 1) score += 2;
     if (slot.priority >= 2 && context.lastWeekNames.has(exercise.name)) score -= 3;
@@ -307,6 +346,7 @@ export function generateWeek(
         noImpact: injury.active,
         lightOnly: rehabDay ? injury.zones : [],
         gymLevel: profile.gymLevel,
+        exerciseSwaps: profile.exerciseSwaps,
         seed: isoWeek + slotIndex + index * 3,
       });
       if (!option) return;
@@ -342,7 +382,12 @@ export function generateWeek(
           : isFirst
             ? `Empieza con ${WARMUP_SETS} series de calentamiento de ${warmupRepsFor(scheme)} reps con peso ligero.`
             : null,
-        sets: buildTargetSets(scheme, suggested, { warmupSets: isFirst ? WARMUP_SETS : 0 }),
+        sets: buildTargetSets(scheme, suggested, {
+          warmupSets: isFirst ? WARMUP_SETS : 0,
+          // Si la última vez se quedó corta, esta semana arranca en lo que sí
+          // hizo: pedirle otra vez el número que no alcanzó no es un objetivo.
+          reps: repsObjetivo(scheme, last),
+        }),
       });
     });
 

@@ -96,11 +96,24 @@ final class Puente: NSObject {
     if let ultimoResumen { contexto["resumen"] = ultimoResumen }
     guard !contexto.isEmpty else { return false }
 
+    // Mensaje directo cuando el reloj está al alcance Y con la app abierta:
+    // `updateApplicationContext` solo se entrega cuando la app del reloj se
+    // activa, así que a media sesión —con la app YA abierta en la muñeca— el
+    // contexto se quedaba en la cola y no llegaba nada hasta salir y volver a
+    // entrar. Es el caso que se usa en el gimnasio, y el que no funcionaba.
+    if sesion.isReachable {
+      sesion.sendMessage(contexto, replyHandler: nil, errorHandler: nil)
+    }
+
+    // El contexto se manda SIEMPRE, también cuando ya se mandó el mensaje: es
+    // lo que hace que el reloj encuentre el estado al día si la app se abre
+    // más tarde, o si el mensaje se perdió.
     do {
       try sesion.updateApplicationContext(contexto)
       return true
     } catch {
-      return false
+      // Si el contexto falla pero el mensaje salió, la sesión SÍ llegó.
+      return sesion.isReachable
     }
   }
 

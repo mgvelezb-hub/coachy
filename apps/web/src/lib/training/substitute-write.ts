@@ -64,6 +64,8 @@ export async function applySubstitutions(
   const plan = parseStoredPlan(workout.exercisesJson);
   const results: SubstitutionResult[] = [];
   const replaced = new Set<number>();
+  /** Los cambios que valen para el futuro, no solo para la sesión de hoy. */
+  const recordados: Record<string, string> = {};
 
   for (const substitution of substitutions) {
     const current = plan.exercises[substitution.exerciseIndex];
@@ -107,10 +109,16 @@ export async function applySubstitutions(
 
     plan.exercises[substitution.exerciseIndex] = withSubstitute(current, candidate);
     replaced.add(substitution.exerciseIndex);
+    // Se recuerda para las próximas semanas: sin esto el generador volvía a
+    // proponer el ejercicio que ya se rechazó, y había que cambiarlo cada
+    // semana. Un cambio repetido es una preferencia, no una casualidad.
+    if (current.exerciseId) recordados[current.exerciseId] = candidate.id;
     results.push({ exerciseIndex: substitution.exerciseIndex, ok: true, name: candidate.name });
   }
 
   if (replaced.size === 0) return results;
+
+  await recuerdaCambios(userId, recordados);
 
   await prisma.workout.update({
     where: { id: workout.id },
@@ -132,4 +140,49 @@ export async function applySubstitutions(
   });
 
   return results;
+}
+
+/**
+ * Guarda en el perfil los cambios de ejercicio para las próximas semanas.
+ *
+ * Un cambio ya aplicado sobre otro se colapsa: si A se cambió por B y luego B
+ * por C, lo que se recuerda es que A y B llevan a C. Encadenar preferencias
+ * viejas dejaría al generador proponiendo un ejercicio intermedio que la
+ * persona ya descartó.
+ *
+ * Falla en silencio: la sesión de hoy YA quedó cambiada, y no recordar la
+ * preferencia solo cuesta volver a cambiarla la semana que viene.
+ */
+async function recuerdaCambios(userId: string, nuevos: Record<string, string>): Promise<void> {
+  if (Object.keys(nuevos).length === 0) return;
+
+  try {
+    const profile = await prisma.profile.findUnique({
+      where: { userId },
+      select: { exerciseSwaps: true },
+    });
+
+    const previos =
+      typeof profile?.exerciseSwaps === "object" &&
+      profile.exerciseSwaps !== null &&
+      !Array.isArray(profile.exerciseSwaps)
+        ? (profile.exerciseSwaps as Record<string, string>)
+        : {};
+
+    const mezcla: Record<string, string> = { ...previos, ...nuevos };
+
+    // Colapsa las cadenas: lo que apuntaba a B, si B ahora apunta a C, apunta
+    // a C.
+    for (const [original, reemplazo] of Object.entries(mezcla)) {
+      const destino = nuevos[reemplazo];
+      if (destino !== undefined && destino !== original) mezcla[original] = destino;
+    }
+
+    await prisma.profile.update({
+      where: { userId },
+      data: { exerciseSwaps: mezcla },
+    });
+  } catch (error) {
+    console.error("[training] no se pudo recordar el cambio de ejercicio", error);
+  }
 }

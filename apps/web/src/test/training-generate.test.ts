@@ -3,7 +3,12 @@ import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 
 import { generateWeek } from "@/lib/training/generate";
-import { incrementFor, intensityForReps, suggestTopWeight } from "@/lib/training/progression";
+import {
+  incrementFor,
+  intensityForReps,
+  repsObjetivo,
+  suggestTopWeight,
+} from "@/lib/training/progression";
 import { exerciseCountFor } from "@/lib/training/recipes";
 import { SCHEMES, isoWeekNumber, schemeForWeek } from "@/lib/training/schemes";
 import {
@@ -425,6 +430,7 @@ describe("progresión de cargas", () => {
       topReps: 6,
       topRpe: 7,
       completedScheme: true,
+      repsPorSerie: [6, 6, 6],
     };
     expect(suggestTopWeight({ name: NAME }, SCHEMES.FUERZA, last)).toBe(105);
   });
@@ -436,6 +442,7 @@ describe("progresión de cargas", () => {
       topReps: 6,
       topRpe: 8,
       completedScheme: true,
+      repsPorSerie: [6, 6, 6],
     };
     expect(incrementFor("Press militar con mancuernas")).toBe(2.5);
     expect(suggestTopWeight({ name: "Press militar con mancuernas" }, SCHEMES.FUERZA, last)).toBe(
@@ -444,7 +451,13 @@ describe("progresión de cargas", () => {
   });
 
   it("no sube si falló el esquema o el RPE fue alto", () => {
-    const base = { date: "2026-01-05", topWeightKg: 100, topReps: 6, topRpe: 7 };
+    const base = {
+      date: "2026-01-05",
+      topWeightKg: 100,
+      topReps: 6,
+      topRpe: 7,
+      repsPorSerie: [6, 6, 6],
+    };
     expect(suggestTopWeight({ name: NAME }, SCHEMES.FUERZA, { ...base, completedScheme: false })).toBe(
       100,
     );
@@ -472,6 +485,7 @@ describe("progresión de cargas", () => {
       topReps: 6,
       topRpe: 9,
       completedScheme: true,
+      repsPorSerie: [6, 6, 6],
     };
     const metabolic = suggestTopWeight({ name: NAME }, SCHEMES.METABOLICO, last) as number;
     expect(metabolic).toBeLessThan(100);
@@ -579,5 +593,59 @@ describe("día combinado con otra disciplina (Fase 9)", () => {
     // sesión) hubiera dado 5. Redimensionar a los ~55 minutos reales da 6: la
     // diferencia es justo la que separa un recorte a ciegas de uno que mide.
     expect(dia.exercises.length).toBe(6);
+  });
+});
+
+describe("las reps del plan siguen a lo que de verdad salió", () => {
+  // La queja fue exacta: "si saqué 12, para la siguiente sesión inicia en 12,
+  // no en 18". Pedir otra vez el número que no se alcanzó no es un objetivo,
+  // es repetir el mismo fracaso cada semana.
+  const HIPERTROFIA = SCHEMES.METABOLICO;
+
+  it("quien se quedó corto arranca en lo que sí hizo", () => {
+    const reales = HIPERTROFIA.reps.map(() => 12);
+    const last = {
+      date: "2026-01-05",
+      topWeightKg: 40,
+      topReps: 12,
+      topRpe: 9,
+      completedScheme: false,
+      repsPorSerie: reales,
+    };
+
+    const objetivo = repsObjetivo(HIPERTROFIA, last);
+    expect(objetivo.every((reps) => reps <= 12)).toBe(true);
+  });
+
+  it("quien cumplió sigue con su esquema: el peso es lo que sube", () => {
+    const last = {
+      date: "2026-01-05",
+      topWeightKg: 40,
+      topReps: HIPERTROFIA.reps[0]!,
+      topRpe: 7,
+      completedScheme: true,
+      repsPorSerie: [...HIPERTROFIA.reps],
+    };
+
+    expect(repsObjetivo(HIPERTROFIA, last)).toEqual([...HIPERTROFIA.reps]);
+  });
+
+  it("una serie con buen día no sube el piso del esquema", () => {
+    // 20 de 18 no convierte 20 en el nuevo mínimo: eso lo decide la rotación
+    // de esquemas, no una serie suelta.
+    const last = {
+      date: "2026-01-05",
+      topWeightKg: 40,
+      topReps: 20,
+      topRpe: 7,
+      completedScheme: false,
+      repsPorSerie: HIPERTROFIA.reps.map((reps) => reps + 2),
+    };
+
+    expect(repsObjetivo(HIPERTROFIA, last)).toEqual([...HIPERTROFIA.reps]);
+  });
+
+  it("sin historial manda el esquema", () => {
+    expect(repsObjetivo(HIPERTROFIA, null)).toEqual([...HIPERTROFIA.reps]);
   });
 });

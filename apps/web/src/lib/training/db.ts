@@ -4,6 +4,7 @@ import type { Phase, Prisma, Profile, Workout } from "@prisma/client";
 
 import { fromISODate, isoFromDateColumn, shiftISODate, toISODate } from "@/lib/format";
 import { prisma } from "@/lib/prisma";
+import { aplicaCambios, parseCambiosDeBloque } from "@/lib/training/bloques";
 import { emphasisFor } from "@/lib/training/emphasis";
 import { planDisciplines, type OtherSession } from "@/lib/training/disciplines";
 import { generateWeek, mondayOf, sundayEndOf } from "@/lib/training/generate";
@@ -126,6 +127,16 @@ function parseMuscleGroups(raw: string[]): MuscleGroup[] {
 }
 
 /** El perfil de Prisma, aplanado a lo que el generador necesita. */
+/** El `Json` del perfil, sin confiar en su forma. */
+function parseExerciseSwaps(json: unknown): Record<string, string> {
+  if (typeof json !== "object" || json === null || Array.isArray(json)) return {};
+  const salida: Record<string, string> = {};
+  for (const [original, reemplazo] of Object.entries(json as Record<string, unknown>)) {
+    if (typeof reemplazo === "string" && reemplazo.length > 0) salida[original] = reemplazo;
+  }
+  return salida;
+}
+
 export function toTrainingProfile(profile: Profile): TrainingProfile {
   const schedule =
     profile.trainingSchedule !== null &&
@@ -143,6 +154,9 @@ export function toTrainingProfile(profile: Profile): TrainingProfile {
     cardioMinWk: profile.cardioMinWk,
     avoidRepeatGroups: parseMuscleGroups(profile.avoidRepeatGroups),
     primaryDiscipline: profile.primaryDiscipline as Discipline,
+    // Lo que ya cambió con sus manos: el generador deja de proponer el que
+    // rechazó mientras el reemplazo siga cabiendo en ese hueco.
+    exerciseSwaps: parseExerciseSwaps(profile.exerciseSwaps),
     otherDisciplines: parseDisciplineLoads(profile.otherDisciplines),
     disciplineLevels: parseNiveles(profile.disciplineLevels, profile.swimLevel as SwimLevel),
     gymLevel: parseNiveles(profile.disciplineLevels, profile.swimLevel as SwimLevel).PESAS ?? "PRINCIPIANTE",
@@ -336,7 +350,7 @@ export function otherSessionsFor(
   }
 
   const training = toTrainingProfile(profile);
-  return planDisciplines({
+  const planeadas = planDisciplines({
     weekStart: monday,
     otherDisciplines: training.otherDisciplines,
     gymByDay,
@@ -348,6 +362,11 @@ export function otherSessionsFor(
     // "Tu semana" y la semana que de verdad se materializó divergen.
     compactos: training.compactDays,
   }).sessions;
+
+  // Los bloques que se cambiaron ese día concreto ("hoy no pude ir a squash"):
+  // el que se cambió a pesas sale de aquí porque ya es una sesión de gimnasio
+  // materializada, y el que se cambió a otra disciplina conserva su bloque.
+  return aplicaCambios(planeadas, parseCambiosDeBloque(profile.blockOverrides));
 }
 
 /**

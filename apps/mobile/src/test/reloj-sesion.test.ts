@@ -114,7 +114,7 @@ describe("lo que llega de la muñeca", () => {
     const { estado } = aplicarDelReloj(estadoInicial(sesionDePrueba()), todas, WORKOUT);
 
     expect(estado.terminada).toBe(true);
-    expect(estado.descansoRestante).toBeNull();
+    expect(estado.descansoHasta).toBeNull();
   });
 });
 

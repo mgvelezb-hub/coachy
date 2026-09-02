@@ -28,6 +28,7 @@ function last(overrides: Partial<LastPerformance> = {}): LastPerformance {
     topReps: 10,
     topRpe: 7,
     completedScheme: true,
+    repsPorSerie: [10, 10, 10],
     ...overrides,
   };
 }

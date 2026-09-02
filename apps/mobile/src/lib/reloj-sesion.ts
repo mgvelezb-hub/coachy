@@ -142,7 +142,7 @@ export function aplicarDelReloj(
       serieActual: pendiente?.serie ?? estado.serieActual,
       // El descanso se corta: lo que se estaba contando era el de una serie
       // que ya no es la que sigue.
-      descansoRestante: pendiente === null ? null : estado.descansoRestante,
+      descansoHasta: pendiente === null ? null : estado.descansoHasta,
       terminada: pendiente === null,
     },
     aplicadas,

@@ -46,6 +46,17 @@ final class Conectividad: NSObject, ObservableObject, WCSessionDelegate {
         DispatchQueue.main.async { self.alcanzable = session.isReachable }
     }
 
+    /// Mensaje directo del teléfono, con la app del reloj ya abierta.
+    ///
+    /// Es el camino que se usa a media sesión: `updateApplicationContext` solo
+    /// se entrega cuando la app del reloj se activa, así que sin esto la serie
+    /// que se cerraba en el teléfono no aparecía en la muñeca hasta salir y
+    /// volver a entrar. Se procesa igual que el contexto — mismo formato,
+    /// mismo camino— para que no haya dos verdades.
+    func session(_ session: WCSession, didReceiveMessage mensaje: [String: Any]) {
+        DispatchQueue.main.async { self.aplicar(contexto: mensaje) }
+    }
+
     func session(_ session: WCSession, didReceiveApplicationContext contexto: [String: Any]) {
         DispatchQueue.main.async { self.aplicar(contexto: contexto) }
     }

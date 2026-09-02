@@ -215,6 +215,12 @@ export type TrainingProfile = {
    * vez y las repeticiones se reemplazan por trabajo del resto del cuerpo.
    */
   avoidRepeatGroups: MuscleGroup[];
+  /**
+   * Ejercicios que ya cambió y por cuál: `{originalId: reemplazoId}`. El
+   * generador deja de proponer el original mientras el reemplazo quepa en ese
+   * hueco.
+   */
+  exerciseSwaps?: Record<string, string>;
   /** La disciplina que arma el esqueleto de la semana. */
   primaryDiscipline: Discipline;
   /** Las demás disciplinas activas, con su carga semanal. */

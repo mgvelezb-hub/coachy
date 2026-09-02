@@ -326,6 +326,35 @@ model Profile {
   compactDays       Boolean    @default(true) @map("compact_days")
 
   /**
+   * Bloques que se cambiaron por fecha: `{"2026-09-01": "PESAS"}`.
+   *
+   * Pasa todo el tiempo: hoy tocaba squash pero la cancha estaba ocupada, o
+   * llovió, o no se pudo llegar. Antes la única salida era no entrenar o
+   * registrar una sesión libre a mano y quedarse sin rutina; ahora ese día
+   * cambia de disciplina y, si se cambia a pesas, la sesión de gimnasio se
+   * materializa igual que cualquier otra.
+   *
+   * Es por FECHA, no por día de la semana: es una excepción de hoy, no un
+   * cambio de plan. El plan se cambia en Ajustes.
+   */
+  blockOverrides    Json?      @map("block_overrides")
+
+  /**
+   * Ejercicios que esta persona ya cambió, y por cuál: `{"press_banca":
+   * "press_inclinado_mancuerna"}`.
+   *
+   * Cambiar un ejercicio a media sesión resolvía ese día y nada más: a la
+   * semana siguiente el generador volvía a proponer el mismo que ya se había
+   * rechazado, y había que cambiarlo otra vez. Un cambio repetido es una
+   * preferencia, no una casualidad, y aquí se recuerda.
+   *
+   * El generador la respeta solo si el reemplazo sigue siendo válido para ese
+   * hueco (mismo grupo, permitido por lesiones): la preferencia no puede
+   * romper el plan.
+   */
+  exerciseSwaps     Json?      @map("exercise_swaps")
+
+  /**
    * Horarios de comida propios: `{ "DESAYUNO": "07:30", "COMIDA": "15:00" }`.
    *
    * El motor reparte los macros por tiempo de comida y trae una hora sugerida

@@ -129,6 +129,15 @@ export type LastPerformance = {
   topRpe: number | null;
   /** Cumplió las reps objetivo en todas las series efectivas. */
   completedScheme: boolean;
+  /**
+   * Las reps que DE VERDAD salieron, serie por serie (sin calentamiento).
+   *
+   * Existe porque el plan y la realidad se separan: quien pide 18 y saca 12
+   * no necesita que la semana siguiente le vuelva a pedir 18 —eso no es un
+   * objetivo, es un recordatorio de que no llegó— sino arrancar en 12 y
+   * pelear por 13. La progresión se construye sobre lo que pasó.
+   */
+  repsPorSerie: number[];
 };
 
 function effectiveSets(sets: HistorySet[]): HistorySet[] {
@@ -161,6 +170,7 @@ export function lastPerformance(
       topReps: top.reps > 0 ? top.reps : top.targetReps,
       topRpe: top.rpe,
       completedScheme: done.every((set) => set.reps >= set.targetReps),
+      repsPorSerie: done.map((set) => (set.reps > 0 ? set.reps : set.targetReps)),
     };
   }
 
@@ -189,18 +199,45 @@ export function suggestTopWeight(
 }
 
 /**
+ * Las reps que se le van a pedir esta semana, serie por serie.
+ *
+ * LA REGLA: el esquema manda mientras se cumpla. Quien completó lo que le
+ * tocaba sigue con el esquema (y sube peso, que es la otra mitad de la
+ * progresión doble). Quien se quedó corto arranca en lo que SÍ hizo: pedir 18
+ * a quien sacó 12 no es un objetivo, es repetir el mismo fracaso cada semana,
+ * y ese es el número que hace que la gente deje de abrir la app.
+ *
+ * Nunca se pide MÁS de lo que dice el esquema: la semana que salieron 20 de
+ * 18 no convierte 20 en el nuevo piso — eso lo decide la rotación de
+ * esquemas, no una serie con buen día.
+ */
+export function repsObjetivo(scheme: Scheme, last: LastPerformance | null): number[] {
+  if (last === null || last.completedScheme) return [...scheme.reps];
+
+  return scheme.reps.map((planeadas, index) => {
+    const reales = last.repsPorSerie[index];
+    if (reales === undefined || reales <= 0) return planeadas;
+    return Math.min(planeadas, reales);
+  });
+}
+
+/**
  * Series objetivo del ejercicio. En los esquemas que suben peso serie a serie
  * la rampa va del 65% al 100% del tope; en los planos, mismo peso siempre.
  */
 export function buildTargetSets(
   scheme: Scheme,
   topWeightKg: number | null,
-  options: { warmupSets?: number } = {},
+  options: { warmupSets?: number; reps?: number[] } = {},
 ): TargetSet[] {
   const sets: TargetSet[] = buildWarmupSets(scheme, topWeightKg, options.warmupSets ?? 0);
 
-  const total = scheme.reps.length;
-  scheme.reps.forEach((reps, index) => {
+  // `reps` viene de `repsObjetivo` cuando la semana pasada se quedó corta: el
+  // esquema sigue mandando el número de series y la rampa de peso, pero las
+  // repeticiones arrancan donde de verdad quedó.
+  const objetivo = options.reps ?? scheme.reps;
+  const total = objetivo.length;
+  objetivo.forEach((reps, index) => {
     if (topWeightKg === null) {
       sets.push({ reps, weightKg: null, warmup: false });
       return;

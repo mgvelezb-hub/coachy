@@ -12,7 +12,16 @@ import {
   Watch,
 } from "lucide-react-native";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { AppState, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import {
+  AppState,
+  Modal,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+} from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import { ErrorState, LoadingState } from "@/components/States";
@@ -36,16 +45,36 @@ import {
 } from "@/lib/reloj-sesion";
 import {
   ajustarDescanso,
+  cerrarDescanso,
   cerrarSerie,
+  descansoTermino,
+  editarSerie,
   estadoInicial,
   formatoReloj,
   progreso,
+  restanteSeg,
   saltarDescanso,
-  tick,
   volumenKg,
   type EjercicioVivo,
   type EstadoSesion,
 } from "@/lib/sesion-viva";
+import {
+  aKilos,
+  aUnidad,
+  ajustaPeso,
+  formatoPeso,
+  pasosDe,
+  type UnidadDePeso,
+} from "@/lib/peso";
+import {
+  guardaPreferenciaDePeso,
+  leePreferenciaDePeso,
+} from "@/lib/preferencias-sesion";
+import {
+  guardaSesionEnCurso,
+  leeSesionEnCurso,
+  olvidaSesionEnCurso,
+} from "@/lib/sesion-en-curso";
 import { pulsoEntre, type PulsoDeTramo } from "@/lib/health";
 import { fonts, radius, spacing, type as typeScale, withAlpha, type Palette } from "@/lib/theme";
 import { clientIdFor, exercisePrefix } from "@/lib/training-client-id";
@@ -114,6 +143,23 @@ export default function EnVivoScreen() {
   const [reps, setReps] = useState(0);
   const [peso, setPeso] = useState<number | null>(null);
 
+  // Unidad y salto de los botones ±. Se leen del teléfono al abrir: cambian
+  // con el gimnasio (discos en libras en uno, en kilos en otro) y no valen un
+  // viaje al servidor a media serie.
+  const [unidad, setUnidad] = useState<UnidadDePeso>("kg");
+  const [paso, setPaso] = useState(2.5);
+
+  // La captura manual: `null` = cerrada. Con `serie` puesta se está corrigiendo
+  // una serie YA cerrada; sin ella, se está tecleando la que sigue.
+  const [capturando, setCapturando] = useState<
+    { campo: "reps" | "peso"; serie: { ejercicio: number; serie: number } | null } | null
+  >(null);
+  const [borrador, setBorrador] = useState("");
+
+  // El reloj de pared. El descanso se calcula contra ÉL y no contra un
+  // contador que se congela cuando iOS suspende la app.
+  const [ahora, setAhora] = useState(() => Date.now());
+
   // El intervalo se guarda en ref para poder apagarlo desde varios lugares sin
   // que el efecto se vuelva a montar en cada tick.
   const intervalo = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -129,12 +175,29 @@ export default function EnVivoScreen() {
   const [cambiando, setCambiando] = useState(false);
   const inicioDeSerie = useRef<Date>(new Date());
 
-  // Hay un Apple Watch con la app puesta. Se resuelve una vez: emparejar un
-  // reloj a media sesión no es un caso que valga la pena vigilar.
-  const [conReloj] = useState(() => {
-    const reloj = estadoDelReloj();
-    return reloj.soportado && reloj.emparejado && reloj.appInstalada;
-  });
+  // Hay un Apple Watch con la app puesta.
+  //
+  // Se vuelve a revisar al volver del fondo, y no una sola vez al montar: el
+  // reloj puede tardar en aparecer (la app del reloj se está instalando, el
+  // reloj estaba fuera de alcance, WatchConnectivity todavía no activaba). Con
+  // la comprobación única, ese arranque en frío dejaba la sesión SIN mandar
+  // nada a la muñeca durante todo el entrenamiento, y el reloj se veía muerto.
+  const [reloj, setReloj] = useState(() => estadoDelReloj());
+  const conReloj = reloj.soportado && reloj.emparejado && reloj.appInstalada;
+
+  useEffect(() => {
+    const suscripcion = AppState.addEventListener("change", (siguiente) => {
+      if (siguiente === "active") setReloj(estadoDelReloj());
+    });
+    // Y una revisión más al abrir: la activación de la sesión es asíncrona y
+    // suele completarse justo después del primer render.
+    const tarde = setTimeout(() => setReloj(estadoDelReloj()), 2000);
+
+    return () => {
+      suscripcion.remove();
+      clearTimeout(tarde);
+    };
+  }, []);
 
   // Lo que llega del reloj puede llegar con la pantalla en segundo plano, o
   // entre renders. Estas referencias son para leer el estado de ahora sin
@@ -186,7 +249,34 @@ export default function EnVivoScreen() {
 
       setSesion(encontrada);
       setDraft(guardadas);
-      setEstado(estadoInicial(ejercicios));
+
+      const base = estadoInicial(ejercicios);
+
+      // Volver del video de la técnica no puede reiniciar la sesión: se
+      // recupera dónde ibas y el descanso que estaba corriendo. Si el
+      // descanso ya venció mientras estabas afuera, entra vencido y la
+      // pantalla lo apaga en el primer render, que es lo correcto.
+      const enCurso = await leeSesionEnCurso(encontrada.workoutId);
+      if (enCurso && !base.terminada) {
+        const ejercicio = ejercicios[enCurso.ejercicioActual];
+        const serieValida = ejercicio?.series[enCurso.serieActual] !== undefined;
+        setEstado(
+          serieValida
+            ? {
+                ...base,
+                ejercicioActual: enCurso.ejercicioActual,
+                serieActual: enCurso.serieActual,
+                descansoHasta: enCurso.descansoHasta,
+              }
+            : base,
+        );
+        if (serieValida) {
+          setReps(enCurso.reps);
+          setPeso(enCurso.pesoKg);
+        }
+      } else {
+        setEstado(base);
+      }
     } catch {
       setError("No se pudo abrir tu sesión.");
     }
@@ -208,8 +298,14 @@ export default function EnVivoScreen() {
   }, [estado?.ejercicioActual, estado?.serieActual, estado?.terminada]);
 
   // El reloj del descanso.
+  //
+  // El intervalo NO descuenta nada: solo empuja la hora actual para que la
+  // pantalla se vuelva a pintar. Cuánto falta sale siempre de la hora de
+  // término (`descansoHasta`) contra el reloj de pared, así que contestar un
+  // mensaje a media serie —con iOS congelando los timers— ya no deja el
+  // descanso parado en el segundo en que se salió.
   useEffect(() => {
-    if (!estado || estado.descansoRestante === null) {
+    if (!estado || estado.descansoHasta === null) {
       if (intervalo.current) {
         clearInterval(intervalo.current);
         intervalo.current = null;
@@ -219,18 +315,7 @@ export default function EnVivoScreen() {
 
     if (intervalo.current) return;
 
-    intervalo.current = setInterval(() => {
-      setEstado((actual) => {
-        if (!actual) return actual;
-        const { estado: siguiente, termino } = tick(actual);
-        if (termino) {
-          // Doble golpe al terminar: distinto del de cerrar serie, para que se
-          // distingan sin mirar la pantalla.
-          void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-        }
-        return siguiente;
-      });
-    }, TICK_MS);
+    intervalo.current = setInterval(() => setAhora(Date.now()), TICK_MS);
 
     return () => {
       if (intervalo.current) {
@@ -238,7 +323,55 @@ export default function EnVivoScreen() {
         intervalo.current = null;
       }
     };
-  }, [estado?.descansoRestante === null]);
+  }, [estado?.descansoHasta === null]);
+
+  // Al volver de otra app —el video de la técnica, un mensaje— la hora se
+  // pone al día de inmediato, sin esperar el siguiente tick.
+  useEffect(() => {
+    const suscripcion = AppState.addEventListener("change", (siguiente) => {
+      if (siguiente === "active") setAhora(Date.now());
+    });
+    return () => suscripcion.remove();
+  }, []);
+
+  // El aviso de "se acabó el descanso" se dispara una sola vez, cuando la
+  // hora de término ya pasó. Vive aquí y no en el intervalo porque también
+  // tiene que dispararse al volver de segundo plano con el descanso vencido.
+  useEffect(() => {
+    if (!estado || !descansoTermino(estado, ahora)) return;
+    void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    setEstado((actual) => (actual ? cerrarDescanso(actual) : actual));
+  }, [estado?.descansoHasta, ahora]);
+
+  // El cursor se guarda en cada movimiento: es lo que hace que salir a ver un
+  // video y volver caiga exactamente donde estabas.
+  useEffect(() => {
+    if (!estado || !sesion || estado.terminada) return;
+    void guardaSesionEnCurso({
+      workoutId: sesion.workoutId,
+      ejercicioActual: estado.ejercicioActual,
+      serieActual: estado.serieActual,
+      descansoHasta: estado.descansoHasta,
+      reps,
+      pesoKg: peso,
+    });
+  }, [
+    sesion?.workoutId,
+    estado?.ejercicioActual,
+    estado?.serieActual,
+    estado?.descansoHasta,
+    estado?.terminada,
+    reps,
+    peso,
+  ]);
+
+  // La preferencia de captura (kg/lb y salto) se lee una vez al abrir.
+  useEffect(() => {
+    void leePreferenciaDePeso().then((preferencia) => {
+      setUnidad(preferencia.unidad);
+      setPaso(preferencia.paso);
+    });
+  }, []);
 
   const persistir = useCallback(async (siguiente: SessionSyncInput) => {
     setDraft(siguiente);
@@ -354,7 +487,7 @@ export default function EnVivoScreen() {
       setPulsos((previos) => ({ ...previos, [clave]: pulso }));
     });
 
-    const { estado: siguiente } = cerrarSerie(estado, { reps, pesoKg: peso });
+    const { estado: siguiente } = cerrarSerie(estado, { reps, pesoKg: peso }, Date.now());
     setEstado(siguiente);
 
     const clientId = clientIdFor(sesion.workoutId, ejercicioIndex, setIndex);
@@ -405,7 +538,7 @@ export default function EnVivoScreen() {
         : ejercicio,
     );
 
-    setEstado({ ...estado, ejercicios, serieActual: 0, descansoRestante: null });
+    setEstado({ ...estado, ejercicios, serieActual: 0, descansoHasta: null });
     setCambiando(false);
 
     const prefijo = exercisePrefix(sesion.workoutId, indice);
@@ -419,9 +552,128 @@ export default function EnVivoScreen() {
     });
   }
 
+  /**
+   * Guarda una serie YA cerrada que se corrigió (los kilos que faltaban, las
+   * reps que salieron distintas).
+   *
+   * Cerrar una serie sin peso no tenía vuelta atrás: quedaba capturada en
+   * blanco y la única salida era rehacer la sesión. Aquí se corrige sin mover
+   * dónde vas ni tocar el descanso en curso.
+   */
+  function corregirSerie(
+    ejercicioIndice: number,
+    serieIndice: number,
+    valores: { reps: number; pesoKg: number | null },
+  ) {
+    if (!estado || !draft || !sesion) return;
+
+    const ejercicio = estado.ejercicios[ejercicioIndice];
+    const serie = ejercicio?.series[serieIndice];
+    if (!ejercicio || !serie) return;
+
+    setEstado(editarSerie(estado, ejercicioIndice, serieIndice, valores));
+
+    const clientId = clientIdFor(sesion.workoutId, ejercicioIndice, serieIndice);
+    const plantilla = sesion.exercises[ejercicioIndice];
+    const previa = draft.sets.find((set) => set.clientId === clientId);
+
+    void persistir({
+      ...draft,
+      sets: [
+        ...draft.sets.filter((set) => set.clientId !== clientId),
+        {
+          clientId,
+          exerciseId: plantilla?.exerciseId ?? null,
+          exerciseName: ejercicio.nombre,
+          setIndex: serieIndice,
+          targetReps: serie.objetivo,
+          reps: valores.reps,
+          weightKg: valores.pesoKg,
+          rpe: null,
+          warmup: serie.calentamiento,
+          // La hora en que se hizo es la original: corregir el peso no mueve
+          // cuándo se levantó.
+          performedAt: previa?.performedAt ?? new Date().toISOString(),
+        },
+      ],
+    });
+  }
+
+  /** Aplica lo tecleado en el campo manual y cierra el teclado. */
+  function aplicarCaptura() {
+    if (!capturando) return;
+
+    const numero = Number(borrador.replace(",", "."));
+    if (!Number.isFinite(numero) || numero < 0) {
+      setCapturando(null);
+      return;
+    }
+
+    const objetivo = capturando.serie;
+    const esPeso = capturando.campo === "peso";
+    // Lo tecleado está en la unidad que se está viendo; a kilos antes de
+    // guardar, siempre.
+    const valor = esPeso ? aKilos(numero, unidad) : Math.round(numero);
+
+    if (objetivo === null) {
+      if (esPeso) setPeso(valor);
+      else setReps(valor);
+    } else {
+      const serie = estado?.ejercicios[objetivo.ejercicio]?.series[objetivo.serie];
+      corregirSerie(objetivo.ejercicio, objetivo.serie, {
+        reps: esPeso ? (serie?.hechas ?? serie?.objetivo ?? 0) : valor,
+        pesoKg: esPeso ? valor : (serie?.pesoKg ?? null),
+      });
+    }
+
+    setCapturando(null);
+  }
+
+  /** Abre el teclado para un campo, con el valor de hoy ya escrito. */
+  function abrirCaptura(
+    campo: "reps" | "peso",
+    objetivo: { ejercicio: number; serie: number } | null,
+  ) {
+    const serie = objetivo ? estado?.ejercicios[objetivo.ejercicio]?.series[objetivo.serie] : null;
+
+    const actual =
+      campo === "reps"
+        ? objetivo
+          ? (serie?.hechas ?? serie?.objetivo ?? 0)
+          : reps
+        : objetivo
+          ? serie?.pesoKg ?? null
+          : peso;
+
+    setBorrador(
+      actual === null || actual === undefined
+        ? ""
+        : campo === "peso"
+          ? formatoPeso(aUnidad(actual, unidad))
+          : String(actual),
+    );
+    setCapturando({ campo, serie: objetivo });
+  }
+
+  function cambiarUnidad(siguiente: UnidadDePeso) {
+    // El paso se lleva a uno que exista en la unidad nueva: 2.5 lb no es ni un
+    // disco chico, y 10 kg no es un ajuste, es otro ejercicio.
+    const opciones = pasosDe(siguiente);
+    const nuevoPaso = opciones.includes(paso) ? paso : (opciones[2] ?? opciones[0]!);
+    setUnidad(siguiente);
+    setPaso(nuevoPaso);
+    void guardaPreferenciaDePeso({ unidad: siguiente, paso: nuevoPaso });
+  }
+
+  function cambiarPaso(siguiente: number) {
+    setPaso(siguiente);
+    void guardaPreferenciaDePeso({ unidad, paso: siguiente });
+  }
+
   async function cerrarSesion() {
     if (!draft) return;
     await persistir({ ...draft, completedAt: new Date().toISOString() });
+    await olvidaSesionEnCurso();
     void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     router.replace("/rutinas");
   }
@@ -431,7 +683,8 @@ export default function EnVivoScreen() {
 
   const avance = progreso(estado);
   const ejercicio = estado.ejercicios[estado.ejercicioActual];
-  const descansando = estado.descansoRestante !== null;
+  const restante = restanteSeg(estado, ahora);
+  const descansando = restante !== null && restante > 0;
 
   return (
     <SafeAreaView style={styles.screen} edges={["top", "bottom"]}>
@@ -486,32 +739,78 @@ export default function EnVivoScreen() {
               Serie {estado.serieActual + 1} de {ejercicio?.series.length}
               {ejercicio?.series[estado.serieActual]?.calentamiento ? " · calentamiento" : ""}
             </Text>
+            {/* El plan es una referencia, no un campo: lo que se captura son
+                las reps que DE VERDAD salieron. Si te quedas corto, la semana
+                que viene el plan arranca en tu número, no en el que no
+                alcanzaste. */}
+            <Text style={styles.seriePlan}>
+              El plan pide {ejercicio?.series[estado.serieActual]?.objetivo ?? 0} reps · anota las
+              que hiciste
+            </Text>
 
             <View style={styles.campos}>
               <Campo
-                etiqueta="Repeticiones"
+                etiqueta="Reps que hiciste"
                 valor={`${reps}`}
                 onMenos={() => setReps((valor) => Math.max(0, valor - 1))}
                 onMas={() => setReps((valor) => valor + 1)}
+                onTocarValor={() => abrirCaptura("reps", null)}
               />
               <Campo
-                etiqueta="Kilos"
-                valor={peso === null ? "—" : `${peso}`}
-                onMenos={() => setPeso((valor) => Math.max(0, (valor ?? 0) - 2.5))}
-                onMas={() => setPeso((valor) => (valor ?? 0) + 2.5)}
+                etiqueta={unidad === "kg" ? "Kilos" : "Libras"}
+                valor={peso === null ? "—" : formatoPeso(aUnidad(peso, unidad))}
+                onMenos={() => setPeso((valor) => ajustaPeso(valor, -paso, unidad))}
+                onMas={() => setPeso((valor) => ajustaPeso(valor, paso, unidad))}
+                onTocarValor={() => abrirCaptura("peso", null)}
               />
+            </View>
+
+            {/* El salto de los botones y la unidad, a un toque: la barra sube
+                de 2.5 en 2.5 pero la mancuerna de 0.5, y hay gimnasios donde
+                los discos están marcados en libras. Tocar el número teclea la
+                cantidad exacta, que es lo más rápido cuando el salto es grande. */}
+            <View style={styles.ajustes}>
+              <View style={styles.ajusteGrupo}>
+                {pasosDe(unidad).map((opcion) => (
+                  <Pressable
+                    key={opcion}
+                    onPress={() => cambiarPaso(opcion)}
+                    style={[styles.ajusteChip, paso === opcion && styles.ajusteChipOn]}
+                  >
+                    <Text style={[styles.ajusteTexto, paso === opcion && styles.ajusteTextoOn]}>
+                      ±{formatoPeso(opcion)}
+                    </Text>
+                  </Pressable>
+                ))}
+              </View>
+
+              <View style={styles.ajusteGrupo}>
+                {(["kg", "lb"] as const).map((opcion) => (
+                  <Pressable
+                    key={opcion}
+                    onPress={() => cambiarUnidad(opcion)}
+                    style={[styles.ajusteChip, unidad === opcion && styles.ajusteChipOn]}
+                  >
+                    <Text style={[styles.ajusteTexto, unidad === opcion && styles.ajusteTextoOn]}>
+                      {opcion}
+                    </Text>
+                  </Pressable>
+                ))}
+              </View>
             </View>
           </View>
 
           {descansando ? (
             <View style={styles.descanso}>
               <Timer size={20} color={colors.champan} strokeWidth={2} />
-              <Text style={styles.descansoReloj}>{formatoReloj(estado.descansoRestante ?? 0)}</Text>
+              <Text style={styles.descansoReloj}>{formatoReloj(restante ?? 0)}</Text>
               <Text style={styles.descansoTexto}>de descanso</Text>
 
               <View style={styles.descansoBotones}>
                 <Pressable
-                  onPress={() => setEstado((actual) => (actual ? ajustarDescanso(actual, 30) : actual))}
+                  onPress={() =>
+                    setEstado((actual) => (actual ? ajustarDescanso(actual, 30, Date.now()) : actual))
+                  }
                   style={styles.botonSecundario}
                 >
                   <Plus size={16} color={colors.marfil} strokeWidth={2} />
@@ -557,8 +856,16 @@ export default function EnVivoScreen() {
 
           <View style={styles.lista}>
             {ejercicio?.series.map((serie, index) => (
-              <View
+              <Pressable
                 key={index}
+                // Una serie ya cerrada se corrige tocándola: cerrar sin peso
+                // dejaba el dato en blanco para siempre y la única salida era
+                // rehacer la sesión.
+                onPress={() =>
+                  serie.hechas !== null &&
+                  abrirCaptura("peso", { ejercicio: estado.ejercicioActual, serie: index })
+                }
+                disabled={serie.hechas === null}
                 style={[
                   styles.listaFila,
                   index === estado.serieActual && styles.listaFilaActual,
@@ -572,8 +879,15 @@ export default function EnVivoScreen() {
                   <Text style={styles.listaValor}>
                     {serie.hechas === null
                       ? `${serie.objetivo} reps`
-                      : `${serie.hechas} × ${serie.pesoKg ?? "—"} kg`}
+                      : `${serie.hechas} × ${
+                          serie.pesoKg === null
+                            ? "sin peso"
+                            : `${formatoPeso(aUnidad(serie.pesoKg, unidad))} ${unidad}`
+                        }`}
                   </Text>
+                  {serie.hechas !== null && serie.pesoKg === null && (
+                    <Text style={styles.listaCorregir}>anotar peso</Text>
+                  )}
                   {(() => {
                     const pulso = pulsos[`${estado.ejercicioActual}:${index}`];
                     if (!pulso || pulso.promedio === null) return null;
@@ -585,19 +899,83 @@ export default function EnVivoScreen() {
                     );
                   })()}
                 </View>
-              </View>
+              </Pressable>
             ))}
           </View>
 
           <Text style={styles.nota}>
             {conReloj
-              ? "Esta misma serie está en tu reloj y la puedes cerrar desde ahí. Las repeticiones todavía las cuentas tú: el reloj está grabando el movimiento de cada serie para poder contarlas solo más adelante."
-              : "Las repeticiones las cuentas tú. Con un Apple Watch con Holy Gains puesto, la serie se cierra desde la muñeca sin sacar el teléfono."}
+              ? "Esta misma serie está en tu reloj y la puedes cerrar desde ahí. Abre Holy Gains en la muñeca para verla. Las repeticiones todavía las cuentas tú: el reloj está grabando el movimiento de cada serie para poder contarlas solo más adelante."
+              : motivoSinReloj(reloj)}
           </Text>
         </ScrollView>
       )}
+
+      {/* Teclado para la cantidad exacta: sirve para teclear el peso de la
+          serie que viene y también para anotar el que faltó en una serie ya
+          cerrada, tocándola en la lista. */}
+      <Modal
+        visible={capturando !== null}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setCapturando(null)}
+      >
+        <Pressable style={styles.tecladoFondo} onPress={() => setCapturando(null)}>
+          <Pressable style={styles.tecladoCaja} onPress={() => {}}>
+            <Text style={styles.tecladoTitulo}>
+              {capturando?.campo === "reps" ? "Repeticiones" : unidad === "kg" ? "Kilos" : "Libras"}
+            </Text>
+            {capturando?.serie && (
+              <Text style={styles.tecladoNota}>
+                Corrigiendo la serie {capturando.serie.serie + 1} de {ejercicio?.nombre}.
+              </Text>
+            )}
+
+            <TextInput
+              value={borrador}
+              onChangeText={setBorrador}
+              keyboardType="decimal-pad"
+              autoFocus
+              selectTextOnFocus
+              style={styles.tecladoInput}
+              onSubmitEditing={aplicarCaptura}
+              returnKeyType="done"
+            />
+
+            <View style={styles.tecladoBotones}>
+              <Pressable onPress={() => setCapturando(null)} style={styles.botonSecundario}>
+                <Text style={styles.botonSecundarioTexto}>Cancelar</Text>
+              </Pressable>
+              <Pressable onPress={aplicarCaptura} style={[styles.botonSecundario, { flex: 1 }]}>
+                <Check size={16} color={colors.marfil} strokeWidth={2} />
+                <Text style={styles.botonSecundarioTexto}>Guardar</Text>
+              </Pressable>
+            </View>
+          </Pressable>
+        </Pressable>
+      </Modal>
     </SafeAreaView>
   );
+}
+
+/**
+ * Por qué no se está usando el reloj, en palabras.
+ *
+ * Antes se decía siempre lo mismo —"con un Apple Watch con Holy Gains…"— y
+ * quien SÍ tenía el reloj puesto no sabía qué le faltaba. Decir cuál de las
+ * tres cosas falla es lo que permite arreglarlo sin adivinar.
+ */
+function motivoSinReloj(reloj: ReturnType<typeof estadoDelReloj>): string {
+  if (!reloj.soportado) {
+    return "Las repeticiones las cuentas tú. Este dispositivo no habla con Apple Watch.";
+  }
+  if (!reloj.emparejado) {
+    return "Las repeticiones las cuentas tú. Con un Apple Watch emparejado a este teléfono, la serie se cierra desde la muñeca sin sacar el teléfono.";
+  }
+  if (!reloj.appInstalada) {
+    return "Tu reloj está emparejado pero no tiene Holy Gains instalado. Ábrelo desde la app Watch de tu iPhone (Apps disponibles → Holy Gains → Instalar) y vuelve a entrar aquí.";
+  }
+  return "Las repeticiones las cuentas tú.";
 }
 
 function Campo({
@@ -605,11 +983,14 @@ function Campo({
   valor,
   onMenos,
   onMas,
+  onTocarValor,
 }: {
   etiqueta: string;
   valor: string;
   onMenos: () => void;
   onMas: () => void;
+  /** Tocar el número teclea la cantidad exacta, sin ir de paso en paso. */
+  onTocarValor: () => void;
 }) {
   const { colors } = useTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
@@ -621,7 +1002,9 @@ function Campo({
         <Pressable onPress={onMenos} hitSlop={8} style={styles.campoBoton}>
           <Minus size={20} color={colors.marfil} strokeWidth={2.5} />
         </Pressable>
-        <Text style={styles.campoValor}>{valor}</Text>
+        <Pressable onPress={onTocarValor} hitSlop={8} style={styles.campoValorCaja}>
+          <Text style={styles.campoValor}>{valor}</Text>
+        </Pressable>
         <Pressable onPress={onMas} hitSlop={8} style={styles.campoBoton}>
           <Plus size={20} color={colors.marfil} strokeWidth={2.5} />
         </Pressable>
@@ -692,6 +1075,60 @@ const makeStyles = (colors: Palette) =>
       justifyContent: "center",
       backgroundColor: withAlpha(colors.paloRosa, 0.14),
     },
+    seriePlan: {
+      fontFamily: fonts.sans,
+      ...typeScale.label,
+      color: colors.pergaminoSoft,
+      marginTop: 2,
+      marginBottom: spacing.sm,
+    },
+    ajustes: {
+      flexDirection: "row",
+      justifyContent: "space-between",
+      gap: spacing.sm,
+      marginTop: spacing.sm,
+    },
+    ajusteGrupo: { flexDirection: "row", gap: 6 },
+    ajusteChip: {
+      paddingHorizontal: spacing.sm,
+      paddingVertical: 6,
+      borderRadius: radius.full,
+      borderWidth: 1,
+      borderColor: colors.cardBorder,
+      minHeight: 32,
+      justifyContent: "center",
+    },
+    ajusteChipOn: { backgroundColor: colors.guinda, borderColor: colors.guindaLight },
+    ajusteTexto: { fontFamily: fonts.sansMedium, ...typeScale.label, color: colors.marfil },
+    ajusteTextoOn: { color: colors.pergamino },
+    listaCorregir: { fontFamily: fonts.sans, ...typeScale.label, color: colors.champan },
+    campoValorCaja: { minWidth: 96, alignItems: "center", justifyContent: "center", minHeight: 44 },
+    tecladoFondo: {
+      flex: 1,
+      backgroundColor: "rgba(0,0,0,0.65)",
+      justifyContent: "center",
+      padding: spacing.lg,
+    },
+    tecladoCaja: {
+      backgroundColor: colors.cardBg,
+      borderRadius: radius.lg,
+      borderWidth: 1,
+      borderColor: colors.cardBorder,
+      padding: spacing.lg,
+      gap: spacing.md,
+    },
+    tecladoTitulo: { fontFamily: fonts.sansMedium, ...typeScale.subheading, color: colors.marfil },
+    tecladoNota: { fontFamily: fonts.sans, ...typeScale.label, color: colors.pergaminoSoft },
+    tecladoInput: {
+      fontFamily: fonts.sansSemiBold,
+      ...typeScale.title,
+      color: colors.marfil,
+      borderBottomWidth: 1,
+      borderBottomColor: colors.champan,
+      paddingVertical: spacing.sm,
+      textAlign: "center",
+    },
+    tecladoBotones: { flexDirection: "row", gap: spacing.sm },
     campoValor: {
       fontFamily: fonts.sansBold,
       ...typeScale.display,

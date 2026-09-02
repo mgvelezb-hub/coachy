@@ -217,6 +217,23 @@ export function putMenuPreferido(
 }
 
 /**
+ * `POST /api/v1/training/cambiar-bloque` — "hoy no pude ir a squash, dame gym".
+ *
+ * Es una excepción de ESE día, no un cambio de plan. Si se cambia a pesas, el
+ * servidor materializa la sesión de gimnasio completa y responde
+ * `sesionCreada: true`.
+ */
+export function postCambiarBloque(
+  date: string,
+  discipline: Discipline,
+): Promise<{ date: string; discipline: Discipline; sesionCreada: boolean }> {
+  return apiFetch<{ date: string; discipline: Discipline; sesionCreada: boolean }>(
+    "/api/v1/training/cambiar-bloque",
+    { method: "POST", body: { date, discipline } },
+  );
+}
+
+/**
  * `GET /api/v1/me/punto-cero` — desde qué check-in se está comparando.
  */
 export function getPuntoCero(): Promise<PuntoCeroResponse> {
