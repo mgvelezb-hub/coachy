@@ -684,6 +684,7 @@
     "prepMin": 8,
     "tags": [
       "leguminosa",
+      "ligero",
       "vegetariano"
     ],
     "servingG": 120,
@@ -738,6 +739,7 @@
     "costRel": 1,
     "prepMin": 5,
     "tags": [
+      "cereal_desayuno",
       "favorito",
       "rapido",
       "vegetariano"
@@ -766,6 +768,7 @@
     "costRel": 1,
     "prepMin": 1,
     "tags": [
+      "cereal_desayuno",
       "rapido",
       "sin_cocinar",
       "vegetariano"
@@ -821,6 +824,7 @@
     "costRel": 2,
     "prepMin": 2,
     "tags": [
+      "cereal_desayuno",
       "mexicano",
       "rapido",
       "vegetariano"
@@ -849,6 +853,7 @@
     "costRel": 3,
     "prepMin": 1,
     "tags": [
+      "cereal_desayuno",
       "rapido",
       "vegetariano"
     ],
@@ -877,6 +882,7 @@
     "prepMin": 20,
     "tags": [
       "cereal_cocido",
+      "cereal_comida",
       "favorito",
       "meal_prep",
       "mexicano",
@@ -907,8 +913,10 @@
     "prepMin": 25,
     "tags": [
       "favorito",
+      "ligero",
       "meal_prep",
       "mexicano",
+      "tuberculo",
       "vegetariano"
     ],
     "servingG": 150,
@@ -935,6 +943,7 @@
     "costRel": 2,
     "prepMin": 1,
     "tags": [
+      "cereal_desayuno",
       "rapido",
       "sin_cocinar",
       "vegetariano"
@@ -963,8 +972,10 @@
     "costRel": 1,
     "prepMin": 25,
     "tags": [
+      "ligero",
       "meal_prep",
       "mexicano",
+      "tuberculo",
       "vegetariano"
     ],
     "servingG": 200,
@@ -991,7 +1002,9 @@
     "costRel": 1,
     "prepMin": 2,
     "tags": [
+      "cereal_comida",
       "favorito",
+      "ligero",
       "mexicano",
       "rapido",
       "vegetariano"
@@ -1051,6 +1064,7 @@
     "prepMin": 35,
     "tags": [
       "cereal_cocido",
+      "cereal_comida",
       "favorito",
       "meal_prep",
       "mexicano",
@@ -1081,6 +1095,7 @@
     "prepMin": 20,
     "tags": [
       "cereal_cocido",
+      "cereal_comida",
       "favorito",
       "meal_prep",
       "vegetariano"
@@ -1111,6 +1126,7 @@
     "tags": [
       "favorito",
       "leguminosa",
+      "ligero",
       "meal_prep",
       "mexicano",
       "vegetariano"
@@ -1141,6 +1157,7 @@
     "tags": [
       "favorito",
       "leguminosa",
+      "ligero",
       "meal_prep",
       "mexicano",
       "vegetariano"
@@ -1170,6 +1187,7 @@
     "prepMin": 30,
     "tags": [
       "leguminosa",
+      "ligero",
       "meal_prep",
       "mexicano",
       "vegetariano"
@@ -1199,6 +1217,7 @@
     "prepMin": 30,
     "tags": [
       "leguminosa",
+      "ligero",
       "meal_prep",
       "mexicano",
       "vegetariano"
@@ -1228,6 +1247,7 @@
     "prepMin": 15,
     "tags": [
       "cereal_cocido",
+      "cereal_comida",
       "meal_prep",
       "vegetariano"
     ],
@@ -1255,6 +1275,7 @@
     "costRel": 3,
     "prepMin": 1,
     "tags": [
+      "cereal_desayuno",
       "rapido",
       "sin_cocinar",
       "vegetariano"
@@ -1283,6 +1304,7 @@
     "costRel": 1,
     "prepMin": 15,
     "tags": [
+      "cereal_comida",
       "meal_prep",
       "mexicano",
       "vegetariano"
@@ -1311,7 +1333,9 @@
     "costRel": 1,
     "prepMin": 1,
     "tags": [
+      "cereal_comida",
       "favorito",
+      "ligero",
       "mexicano",
       "rapido",
       "sin_cocinar",
@@ -1342,6 +1366,7 @@
     "prepMin": 8,
     "tags": [
       "cereal_cocido",
+      "cereal_desayuno",
       "meal_prep",
       "rapido",
       "vegetariano"
@@ -1370,6 +1395,8 @@
     "costRel": 2,
     "prepMin": 2,
     "tags": [
+      "cereal_comida",
+      "ligero",
       "meal_prep",
       "mexicano",
       "rapido",

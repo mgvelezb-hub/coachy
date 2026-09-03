@@ -115,6 +115,13 @@ export const ConfigSchema = z
       /** Arroz, pasta, quinoa, avena cocida: 1.5 tazas. */
       cerealCocidoMaxGPorComida: z.number().int().min(100).max(500),
       frutoSecoMaxGPorComida: z.number().int().min(10).max(80),
+      /**
+       * Fuentes de carbohidrato denso por comida, y nunca dos del mismo
+       * subtipo: avena con pan es el mismo desayuno dos veces, frijol con
+       * haba es el mismo guiso dos veces.
+       */
+      maxCarbosPorComida: z.number().int().min(1).max(3),
+      subtiposDeCarbo: z.array(z.string()),
     }),
     /**
      * Tope de alimentos por comida. Un platillo con siete ingredientes no se
@@ -247,6 +254,8 @@ export const DEFAULT_CONFIG: EngineConfig = {
     leguminosaMaxGPorComida: 180,
     cerealCocidoMaxGPorComida: 240,
     frutoSecoMaxGPorComida: 30,
+    maxCarbosPorComida: 2,
+    subtiposDeCarbo: ['cereal_desayuno', 'cereal_comida', 'tuberculo', 'leguminosa'],
   },
   maxFoodsPerMeal: 6,
   denseFoodKcalPer100: 300,

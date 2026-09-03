@@ -658,10 +658,23 @@ function gramosDeFamilia(comida: Slot[], familia: Familia): number {
     .reduce((acc, s) => acc + s.grams, 0);
 }
 
+/** Los alimentos de la comida que son fuente de carbohidrato denso. */
+function carbosDe(comida: Slot[]): Slot[] {
+  return comida.filter((s) => DENSE_CARB_ROLES.includes(s.role ?? s.food.role));
+}
+
 /** true si la comida se pasa de algun tope de composicion. */
 function violaComposicion(comida: Slot[], config: EngineConfig): boolean {
   const grasas = comida.filter((s) => s.food.tags.includes('grasa_anadida'));
   if (grasas.length > config.composicion.maxGrasasAnadidasPorComida) return true;
+
+  // Dos carbohidratos del mismo subtipo son el mismo plato dos veces: avena
+  // con pan, frijol con haba, arroz con pasta.
+  const carbos = carbosDe(comida);
+  if (carbos.length > config.composicion.maxCarbosPorComida) return true;
+  for (const subtipo of config.composicion.subtiposDeCarbo) {
+    if (carbos.filter((s) => s.food.tags.includes(subtipo)).length > 1) return true;
+  }
   return FAMILIAS.some(
     (familia) => gramosDeFamilia(comida, familia) > topeDeFamilia(familia, config) + 1e-6,
   );
@@ -673,6 +686,18 @@ function violaComposicion(comida: Slot[], config: EngineConfig): boolean {
  * El primero de cada familia nunca se toca: es el que define el platillo.
  */
 function aplicarComposicion(comida: Slot[], config: EngineConfig): void {
+  // Repetidos de subtipo y carbohidratos de mas: se queda el primero, que es
+  // el que definio el plato, y salen los que llegaron a acompañarlo.
+  for (const subtipo of config.composicion.subtiposDeCarbo) {
+    const delSubtipo = carbosDe(comida).filter((s) => s.food.tags.includes(subtipo));
+    for (const repetido of delSubtipo.slice(1)) {
+      comida.splice(comida.indexOf(repetido), 1);
+    }
+  }
+  for (const sobrante of carbosDe(comida).slice(config.composicion.maxCarbosPorComida)) {
+    comida.splice(comida.indexOf(sobrante), 1);
+  }
+
   const grasas = comida.filter((s) => s.food.tags.includes('grasa_anadida'));
   for (const sobrante of grasas.slice(config.composicion.maxGrasasAnadidasPorComida)) {
     const donde = comida.indexOf(sobrante);

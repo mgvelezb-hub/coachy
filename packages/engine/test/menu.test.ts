@@ -357,6 +357,32 @@ describe('generador de menus (spec §6)', () => {
     }
   });
 
+  // Avena con pan es el mismo desayuno dos veces; frijol con haba, el mismo
+  // guiso. El reclamo fue literal: un desayuno con pan, avena Y amaranto.
+  it('nunca dos carbohidratos del mismo subtipo, ni mas de dos en total', () => {
+    const { maxCarbosPorComida, subtiposDeCarbo } = DEFAULT_CONFIG.composicion;
+    for (const seed of SEEDS) {
+      for (const phase of ['BASE', 'CUT', 'CUT_AGRESIVO', 'REINTRO'] as Phase[]) {
+        const { plan } = planFor(P, phase, seed);
+        for (const menu of plan.menus) {
+          for (const meal of menu.meals) {
+            const donde = `${phase} ${meal.slot} seed ${seed}`;
+            const carbos = meal.items.filter((i) =>
+              ['carbo_pre', 'carbo_post', 'carbo_complejo'].includes(findFood(i.foodId)!.role),
+            );
+            expect(carbos.length, `${donde}: ${carbos.map((c) => c.name).join(' + ')}`)
+              .toBeLessThanOrEqual(maxCarbosPorComida);
+            for (const subtipo of subtiposDeCarbo) {
+              const delSubtipo = carbos.filter((i) => findFood(i.foodId)!.tags.includes(subtipo));
+              expect(delSubtipo.length, `${subtipo} en ${donde}: ${delSubtipo.map((c) => c.name).join(' + ')}`)
+                .toBeLessThanOrEqual(1);
+            }
+          }
+        }
+      }
+    }
+  });
+
   // El plato tambien tiene reglas, no solo los macros: una cena con aceite Y
   // crema de cacahuate cuadra numeros y aun asi nadie la cocina.
   it('ninguna comida rompe los topes de composicion del platillo', () => {
