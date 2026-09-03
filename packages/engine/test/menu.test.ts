@@ -885,3 +885,86 @@ describe('la lista de super no revuelve alimentos', () => {
     expect(lista[0]!.grams).toBe(1260);
   });
 });
+
+/**
+ * La despensa: lo que ya esta comprado manda sobre la variedad.
+ *
+ * El motor rotaba alimentos cada quincena y dejaba sin uso lo que la persona
+ * ya habia comprado con el menu anterior. La despensa es la respuesta: lo que
+ * hay en casa se elige PRIMERO dentro de su rol, y el resto del catalogo solo
+ * entra cuando la despensa no cubre ese rol. Nunca al precio de romper una
+ * regla: la prioridad se aplica despues de plantilla, afinidad y cotas.
+ */
+describe('la despensa manda sobre la variedad', () => {
+  const DESPENSA = ['pechuga_pollo', 'arroz_integral', 'frijol_negro', 'aguacate', 'avena'];
+  // Una semana, con la misma convencion que el golden: un seed por dia.
+  const DIAS = [101, 102, 103, 104, 105, 106, 107];
+
+  function semanaCon(pantry: string[] | undefined) {
+    return DIAS.map((seed) => planFor({ ...P, pantry }, 'BASE', seed).plan);
+  }
+
+  it('cada alimento de la despensa aparece al menos 4 de los 7 dias', () => {
+    const semana = semanaCon(DESPENSA);
+    for (const id of DESPENSA) {
+      const dias = semana.filter((plan) =>
+        plan.menus.some((menu) => menu.meals.some((meal) => meal.items.some((i) => i.foodId === id))),
+      ).length;
+      expect(dias, id).toBeGreaterThanOrEqual(4);
+    }
+  });
+
+  it('la despensa no rompe ninguna regla del platillo', () => {
+    for (const plan of semanaCon(DESPENSA)) {
+      // Los macros del dia siguen cuadrando.
+      for (const menu of plan.menus) {
+        expect(Math.abs(menu.deviationPct.kcal)).toBeLessThanOrEqual(5);
+        expect(Math.abs(menu.deviationPct.proteinG)).toBeLessThanOrEqual(5);
+      }
+      for (const menu of plan.menus) {
+        for (const meal of menu.meals) {
+          // Ningun alimento dos veces en la misma comida.
+          const ids = meal.items.map((i) => i.foodId);
+          expect(new Set(ids).size, meal.slot).toBe(ids.length);
+          // Ninguna porcion es una pizca ni un exceso.
+          for (const item of meal.items) {
+            const food = findFood(item.foodId)!;
+            if (!food.serving) continue;
+            const min = food.serving.minUnits * food.serving.gramsPerUnit;
+            const max = food.serving.maxUnits * food.serving.gramsPerUnit;
+            expect(item.grams, item.name).toBeGreaterThanOrEqual(Math.floor(min));
+            expect(item.grams, item.name).toBeLessThanOrEqual(Math.ceil(max));
+          }
+        }
+      }
+    }
+  });
+
+  it('la despensa nunca mete un alimento excluido ni fuera de presupuesto', () => {
+    // Salmon es costRel 3: con presupuesto medio no entra aunque este en casa.
+    const profile: Profile = { ...P, pantry: ['salmon', 'pechuga_pollo'], excludedFoods: ['aguacate'] };
+    const ids = SEEDS.flatMap((seed) =>
+      planFor(profile, 'BASE', seed).plan.menus.flatMap((m) =>
+        m.meals.flatMap((meal) => meal.items.map((i) => i.foodId)),
+      ),
+    );
+    expect(ids).not.toContain('salmon');
+    expect(ids).not.toContain('aguacate');
+  });
+
+  it('sin despensa el menu es exactamente el de siempre', () => {
+    const sin = planFor(P, 'BASE', 42).plan;
+    const vacia = planFor({ ...P, pantry: [] }, 'BASE', 42).plan;
+    expect(vacia).toEqual(sin);
+  });
+
+  it('la lista de super marca lo que ya esta en casa', () => {
+    const { plan } = planFor({ ...P, pantry: DESPENSA }, 'BASE', 42);
+    const enCasa = plan.shoppingList.filter((item) => item.enDespensa === true);
+    expect(enCasa.length).toBeGreaterThan(0);
+    for (const item of enCasa) expect(DESPENSA).toContain(item.foodId);
+    // Lo que no esta en casa no se marca: la lista sigue siendo una lista de compra.
+    const resto = plan.shoppingList.filter((item) => !DESPENSA.includes(item.foodId));
+    for (const item of resto) expect(item.enDespensa).toBeFalsy();
+  });
+});

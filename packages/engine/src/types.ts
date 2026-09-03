@@ -84,6 +84,16 @@ export interface Profile {
   trainingTime: TrainingTime;
   budget: Budget;
   favoriteFoods?: string[];
+  /**
+   * Lo que la persona YA tiene comprado, por id del catalogo.
+   *
+   * No es una lista de deseos ni un favorito con otro nombre: es despensa que
+   * ya se pago y que el menu anterior dejo sin uso cuando la rotacion
+   * quincenal cambio de alimentos. Por eso pesa MAS que `favoriteFoods` —
+   * dentro de su rol se elige primero— pero nunca por encima de las reglas:
+   * si la despensa no cubre un rol, entra el resto del catalogo.
+   */
+  pantry?: string[];
   excludedFoods?: string[];
   allergies?: string[];
   conditions?: ProfileConditions;
@@ -409,6 +419,11 @@ export interface ShoppingItem {
   grams: number;
   unit: string;
   costRel: 1 | 2 | 3;
+  /**
+   * Ya esta en casa: la lista lo sigue mostrando —hace falta para cocinar—
+   * pero marcado, para que nadie lo vuelva a comprar.
+   */
+  enDespensa?: boolean;
 }
 
 export interface MenuPlan {

@@ -253,6 +253,20 @@ function eligible(
   return conCompania;
 }
 
+/**
+ * Lo que la persona ya tiene comprado, de entre los candidatos.
+ *
+ * Se compara por id del catalogo y no por nombre —como si hace
+ * `favoriteFoods`— porque la despensa se captura tocando alimentos de una
+ * lista, no escribiendola: no hay nada que adivinar.
+ */
+function deLaDespensa(candidates: Food[], profile: Profile): Food[] {
+  const despensa = profile.pantry;
+  if (!despensa || despensa.length === 0) return [];
+  const ids = new Set(despensa);
+  return candidates.filter((f) => ids.has(f.id));
+}
+
 function pick(
   candidates: Food[],
   profile: Profile,
@@ -262,8 +276,15 @@ function pick(
   preferidos: Set<string> = new Set(),
 ): Food | undefined {
   if (candidates.length === 0) return undefined;
-  const fresh = candidates.filter((f) => !avoid.has(f.id));
-  const pool = fresh.length > 0 ? fresh : candidates;
+  // La despensa manda ANTES que la variedad: lo que ya esta comprado se
+  // elige primero dentro de su rol, y el resto del catalogo solo entra
+  // cuando la despensa no cubre ese rol. `candidates` ya paso plantilla,
+  // afinidad, presupuesto y cotas, asi que priorizar aqui no puede romper
+  // ninguna regla: solo ordena entre los que ya eran validos.
+  const despensa = deLaDespensa(candidates, profile);
+  const base = despensa.length > 0 ? despensa : candidates;
+  const fresh = base.filter((f) => !avoid.has(f.id));
+  const pool = fresh.length > 0 ? fresh : base;
   const weights = pool.map(
     (f) => (matchesAny(f, profile.favoriteFoods) ? 3 : 1) * (preferidos.has(f.id) ? 2 : 1),
   );
@@ -1702,11 +1723,19 @@ export function listaDeSuper(
   menus: Menu[],
   diasPorMenu: number,
   pool: Food[] = FOODS,
+  /** Ids de lo que ya esta en casa, para marcarlo en vez de mandarlo a comprar. */
+  pantry: string[] = [],
 ): ShoppingItem[] {
-  return shoppingList(menus, pool, diasPorMenu);
+  return shoppingList(menus, pool, diasPorMenu, pantry);
 }
 
-function shoppingList(menus: Menu[], pool: Food[], daysPerMenu: number): ShoppingItem[] {
+function shoppingList(
+  menus: Menu[],
+  pool: Food[],
+  daysPerMenu: number,
+  pantry: string[] = [],
+): ShoppingItem[] {
+  const enCasa = new Set(pantry);
   const acc = new Map<string, ShoppingItem>();
   for (const menu of menus) {
     for (const meal of menu.meals) {
@@ -1743,6 +1772,10 @@ function shoppingList(menus: Menu[], pool: Food[], daysPerMenu: number): Shoppin
             // piezas las calcula quien pinta la lista, desde los gramos.
             unit: 'g',
             costRel: food?.costRel ?? 2,
+            // Marcado, no escondido: sigue haciendo falta para cocinar, pero
+            // la lista tiene que decir "ya lo tienes" en vez de mandar a
+            // comprarlo otra vez.
+            ...(food && enCasa.has(food.id) ? { enDespensa: true } : {}),
           });
         }
       }
@@ -1812,8 +1845,8 @@ export function generateMenu(
     target,
     menus: [menu1, menu2],
     shoppingList: fijo
-      ? shoppingList([menu1], pool, daysPerMenu * 2)
-      : shoppingList([menu1, menu2], pool, daysPerMenu),
+      ? shoppingList([menu1], pool, daysPerMenu * 2, profile.pantry)
+      : shoppingList([menu1, menu2], pool, daysPerMenu, profile.pantry),
     notas,
   };
 }
