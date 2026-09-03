@@ -419,7 +419,10 @@ function describirPorcion(
 
   const unidades = gramos / s.gramsPerUnit;
   const texto = formatoUnidades(unidades);
-  const plural = Math.abs(unidades - 1) < 1e-9 ? 0 : 1;
+  // El plural sigue a la CANTIDAD, no a la fraccion: "½ pieza" y "1 pieza"
+  // van en singular, "1½ tazas" en plural. Antes, cualquier cosa distinta de
+  // uno pluralizaba y salia "½ piezas de manzana", que no lo dice nadie.
+  const plural = unidades > 1 + 1e-9 ? 1 : 0;
   const etiqueta = UNIDADES[s.unit][plural]!;
 
   const nota = free
@@ -1406,3 +1409,6 @@ export function generateMenu(
     notas,
   };
 }
+
+/** Solo para pruebas: piezas internas que no forman parte del API del motor. */
+export const __testing = { describirPorcion };

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { generateMenu, incompatibles, listaDeSuper, prepMinDelDia } from '../src/menu.js';
+import { __testing, generateMenu, incompatibles, listaDeSuper, prepMinDelDia } from '../src/menu.js';
 import { distribute } from '../src/meals.js';
 import { kcalForDeficit, macrosFor } from '../src/calc.js';
 import { DEFAULT_CONFIG, pickDeficit } from '../src/config.js';
@@ -461,6 +461,21 @@ describe('generador de menus (spec §6)', () => {
       expect(item.display, item.display).toContain(esperado);
       expect(item.why.unitLabel, item.display).toContain(esperado);
     }
+  });
+
+  // "½ piezas de manzana" no lo dice nadie. El plural se decide por la
+  // cantidad servida, no por si hay fraccion: media es una, una es una, y de
+  // ahi para arriba son varias.
+  it('el plural sigue a la cantidad: media pieza es una pieza', () => {
+    const { describirPorcion } = __testing;
+    const manzana = findFood('manzana')!;
+    const arroz = findFood('arroz_integral')!;
+
+    expect(describirPorcion(manzana, 90, false, 'fruta').display).toContain('½ pieza de');
+    expect(describirPorcion(manzana, 90, false, 'fruta').display).not.toContain('piezas');
+    expect(describirPorcion(manzana, 180, false, 'fruta').display).toContain('1 pieza de');
+    expect(describirPorcion(arroz, 160, false, 'carbo_complejo').display).toContain('1 taza de');
+    expect(describirPorcion(arroz, 200, false, 'carbo_complejo').display).toContain('1¼ tazas de');
   });
 
   it('es determinista: la etiqueta no trae texto libre', () => {
