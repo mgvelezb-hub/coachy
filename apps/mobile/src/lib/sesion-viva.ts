@@ -24,6 +24,16 @@ export type SerieViva = {
   pesoKg: number | null;
   /** De calentamiento: no cuenta para progresión ni para el volumen. */
   calentamiento: boolean;
+  /**
+   * Tempo prescrito, en segundos: bajar, pausa, subir. Se lee "3-1-1". El
+   * tipo va estructural, no importado: este módulo es puro y no conoce el
+   * cliente de la API.
+   */
+  tempo?: { ecc: number; pause: number; con: number };
+  /** `fallo` = hasta que no salga otra; `dropset` = pegada a la anterior, sin descanso. */
+  intensidad?: "normal" | "fallo" | "dropset";
+  /** Con qué lado va, en los ejercicios de un lado a la vez. */
+  lado?: "IZQ" | "DER" | "AMBOS";
 };
 
 export type EjercicioVivo = {
@@ -44,6 +54,8 @@ export type EjercicioVivo = {
   }>;
   /** Segundos de descanso que pide el esquema entre series. */
   descansoSeg: number;
+  /** Se hace un lado a la vez: sus series traen `lado`. */
+  unilateral?: boolean;
   series: SerieViva[];
 };
 
@@ -124,7 +136,15 @@ export function cerrarSerie(
   }
 
   const cambiaEjercicio = pendiente.ejercicio !== estado.ejercicioActual;
-  const descanso = ejercicios[estado.ejercicioActual]?.descansoSeg ?? 0;
+
+  // Un dropset va PEGADO a la serie anterior: si lo que sigue es uno, no hay
+  // descanso que arrancar. Esa es toda su definición — bajar el peso y seguir
+  // sin soltar. Descansar noventa segundos antes lo convierte en otra serie
+  // normal más ligera.
+  const siguienteEsDropset =
+    !cambiaEjercicio &&
+    ejercicios[pendiente.ejercicio]?.series[pendiente.serie]?.intensidad === "dropset";
+  const descanso = siguienteEsDropset ? 0 : (ejercicios[estado.ejercicioActual]?.descansoSeg ?? 0);
 
   return {
     estado: {
@@ -250,4 +270,63 @@ export function volumenKg(estado: EstadoSesion): number {
     }
   }
   return Math.round(total);
+}
+
+/**
+ * El tempo, tal como se dice en el gimnasio: "3-1-1" — tres segundos bajando,
+ * uno de pausa, uno subiendo. `null` cuando el ejercicio no lo prescribe.
+ */
+export function textoDeTempo(tempo: SerieViva["tempo"]): string | null {
+  if (!tempo) return null;
+  return `${tempo.ecc}-${tempo.pause}-${tempo.con}`;
+}
+
+/** Cuánto pesa un dropset: 20 % menos que la serie de la que sale. */
+export function pesoDeDropset(pesoAnteriorKg: number | null): number | null {
+  if (pesoAnteriorKg === null) return null;
+  return Math.round(pesoAnteriorKg * 0.8 * 2) / 2;
+}
+
+/**
+ * Lo que pide el plan en esta serie.
+ *
+ * Al fallo NO se escribe como un número a secas: quien lee "12" para y quien
+ * lee "al fallo, mínimo 12" sigue. El piso importa tanto como el fallo — sin
+ * él, una serie al fallo con mal día se cierra en 4 y nadie se entera.
+ */
+export function objetivoDeSerie(serie: SerieViva): string {
+  if (serie.intensidad === "fallo") return `al fallo, mínimo ${serie.objetivo}`;
+  if (serie.intensidad === "dropset") return `${serie.objetivo} reps · sin descanso`;
+  return `${serie.objetivo} reps`;
+}
+
+const NOMBRE_DE_LADO: Record<NonNullable<SerieViva["lado"]>, string> = {
+  DER: "Derecho",
+  IZQ: "Izquierdo",
+  AMBOS: "Los dos",
+};
+
+/**
+ * Cómo se nombra la serie en pantalla.
+ *
+ * En un unilateral el conteo se lleva DENTRO del lado ("Derecho · serie 2 de
+ * 3"), no sobre la lista completa: quien va en la quinta de seis está en la
+ * segunda del izquierdo, y decirle "serie 5 de 6" no le sirve para nada
+ * mientras tiene la mancuerna en la mano.
+ */
+export function etiquetaDeSerie(ejercicio: EjercicioVivo, indice: number): string {
+  const serie = ejercicio.series[indice];
+  if (!serie) return "";
+
+  const sufijo = serie.calentamiento ? " · calentamiento" : "";
+  const lado = serie.lado;
+
+  if (lado === undefined || lado === "AMBOS") {
+    return `Serie ${indice + 1} de ${ejercicio.series.length}${sufijo}`;
+  }
+
+  const delLado = ejercicio.series.filter((otra) => otra.lado === lado);
+  const posicion = ejercicio.series.slice(0, indice + 1).filter((otra) => otra.lado === lado).length;
+
+  return `${NOMBRE_DE_LADO[lado]} · serie ${posicion} de ${delLado.length}${sufijo}`;
 }

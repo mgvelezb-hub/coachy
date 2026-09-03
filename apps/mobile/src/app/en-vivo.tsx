@@ -24,6 +24,7 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
+import { InfoTip, TextoInfo } from "@/components/InfoTip";
 import { ErrorState, LoadingState } from "@/components/States";
 import { useTheme } from "@/context/theme";
 import {
@@ -50,8 +51,12 @@ import {
   descansoTermino,
   editarSerie,
   estadoInicial,
+  etiquetaDeSerie,
   formatoReloj,
+  objetivoDeSerie,
+  pesoDeDropset,
   progreso,
+  textoDeTempo,
   restanteSeg,
   saltarDescanso,
   volumenKg,
@@ -258,15 +263,28 @@ export default function EnVivoScreen() {
         nombre: ejercicio.name,
         alternativas: ejercicio.alternatives,
         descansoSeg: ejercicio.restSeconds,
+        unilateral: ejercicio.unilateral === true,
         series: ejercicio.sets.map((serie, setIndex) => {
           const capturada = guardadas.sets.find(
             (set) => set.clientId === clientIdFor(encontrada.workoutId, indice, setIndex),
           );
+          // El peso de un dropset no viene del plan: sale de la serie de la
+          // que cuelga, 20 % abajo. Prellenarlo es lo que evita que alguien
+          // tenga que hacer la cuenta con la mancuerna en la mano.
+          const anterior = ejercicio.sets[setIndex - 1];
+          const sugerido =
+            serie.intensity === "dropset" && serie.weightKg === null
+              ? pesoDeDropset(anterior?.weightKg ?? null)
+              : serie.weightKg;
+
           return {
             objetivo: serie.reps,
             hechas: capturada?.reps ?? null,
-            pesoKg: capturada?.weightKg ?? serie.weightKg ?? null,
+            pesoKg: capturada?.weightKg ?? sugerido ?? null,
             calentamiento: serie.warmup,
+            ...(serie.tempo ? { tempo: serie.tempo } : {}),
+            ...(serie.intensity ? { intensidad: serie.intensity } : {}),
+            ...(serie.side ? { lado: serie.side } : {}),
           };
         }),
       }));
@@ -805,6 +823,9 @@ export default function EnVivoScreen() {
   const restante = restanteSeg(estado, ahora);
   const descansando = restante !== null && restante > 0;
 
+  const serieActual = ejercicio?.series[estado.serieActual] ?? null;
+  const tempoActual = textoDeTempo(serieActual?.tempo);
+
   const warmup = sesion.warmup;
   const enCalentamiento = !estado.terminada && fase === "calentamiento" && warmup !== null;
   const restanteCalentamiento =
@@ -918,17 +939,34 @@ export default function EnVivoScreen() {
           <Text style={styles.ejercicioNombre}>{ejercicio?.nombre}</Text>
 
           <View style={styles.serieCaja}>
-            <Text style={styles.serieEtiqueta}>
-              Serie {estado.serieActual + 1} de {ejercicio?.series.length}
-              {ejercicio?.series[estado.serieActual]?.calentamiento ? " · calentamiento" : ""}
-            </Text>
+            <View style={styles.serieCabecera}>
+              {/* En un unilateral el conteo va dentro del lado ("Derecho ·
+                  serie 2 de 3"): quien tiene la mancuerna en la mano no
+                  necesita saber que es la quinta de seis. */}
+              <Text style={styles.serieEtiqueta}>
+                {ejercicio ? etiquetaDeSerie(ejercicio, estado.serieActual) : ""}
+              </Text>
+              {tempoActual && (
+                <>
+                  <Text style={styles.serieTempo}>{tempoActual}</Text>
+                  <InfoTip titulo="Qué es 3-1-1">
+                    <TextoInfo>
+                      Los segundos de cada repetición: {tempoActual.split("-")[0]} bajando,{" "}
+                      {tempoActual.split("-")[1]} de pausa abajo y {tempoActual.split("-")[2]}{" "}
+                      subiendo. Bajar despacio es la mitad del trabajo — la misma serie a tirones
+                      no es la misma serie.
+                    </TextoInfo>
+                  </InfoTip>
+                </>
+              )}
+            </View>
             {/* El plan es una referencia, no un campo: lo que se captura son
                 las reps que DE VERDAD salieron. Si te quedas corto, la semana
                 que viene el plan arranca en tu número, no en el que no
                 alcanzaste. */}
             <Text style={styles.seriePlan}>
-              El plan pide {ejercicio?.series[estado.serieActual]?.objetivo ?? 0} reps · anota las
-              que hiciste
+              El plan pide{" "}
+              {serieActual ? objetivoDeSerie(serieActual) : "0 reps"} · anota las que hiciste
             </Text>
 
             {/* Un campo por renglón: compartir fila encimaba los botones de
@@ -1060,14 +1098,11 @@ export default function EnVivoScreen() {
                   index === estado.serieActual && styles.listaFilaActual,
                 ]}
               >
-                <Text style={styles.listaTexto}>
-                  Serie {index + 1}
-                  {serie.calentamiento ? " · calentamiento" : ""}
-                </Text>
+                <Text style={styles.listaTexto}>{etiquetaDeSerie(ejercicio!, index)}</Text>
                 <View style={styles.listaDerecha}>
                   <Text style={styles.listaValor}>
                     {serie.hechas === null
-                      ? `${serie.objetivo} reps`
+                      ? objetivoDeSerie(serie)
                       : `${serie.hechas} × ${
                           serie.pesoKg === null
                             ? "sin peso"
@@ -1276,6 +1311,18 @@ const makeStyles = (colors: Palette) =>
       backgroundColor: colors.cardBg,
       padding: spacing.lg,
       gap: spacing.md,
+    },
+    serieCabecera: { flexDirection: "row", alignItems: "center", gap: spacing.xs },
+    serieTempo: {
+      fontFamily: fonts.sansSemiBold,
+      ...typeScale.label,
+      color: colors.champan,
+      borderWidth: 1,
+      borderColor: withAlpha(colors.champan, 0.45),
+      borderRadius: radius.full,
+      paddingHorizontal: spacing.sm,
+      paddingVertical: 2,
+      overflow: "hidden",
     },
     serieEtiqueta: { fontFamily: fonts.sansSemiBold, ...typeScale.heading, color: colors.champan },
     campos: { gap: spacing.md },
