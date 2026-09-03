@@ -114,3 +114,37 @@ describe('keto', () => {
     expect(Math.abs(macros.kcal - kcal) / kcal).toBeLessThan(0.03);
   });
 });
+
+describe('menu fijo', () => {
+  // El formato de cualquier coach de gimnasio en Mexico: un solo menu para la
+  // semana. La variedad diaria que rota el motor es ruido para quien prepara
+  // su comida el domingo y la repite.
+  it('los dos menus son el mismo dia', () => {
+    const { plan } = planFor({ ...P, diet: 'menu_fijo' });
+    expect(plan.menus[1].meals).toEqual(plan.menus[0].meals);
+    expect(plan.menus[1].totals).toEqual(plan.menus[0].totals);
+  });
+
+  it('la lista de super compra ese unico menu los siete dias', () => {
+    const fijo = planFor({ ...P, diet: 'menu_fijo' });
+    const unaComida = fijo.plan.menus[0].meals[0]!.items[0]!;
+    const renglon = fijo.plan.shoppingList.find((i) => i.name === unaComida.name)!;
+
+    expect(renglon.grams).toBeGreaterThanOrEqual(unaComida.grams * 7 - 5);
+    expect(renglon.grams).toBeLessThanOrEqual(unaComida.grams * 7 + 5);
+  });
+
+  it('no cambia los macros: sigue siendo el mismo metodo', () => {
+    const estandar = planFor(P);
+    const fijo = planFor({ ...P, diet: 'menu_fijo' });
+    expect(fijo.macros).toEqual(estandar.macros);
+    for (const macro of ['proteinG', 'carbG', 'fatG', 'kcal'] as const) {
+      expect(Math.abs(fijo.plan.menus[0].deviationPct[macro])).toBeLessThanOrEqual(5);
+    }
+  });
+
+  it('lo dice en las notas', () => {
+    const { plan } = planFor({ ...P, diet: 'menu_fijo' });
+    expect(plan.notas.join(' ')).toMatch(/mismo menu los siete dias/i);
+  });
+});

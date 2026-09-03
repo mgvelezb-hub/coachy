@@ -90,6 +90,9 @@ const DIET_STYLE_TO_ENGINE: Record<DietStyle, EngineDietStyle> = {
   AYUNO: "ayuno",
   VEGETARIANA: "vegetariana",
   KETO: "keto",
+  // Un solo menú para los siete días: el motor lo genera una vez y lo repite,
+  // y la lista de súper compra ese menú la semana completa.
+  MENU_FIJO: "menu_fijo",
 };
 
 export function toEngineProfile(profile: Profile, latestWeightKg?: number | null): EngineProfile {

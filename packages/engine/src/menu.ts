@@ -1321,8 +1321,16 @@ export function generateMenu(
     { kcal: 0, proteinG: 0, carbG: 0, fatG: 0, fiberG: 0 },
   );
 
+  // `menu_fijo`: un solo menu para los siete dias. No se genera el segundo y
+  // el primero se copia tal cual, para que la app siga leyendo dos menus sin
+  // enterarse; la lista de super compra ese unico menu los dias completos, no
+  // la mitad de cada uno.
+  const fijo = profile.diet === 'menu_fijo';
   const menu1 = buildMenu(1, slots, profile, config, seed, pool, options, target);
-  const menu2 = buildMenu(2, slots, profile, config, seed * 7919 + 13, pool, options, target);
+  if (fijo) menu1.label = 'Menu de la semana';
+  const menu2 = fijo
+    ? { ...menu1, id: 2 as const }
+    : buildMenu(2, slots, profile, config, seed * 7919 + 13, pool, options, target);
   const daysPerMenu = options.daysPerMenu ?? 3.5;
 
   const notas: string[] = [
@@ -1339,12 +1347,17 @@ export function generateMenu(
   if (options.simplify) {
     notas.push('Menu simplificado: menos ingredientes y mas repeticion.');
   }
+  if (fijo) {
+    notas.push('Menu fijo: el mismo menu los siete dias. La lista de super ya viene por semana.');
+  }
 
   return {
     seed,
     target,
     menus: [menu1, menu2],
-    shoppingList: shoppingList([menu1, menu2], pool, daysPerMenu),
+    shoppingList: fijo
+      ? shoppingList([menu1], pool, daysPerMenu * 2)
+      : shoppingList([menu1, menu2], pool, daysPerMenu),
     notas,
   };
 }

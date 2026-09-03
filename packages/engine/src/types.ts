@@ -99,6 +99,10 @@ export interface Profile {
    *   se quedan), no la formula.
    * - `keto` si cambia la formula: el carbohidrato baja a un tope y las kcal
    *   que sobran se van a grasa.
+   * - `menu_fijo` no cambia macros ni catalogo: cambia la VARIEDAD. Un solo
+   *   menu para los siete dias, que es como prescribe cualquier coach de
+   *   gimnasio en Mexico y como cocina quien prepara el domingo. La rotacion
+   *   diaria del motor es ruido para esa persona.
    */
   diet?: DietStyle;
   /**
@@ -115,7 +119,13 @@ export interface Profile {
 
 import type { Supplement } from './suplementos.js';
 
-export const DIET_STYLES = ['estandar', 'ayuno', 'vegetariana', 'keto'] as const;
+export const DIET_STYLES = [
+  'estandar',
+  'ayuno',
+  'vegetariana',
+  'keto',
+  'menu_fijo',
+] as const;
 export type DietStyle = (typeof DIET_STYLES)[number];
 
 /** Cambio de contexto declarado por el atleta (no es un resultado corporal). */
