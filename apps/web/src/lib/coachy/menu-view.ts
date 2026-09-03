@@ -83,6 +83,8 @@ export interface GroceryItemView {
    * súper: pide siete.
    */
   portion?: string | null;
+  /** Ya está en casa: se marca en vez de mandar a comprarlo otra vez. */
+  enDespensa?: boolean;
 }
 
 /** El JSON del motor, aplanado a lo que necesita la vista. */
@@ -160,6 +162,12 @@ export function toGroceries(json: Prisma.JsonValue): GroceryItemView[] {
     const item = raw as Record<string, unknown>;
     const name = String(item.name ?? "");
     const grams = Number(item.grams ?? 0);
-    return { name, grams, unit: String(item.unit ?? ""), portion: porcionNatural(name, grams) };
+    return {
+      name,
+      grams,
+      unit: String(item.unit ?? ""),
+      portion: porcionNatural(name, grams),
+      ...(item.enDespensa === true ? { enDespensa: true } : {}),
+    };
   });
 }

@@ -283,6 +283,8 @@ export type MenuPreference = (typeof MENU_PREFERENCES)[number];
 export function listaDeSuperDe(
   plans: MealPlan[],
   preference: string,
+  /** Ids de lo que ya está en casa: la lista lo marca en vez de mandarlo a comprar. */
+  pantry: string[] = [],
 ): ReturnType<typeof toGroceries> {
   const elegidos =
     preference === "MENU_1"
@@ -305,12 +307,13 @@ export function listaDeSuperDe(
     meals: (Array.isArray(plan.mealsJson) ? plan.mealsJson : []) as never,
   }));
 
-  return listaDeSuper(menus as never, diasPorMenu).map((item) => ({
+  return listaDeSuper(menus as never, diasPorMenu, undefined, pantry).map((item) => ({
     name: item.name,
     grams: item.grams,
     unit: item.unit,
     // Se compra en piezas cuando así se vende: "7 naranjas", no "1260 g".
     portion: porcionNatural(item.name, item.grams),
+    ...(item.enDespensa === true ? { enDespensa: true } : {}),
   }));
 }
 

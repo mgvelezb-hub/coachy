@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 
 import { apiUser, unauthorized } from "@/lib/api/auth";
+import { parsePantry } from "@/lib/coachy/mapping";
 import { MENU_PREFERENCES, currentMealPlan, listaDeSuperDe } from "@/lib/coachy/menu";
 import { prisma } from "@/lib/prisma";
 
@@ -50,7 +51,9 @@ export async function PUT(request: Request): Promise<NextResponse> {
   });
 
   const nutrition = await currentMealPlan(user.id, user.profile).catch(() => null);
-  const groceries = nutrition ? listaDeSuperDe(nutrition.plans, menuPreference) : [];
+  const groceries = nutrition
+    ? listaDeSuperDe(nutrition.plans, menuPreference, parsePantry(user.profile.pantry))
+    : [];
 
   return NextResponse.json({ menuPreference, groceries });
 }

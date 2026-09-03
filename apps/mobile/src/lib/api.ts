@@ -412,6 +412,8 @@ export type GroceryItem = {
   unit: string;
   /** "7 naranjas" cuando se compra por pieza; los gramos van al lado. */
   portion?: string | null;
+  /** Ya lo tienes en casa: la lista lo marca en vez de mandarte a comprarlo. */
+  enDespensa?: boolean;
 };
 
 export type NutritionDecisionSummary = {
@@ -1940,4 +1942,50 @@ export function patchDespensa(
     `/api/v1/profile/pantry${rearmar ? "?rearmar=1" : ""}`,
     { method: "PATCH", body: { pantry } },
   );
+}
+
+/** Un ejercicio tal como lo propone Coachy para un tipo de día. */
+export type EjercicioSugerido = {
+  id: string;
+  name: string;
+  muscleGroup: string;
+  poolRole: string;
+};
+
+/** Un tipo de día del split vigente, con la sugerencia y lo elegido a mano. */
+export type DiaDeEjercicios = {
+  dayKind: string;
+  label: string;
+  /** Una línea: objetivo, condición actual y zonas lejos de la referencia. */
+  porque: string;
+  /** `true` = este día sigue la sugerencia; `false` = lista propia. */
+  sigueACoachy: boolean;
+  elegidos: string[];
+  sugeridos: EjercicioSugerido[];
+};
+
+/**
+ * `GET /api/v1/training/ejercicios` — qué propone Coachy por tipo de día.
+ *
+ * Solo trae los tipos de día que el split vigente entrena: ofrecerle editar
+ * un día que no existe en su semana es pedirle que decida sobre nada.
+ */
+export function getEjerciciosPorDia(): Promise<{ dias: DiaDeEjercicios[] }> {
+  return apiFetch<{ dias: DiaDeEjercicios[] }>("/api/v1/training/ejercicios");
+}
+
+/**
+ * `PATCH /api/v1/me/entrenamiento` — los ejercicios elegidos a mano.
+ *
+ * Se manda el mapa completo, igual que el split: parcharlo día por día
+ * abriría la puerta a que dos ediciones seguidas se pisen. `null` devuelve
+ * todos los días a la sugerencia de Coachy.
+ */
+export function patchEjerciciosManuales(
+  manualExercises: Record<string, string[]> | null,
+): Promise<unknown> {
+  return apiFetch<unknown>("/api/v1/me/entrenamiento", {
+    method: "PATCH",
+    body: { manualExercises },
+  });
 }

@@ -185,6 +185,9 @@ export default function ListaSuperScreen() {
                   <Text style={[styles.item, marcado && styles.itemMarcado]}>
                     {item.name} —{" "}
                     {item.portion ? `${item.portion} (${item.grams} g)` : `${item.grams} ${item.unit}`}
+                    {/* Lo que declaraste en casa: se sigue necesitando para
+                        cocinar, pero no hay que volver a comprarlo. */}
+                    {item.enDespensa ? " · ya lo tienes" : ""}
                   </Text>
                 </Pressable>
               );
