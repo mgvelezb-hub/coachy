@@ -6,6 +6,7 @@ import {
   ChevronLeft,
   HeartPulse,
   Minus,
+  PlayCircle,
   Plus,
   SkipForward,
   Timer,
@@ -1059,6 +1060,24 @@ export default function EnVivoScreen() {
             </Pressable>
           )}
 
+          {/* La duda de técnica llega a media serie, no en la sala. Abre hoja
+              (`router.push`) y al volver el cursor y el descanso siguen donde
+              estaban: la sesión guarda dónde vas en cada movimiento. */}
+          {sesion.exercises[estado.ejercicioActual]?.videoPath && (
+            <Pressable
+              onPress={() =>
+                router.push(
+                  `/tecnica?workoutId=${sesion.workoutId}&indice=${estado.ejercicioActual}`,
+                )
+              }
+              hitSlop={8}
+              style={styles.tecnicaBoton}
+            >
+              <PlayCircle size={18} color={colors.champan} strokeWidth={2} />
+              <Text style={styles.tecnicaTexto}>Ver técnica</Text>
+            </Pressable>
+          )}
+
           {(ejercicio?.alternativas ?? []).length > 0 && (
             <View style={styles.cambiarCaja}>
               <Pressable onPress={() => setCambiando((valor) => !valor)} hitSlop={8}>
@@ -1312,6 +1331,17 @@ const makeStyles = (colors: Palette) =>
       padding: spacing.lg,
       gap: spacing.md,
     },
+    tecnicaBoton: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "center",
+      gap: spacing.xs,
+      borderWidth: 1,
+      borderColor: withAlpha(colors.champan, 0.45),
+      borderRadius: radius.full,
+      paddingVertical: spacing.md,
+    },
+    tecnicaTexto: { fontFamily: fonts.sansSemiBold, ...typeScale.body, color: colors.champan },
     serieCabecera: { flexDirection: "row", alignItems: "center", gap: spacing.xs },
     serieTempo: {
       fontFamily: fonts.sansSemiBold,
