@@ -1904,3 +1904,40 @@ export function postCambiarBloqueDia(
     { method: "POST", body: { date, discipline: disciplinas } },
   );
 }
+
+/** Los cinco grupos con los que se filtra la despensa. */
+export type GrupoDespensa = "proteina" | "carbo" | "grasa" | "fruta" | "verdura";
+
+export type AlimentoDeCatalogo = { id: string; nombre: string; grupo: GrupoDespensa };
+
+export type DespensaResponse = {
+  /** Ids de lo que ya tiene en casa. */
+  pantry: string[];
+  /** El catálogo completo: la app no trae la base de alimentos. */
+  catalogo: AlimentoDeCatalogo[];
+  /** Lo del menú vigente, para marcar rápido lo que se acaba de comprar. */
+  deTuLista: string[];
+};
+
+/** `GET /api/v1/profile/pantry` — la despensa, el catálogo y la última lista. */
+export function getDespensa(): Promise<DespensaResponse> {
+  return apiFetch<DespensaResponse>("/api/v1/profile/pantry");
+}
+
+/**
+ * `PATCH /api/v1/profile/pantry` — guarda la despensa y rearma la semana.
+ *
+ * `rearmar` es el sí explícito: cuando ya hay comidas registradas esta semana
+ * el menú está congelado y el servidor no lo toca sin permiso, porque
+ * rehacerlo cambiaría días que ya se vivieron. Responde `congelado: true` para
+ * que la pantalla pueda preguntar.
+ */
+export function patchDespensa(
+  pantry: string[],
+  rearmar = false,
+): Promise<{ pantry: string[]; rearmado: boolean; congelado: boolean }> {
+  return apiFetch<{ pantry: string[]; rearmado: boolean; congelado: boolean }>(
+    `/api/v1/profile/pantry${rearmar ? "?rearmar=1" : ""}`,
+    { method: "PATCH", body: { pantry } },
+  );
+}

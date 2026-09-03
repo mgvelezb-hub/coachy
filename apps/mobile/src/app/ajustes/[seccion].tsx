@@ -8,6 +8,7 @@ import {
   Heart,
   Package,
   RotateCcw,
+  ShoppingBasket,
   Salad,
   Wallet,
 } from "lucide-react-native";
@@ -41,6 +42,7 @@ import type { ThemePreference } from "@/context/theme";
 import {
   ApiError,
   getActivities,
+  getDespensa,
   getHorariosComida,
   getMe,
   getPuntoCero,
@@ -230,6 +232,27 @@ export default function AjustesDetalleScreen() {
         })
         .catch(() => {
           if (vivo) setTiemposComida(null);
+        });
+      return () => {
+        vivo = false;
+      };
+    }, [activa]),
+  );
+
+  // La despensa: solo para el renglón-resumen ("12 alimentos"). Vive en su
+  // propia hoja —el catálogo entero con buscador no cabe aquí— y se recarga
+  // al volver de ella, igual que los horarios de comida.
+  const [despensa, setDespensa] = useState<number | null>(null);
+  useFocusEffect(
+    useCallback(() => {
+      if (activa !== "nutricion") return;
+      let vivo = true;
+      getDespensa()
+        .then((respuesta) => {
+          if (vivo) setDespensa(respuesta.pantry.length);
+        })
+        .catch(() => {
+          if (vivo) setDespensa(null);
         });
       return () => {
         vivo = false;
@@ -495,6 +518,14 @@ export default function AjustesDetalleScreen() {
               ?.nombre ?? "Sin restricción"
           }
           onPress={() => router.push("/ajustes/detalle/cocina")}
+        />
+
+        <ScoreCard
+          icon={ShoppingBasket}
+          tint={colors.champan}
+          title="Lo que tengo en casa"
+          summary={resumenDespensa(despensa)}
+          onPress={() => router.push("/ajustes/despensa")}
         />
 
         <ScoreCard
@@ -853,6 +884,13 @@ function resumenAlacena(me: MeResponse | null): string {
     .map((valor) => ALACENA_CORTA[valor])
     .filter((nombre): nombre is string => Boolean(nombre));
   return marcados.length === 0 ? "Nada marcado todavía" : marcados.join(" · ");
+}
+
+/** Cuántos alimentos tiene marcados en casa. La cuenta es el estado. */
+function resumenDespensa(cuantos: number | null): string {
+  if (cuantos === null) return "Sin cargar";
+  if (cuantos === 0) return "Nada marcado todavía";
+  return `${cuantos} ${cuantos === 1 ? "alimento" : "alimentos"}`;
 }
 
 function resumenGustos(me: MeResponse | null): string {
