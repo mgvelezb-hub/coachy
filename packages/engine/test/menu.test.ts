@@ -282,9 +282,17 @@ describe('generador de menus (spec §6)', () => {
         const { plan } = planFor(P, phase, seed);
         for (const menu of plan.menus) {
           for (const meal of menu.meals) {
-            expect(meal.items.length, `${phase} ${meal.slot} seed ${seed}`).toBeLessThanOrEqual(
-              DEFAULT_CONFIG.maxFoodsPerMeal,
+            const ligera = ['PRE', 'POST', 'SNACK'].includes(meal.slot);
+            const tope = ligera
+              ? DEFAULT_CONFIG.maxFoodsPerLightMeal
+              : DEFAULT_CONFIG.maxFoodsPerMeal;
+            const ingredientes = meal.items.filter(
+              (i) => findFood(i.foodId)!.role !== 'vegetal_libre',
             );
+            expect(
+              ingredientes.length,
+              `${phase} ${meal.slot} seed ${seed}: ${ingredientes.map((i) => i.name).join(' + ')}`,
+            ).toBeLessThanOrEqual(tope);
             for (const item of meal.items) {
               const food = findFood(item.foodId)!;
               if (!food.serving) continue;
@@ -352,6 +360,96 @@ describe('generador de menus (spec §6)', () => {
         expect(carbos.length, `seed ${seed}`).toBeGreaterThanOrEqual(2);
         for (const item of carbos) {
           expect(item.grams, `${item.name} seed ${seed}`).toBeLessThanOrEqual(250);
+        }
+      }
+    }
+  });
+
+  // El reclamo: cenas de nopal + arroz + linaza y de pico de gallo + avena +
+  // aceite. Comidas enteras sin proteina. Los macros del DIA cuadraban.
+  it('toda comida principal trae una proteina de verdad', () => {
+    for (const seed of SEEDS) {
+      for (const phase of ['BASE', 'CUT', 'CUT_AGRESIVO', 'REINTRO'] as Phase[]) {
+        const { plan } = planFor(P, phase, seed);
+        for (const menu of plan.menus) {
+          for (const meal of menu.meals) {
+            if (meal.slot === 'SNACK') continue;
+            const donde = `${phase} ${meal.slot} seed ${seed}: ${meal.items.map((i) => i.name).join(' + ')}`;
+            const fuentes = meal.items.filter((i) =>
+              findFood(i.foodId)!.role.startsWith('proteina'),
+            );
+            expect(fuentes.length, donde).toBeGreaterThanOrEqual(1);
+            expect(Math.max(...fuentes.map((i) => i.proteinG)), donde).toBeGreaterThanOrEqual(
+              DEFAULT_CONFIG.mealProteinMinG,
+            );
+          }
+        }
+      }
+    }
+  });
+
+  it('la colacion no es cereal con grasa: trae proteina, o fruta con semilla', () => {
+    const profile: Profile = { ...P, mealsPerDay: 5 };
+    for (const seed of SEEDS) {
+      for (const phase of ['BASE', 'CUT'] as Phase[]) {
+        const { plan } = planFor(profile, phase, seed);
+        for (const menu of plan.menus) {
+          for (const meal of menu.meals.filter((m) => m.slot === 'SNACK')) {
+            const roles = meal.items.map((i) => findFood(i.foodId)!.role);
+            const donde = `${phase} seed ${seed}: ${meal.items.map((i) => i.name).join(' + ')}`;
+            const hayProteina = roles.some((r) => r.startsWith('proteina'));
+            const frutaConGrasa = roles.includes('fruta') && roles.includes('grasa');
+            expect(hayProteina || frutaConGrasa, donde).toBe(true);
+          }
+        }
+      }
+    }
+  });
+
+  // Nadie desayuna tilapia ni unta mantequilla sobre el pescado.
+  it('el desayuno se desayuna: sin atun, sin bistec, sin pescado', () => {
+    for (const seed of SEEDS) {
+      for (const trainingTime of ['manana', 'tarde'] as const) {
+        const profile: Profile = { ...P, trainingTime };
+        for (const menu of planFor(profile, 'BASE', seed).plan.menus) {
+          for (const meal of menu.meals) {
+            const esDesayuno =
+              meal.slot === 'DESAYUNO' ||
+              (meal.slot === 'PRE' && Number(meal.timeHint.split(':')[0]) <= 10);
+            const donde = `${meal.slot} ${meal.timeHint} seed ${seed} ${trainingTime}`;
+            for (const item of meal.items) {
+              const food = findFood(item.foodId)!;
+              if (esDesayuno) {
+                expect(food.tags, `${food.name} en ${donde}`).not.toContain('no_desayuno');
+              } else {
+                expect(food.tags, `${food.name} en ${donde}`).not.toContain('solo_desayuno');
+              }
+            }
+          }
+        }
+      }
+    }
+  });
+
+  // La cena lleva carbohidrato ligero —tortilla, tuberculo, leguminosa—, no la
+  // taza y cuarto de pasta de la comida.
+  it('cada comida lleva el carbohidrato que le toca', () => {
+    for (const seed of SEEDS) {
+      for (const menu of planFor(P, 'BASE', seed).plan.menus) {
+        for (const meal of menu.meals) {
+          const carbos = meal.items
+            .map((i) => findFood(i.foodId)!)
+            .filter((f) => ['carbo_pre', 'carbo_post', 'carbo_complejo'].includes(f.role));
+          for (const carbo of carbos) {
+            const donde = `${carbo.name} en ${meal.slot} seed ${seed}`;
+            if (meal.slot === 'CENA') expect(carbo.tags, donde).toContain('ligero');
+            if (meal.slot === 'COMIDA') {
+              expect(
+                ['cereal_comida', 'tuberculo', 'leguminosa'].some((t) => carbo.tags.includes(t)),
+                donde,
+              ).toBe(true);
+            }
+          }
         }
       }
     }

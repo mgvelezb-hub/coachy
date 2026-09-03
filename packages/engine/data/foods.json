@@ -15,6 +15,7 @@
       "favorito",
       "meal_prep",
       "mexicano",
+      "no_desayuno",
       "no_vegetariano"
     ],
     "servingG": 150,
@@ -42,6 +43,7 @@
     "prepMin": 20,
     "tags": [
       "meal_prep",
+      "no_desayuno",
       "no_vegetariano"
     ],
     "servingG": 150,
@@ -99,6 +101,7 @@
     "tags": [
       "favorito",
       "mexicano",
+      "no_desayuno",
       "no_vegetariano",
       "rapido",
       "sin_cocinar"
@@ -128,6 +131,7 @@
     "prepMin": 15,
     "tags": [
       "favorito",
+      "no_desayuno",
       "no_vegetariano"
     ],
     "servingG": 160,
@@ -154,6 +158,7 @@
     "costRel": 3,
     "prepMin": 15,
     "tags": [
+      "no_desayuno",
       "no_vegetariano"
     ],
     "servingG": 160,
@@ -181,6 +186,7 @@
     "prepMin": 15,
     "tags": [
       "mexicano",
+      "no_desayuno",
       "no_vegetariano"
     ],
     "servingG": 150,
@@ -208,6 +214,7 @@
     "prepMin": 10,
     "tags": [
       "mexicano",
+      "no_desayuno",
       "no_vegetariano"
     ],
     "servingG": 150,
@@ -237,6 +244,7 @@
       "favorito",
       "meal_prep",
       "mexicano",
+      "no_desayuno",
       "no_vegetariano"
     ],
     "servingG": 150,
@@ -516,6 +524,7 @@
     "costRel": 3,
     "prepMin": 15,
     "tags": [
+      "no_desayuno",
       "no_vegetariano"
     ],
     "servingG": 150,
@@ -543,6 +552,7 @@
     "prepMin": 2,
     "tags": [
       "mexicano",
+      "no_desayuno",
       "no_vegetariano",
       "rapido",
       "sin_cocinar"
@@ -573,6 +583,7 @@
     "tags": [
       "meal_prep",
       "mexicano",
+      "no_desayuno",
       "no_vegetariano"
     ],
     "servingG": 150,
@@ -657,6 +668,7 @@
     "prepMin": 10,
     "tags": [
       "meal_prep",
+      "no_desayuno",
       "vegetariano"
     ],
     "servingG": 150,
@@ -685,6 +697,7 @@
     "tags": [
       "leguminosa",
       "ligero",
+      "no_desayuno",
       "vegetariano"
     ],
     "servingG": 120,
@@ -711,6 +724,7 @@
     "costRel": 1,
     "prepMin": 2,
     "tags": [
+      "no_desayuno",
       "no_vegetariano",
       "rapido",
       "sin_cocinar"
@@ -1721,6 +1735,7 @@
     "tags": [
       "grasa_anadida",
       "rapido",
+      "solo_desayuno",
       "vegetariano"
     ],
     "servingG": 10,

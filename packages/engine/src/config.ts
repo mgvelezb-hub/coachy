@@ -129,10 +129,19 @@ export const ConfigSchema = z
       subtiposDeCarbo: z.array(z.string()),
     }),
     /**
-     * Tope de alimentos por comida. Un platillo con siete ingredientes no se
-     * cocina entre semana: se abandona.
+     * Tope de alimentos por comida, SIN contar el vegetal libre. Un platillo
+     * con siete ingredientes no se cocina entre semana: se abandona. La
+     * colacion y el peri-entreno aguantan todavia menos.
      */
     maxFoodsPerMeal: z.number().int().min(3).max(8),
+    maxFoodsPerLightMeal: z.number().int().min(2).max(6),
+    /**
+     * Proteina minima de una comida principal. Una comida sin proteina no es
+     * una comida: es una guarnicion.
+     */
+    mealProteinMinG: z.number().int().min(10).max(40),
+    /** La colacion pide menos, pero sigue sin poder ser cereal con grasa. */
+    snackProteinMinG: z.number().int().min(5).max(25),
     /** Alimentos con esta densidad o mas se redondean al gramo, no a 5 g. */
     denseFoodKcalPer100: z.number().int().min(150).max(900),
     menuGramRoundingG: z.number().int().min(1).max(25),
@@ -232,9 +241,9 @@ export const DEFAULT_CONFIG: EngineConfig = {
   afinidad: {
     incompatibles: [
       // Dos cereales en la misma comida: avena con arroz es desayuno y comida
-      // en el mismo plato.
-      ['avena', 'cereal_cocido'],
-      ['avena', 'carbo_post'],
+      // en el mismo plato. El camote no cuenta —es tuberculo, y el desayuno
+      // de avena con camote es de gimnasio, no un error.
+      ['cereal_desayuno', 'cereal_comida'],
       // Dos frutas en una comida son postre, no comida.
       ['fruta', 'fruta'],
       // La crema de cacahuate ya es la grasa del plato: con aguacate o aceite
@@ -263,7 +272,10 @@ export const DEFAULT_CONFIG: EngineConfig = {
     maxCarbosPorComida: 2,
     subtiposDeCarbo: ['cereal_desayuno', 'cereal_comida', 'tuberculo', 'leguminosa'],
   },
-  maxFoodsPerMeal: 6,
+  maxFoodsPerMeal: 5,
+  maxFoodsPerLightMeal: 4,
+  mealProteinMinG: 20,
+  snackProteinMinG: 10,
   denseFoodKcalPer100: 300,
   menuGramRoundingG: 5,
   // 20: la pantalla las muestra en una lista desplegable, no en botones

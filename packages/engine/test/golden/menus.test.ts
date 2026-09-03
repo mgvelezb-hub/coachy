@@ -117,14 +117,22 @@ function diaDe(caso: Caso, dia: number) {
   const macros = macrosFor(caso.phase, caso.profile, kcal, DEFAULT_CONFIG);
   const slots = distribute(macros, caso.profile, caso.phase);
   const plan = generateMenu(slots, caso.profile, DEFAULT_CONFIG, 100 + dia, { phase: caso.phase });
-  // Los dos menus son las dos variantes de la semana: cada dia toca una.
-  return { macros, menu: plan.menus[dia % 2]! };
+  // Los DOS menus del dia: son las dos variantes que la persona va a comer esa
+  // semana, y las promesas valen para las dos.
+  return { macros, menus: plan.menus };
+}
+
+/** Todas las comidas del dia, de los dos menus. */
+function comidasDe(caso: Caso, dia: number) {
+  return diaDe(caso, dia).menus.flatMap((menu) =>
+    menu.meals.map((meal) => ({ ...meal, menuId: menu.id })),
+  );
 }
 
 describe.each(CASOS)('$nombre', (caso) => {
   it('ninguna porcion es una pizca ni un exceso', () => {
     for (const dia of DIAS) {
-      for (const meal of diaDe(caso, dia).menu.meals) {
+      for (const meal of comidasDe(caso, dia)) {
         for (const item of meal.items) {
           const food = findFood(item.foodId)!;
           if (!food.serving) continue;
@@ -148,9 +156,9 @@ describe.each(CASOS)('$nombre', (caso) => {
     ] as const;
 
     for (const dia of DIAS) {
-      for (const meal of diaDe(caso, dia).menu.meals) {
+      for (const meal of comidasDe(caso, dia)) {
         const foods = meal.items.map((i) => findFood(i.foodId)!);
-        const donde = `dia ${dia} ${meal.slot}`;
+        const donde = `dia ${dia} menu ${meal.menuId} ${meal.slot}`;
 
         for (const [familia, tope] of familias) {
           const gramos = meal.items
@@ -175,27 +183,119 @@ describe.each(CASOS)('$nombre', (caso) => {
     }
   });
 
-  it('ninguna comida pasa de seis alimentos', () => {
+  // Cinco ingredientes en una comida principal, cuatro en el peri-entreno y la
+  // colacion. El vegetal libre no cuenta: no se cocina, se sirve al lado.
+  it('ninguna comida pasa de su tope de ingredientes', () => {
     for (const dia of DIAS) {
-      for (const meal of diaDe(caso, dia).menu.meals) {
-        expect(meal.items.length, `dia ${dia} ${meal.slot}`).toBeLessThanOrEqual(
-          DEFAULT_CONFIG.maxFoodsPerMeal,
+      for (const meal of comidasDe(caso, dia)) {
+        const ligera = ['PRE', 'POST', 'SNACK'].includes(meal.slot);
+        const tope = ligera ? DEFAULT_CONFIG.maxFoodsPerLightMeal : DEFAULT_CONFIG.maxFoodsPerMeal;
+        const ingredientes = meal.items.filter(
+          (i) => findFood(i.foodId)!.role !== 'vegetal_libre',
         );
+        expect(
+          ingredientes.length,
+          `dia ${dia} menu ${meal.menuId} ${meal.slot}: ${ingredientes.map((i) => i.name).join(' + ')}`,
+        ).toBeLessThanOrEqual(tope);
+      }
+    }
+  });
+
+  it('toda comida principal trae una proteina de verdad', () => {
+    for (const dia of DIAS) {
+      for (const meal of comidasDe(caso, dia)) {
+        if (meal.slot === 'SNACK') continue;
+        const donde = `dia ${dia} menu ${meal.menuId} ${meal.slot}: ${meal.items.map((i) => i.name).join(' + ')}`;
+        const fuentes = meal.items.filter((i) => findFood(i.foodId)!.role.startsWith('proteina'));
+        expect(fuentes.length, donde).toBeGreaterThanOrEqual(1);
+        expect(Math.max(...fuentes.map((i) => i.proteinG)), donde).toBeGreaterThanOrEqual(
+          DEFAULT_CONFIG.mealProteinMinG,
+        );
+      }
+    }
+  });
+
+  it('la colacion nunca es cereal con grasa a secas', () => {
+    for (const dia of DIAS) {
+      for (const meal of comidasDe(caso, dia).filter((m) => m.slot === 'SNACK')) {
+        const roles = meal.items.map((i) => findFood(i.foodId)!.role);
+        const donde = `dia ${dia}: ${meal.items.map((i) => i.name).join(' + ')}`;
+        const hayProteina = roles.some((r) => r.startsWith('proteina'));
+        const frutaConGrasa = roles.includes('fruta') && roles.includes('grasa');
+        expect(hayProteina || frutaConGrasa, donde).toBe(true);
+      }
+    }
+  });
+
+  it('un solo carbohidrato de cada subtipo, y maximo dos por comida', () => {
+    const { maxCarbosPorComida, subtiposDeCarbo } = DEFAULT_CONFIG.composicion;
+    for (const dia of DIAS) {
+      for (const meal of comidasDe(caso, dia)) {
+        const carbos = meal.items.filter((i) =>
+          ['carbo_pre', 'carbo_post', 'carbo_complejo'].includes(findFood(i.foodId)!.role),
+        );
+        const donde = `dia ${dia} menu ${meal.menuId} ${meal.slot}: ${carbos.map((c) => c.name).join(' + ')}`;
+        expect(carbos.length, donde).toBeLessThanOrEqual(maxCarbosPorComida);
+        for (const subtipo of subtiposDeCarbo) {
+          expect(
+            carbos.filter((i) => findFood(i.foodId)!.tags.includes(subtipo)).length,
+            `${subtipo} en ${donde}`,
+          ).toBeLessThanOrEqual(1);
+        }
+      }
+    }
+  });
+
+  it('nunca tres grasas, y las semillas cuentan como anadida', () => {
+    const { maxGrasasPorComida, maxGrasasAnadidasPorComida } = DEFAULT_CONFIG.composicion;
+    for (const dia of DIAS) {
+      for (const meal of comidasDe(caso, dia)) {
+        const grasas = meal.items.filter((i) => findFood(i.foodId)!.role === 'grasa');
+        const donde = `dia ${dia} menu ${meal.menuId} ${meal.slot}: ${grasas.map((g) => g.name).join(' + ')}`;
+        expect(grasas.length, donde).toBeLessThanOrEqual(maxGrasasPorComida);
+        expect(
+          grasas.filter((i) => findFood(i.foodId)!.tags.includes('grasa_anadida')).length,
+          donde,
+        ).toBeLessThanOrEqual(maxGrasasAnadidasPorComida);
+      }
+    }
+  });
+
+  it('cada comida lleva lo que a esa comida le toca', () => {
+    for (const dia of DIAS) {
+      for (const meal of comidasDe(caso, dia)) {
+        const desayuno =
+          meal.slot === 'DESAYUNO' ||
+          (meal.slot === 'PRE' && Number(meal.timeHint.split(':')[0]) <= 10);
+        for (const item of meal.items) {
+          const food = findFood(item.foodId)!;
+          const donde = `${food.name} en dia ${dia} menu ${meal.menuId} ${meal.slot} ${meal.timeHint}`;
+          if (desayuno) expect(food.tags, donde).not.toContain('no_desayuno');
+          else expect(food.tags, donde).not.toContain('solo_desayuno');
+          if (meal.slot === 'CENA' && ['carbo_pre', 'carbo_post', 'carbo_complejo'].includes(food.role)) {
+            expect(food.tags, donde).toContain('ligero');
+          }
+        }
       }
     }
   });
 
   it('el dia cuadra: kcal +-5 % y proteina +-5 g', () => {
     for (const dia of DIAS) {
-      const { macros, menu } = diaDe(caso, dia);
-      expect(Math.abs(menu.deviationPct.kcal), `kcal dia ${dia}`).toBeLessThanOrEqual(5);
-      expect(Math.abs(menu.totals.proteinG - macros.proteinG), `proteina dia ${dia}`).toBeLessThanOrEqual(5);
+      const { macros, menus } = diaDe(caso, dia);
+      for (const menu of menus) {
+        expect(Math.abs(menu.deviationPct.kcal), `kcal dia ${dia} menu ${menu.id}`).toBeLessThanOrEqual(5);
+        expect(
+          Math.abs(menu.totals.proteinG - macros.proteinG),
+          `proteina dia ${dia} menu ${menu.id}`,
+        ).toBeLessThanOrEqual(5);
+      }
     }
   });
 
   it('cada alimento se puede leer sin traducir gramos', () => {
     for (const dia of DIAS) {
-      for (const meal of diaDe(caso, dia).menu.meals) {
+      for (const meal of comidasDe(caso, dia)) {
         for (const item of meal.items) {
           expect(item.display, `dia ${dia} ${item.name}`).toBeTruthy();
           expect(item.why.closes, `dia ${dia} ${item.name}`).toBeTruthy();
