@@ -16,6 +16,7 @@ import {
   DISCIPLINE_LABELS,
   getActivities,
   getCheckins,
+  getComidasLogRango,
   getDecision,
   getHealthDays,
   getHistoryTraining,
@@ -501,8 +502,10 @@ function DecisionCard({ decision, onPress }: { decision: Decision | null; onPres
 }
 
 /**
- * La comida de hoy, resumida en una línea: qué sigue y a qué hora. El menú
- * completo y la confirmación de cada comida viven en `/comida-hoy`.
+ * La comida de hoy, resumida en una línea: cuántas ya se confirmaron y la
+ * hora de la que sigue. El menú completo y la confirmación de cada comida
+ * viven en `/comida-hoy` (Fase 2: ahí mismo se abre `/comida/[slot]` para
+ * editar la hora real o decir por qué se saltó).
  */
 function ComidaDeHoy({
   nutrition,
@@ -513,6 +516,25 @@ function ComidaDeHoy({
 }) {
   const { colors } = useTheme();
   const menu = nutrition?.menus[0] ?? null;
+
+  // Cuántas de las de hoy ya se confirmaron. Se pide aparte porque el menú
+  // no sabe de registros: es la misma separación que ya tiene `/comida-hoy`.
+  const [confirmadas, setConfirmadas] = useState(0);
+  useEffect(() => {
+    if (!menu) return;
+    let vivo = true;
+    const hoy = todayISO();
+    getComidasLogRango({ from: hoy, to: hoy })
+      .then((respuesta) => {
+        if (vivo) setConfirmadas(respuesta.registros.filter((registro) => registro.taken).length);
+      })
+      .catch(() => {
+        // Sin poder leer el registro, la tarjeta se queda solo con "sigue".
+      });
+    return () => {
+      vivo = false;
+    };
+  }, [menu]);
 
   if (!menu) {
     return (
@@ -527,8 +549,8 @@ function ComidaDeHoy({
 
   const siguiente = pickNextMeal(menu.meals);
   const summary = siguiente
-    ? `Sigue ${siguiente.label.toLowerCase()} · ${siguiente.timeHint}`
-    : `${menu.meals.length} comidas hoy`;
+    ? `Comidas · ${confirmadas} de ${menu.meals.length} · siguiente ${siguiente.timeHint}`
+    : `Comidas · ${confirmadas} de ${menu.meals.length}`;
 
   return (
     <ScoreCard
