@@ -1,4 +1,11 @@
-import { compatibilidad, ordenar, porqueDeCombo, repartirMinutos, type BloqueDia } from "@/lib/training/combinaciones";
+import {
+  avisoDeRiesgo,
+  compatibilidad,
+  ordenar,
+  porqueDeCombo,
+  repartirMinutos,
+  type BloqueDia,
+} from "@/lib/training/combinaciones";
 import { DAY_GROUPS, WEEK_DAYS, type WeekDay } from "@/lib/training/split";
 import {
   prescribirSesion,
@@ -216,8 +223,19 @@ function noteFor(discipline: Discipline, weekday: WeekDay, gym: Map<WeekDay, Day
  * tiene dos. Entre todos los días donde cabe, se queda con el de mejor
  * `compatibilidad` — no con el primero que encuentra.
  *
- * Muta `colocaciones`, `dobles` y `gymMinutesPorFecha` cuando encuentra dónde
- * anexar. Devuelve `true` si lo logró.
+ * `opts.soloGym` (Fase 11): cuando la disciplina viene en `modo: 'DESPUES'`,
+ * solo se ofrece anexar a un día de GIMNASIO — eso es literalmente lo que
+ * "después" significa, "después de pesas". Sin esto, una `DESPUES` podría
+ * terminar pegada a otra secundaria, que no es lo que la persona pidió.
+ *
+ * `opts.explicita` (Fase 11): la persona ya eligió a propósito que esta
+ * disciplina vaya después de pesas — se pasa a `compatibilidad` para que la
+ * combinación pierna + alto impacto no se cierre en `null` como cuando el
+ * motor decide solo, sino que baje a compatibilidad mínima y avise el
+ * riesgo (`avisoDeRiesgo`) si termina siendo la elegida.
+ *
+ * Muta `colocaciones`, `dobles`, `gymMinutesPorFecha` y `avisos` cuando
+ * encuentra dónde anexar. Devuelve `true` si lo logró.
  */
 function intentarAnexar(
   discipline: Discipline,
@@ -227,6 +245,8 @@ function intentarAnexar(
   gymMinutesPorFecha: Record<string, number>,
   weekStart: Date,
   timePerDay: Partial<Record<WeekDay, number>> | null | undefined,
+  avisos: string[],
+  opts?: { soloGym?: boolean; explicita?: boolean },
 ): boolean {
   const nuevo: BloqueDia = { discipline };
 
@@ -245,6 +265,7 @@ function intentarAnexar(
     if (dobles.has(weekday)) continue; // ya tiene sus dos bloques
 
     const esGym = gymByDay.has(weekday);
+    if (opts?.soloGym && !esGym) continue; // DESPUES solo se anexa a gimnasio
     const ocupante = esGym ? null : (colocaciones.find((c) => c.weekday === weekday) ?? null);
     if (!esGym && !ocupante) continue; // día completamente libre: no es de Fase 2
 
@@ -252,7 +273,7 @@ function intentarAnexar(
       ? { discipline: "PESAS", dayKind: gymByDay.get(weekday) }
       : { discipline: ocupante!.discipline };
 
-    const score = compatibilidad(existente, nuevo);
+    const score = compatibilidad(existente, nuevo, { explicita: opts?.explicita });
     if (score === null) continue;
 
     const orden = ordenar(existente, nuevo);
@@ -281,6 +302,15 @@ function intentarAnexar(
   const [primero, segundo] = mejor.orden;
   const explicacion = porqueDeCombo(primero, segundo);
   const nuevoEsPrimero = primero.discipline === discipline;
+
+  // Se eligió la combinación pierna + alto impacto porque la persona la pidió
+  // a propósito (`opts.explicita`): `compatibilidad` ya la dejó pasar con
+  // puntaje bajo en vez de `null`, y aquí se avisa el riesgo — combinar sin
+  // decirlo sería tan malo como prohibirlo sin excepción.
+  if (opts?.explicita) {
+    const aviso = avisoDeRiesgo(primero, segundo);
+    if (aviso) avisos.push(aviso);
+  }
   const minutosNuevo = nuevoEsPrimero ? mejor.minutos[0] : mejor.minutos[1];
   const minutosExistente = nuevoEsPrimero ? mejor.minutos[1] : mejor.minutos[0];
 
@@ -542,9 +572,23 @@ export function planDisciplines(input: {
 }): DisciplinePlan {
   const { weekStart, otherDisciplines, gymByDay, niveles, objetivo, isoWeek, timePerDay, compactos } = input;
 
+  // Fase 11: `modo: 'DESPUES'` es una disciplina que ya se decidió que va
+  // después de pesas — no compite por un día propio ni paga presupuesto
+  // (`sessionsSpentOutsideGym` en `split.ts` la ignora). `DIA_PROPIO`, o sin
+  // `modo` declarado (compatibilidad hacia atrás), sigue el reparto de
+  // siempre: día libre primero, y solo si no cabe se anexa.
+  const cargaDespues = otherDisciplines.filter((load) => load.modo === "DESPUES");
+  const cargaDiaPropio = otherDisciplines.filter((load) => load.modo !== "DESPUES");
+
   // Las de alto impacto se colocan primero: son las que tienen restricciones
   // duras. Si se colocan al final, se quedan con los días que nadie quiso.
-  const queue = otherDisciplines
+  const queue = cargaDiaPropio
+    .flatMap((load) =>
+      Array.from({ length: Math.max(0, Math.min(7, Math.trunc(load.sessionsPerWeek))) }, () => load.discipline),
+    )
+    .sort((a, b) => Number(HIGH_IMPACT.includes(b)) - Number(HIGH_IMPACT.includes(a)));
+
+  const queueDespues = cargaDespues
     .flatMap((load) =>
       Array.from({ length: Math.max(0, Math.min(7, Math.trunc(load.sessionsPerWeek))) }, () => load.discipline),
     )
@@ -587,7 +631,29 @@ export function planDisciplines(input: {
   }
 
   // FASE 2 — anexar como segundo bloque a un día ya ocupado. ---------------
+  // Primero las `DESPUES`: NUNCA pasaron por la Fase 1 (no compiten por un
+  // día propio, van después de pesas por definición) y solo se ofrecen a
+  // días de gimnasio (`soloGym`). `explicita` deja que, si de plano el único
+  // gym de la semana es de pierna, la combinación con squash/box se acepte
+  // con aviso en vez de cerrarse en seco — la persona ya lo pidió así.
   const noColocadas: Discipline[] = [];
+  for (const discipline of queueDespues) {
+    const anexada = intentarAnexar(
+      discipline,
+      gymByDay,
+      colocaciones,
+      dobles,
+      gymMinutesPorFecha,
+      weekStart,
+      timePerDay,
+      avisos,
+      { soloGym: true, explicita: true },
+    );
+    if (!anexada) noColocadas.push(discipline);
+  }
+
+  // Después lo que la Fase 1 no pudo colocar en día libre: el motor decide
+  // solo dónde anexarlo, así que las reglas duras siguen sin excepción.
   for (const discipline of sinColocar) {
     const anexada = intentarAnexar(
       discipline,
@@ -597,6 +663,7 @@ export function planDisciplines(input: {
       gymMinutesPorFecha,
       weekStart,
       timePerDay,
+      avisos,
     );
     if (!anexada) noColocadas.push(discipline);
   }

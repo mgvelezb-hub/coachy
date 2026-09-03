@@ -139,15 +139,28 @@ function redondearA5(minutos: number): number {
  * parecido al swing) — llegar a una ronda con eso ya cargado resta calidad al
  * swing, aunque no sea una incompatibilidad física que amerite bloquear la
  * combinación.
+ *
+ * `opts.explicita` (Fase 11): la regla de pierna + alto impacto es dura
+ * cuando el MOTOR decide solo dónde cae cada disciplina — ahí sigue
+ * prohibida sin excepción. Pero cuando la persona ya lo pidió a propósito
+ * (`modo: 'DESPUES'` en una disciplina secundaria, o un override de bloque),
+ * negarle la combinación no la protege de nada: ella ya sabe que quiere
+ * squash después de pierna. Esos casos bajan a compatibilidad mínima en vez
+ * de `null` — se ofrecen solo si de plano no hay nada mejor — y quien la
+ * elige debe avisar el riesgo (`avisoDeRiesgo`).
  */
-export function compatibilidad(a: BloqueDia, b: BloqueDia): number | null {
+export function compatibilidad(
+  a: BloqueDia,
+  b: BloqueDia,
+  opts?: { explicita?: boolean },
+): number | null {
   if (a.discipline === b.discipline) return null;
 
   if (
     (esDiaDePierna(a) && ALTO_IMPACTO.includes(b.discipline)) ||
     (esDiaDePierna(b) && ALTO_IMPACTO.includes(a.discipline))
   ) {
-    return null;
+    return opts?.explicita ? 10 : null;
   }
 
   if (esSquashBox(a, b)) return null;
@@ -276,4 +289,20 @@ export function porqueDeCombo(primero: BloqueDia, segundo: BloqueDia): string {
 
 function capitaliza(texto: string): string {
   return texto.charAt(0).toUpperCase() + texto.slice(1);
+}
+
+/**
+ * El aviso de riesgo de una combinación pierna + alto impacto que solo existe
+ * porque la persona la pidió explícita (`compatibilidad(..., { explicita:
+ * true })`). `null` cuando el par no es ese caso — así quien llama no tiene
+ * que repetir la condición para saber si debe mostrarlo.
+ */
+export function avisoDeRiesgo(a: BloqueDia, b: BloqueDia): string | null {
+  const pierna = esDiaDePierna(a) ? a : esDiaDePierna(b) ? b : null;
+  if (!pierna) return null;
+
+  const otra = pierna === a ? b : a;
+  if (!ALTO_IMPACTO.includes(otra.discipline)) return null;
+
+  return `Pierna pesada y ${NOMBRES_DISCIPLINA[otra.discipline].toLowerCase()} el mismo día: baja el rendimiento y sube el riesgo de lesión.`;
 }

@@ -225,6 +225,21 @@ describe("presupuesto semanal de sesiones", () => {
     ).toBe(3);
   });
 
+  it("modo DESPUES no gasta presupuesto: se anexa a un día de gym que ya existe", () => {
+    expect(
+      sessionsSpentOutsideGym([
+        { discipline: "NATACION", sessionsPerWeek: 2, modo: "DESPUES" },
+        { discipline: "BOX", sessionsPerWeek: 1 },
+      ]),
+    ).toBe(1);
+  });
+
+  it("modo DIA_PROPIO gasta presupuesto igual que sin modo declarado", () => {
+    expect(
+      sessionsSpentOutsideGym([{ discipline: "NATACION", sessionsPerWeek: 2, modo: "DIA_PROPIO" }]),
+    ).toBe(2);
+  });
+
   it("el presupuesto recorta también el horario declarado", () => {
     const week = generate(
       profile({

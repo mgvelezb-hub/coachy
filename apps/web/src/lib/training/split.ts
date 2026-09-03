@@ -121,11 +121,15 @@ function touchesInjuredZone(kind: DayKind, zones: MuscleGroup[]): boolean {
  * Cuántas sesiones de la semana se van en otras disciplinas.
  *
  * Una disciplina declarada sin sesiones no gasta nada: está activa para el
- * registro, no para la planeación.
+ * registro, no para la planeación. Y una en `modo: 'DESPUES'` (Fase 11)
+ * tampoco gasta: se anexa a un día de gimnasio que YA existe, no le pide uno
+ * propio al presupuesto — es justo la diferencia con `DIA_PROPIO` (o sin
+ * `modo`, que es lo mismo por compatibilidad hacia atrás).
  */
 export function sessionsSpentOutsideGym(otherDisciplines: DisciplineLoad[]): number {
   return otherDisciplines.reduce(
-    (total, load) => total + Math.max(0, Math.trunc(load.sessionsPerWeek)),
+    (total, load) =>
+      load.modo === "DESPUES" ? total : total + Math.max(0, Math.trunc(load.sessionsPerWeek)),
     0,
   );
 }

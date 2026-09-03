@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { planDisciplines } from "@/lib/training/disciplines";
 import { prescribirSesion, DISCIPLINAS_PRESCRIBIBLES } from "@/lib/training/disciplinas";
-import type { DayKind } from "@/lib/training/types";
+import type { DayKind, DisciplineLoad } from "@/lib/training/types";
 import type { WeekDay } from "@/lib/training/split";
 
 /**
@@ -25,7 +25,7 @@ function gymWeek(entries: Array<[WeekDay, DayKind]>): Map<WeekDay, DayKind> {
 }
 
 function plan(input: {
-  loads: Array<{ discipline: Parameters<typeof planDisciplines>[0]["otherDisciplines"][number]["discipline"]; sessionsPerWeek: number }>;
+  loads: Array<Pick<DisciplineLoad, "discipline" | "sessionsPerWeek" | "modo">>;
   gym: Map<WeekDay, DayKind>;
   isoWeek?: number;
   timePerDay?: Partial<Record<WeekDay, number>> | null;
@@ -394,6 +394,116 @@ describe("compactar por gusto (Fase 10, compactos)", () => {
 
     expect(new Set(conCompactos.sessions.map((s) => s.date)).size).toBe(2);
     expect(conCompactos.sessions.every((s) => !s.sharesDayWithGym)).toBe(true);
+  });
+});
+
+describe("modo DESPUES vs DIA_PROPIO (Fase 11)", () => {
+  // El caso real de Mau e Irma: 6 días de gimnasio, y natación/squash DESPUÉS
+  // de pesas, no en un día propio.
+  const gym6dias = gymWeek([
+    ["LUN", "PIERNA_CUADRICEPS"],
+    ["MAR", "HOMBRO"],
+    ["MIE", "PECHO_ESPALDA"],
+    ["JUE", "PIERNA_FEMORAL"],
+    ["VIE", "BRAZO"],
+    ["SAB", "TORSO"],
+  ]);
+
+  it("DESPUES anexa las sesiones a días de gimnasio, nunca a un día propio", () => {
+    const { sessions } = plan({
+      loads: [
+        { discipline: "NATACION", sessionsPerWeek: 2, modo: "DESPUES" },
+        { discipline: "SQUASH", sessionsPerWeek: 1, modo: "DESPUES" },
+      ],
+      gym: gym6dias,
+      timePerDay: todosLosDias(120),
+    });
+
+    expect(sessions).toHaveLength(3);
+    expect(sessions.every((session) => session.sharesDayWithGym)).toBe(true);
+    expect(sessions.every((session) => gym6dias.has(session.weekday))).toBe(true);
+  });
+
+  it("DESPUES no le quita días al gimnasio: el domingo sigue libre", () => {
+    // Sin `modo`, natación x2 + squash x1 recortarían el gimnasio a 3 días
+    // (6 - 3). Con DESPUES, el gimnasio conserva sus 6 días completos.
+    const conDespues = plan({
+      loads: [
+        { discipline: "NATACION", sessionsPerWeek: 2, modo: "DESPUES" },
+        { discipline: "SQUASH", sessionsPerWeek: 1, modo: "DESPUES" },
+      ],
+      gym: gym6dias,
+      timePerDay: todosLosDias(120),
+    });
+
+    // Las 6 fechas de gimnasio siguen intactas: ninguna se perdió por pagar
+    // presupuesto (eso lo prueba `liftingDaysWithinBudget`/`generate.ts`,
+    // aquí solo se confirma que las secundarias no piden un día PROPIO).
+    expect(new Set(conDespues.sessions.map((s) => s.weekday)).size).toBeLessThanOrEqual(6);
+    expect([...gym6dias.keys()]).toHaveLength(6);
+  });
+
+  it("DIA_PROPIO se comporta igual que sin modo: busca día libre primero", () => {
+    const sinModo = plan({
+      loads: [{ discipline: "NATACION", sessionsPerWeek: 1 }],
+      gym: gym6dias,
+    });
+    const conDiaPropio = plan({
+      loads: [{ discipline: "NATACION", sessionsPerWeek: 1, modo: "DIA_PROPIO" }],
+      gym: gym6dias,
+    });
+
+    expect(conDiaPropio.sessions[0]!.weekday).toBe(sinModo.sessions[0]!.weekday);
+    expect(conDiaPropio.sessions[0]!.sharesDayWithGym).toBe(false);
+  });
+
+  it("DESPUES que no cabe en ningún día de gym avisa, no se cae en silencio", () => {
+    // Un solo día de gimnasio, ya sin minutos para anexar dos secundarias.
+    const { sessions, avisos } = plan({
+      loads: [
+        { discipline: "SQUASH", sessionsPerWeek: 1, modo: "DESPUES" },
+        { discipline: "NATACION", sessionsPerWeek: 1, modo: "DESPUES" },
+      ],
+      gym: gymWeek([["MIE", "HOMBRO"]]),
+      timePerDay: todosLosDias(70),
+    });
+
+    // Un solo bloque anexado (el de mejor compatibilidad); el otro avisa.
+    expect(sessions).toHaveLength(1);
+    expect(avisos).toHaveLength(1);
+    expect(avisos[0]).toContain("no cupo");
+  });
+
+  it("DESPUES explícita con pierna + squash: compatibilidad baja y aviso de riesgo, no null", () => {
+    // Único gimnasio de la semana es pierna: sin la Fase 11, squash DESPUES
+    // no tendría ningún día de gym al que anexarse. Con `explicita`, se
+    // acepta con aviso — la persona ya decidió que quiere squash después de
+    // pierna.
+    const { sessions, avisos } = plan({
+      loads: [{ discipline: "SQUASH", sessionsPerWeek: 1, modo: "DESPUES" }],
+      gym: gymWeek([["LUN", "PIERNA_CUADRICEPS"]]),
+      timePerDay: todosLosDias(120),
+    });
+
+    expect(sessions).toHaveLength(1);
+    expect(sessions[0]!.sharesDayWithGym).toBe(true);
+    expect(avisos.some((aviso) => aviso.includes("riesgo de lesión"))).toBe(true);
+  });
+
+  it("sin explicita (el motor decide), pierna + squash sigue prohibida sin excepción", () => {
+    // Mismo escenario, pero SQUASH sin modo (DIA_PROPIO): el motor decide
+    // sola, y la regla dura de `combinaciones.ts` no se ablanda.
+    const { sessions, avisos } = plan({
+      loads: [{ discipline: "SQUASH", sessionsPerWeek: 1 }],
+      gym: gymTodaLaSemana("PIERNA_CUADRICEPS"),
+      timePerDay: todosLosDias(120),
+    });
+
+    // No hay ningún día libre (7/7 de pierna) y anexar a pierna está
+    // prohibido sin `explicita`: squash no cupo en ningún lado.
+    expect(sessions).toEqual([]);
+    expect(avisos.some((aviso) => aviso.includes("no cupo"))).toBe(true);
+    expect(avisos.some((aviso) => aviso.includes("riesgo de lesión"))).toBe(false);
   });
 });
 

@@ -68,12 +68,12 @@ export function volumeBiasForPhase(phase: Phase): VolumeBias {
  * puede dejar a nadie sin entrenar.
  *
  * `discipline` y `sessionsPerWeek` siguen siendo obligatorios — sin ellos la
- * entrada entera no dice nada útil y se descarta. `proposito` e `importancia`
- * (Fase de preferencias declaradas) son **tolerantes campo por campo**: una
- * entrada vieja que no los trae sigue siendo válida sin ellos, y un valor
- * fuera de rango (`importancia: 7`, un `proposito` que no existe) tira solo
- * ese campo, no la entrada — la persona no se queda sin su disciplina activa
- * por un dato corrupto en un campo que ni siquiera pidió.
+ * entrada entera no dice nada útil y se descarta. `proposito`, `importancia`
+ * y `modo` (Fase 11) son **tolerantes campo por campo**: una entrada vieja
+ * que no los trae sigue siendo válida sin ellos, y un valor fuera de rango
+ * (`importancia: 7`, un `proposito` o `modo` que no existe) tira solo ese
+ * campo, no la entrada — la persona no se queda sin su disciplina activa por
+ * un dato corrupto en un campo que ni siquiera pidió.
  */
 export function parseDisciplineLoads(raw: unknown): DisciplineLoad[] {
   if (!Array.isArray(raw)) return [];
@@ -81,7 +81,7 @@ export function parseDisciplineLoads(raw: unknown): DisciplineLoad[] {
   const loads: DisciplineLoad[] = [];
   for (const entry of raw) {
     if (entry === null || typeof entry !== "object") continue;
-    const { discipline, sessionsPerWeek, proposito, importancia } = entry as Record<string, unknown>;
+    const { discipline, sessionsPerWeek, proposito, importancia, modo } = entry as Record<string, unknown>;
     if (typeof discipline !== "string") continue;
     if (!(DISCIPLINES as readonly string[]).includes(discipline)) continue;
     if (typeof sessionsPerWeek !== "number" || !Number.isFinite(sessionsPerWeek)) continue;
@@ -102,6 +102,9 @@ export function parseDisciplineLoads(raw: unknown): DisciplineLoad[] {
       importancia <= 3
     ) {
       load.importancia = importancia;
+    }
+    if (modo === "DESPUES" || modo === "DIA_PROPIO") {
+      load.modo = modo;
     }
 
     loads.push(load);

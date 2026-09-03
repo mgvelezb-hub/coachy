@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  avisoDeRiesgo,
   compatibilidad,
   ordenar,
   porqueDeCombo,
@@ -49,6 +50,19 @@ describe("compatibilidad: las incompatibilidades duras", () => {
     expect(compatibilidad(CROSSFIT, PIERNA)).toBeNull();
     expect(compatibilidad(CROSSFIT, TORSO_GYM)).toBeNull();
     expect(compatibilidad(PIERNA, CROSSFIT)).toBeNull();
+  });
+
+  it("pierna + alto impacto explícita baja a compatibilidad mínima en vez de null", () => {
+    for (const alto of [SQUASH, BOX]) {
+      const score = compatibilidad(PIERNA, alto, { explicita: true });
+      expect(score, alto.discipline).not.toBeNull();
+      expect(score!).toBeLessThan(compatibilidad(TORSO_GYM, alto)!);
+    }
+  });
+
+  it("sin explicita, pierna + alto impacto sigue null aunque se pase el objeto de opts", () => {
+    expect(compatibilidad(PIERNA, SQUASH, { explicita: false })).toBeNull();
+    expect(compatibilidad(PIERNA, SQUASH, {})).toBeNull();
   });
 
   it("una disciplina consigo misma nunca combina", () => {
@@ -181,5 +195,18 @@ describe("porqueDeCombo", () => {
   it("cuando squash o box abren, explica que es por piernas frescas", () => {
     expect(porqueDeCombo(SQUASH, TORSO_GYM)).toContain("frescas");
     expect(porqueDeCombo(BOX, TORSO_GYM)).toContain("frescas");
+  });
+});
+
+describe("avisoDeRiesgo", () => {
+  it("avisa cuando el par es pierna + alto impacto, en cualquier orden", () => {
+    expect(avisoDeRiesgo(PIERNA, SQUASH)).toContain("riesgo de lesión");
+    expect(avisoDeRiesgo(BOX, PIERNA)).toContain("riesgo de lesión");
+  });
+
+  it("no avisa fuera de ese par, aunque haya pierna o alto impacto por separado", () => {
+    expect(avisoDeRiesgo(PIERNA, NATACION)).toBeNull();
+    expect(avisoDeRiesgo(TORSO_GYM, SQUASH)).toBeNull();
+    expect(avisoDeRiesgo(SQUASH, BOX)).toBeNull();
   });
 });

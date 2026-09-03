@@ -71,6 +71,30 @@ describe("parseDisciplineLoads", () => {
     expect(parseDisciplineLoads("basura")).toEqual([]);
     expect(parseDisciplineLoads({ discipline: "PESAS", sessionsPerWeek: 1 })).toEqual([]);
   });
+
+  it("conserva modo cuando viene válido", () => {
+    const loads = parseDisciplineLoads([
+      { discipline: "NATACION", sessionsPerWeek: 2, modo: "DESPUES" },
+      { discipline: "SQUASH", sessionsPerWeek: 1, modo: "DIA_PROPIO" },
+    ]);
+
+    expect(loads[0]).toMatchObject({ modo: "DESPUES" });
+    expect(loads[1]).toMatchObject({ modo: "DIA_PROPIO" });
+  });
+
+  it("descarta un modo que no existe pero conserva la entrada sin él", () => {
+    const loads = parseDisciplineLoads([
+      { discipline: "BOX", sessionsPerWeek: 1, modo: "A_VECES" },
+    ]);
+
+    expect(loads).toHaveLength(1);
+    expect(loads[0]).not.toHaveProperty("modo");
+  });
+
+  it("entradas viejas sin modo no lo traen: el parser no inventa un default", () => {
+    const loads = parseDisciplineLoads([{ discipline: "NATACION", sessionsPerWeek: 2 }]);
+    expect(loads[0]).not.toHaveProperty("modo");
+  });
 });
 
 describe("parseTimePerDay", () => {

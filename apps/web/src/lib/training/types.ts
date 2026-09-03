@@ -269,12 +269,28 @@ export type Proposito = "ENTRENAMIENTO" | "COMPLEMENTO" | "HOBBY";
  * antes de esta fase) no los traen: `parseDisciplineLoads` las sigue
  * aceptando sin ellos.
  */
+/**
+ * Cómo convive esta disciplina con el gimnasio (Fase 11).
+ *
+ * `DESPUES`: se anexa como segundo bloque a los días de gimnasio — "squash
+ * después de pesas", el caso real de Mau e Irma — y NO le quita días al
+ * presupuesto de pesas (`liftingDaysWithinBudget` la ignora). `DIA_PROPIO`:
+ * el comportamiento de siempre, un día propio que sí paga presupuesto.
+ * Ausente = `DIA_PROPIO`: las cargas guardadas antes de esta fase no traen el
+ * campo, y perderían su día si el default cambiara de comportamiento debajo
+ * de ellas. La pantalla de Ajustes sí preselecciona `DESPUES` para una
+ * disciplina nueva — es lo que casi siempre se quiere —, pero eso es un
+ * default de formulario, no del parser.
+ */
+export type ModoDisciplina = "DESPUES" | "DIA_PROPIO";
+
 export type DisciplineLoad = {
   discipline: Discipline;
   sessionsPerWeek: number;
   proposito?: Proposito;
   /** 1 a 3. Fuera de rango se descarta el campo, no la entrada entera. */
   importancia?: number;
+  modo?: ModoDisciplina;
 };
 
 /** Nivel en el agua. Igual que `SwimLevel` en el schema. */
