@@ -8,6 +8,7 @@ import { aplicaCambios, parseCambiosDeBloque } from "@/lib/training/bloques";
 import { emphasisFor } from "@/lib/training/emphasis";
 import { planDisciplines, type OtherSession } from "@/lib/training/disciplines";
 import { generateWeek, mondayOf, sundayEndOf } from "@/lib/training/generate";
+import { esUnilateral } from "@/lib/training/coach";
 import { isoWeekNumber, SCHEME_PREFERENCES } from "@/lib/training/schemes";
 import {
   WEEK_DAYS,
@@ -34,6 +35,7 @@ import type {
   SwimLevel,
   Tempo,
   TrainingProfile,
+  UnilateralMode,
   VolumeBias,
   Warmup,
   WarmupStep,
@@ -192,6 +194,7 @@ export function toTrainingProfile(profile: Profile): TrainingProfile {
     // corrupto llave por llave: un día mal escrito no puede dejarla sin
     // semana.
     customSplit: normalizeCustomSplit(profile.customSplit),
+    unilateralMode: parseUnilateralMode(profile.customSplit),
   };
 }
 
@@ -229,6 +232,10 @@ export async function loadCatalog(): Promise<ExerciseOption[]> {
     substitutes: row.substitutes,
     level: row.level,
     equipment: row.equipment,
+    // `exercises` no tiene columna `unilateral` y el schema está congelado en
+    // esta fase: se deduce aquí, una sola vez, para que el generador y la
+    // biblioteca vean lo mismo. Ver `esUnilateral` en `coach.ts`.
+    unilateral: esUnilateral(row),
   }));
 }
 
@@ -263,6 +270,22 @@ export async function loadHistory(
       }),
     ),
   }));
+}
+
+/**
+ * Cómo se hacen los unilaterales, guardado DENTRO de `custom_split`.
+ *
+ * No hay columna para esto y el schema está congelado en esta fase, así que
+ * viaja como una llave reservada del JSON del split (`_unilateral`), que es el
+ * único JSON del perfil que habla de cómo se arma el entrenamiento.
+ * `normalizeCustomSplit` ignora todo lo que no sea un día de la semana, así
+ * que la llave no puede ensuciar el split; cuando haya columna, este parser se
+ * queda como respaldo de los perfiles ya guardados.
+ */
+export function parseUnilateralMode(raw: unknown): UnilateralMode {
+  if (raw === null || typeof raw !== "object" || Array.isArray(raw)) return "SEGUIDO";
+  const valor = (raw as Record<string, unknown>)._unilateral;
+  return valor === "ALTERNADO" ? "ALTERNADO" : "SEGUIDO";
 }
 
 /** El tempo tal como se guardó. Cualquier cosa que no sean tres números se ignora. */

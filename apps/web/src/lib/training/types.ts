@@ -41,6 +41,12 @@ export type DayKind =
 /** Esquemas sello del coach. Rotan por semana ISO. */
 export type SchemeId =
   | "PIRAMIDAL"
+  /**
+   * Piramidal de PESO (15-12-10-8): las reps bajan y el peso sube serie a
+   * serie. El `PIRAMIDAL` de siempre baja de 10 a 2 y es de fuerza; este vive
+   * en el rango de músculo y es el que el coach prescribe de base.
+   */
+  | "PIRAMIDAL_PESO"
   | "FUERZA"
   | "METABOLICO"
   | "RANGO_MEDIO"
@@ -52,7 +58,12 @@ export type SchemeId =
  * `SCHEME_PREFERENCES` en `schemes.ts` (repetido aquí porque `types.ts` es
  * puro y no importa ese módulo, igual que `Discipline` o `Proposito`).
  */
-export type SchemePreference = "RECOMENDADO" | "FUERZA" | "HIPERTROFIA" | "METABOLICO";
+export type SchemePreference =
+  | "RECOMENDADO"
+  | "FUERZA"
+  | "HIPERTROFIA"
+  | "METABOLICO"
+  | "COACH";
 
 /**
  * Cuánto volumen mete el generador en la sesión. Concepto propio del
@@ -341,7 +352,17 @@ export type TrainingProfile = {
    * manos es la forma más rápida de que deje de confiar en el plan.
    */
   customSplit?: CustomSplit | null;
+  /**
+   * Cómo se hacen los ejercicios de un lado a la vez: `SEGUIDO` (default)
+   * todas las series del derecho y luego las del izquierdo; `ALTERNADO` va
+   * cambiando de lado serie a serie.
+   */
+  unilateralMode?: UnilateralMode;
 };
+
+/** Ver `TrainingProfile.unilateralMode`. */
+export const UNILATERAL_MODES = ["SEGUIDO", "ALTERNADO"] as const;
+export type UnilateralMode = (typeof UNILATERAL_MODES)[number];
 
 /**
  * Split declarado por día de la semana: `{"LUN": "PIERNA_CUADRICEPS", ...}`.

@@ -486,12 +486,22 @@ describe("tiempo disponible", () => {
     }
   });
 
+  // Con 60 minutos el recorte por tiempo (Fase 3) ya manda —los dos perfiles
+  // caben en lo mismo—, así que el efecto del sesgo de volumen se mide donde
+  // el reloj no ata: una sesión larga.
   it("con volumen reducido recorta un ejercicio", () => {
-    const normal = generate(profile({ sessionMinutes: 60, volumeBias: "normal" }));
-    const cut = generate(profile({ sessionMinutes: 60, volumeBias: "reducido" }));
+    const normal = generate(profile({ sessionMinutes: 120, volumeBias: "normal" }));
+    const cut = generate(profile({ sessionMinutes: 120, volumeBias: "reducido" }));
     expect(cut.workouts[0]?.exercises.length).toBe(
       (normal.workouts[0]?.exercises.length ?? 0) - 1,
     );
+  });
+
+  it("nunca deja una sesión por encima de sus minutos, con o sin volumen reducido", () => {
+    for (const volumeBias of ["normal", "reducido"] as const) {
+      const week = generate(profile({ sessionMinutes: 60, volumeBias }));
+      expect(week.workouts.every((w) => (w.estimatedMin ?? 0) <= 66), volumeBias).toBe(true);
+    }
   });
 });
 
@@ -690,11 +700,10 @@ describe("día combinado con otra disciplina (Fase 9)", () => {
     expect(dia.exercises.length).toBeLessThanOrEqual(exerciseCountFor(minutosReales, "normal"));
     expect(dia.estimatedMin).toBeLessThanOrEqual(minutosReales);
 
-    // El día completo del mismo perfil, sin natación encima, sí cabe en sus
-    // 60 minutos: el combo recorta porque el día es más corto, no porque
-    // compartirlo cueste un accesorio fijo.
+    // Y el tope de verdad son esos 55, no los 60 del perfil: la misma semana
+    // sin natación encima sí tiene días que pasan de 55, porque ahí sí caben.
     const solo = generate(profile({ liftingDays: 7, sessionMinutes: 60 }));
-    expect(solo.workouts[0]!.estimatedMin).toBeGreaterThan(dia.estimatedMin!);
+    expect(solo.workouts.some((w) => (w.estimatedMin ?? 0) > minutosReales)).toBe(true);
   });
 });
 

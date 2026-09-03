@@ -13,6 +13,25 @@ export const SCHEMES: Record<SchemeId, Scheme> = {
     restSeconds: 60,
     ramping: true,
   },
+  /**
+   * El piramidal de PESO del coach: 15-12-10-8 subiendo el peso serie a
+   * serie. Distinto del `PIRAMIDAL` de siempre (10-8-6-4-2), que termina en
+   * dobles: aquel es trabajo de fuerza, este vive todo el tiempo en el rango
+   * de músculo y es el que el coach usa de base para los básicos.
+   *
+   * Los pesos NO salen de la rampa lineal de `buildTargetSets`: se derivan de
+   * la tabla de intensidad relativa por repeticiones (`intensityForReps` en
+   * `progression.ts`), que es lo que hace que 15 reps queden en ~81 % del
+   * peso de 8 y no en un 65 % inventado. Ver `pesosPorIntensidad` en
+   * `coach.ts`.
+   */
+  PIRAMIDAL_PESO: {
+    id: "PIRAMIDAL_PESO",
+    label: "4 series 15-12-10-8 subiendo peso",
+    reps: [15, 12, 10, 8],
+    restSeconds: 60,
+    ramping: true,
+  },
   FUERZA: {
     id: "FUERZA",
     label: "5 series de 6 con peso máximo",
@@ -77,7 +96,13 @@ export const SCHEME_ROTATION: SchemeId[] = ["PIRAMIDAL", "FUERZA", "METABOLICO",
  * Los días de `REHAB` NUNCA respetan esta preferencia: la lesión manda sobre
  * el gusto (`schemeForExercise` revisa `options.rehab` antes que nada).
  */
-export const SCHEME_PREFERENCES = ["RECOMENDADO", "FUERZA", "HIPERTROFIA", "METABOLICO"] as const;
+export const SCHEME_PREFERENCES = [
+  "RECOMENDADO",
+  "FUERZA",
+  "HIPERTROFIA",
+  "METABOLICO",
+  "COACH",
+] as const;
 export type SchemePreference = (typeof SCHEME_PREFERENCES)[number];
 
 /**
@@ -109,6 +134,14 @@ export function isoWeekNumber(date: Date): number {
  * dejar a nadie sin rutina.
  */
 export function schemeForWeek(date: Date, preference?: SchemePreference): SchemeId {
+  // `COACH` es la forma de entrenar del coach de Irma, tal cual: piramidal de
+  // peso una semana, rango medio la otra, y en los accesorios la última serie
+  // al fallo (eso lo pone `coach.ts`, que es donde vive lo que el esquema no
+  // sabe expresar). No es una quinta variante de "elige tu rango de reps":
+  // es el método completo, y por eso rota como rota el original.
+  if (preference === "COACH") {
+    return isoWeekNumber(date) % 2 === 1 ? "PIRAMIDAL_PESO" : "RANGO_MEDIO";
+  }
   if (preference === "FUERZA") return "FUERZA";
   if (preference === "METABOLICO") return "METABOLICO";
   // `HIPERTROFIA` no es un esquema del catálogo: se mapea a `RANGO_MEDIO`

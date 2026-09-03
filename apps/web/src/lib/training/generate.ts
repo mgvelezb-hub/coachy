@@ -1,5 +1,6 @@
 import { fromISODate, shiftISODate, toISODate, weekdayIn } from "@/lib/format";
 import { calentamientoPara } from "@/lib/training/calentamiento";
+import { aplicaEsquemaDeCoach, esUnilateral } from "@/lib/training/coach";
 import { gruposFatigados } from "@/lib/training/carga-muscular";
 import {
   buildTargetSets,
@@ -395,12 +396,28 @@ export function generateWeek(
 
       const isFirst = candidatos.length === 0;
 
-      const sets = buildTargetSets(scheme, suggested, {
-        warmupSets: isFirst ? WARMUP_SETS : 0,
-        // Si la última vez se quedó corta, esta semana arranca en lo que sí
-        // hizo: pedirle otra vez el número que no alcanzó no es un objetivo.
-        reps: repsObjetivo(scheme, last),
-      });
+      // El catálogo no trae la columna: se deduce del nombre y el rol (ver
+      // `esUnilateral`).
+      const unilateral = option.unilateral ?? esUnilateral(option);
+
+      const sets = aplicaEsquemaDeCoach(
+        buildTargetSets(scheme, suggested, {
+          warmupSets: isFirst ? WARMUP_SETS : 0,
+          // Si la última vez se quedó corta, esta semana arranca en lo que sí
+          // hizo: pedirle otra vez el número que no alcanzó no es un objetivo.
+          reps: repsObjetivo(scheme, last),
+        }),
+        {
+          scheme: schemeId,
+          preference: profile.schemePreference,
+          topWeightKg: suggested,
+          // Accesorio = lo que la receta puso en prioridad 3 o 4. El fallo va
+          // ahí y nunca en el básico del día.
+          accesorio: slot.priority >= 3,
+          unilateral,
+          unilateralMode: profile.unilateralMode ?? "SEGUIDO",
+        },
+      );
 
       const exercise: PlannedExercise = {
         exerciseId: option.id,
@@ -419,6 +436,7 @@ export function generateWeek(
             : null,
         sets,
         estimatedMin: minutosDeEjercicio(sets, scheme.restSeconds),
+        ...(unilateral ? { unilateral: true } : {}),
       };
 
       candidatos.push({
