@@ -365,6 +365,23 @@ describe('generador de menus (spec §6)', () => {
     }
   });
 
+  // El platano vive dos veces en el catalogo —fruta y carbohidrato
+  // post-entreno— y el almuerzo salia con "1 pieza de platano" dos veces.
+  it('ningun alimento aparece dos veces en la misma comida', () => {
+    for (const seed of SEEDS) {
+      for (const phase of ['BASE', 'CUT', 'REINTRO'] as Phase[]) {
+        const { plan } = planFor(P, phase, seed);
+        for (const menu of plan.menus) {
+          for (const meal of menu.meals) {
+            const nombres = meal.items.map((i) => i.name);
+            expect(new Set(nombres).size, `${phase} ${meal.slot} seed ${seed}: ${nombres.join(' + ')}`)
+              .toBe(nombres.length);
+          }
+        }
+      }
+    }
+  });
+
   // El reclamo: cenas de nopal + arroz + linaza y de pico de gallo + avena +
   // aceite. Comidas enteras sin proteina. Los macros del DIA cuadraban.
   it('toda comida principal trae una proteina de verdad', () => {

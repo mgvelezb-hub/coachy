@@ -201,6 +201,18 @@ describe.each(CASOS)('$nombre', (caso) => {
     }
   });
 
+  it('ningun alimento aparece dos veces en la misma comida', () => {
+    for (const dia of DIAS) {
+      for (const meal of comidasDe(caso, dia)) {
+        const nombres = meal.items.map((i) => i.name);
+        expect(
+          new Set(nombres).size,
+          `dia ${dia} menu ${meal.menuId} ${meal.slot}: ${nombres.join(' + ')}`,
+        ).toBe(nombres.length);
+      }
+    }
+  });
+
   it('toda comida principal trae una proteina de verdad', () => {
     for (const dia of DIAS) {
       for (const meal of comidasDe(caso, dia)) {

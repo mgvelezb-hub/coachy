@@ -125,6 +125,11 @@ function esTermino(food: Food, termino: string): boolean {
 
 /** true si esos dos alimentos no se sirven en la misma comida. */
 export function incompatibles(a: Food, b: Food, config: EngineConfig): boolean {
+  // El mismo alimento dos veces no es una combinacion, es un renglon repetido:
+  // el platano vive en el catalogo dos veces —como fruta y como carbohidrato
+  // post-entreno— y el almuerzo salia con "1 pieza de platano" dos veces.
+  if (a.id !== b.id && normalize(a.name) === normalize(b.name)) return true;
+
   return config.afinidad.incompatibles.some(
     ([uno, otro]) =>
       (esTermino(a, uno) && esTermino(b, otro)) || (esTermino(a, otro) && esTermino(b, uno)),
@@ -884,6 +889,9 @@ function violaComposicion(comida: Slot[], config: EngineConfig): boolean {
 
   // Dos carbohidratos del mismo subtipo son el mismo plato dos veces: avena
   // con pan, frijol con haba, arroz con pasta.
+  const nombres = comida.map((s) => normalize(s.food.name));
+  if (new Set(nombres).size !== nombres.length) return true;
+
   const carbos = carbosDe(comida);
   if (carbos.length > config.composicion.maxCarbosPorComida) return true;
   for (const subtipo of config.composicion.subtiposDeCarbo) {
