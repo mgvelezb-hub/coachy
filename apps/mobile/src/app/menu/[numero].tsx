@@ -21,9 +21,9 @@ import { fonts, radius, spacing, type as typeScale, type Palette } from "@/lib/t
 
 /**
  * Lo que el motor agregó en F1 y el tipo compartido de `api.ts` todavía no
- * declara: la porción ya escrita como se sirve y el porqué de ese alimento en
- * esa comida. Ambos opcionales — los menús guardados antes de F1 no los
- * traen y esta hoja cae a lo de siempre.
+ * declara: la porción ya escrita como se sirve. `why` se conserva en el tipo
+ * porque la API lo manda y otras pantallas lo consumen, pero esta hoja ya no
+ * lo pinta (feedback: el "?" por alimento "no sirve ni suma").
  */
 type ItemDelMenu = MenuItem & {
   display?: string | null;
@@ -33,14 +33,6 @@ type ItemDelMenu = MenuItem & {
     unitLabel: string;
     note?: string;
   } | null;
-};
-
-/** Lo que ese alimento viene a cerrar, en el vocabulario del dueño. */
-const CIERRA: Record<"proteina" | "carbo" | "grasa" | "fibra", string> = {
-  proteina: "Cierra la proteína de esta comida",
-  carbo: "Cierra el carbohidrato de esta comida",
-  grasa: "Cierra la grasa de esta comida",
-  fibra: "Aporta la fibra y el volumen de esta comida",
 };
 
 /**
@@ -206,14 +198,6 @@ function ComidaDelMenu({
                   {item.name}
                   {item.free ? " · libre" : ""}
                 </Text>
-                {item.why ? (
-                  <InfoTip titulo={item.name}>
-                    <TextoInfo>
-                      {CIERRA[item.why.closes]}
-                      {item.why.note ? ` · ${item.why.note}` : ""} · {item.grams} g
-                    </TextoInfo>
-                  </InfoTip>
-                ) : null}
               </View>
 
               <View style={styles.itemCantidad}>
