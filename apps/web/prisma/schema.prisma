@@ -142,6 +142,11 @@ enum DietStyle {
   AYUNO
   VEGETARIANA
   KETO
+  /// El mismo menú todos los días de la semana, con ajuste programado por
+  /// fase. Es el formato de cualquier coach de gimnasio en México: la
+  /// variedad diaria que rota el motor es ruido para quien prepara su comida
+  /// el domingo y quiere repetirla.
+  MENU_FIJO
 }
 
 /// Nivel de natación declarado por la atleta. Ordena volumen y descansos.
@@ -390,6 +395,22 @@ model Profile {
    * sugerencia del motor. `null` = ninguno movido.
    */
   mealTimes         Json?      @map("meal_times")
+
+  /**
+   * Horarios distintos por día de la semana: `{"SAB": {"DESAYUNO": "10:00"},
+   * "DOM": {...}}`. Solo los días que difieren del horario general; los demás
+   * usan `mealTimes`. Nació del fin de semana: nadie desayuna a las 7 el
+   * sábado y el recordatorio de las 7 se vuelve ruido.
+   */
+  mealTimesByDay    Json?      @map("meal_times_by_day")
+
+  /**
+   * Split fijado por la persona, por día de la semana: `{"LUN":
+   * "PIERNA_CUADRICEPS", "MAR": "PECHO_TRICEP", ...}`. `null` = el motor
+   * elige el split por número de días. Cuando existe, el motor lo respeta y
+   * solo avisa si viola vecindad (hombro el día antes de pecho/espalda).
+   */
+  customSplit       Json?      @map("custom_split")
 
   /**
    * Cuál de los dos menús de la semana quiere cocinar: `AMBOS` (por defecto,
@@ -841,6 +862,14 @@ model MealLog {
   slot String
   /// `true` = la hizo como venía; `false` = la saltó o comió otra cosa.
   taken Boolean
+  /// Hora planeada del slot ese día (`"14:30"`), copiada al registrar para que
+  /// el desfase se pueda medir aunque después se muevan los horarios.
+  plannedAt String?   @map("planned_at")
+  /// Cuándo la comió de verdad. `null` si no la comió o no dijo la hora. Es la
+  /// señal con la que el ciclo semanal propone mover horarios.
+  takenAt   DateTime? @map("taken_at")
+  /// Por qué no la hizo: `sin_hambre`, `sin_tiempo`, `comi_otra_cosa`.
+  skipped   String?
 
   createdAt DateTime @default(now()) @map("created_at")
 
