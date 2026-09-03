@@ -173,7 +173,13 @@ export function distribute(
 
   const carbWeights = template.map((t) => (aggressive ? t.carbPctAggressive : t.carbPct));
   const proteinWeights = template.map((t) => t.proteinPct);
-  const fatWeights = template.map((t) => t.fatPct);
+  // En keto la grasa sigue a la proteina, no a la plantilla. Las plantillas
+  // dejan el pre y el post SIN grasa a proposito —ahi va el carbohidrato del
+  // entrenamiento—, pero en keto ese carbohidrato no existe: toda la grasa del
+  // dia caia en dos comidas y ninguna cabia en un plato (55 g de grasa son mas
+  // que la cucharada de aceite y los 30 g de nueces que un platillo aguanta).
+  const fatWeights =
+    profile.diet === 'keto' ? proteinWeights : template.map((t) => t.fatPct);
 
   const carbs = allocate(macros.carbG, carbWeights);
   const proteins = allocate(macros.proteinG, proteinWeights);

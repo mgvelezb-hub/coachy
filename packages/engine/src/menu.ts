@@ -710,6 +710,13 @@ function preferidosDe(candidatos: Food[], comida: Slot[], config: EngineConfig):
   );
 }
 
+/** Gramos de ese macro que aporta un gramo del alimento. */
+function densidad(food: Food, macro: 'p' | 'c' | 'f'): number {
+  const por100 =
+    macro === 'p' ? food.proteinPer100 : macro === 'c' ? food.carbPer100 : food.fatPer100;
+  return por100 / 100;
+}
+
 /** Macro que ese alimento viene a cerrar en la comida. */
 function macroDominante(food: Food, role?: FoodRole): 'p' | 'c' | 'f' {
   const key = primaryMacroOf(role ?? food.role);
@@ -746,7 +753,7 @@ function ajustarPorciones(
   // suma de sus minimos se pasaba del target por mas de lo que faltaba. Lo que
   // falte despues lo cierra la reparacion del dia moviendo gramos.
   const reforzados: Record<'p' | 'c' | 'f', number> = { p: 0, c: 0, f: 0 };
-  const MAX_REFUERZOS = 1;
+  const MAX_REFUERZOS = 2;
 
   for (let intento = 0; intento < 4; intento += 1) {
     solveGrams(slots, target, config);
@@ -760,7 +767,12 @@ function ajustarPorciones(
       const hayRelevo = movibles.some(
         (s) => s !== flaco && macroDominante(s.food, s.role) === macro,
       );
-      if (hayRelevo) {
+      // Sale si otro alimento cubre su macro, o si su porcion minima se pasa
+      // de lo que la comida pide: en keto la avena entra por 6 g de
+      // carbohidrato y su media taza trae 10, asi que la comida no la
+      // necesita, la padece.
+      const seExcede = minGrams(flaco.food) * densidad(flaco.food, macro) > target[macro] * 1.5;
+      if (hayRelevo || seExcede) {
         slots.splice(slots.indexOf(flaco), 1);
         continue;
       }
@@ -818,8 +830,14 @@ function ajustarPorciones(
       const caben = candidatos.filter(
         (f) => !violaComposicion([...slots, { food: f, grams: minGrams(f), fixed: false }], config),
       );
-      const cubren = caben.filter((f) => (maxGrams(f) * f[clave]) / 100 >= falta * 0.8);
-      const finalistas = cubren.length > 0 ? cubren : caben;
+      const alcance = (f: Food): number => (maxGrams(f) * f[clave]) / 100;
+      const cubren = caben.filter((f) => alcance(f) >= falta * 0.8);
+      // Si ninguno alcanza a cerrar el hueco, se sortea entre los que mas
+      // cubren: meter 5 g de ajonjoli cuando faltan 25 g de grasa gasta el
+      // refuerzo sin arreglar la comida.
+      const mejor = caben.length > 0 ? Math.max(...caben.map(alcance)) : 0;
+      const finalistas =
+        cubren.length > 0 ? cubren : caben.filter((f) => alcance(f) >= mejor * 0.6);
       const segundo = pick(
         finalistas,
         profile,
@@ -889,7 +907,18 @@ function buildMeal(
     }
   }
 
-  if (slot.id === 'PRE' && slot.allowDenseCarb && !options.simplify) {
+  /**
+   * Carbohidrato minimo para que valga la pena poner un carbohidrato.
+   *
+   * Ningun cereal ni leguminosa baja de ~10 g de carbohidrato en su porcion
+   * minima: media taza de arroz son 28. Meterlos en un slot que pide 3 g
+   * —la comida de una keto— no cubre nada, se come el presupuesto del dia
+   * entero y ademas se ve absurdo en el plato.
+   */
+  const CARBO_MINIMO_DEL_SLOT = 15;
+  const vaCarbohidrato = slot.allowDenseCarb && slot.carbG >= CARBO_MINIMO_DEL_SLOT;
+
+  if (slot.id === 'PRE' && vaCarbohidrato && !options.simplify) {
     const fruit = elegir('fruta');
     if (fruit) {
       // La fruta del pre-entreno va fija, pero fija en una porcion de verdad:
@@ -905,7 +934,14 @@ function buildMeal(
   }
 
   const wantsFat = slot.fatG > 0;
-  const proteinRole: FoodRole = wantsFat && random() < 0.35 ? 'proteina_grasa' : 'proteina_magra';
+  // Cuando la comida pide tanta grasa como proteina —keto, sobre todo—, la
+  // grasa tiene que venir tambien de la proteina: el salmon y el huevo la
+  // traen adentro. Buscarla toda en aceites choca contra el tope de una
+  // cucharada de grasa anadida por comida.
+  const grasaProtagonista = slot.fatG >= slot.proteinG;
+  const probaProteinaGrasa = grasaProtagonista ? 0.8 : 0.35;
+  const proteinRole: FoodRole =
+    wantsFat && random() < probaProteinaGrasa ? 'proteina_grasa' : 'proteina_magra';
   const protein =
     elegir(proteinRole, 'proteinPer100', slot.proteinG) ??
     elegir('proteina_magra', 'proteinPer100', slot.proteinG);
@@ -914,7 +950,7 @@ function buildMeal(
     avoid.add(protein.id);
   }
 
-  if (slot.carbG > 0 && slot.allowDenseCarb) {
+  if (vaCarbohidrato) {
     const carbRole = slotCarbRole(slot.id);
     const carbTarget = slot.carbG - (slot.id === 'PRE' ? 20 : 0);
     const carb = elegir(carbRole, 'carbPer100', carbTarget);
@@ -1034,7 +1070,7 @@ function repairDay(
 
 function fueraDeTolerancia(all: Slot[], target: { p: number; c: number; f: number }): boolean {
   return (['p', 'c', 'f'] as const).some(
-    (macro) => target[macro] > 0 && Math.abs(sum(all, macro) - target[macro]) / target[macro] > 0.04,
+    (macro) => target[macro] > 0 && Math.abs(sum(all, macro) - target[macro]) / target[macro] > 0.02,
   );
 }
 
@@ -1058,10 +1094,19 @@ function sustituirAlimentos(
     for (const slot of comida) {
       if (slot.fixed || !slot.role) continue;
       const yaEstan = new Set(comida.map((s) => s.food.id));
-      const candidatos = eligible(contexto.pool, contexto.profile, config, slot.role, {
-        ...filters,
-        acompanan: comida.filter((s) => s !== slot).map((s) => s.food),
-      }).filter((f) => !yaEstan.has(f.id));
+      // La proteina magra y la grasa son la misma familia para sustituir: en
+      // keto la diferencia entre la tilapia y el salmon es justo la grasa que
+      // le falta al dia, y obligarse a quedarse en el mismo rol deja fuera la
+      // unica sustitucion que sirve.
+      const rolesHermanos: FoodRole[] = slot.role.startsWith('proteina')
+        ? ['proteina_magra', 'proteina_grasa']
+        : [slot.role];
+      const acompanan = comida.filter((s) => s !== slot).map((s) => s.food);
+      const candidatos = rolesHermanos
+        .flatMap((role) =>
+          eligible(contexto.pool, contexto.profile, config, role, { ...filters, acompanan }),
+        )
+        .filter((f) => !yaEstan.has(f.id));
 
       const original = { food: slot.food, grams: slot.grams };
       let mejorError = error(all, target);
