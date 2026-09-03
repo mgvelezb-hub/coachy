@@ -5,6 +5,7 @@ import type { Phase, Prisma, Profile, Workout } from "@prisma/client";
 import { fromISODate, isoFromDateColumn, shiftISODate, toISODate } from "@/lib/format";
 import { prisma } from "@/lib/prisma";
 import { aplicaCambios, parseCambiosDeBloque } from "@/lib/training/bloques";
+import { parseDayBlocks, sesionesDeBloquesDelDia } from "@/lib/training/bloques-dia";
 import { emphasisFor } from "@/lib/training/emphasis";
 import { planDisciplines, sesionesDeDiaOverride, type OtherSession } from "@/lib/training/disciplines";
 import { generateWeek, mondayOf, sundayEndOf } from "@/lib/training/generate";
@@ -571,6 +572,18 @@ export function otherPlanFor(
       }),
     );
   }
+
+  // Y encima de todo, los bloques que se agregaron EL DÍA (Fase 12): no salen
+  // del reparto semanal porque no se planearon — se decidieron con el tiempo
+  // que sobró. Por eso van al final y con `orden: 2`.
+  sessions.push(
+    ...sesionesDeBloquesDelDia(parseDayBlocks(profile.dayBlocks), monday, {
+      niveles: training.disciplineLevels,
+      objetivo: training.goal,
+      isoWeek,
+      diasConGimnasio: [...gymByDay.keys()],
+    }),
+  );
 
   return { sessions: sessions.sort((a, b) => a.date.localeCompare(b.date) || a.orden - b.orden), avisos };
 }

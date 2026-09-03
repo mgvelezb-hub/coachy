@@ -4,6 +4,7 @@ import {
   Flame,
   Footprints,
   Moon,
+  Plus,
   Ruler,
   UtensilsCrossed,
 } from "lucide-react-native";
@@ -294,6 +295,17 @@ export default function HoyScreen() {
         otherSessions={data.todayOthers}
         onPress={() => router.push("/rutinas")}
         onReload={load}
+      />
+
+      {/* Lo que no se planeó pero cabe hoy: la disciplina base ya está en la
+          semana, y esto es lo que se decide el día con el tiempo que sobra.
+          Una línea, y el editor completo en su hoja. */}
+      <ScoreCard
+        icon={Plus}
+        tint={colors.champan}
+        title="Agregar bloque"
+        summary="Con el tiempo que te sobre hoy"
+        onPress={() => router.push("/bloque-dia")}
       />
 
       <View style={styles.stats}>

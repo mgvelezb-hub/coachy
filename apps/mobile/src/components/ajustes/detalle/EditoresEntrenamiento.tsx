@@ -948,6 +948,12 @@ const makeStyles = (colors: Palette) =>
     diaChipOn: { backgroundColor: colors.guinda, borderColor: colors.guindaLight },
     diaChipTexto: { fontFamily: fonts.sansMedium, ...typeScale.label, color: colors.marfil },
     diaChipTextoOn: { color: colors.pergamino },
+    chipsBases: {
+      flexDirection: "row",
+      flexWrap: "wrap",
+      gap: spacing.sm,
+      marginTop: spacing.md,
+    },
     ejercicioFila: {
       flexDirection: "row",
       alignItems: "center",
@@ -1459,5 +1465,155 @@ export function EditorAgregarEjercicio({ dayKind }: { dayKind: string }) {
       </View>
       {mensaje && <Text style={styles.mensaje}>{mensaje}</Text>}
     </Card>
+  );
+}
+
+/** Hasta tres disciplinas base: más que eso ya no es una semana, es una lista de deseos. */
+const MAX_BASES = 3;
+
+/**
+ * "Disciplinas base": lo que SÍ se planea en la semana.
+ *
+ * EL CAMBIO DE MODELO: antes toda disciplina que se practicaba tenía que
+ * declarar sesiones por semana. Eso es verdad para lo que se entrena en serio
+ * —la base— y es una promesa que nadie puede cumplir para lo demás. Ahora la
+ * persona elige de una a tres bases; el planificador solo mete esas en el
+ * plan, con todo lo que ya sabía hacer (repartir minutos el mismo día, o dar
+ * días propios). Lo demás se agrega el día, con el tiempo que sobre.
+ *
+ * La primera elegida es la primaria: la que arma el esqueleto de la semana.
+ */
+export function EditorDisciplinasBase({ me }: { me: MeResponse | null }) {
+  const router = useRouter();
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
+
+  const [bases, setBases] = useState<Discipline[]>([]);
+  const [cargas, setCargas] = useState<CargaConModo[]>([]);
+  const [mensaje, setMensaje] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!me?.profile) return;
+    const primaria = me.profile.primaryDiscipline ?? "PESAS";
+    const otras = me.profile.otherDisciplines ?? [];
+    setBases([primaria, ...otras.map((carga) => carga.discipline)]);
+    setCargas(otras);
+  }, [me]);
+
+  async function guardar(siguientes: Discipline[]) {
+    const anteriores = bases;
+    setBases(siguientes);
+    setMensaje(null);
+
+    const primaria = siguientes[0]!;
+    // Las bases que ya tenían carga conservan la suya; una nueva entra con el
+    // default de formulario (una sesión, el mismo día que pesas), que es lo
+    // que casi siempre se quiere y se afina en su propio renglón.
+    const otras: CargaConModo[] = siguientes.slice(1).map(
+      (discipline) =>
+        cargas.find((carga) => carga.discipline === discipline) ?? {
+          discipline,
+          sessionsPerWeek: 1,
+          proposito: "COMPLEMENTO",
+          importancia: 2,
+          modo: "DESPUES",
+        },
+    );
+
+    try {
+      await patchEntrenamiento({ primaryDiscipline: primaria, otherDisciplines: otras });
+      setCargas(otras);
+      setMensaje("Guardado. Aplica desde la próxima semana que se arme.");
+    } catch (error) {
+      setBases(anteriores);
+      setMensaje(error instanceof ApiError ? error.message : "No se pudieron guardar tus bases");
+    }
+  }
+
+  function alternar(discipline: Discipline) {
+    if (bases.includes(discipline)) {
+      // Nunca sin base: la semana necesita algo que la arme.
+      if (bases.length === 1) return;
+      void guardar(bases.filter((otra) => otra !== discipline));
+      return;
+    }
+    if (bases.length >= MAX_BASES) {
+      setMensaje("Tres bases es el tope. Lo demás lo agregas el día que te sobre tiempo.");
+      return;
+    }
+    void guardar([...bases, discipline]);
+  }
+
+  return (
+    <>
+      <Card>
+        <View style={styles.sectionHeader}>
+          <SectionLabel>Tus disciplinas base</SectionLabel>
+          <InfoTip titulo="Qué es una base">
+            <TextoInfo>
+              Lo que entrenas en serio y quieres que la app planee: le reserva días, le reparte los
+              minutos y ajusta el gimnasio alrededor. La primera que elijas arma el esqueleto de tu
+              semana.
+            </TextoInfo>
+            <TextoInfo>
+              Lo que no sea base lo agregas el día, con el tiempo que te sobre. Eso no le quita días
+              a nada ni te deja debiendo sesiones.
+            </TextoInfo>
+          </InfoTip>
+        </View>
+
+        <View style={styles.chipsBases}>
+          {DISCIPLINAS.map((entrada) => {
+            const posicion = bases.indexOf(entrada.valor);
+            const activo = posicion !== -1;
+            return (
+              <Pressable
+                key={entrada.valor}
+                onPress={() => alternar(entrada.valor)}
+                style={[styles.chip, activo && styles.chipOn]}
+              >
+                <Text style={[styles.chipText, activo && styles.chipTextOn]}>
+                  {posicion === 0 ? `${entrada.nombre} · principal` : entrada.nombre}
+                </Text>
+              </Pressable>
+            );
+          })}
+        </View>
+
+        <Text style={styles.nota}>
+          Lo que no sea base lo agregas el día, con el tiempo que te sobre.
+        </Text>
+
+        {mensaje && <Text style={styles.mensaje}>{mensaje}</Text>}
+      </Card>
+
+      <Card>
+        <SectionLabel>Cómo entrena cada base</SectionLabel>
+        <View style={styles.lista}>
+          {bases.slice(1).map((discipline) => {
+            const carga = cargas.find((entrada) => entrada.discipline === discipline);
+            return (
+              <Pressable
+                key={discipline}
+                onPress={() => router.push(`/ajustes/detalle/disciplina?d=${discipline}`)}
+                style={styles.fila}
+              >
+                <Text style={styles.filaNombre}>{disciplinaNombre(discipline)}</Text>
+                <Text style={styles.filaDetalle}>
+                  {carga
+                    ? `${carga.sessionsPerWeek}/semana · ${textoModo(carga.modo)}`
+                    : "1/semana · el mismo día que pesas"}
+                </Text>
+              </Pressable>
+            );
+          })}
+          {bases.length === 1 && (
+            <Text style={styles.filaDetalle}>
+              Solo tienes tu base principal. Lo demás va como bloque del día.
+            </Text>
+          )}
+        </View>
+      </Card>
+    </>
   );
 }

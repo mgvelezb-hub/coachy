@@ -4,8 +4,8 @@ import {
   Clock,
   Dumbbell,
   FlipHorizontal,
+  Layers,
   LayoutGrid,
-  Plus,
   Repeat,
   RotateCcw,
   Shield,
@@ -20,7 +20,6 @@ import { ScoreCard } from "@/components/ScoreCard";
 import { SectionLabel } from "@/components/SectionLabel";
 import { useTheme } from "@/context/theme";
 import {
-  ApiError,
   getEjerciciosPorDia,
   getTrainingWeek,
   patchEntrenamiento,
@@ -74,7 +73,6 @@ export function SeccionEntrenamiento({ me }: { me: MeResponse | null }) {
 
   const [primaria, setPrimaria] = useState<Discipline>("PESAS");
   const [otras, setOtras] = useState<CargaConModo[]>([]);
-  const [entrenoMsg, setEntrenoMsg] = useState<string | null>(null);
 
   useEffect(() => {
     if (!me?.profile) return;
@@ -145,6 +143,11 @@ export function SeccionEntrenamiento({ me }: { me: MeResponse | null }) {
 
   const resumenSplit = resumenDeSplit(me?.profile?.customSplit);
 
+  // Cuántas disciplinas SÍ entran al plan semanal. El resto son bloques del
+  // día, que no se planean ni se prometen.
+  const totalBases = 1 + otras.length;
+  const resumenBases = `${totalBases} ${totalBases === 1 ? "base" : "bases"} · ${disciplinaNombre(primaria).toLowerCase()} principal`;
+
   // Quién elige los ejercicios. El detalle por tipo de día vive en su hoja:
   // aquí solo se contesta "¿sigo a Coachy o ya los elegí yo?".
   const diasPropios = diasDeEjercicios.filter((dia) => !dia.sigueACoachy).length;
@@ -182,50 +185,10 @@ export function SeccionEntrenamiento({ me }: { me: MeResponse | null }) {
         ? nombresGrupos.join(" · ")
         : `${nombresGrupos.length} grupos protegidos`;
 
-  /**
-   * Agregar una disciplina desde las pastillas: entra con 1 sesión y sus
-   * defaults; el ajuste fino (sesiones, propósito, nivel) vive en su hoja.
-   * Es la única escritura que se queda en la sección porque es una acción de
-   * un toque, no un editor.
-   */
-  async function agregarDisciplina(disciplina: Discipline) {
-    const entry: CargaConModo = {
-      discipline: disciplina,
-      sessionsPerWeek: 1,
-      proposito: "COMPLEMENTO",
-      importancia: 2,
-      // Default de formulario para una disciplina NUEVA: casi siempre se
-      // quiere después de pesas (el caso real de Mau e Irma). El parser del
-      // servidor, en cambio, no inventa un default para cargas viejas sin el
-      // campo — ver el docblock de `ModoDisciplina` en `types.ts`.
-      modo: "DESPUES",
-    };
-    const siguiente = [...otras.filter((carga) => carga.discipline !== disciplina), entry];
-
-    setOtras(siguiente);
-    setEntrenoMsg(null);
-    try {
-      await patchEntrenamiento({ otherDisciplines: siguiente });
-      void cargarSemana();
-      const restantes = diasDeGimnasio(presupuestoSemanal, siguiente, primaria);
-      setEntrenoMsg(
-        `Guardado: te quedan ${restantes} ${restantes === 1 ? "día" : "días"} de gimnasio a la semana.`,
-      );
-    } catch (error) {
-      setOtras(otras);
-      setEntrenoMsg(error instanceof ApiError ? error.message : "No se pudo guardar tu disciplina");
-    }
-  }
-
   const activas = DISCIPLINAS.filter(
     (disciplina) =>
       disciplina.valor === primaria || otras.some((carga) => carga.discipline === disciplina.valor),
   );
-  const inactivas = DISCIPLINAS.filter(
-    (disciplina) =>
-      disciplina.valor !== primaria && !otras.some((carga) => carga.discipline === disciplina.valor),
-  );
-
   /** El resumen de una disciplina activa, igual al que tenía su tarjeta. */
   function resumenDisciplina(discipline: Discipline): string {
     const opciones = NIVELES_POR_DISCIPLINA[discipline] ?? [];
@@ -363,7 +326,16 @@ export function SeccionEntrenamiento({ me }: { me: MeResponse | null }) {
         </Pressable>
       </Card>
 
-      {/* 4. "¿Qué toco de esa disciplina?" — un renglón por disciplina activa. */}
+      {/* 4. Qué se planea y qué no: las bases van al plan; lo demás se agrega
+          el día, con el tiempo que sobre (los bloques del día). */}
+      <ScoreCard
+        icon={Layers}
+        tint={colors.paloRosa}
+        title="Disciplinas base"
+        summary={resumenBases}
+        onPress={() => router.push("/ajustes/detalle/bases")}
+      />
+
       <SectionLabel>Ajuste fino, por disciplina</SectionLabel>
 
       {activas.map((disciplina) => (
@@ -377,26 +349,6 @@ export function SeccionEntrenamiento({ me }: { me: MeResponse | null }) {
         />
       ))}
 
-      {entrenoMsg && <Text style={styles.vaultMsg}>{entrenoMsg}</Text>}
-
-      {inactivas.length > 0 && (
-        <View style={styles.pastillas}>
-          {inactivas.map((disciplina) => {
-            const Icono = iconoDe(disciplina.valor);
-            return (
-              <Pressable
-                key={disciplina.valor}
-                onPress={() => agregarDisciplina(disciplina.valor)}
-                style={({ pressed }) => [styles.pastilla, pressed && styles.pastillaPresionada]}
-              >
-                <Plus size={14} color={colors.champan} strokeWidth={2.5} />
-                <Icono size={14} color={colors.paloRosa} strokeWidth={2} />
-                <Text style={styles.pastillaTexto}>{disciplina.nombre}</Text>
-              </Pressable>
-            );
-          })}
-        </View>
-      )}
     </>
   );
 }
@@ -436,24 +388,5 @@ const makeStyles = (colors: Palette) =>
       fontFamily: fonts.sans,
       ...typeScale.bodySm,
       color: withAlpha(colors.pergamino, 0.85),
-    },
-    pastillas: { flexDirection: "row", flexWrap: "wrap", gap: spacing.sm },
-    pastilla: {
-      flexDirection: "row",
-      alignItems: "center",
-      gap: 4,
-      borderRadius: radius.full,
-      borderWidth: 1,
-      borderColor: withAlpha(colors.champan, 0.45),
-      paddingHorizontal: spacing.md,
-      paddingVertical: spacing.sm,
-    },
-    pastillaPresionada: { opacity: 0.7 },
-    pastillaTexto: { fontFamily: fonts.sansMedium, ...typeScale.bodySm, color: colors.marfil },
-    vaultMsg: {
-      fontFamily: fonts.sans,
-      ...typeScale.bodySm,
-      color: colors.champan,
-      marginTop: spacing.md,
     },
   });

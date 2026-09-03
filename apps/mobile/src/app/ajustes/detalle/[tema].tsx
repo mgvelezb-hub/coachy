@@ -20,6 +20,7 @@ import {
   EditorAgregarEjercicio,
   EditorArmadoSemana,
   EditorDisciplina,
+  EditorDisciplinasBase,
   EditorEjercicios,
   EditorEjerciciosDia,
   EditorEsquema,
@@ -61,6 +62,7 @@ const TITULOS: Record<string, string> = {
   esquema: "Cómo te gusta entrenar",
   split: "Tu split",
   ejercicios: "Ejercicios",
+  bases: "Disciplinas base",
   unilaterales: "Unilaterales",
   disciplina: "Disciplina",
   tiempo: "Tiempo por día",
@@ -147,6 +149,7 @@ export default function AjustesDetalleScreen() {
           {me && tema === "armado" && <EditorArmadoSemana me={me} />}
           {me && tema === "esquema" && <EditorEsquema me={me} />}
           {me && tema === "split" && <EditorSplit me={me} />}
+          {me && tema === "bases" && <EditorDisciplinasBase me={me} />}
           {me && tema === "unilaterales" && <EditorUnilateral me={me} />}
           {me && tema === "disciplina" && disciplina && (
             <EditorDisciplina me={me} discipline={disciplina} />

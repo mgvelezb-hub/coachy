@@ -1989,3 +1989,55 @@ export function patchEjerciciosManuales(
     body: { manualExercises },
   });
 }
+
+/** Un bloque agregado a un día concreto, además de la disciplina base. */
+export type BloqueAgregado = {
+  discipline: Discipline;
+  /** `ENTRENO`: Coachy prescribe la sesión. `LIBRE`: solo se registra el tiempo. */
+  tipo: "ENTRENO" | "LIBRE";
+  minutos: number;
+};
+
+export type BloquesDelDiaResponse = {
+  date: string;
+  bloques: BloqueAgregado[];
+  /** La disciplina base: no se puede agregar como bloque, ya está en el plan. */
+  base: Discipline;
+  /** Qué se entrena en el gimnasio ese día, si ya hay sesión armada. */
+  dayKind: string | null;
+};
+
+/** `GET /api/v1/training/bloque-dia` — lo que ya se agregó a ese día. */
+export function getBloquesDelDia(date: string): Promise<BloquesDelDiaResponse> {
+  return apiFetch<BloquesDelDiaResponse>(`/api/v1/training/bloque-dia?date=${date}`);
+}
+
+/**
+ * `POST /api/v1/training/bloque-dia` — agregar un bloque con el tiempo que
+ * sobra hoy.
+ *
+ * `aviso` viene lleno cuando la combinación tiene riesgo (pierna pesada y
+ * squash el mismo día). Es un aviso: nunca impide agregar el bloque.
+ */
+export function postBloqueDia(input: {
+  date: string;
+  discipline: Discipline;
+  tipo: "ENTRENO" | "LIBRE";
+  minutos: number;
+}): Promise<{ date: string; bloques: BloqueAgregado[]; aviso: string | null }> {
+  return apiFetch<{ date: string; bloques: BloqueAgregado[]; aviso: string | null }>(
+    "/api/v1/training/bloque-dia",
+    { method: "POST", body: input },
+  );
+}
+
+/** `DELETE /api/v1/training/bloque-dia` — quitar un bloque el mismo día. */
+export function deleteBloqueDia(
+  date: string,
+  discipline: Discipline,
+): Promise<{ date: string; bloques: BloqueAgregado[] }> {
+  return apiFetch<{ date: string; bloques: BloqueAgregado[] }>("/api/v1/training/bloque-dia", {
+    method: "DELETE",
+    body: { date, discipline },
+  });
+}
