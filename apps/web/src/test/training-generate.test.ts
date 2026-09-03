@@ -74,13 +74,16 @@ describe("split semanal", () => {
     expect(generate(profile({ liftingDays: 0 })).workouts).toHaveLength(0);
   });
 
+  // El orden ya no es el literal de `SPLIT_BY_DAYS`: la regla de vecindad
+  // (Fase 3) mete femoral entre hombro y pecho, porque el hombro cansado de
+  // víspera es lo que hacía imposible el día de press.
   it("con 5 días arma el split del coach: pierna ×2, hombro, pecho+espalda, brazo", () => {
     const week = generate(profile({ liftingDays: 5 }));
     expect(week.workouts.map((w) => w.dayKind)).toEqual([
       "PIERNA_CUADRICEPS",
       "HOMBRO",
-      "PECHO_ESPALDA",
       "PIERNA_FEMORAL",
+      "PECHO_ESPALDA",
       "BRAZO",
     ]);
   });

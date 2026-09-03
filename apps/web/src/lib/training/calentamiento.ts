@@ -123,7 +123,27 @@ const TORSO: WarmupStep[] = [
  * movimientos de 45 s dejan, sumados a los 2 min de pulso, una sesión de
  * 6.5 min — dentro del "6-8 min" del protocolo consenso.
  */
+const PECHO_TRICEP: WarmupStep[] = [
+  { nombre: "Círculos de brazos", segundos: 45 },
+  { nombre: "Lagartijas de escápula", segundos: 45 },
+  { nombre: "Apertura de pecho con banda", segundos: 45 },
+  { nombre: "Press con solo la barra", segundos: 45 },
+  { nombre: "Extensión de tríceps con banda ligera", segundos: 45 },
+  { nombre: "Rotaciones externas ligeras", segundos: 45 },
+];
+
+const ESPALDA_BICEP: WarmupStep[] = [
+  { nombre: "Gato-vaca", segundos: 45 },
+  { nombre: "Colgarse de la barra 20-30 s", segundos: 45 },
+  { nombre: "Remo con banda", segundos: 45 },
+  { nombre: "Jalón con banda ligera", segundos: 45 },
+  { nombre: "Curl de bíceps con banda ligera", segundos: 45 },
+  { nombre: "Círculos de muñeca", segundos: 45 },
+];
+
 const MOVIMIENTOS_POR_DIA: Record<DayKind, WarmupStep[]> = {
+  PECHO_TRICEP: PECHO_TRICEP,
+  ESPALDA_BICEP: ESPALDA_BICEP,
   PIERNA_CUADRICEPS: PIERNA,
   PIERNA_FEMORAL: PIERNA_FEMORAL,
   PIERNA_GLUTEO: PIERNA_GLUTEO,

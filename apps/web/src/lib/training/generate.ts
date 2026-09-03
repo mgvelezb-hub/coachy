@@ -233,12 +233,17 @@ export function generateWeek(
   // disciplinas activas, el gimnasio se queda con los días que sobran, no con
   // los que pidió.
   const gymDays = liftingDaysWithinBudget(profile);
-  const days = trainingDaysOf(profile).slice(0, gymDays);
-  const { kinds, rehabIndexes, injury } = buildSplit({
-    liftingDays: days.length,
+  const porHorario = trainingDaysOf(profile).slice(0, gymDays);
+  const split = buildSplit({
+    liftingDays: porHorario.length,
     conditions: profile.conditions,
     avoidRepeatGroups: profile.avoidRepeatGroups,
+    customSplit: profile.customSplit,
   });
+  const { kinds, rehabIndexes, injury } = split;
+  // Con split propio los días los fija ella, no el horario: el presupuesto
+  // semanal ya no puede recortarlos por la mitad sin decir cuáles.
+  const days = split.days ?? porHorario;
 
   const weekStartISO = toISODate(weekStart);
   const previousWeekStart = new Date(weekStart);

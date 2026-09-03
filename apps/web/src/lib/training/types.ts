@@ -28,7 +28,15 @@ export type DayKind =
   | "PECHO_ESPALDA"
   | "BRAZO"
   | "HOMBRO_BRAZO"
-  | "TORSO";
+  | "TORSO"
+  /**
+   * Los dos días del split empuje/jalón (`PPL_X2` e `INFERIOR_SUPERIOR_3_3`
+   * en `split.ts`). No existían porque el split del coach parte la semana por
+   * zona (pecho+espalda el mismo día); quien entrena empuje/jalón necesita
+   * que pecho y tríceps caigan juntos y espalda con bíceps.
+   */
+  | "PECHO_TRICEP"
+  | "ESPALDA_BICEP";
 
 /** Esquemas sello del coach. Rotan por semana ISO. */
 export type SchemeId =
@@ -278,7 +286,23 @@ export type TrainingProfile = {
    * `schemes.ts` para el porqué de cada mapeo y el sustento de evidencia.
    */
   schemePreference: SchemePreference;
+  /**
+   * El split que la persona fijó a mano, día por día. `null`/ausente = el
+   * motor lo elige por número de días, como siempre.
+   *
+   * Cuando existe MANDA: los días que no aparecen son descanso y el motor no
+   * reordena nada — solo avisa (`avisos` de `buildSplit`) si dos días
+   * seguidos se estorban. Reacomodarle la semana a quien la escribió con sus
+   * manos es la forma más rápida de que deje de confiar en el plan.
+   */
+  customSplit?: CustomSplit | null;
 };
+
+/**
+ * Split declarado por día de la semana: `{"LUN": "PIERNA_CUADRICEPS", ...}`.
+ * Lo que no aparece —o aparece como `DESCANSO`— es descanso.
+ */
+export type CustomSplit = Partial<Record<WeekDay, DayKind | "DESCANSO">>;
 
 /**
  * Día de la semana, igual que `WeekDay` en `split.ts` (repetido aquí porque

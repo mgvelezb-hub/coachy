@@ -85,6 +85,32 @@ const RECIPES: Record<DayKind, Slot[]> = {
     { groups: ["TRICEP"], roles: ["extension_libre", "empuje_cerrado"], priority: 3 },
     { groups: ["HOMBRO"], roles: ["trapecio"], priority: 4 },
   ],
+  /**
+   * Día de empuje: pecho manda y el tríceps va detrás, que es el orden en que
+   * se fatigan. Los splits empuje/jalón (`PPL_X2`, `INFERIOR_SUPERIOR_3_3`)
+   * son los únicos que lo usan; el split del coach sigue partiendo por zona.
+   */
+  PECHO_TRICEP: [
+    { groups: ["PECHO"], roles: ["calentamiento_empuje", "empuje_horizontal"], priority: 1 },
+    { groups: ["PECHO"], roles: ["empuje_inclinado", "empuje_horizontal"], priority: 1 },
+    { groups: ["TRICEP"], roles: ["extension_polea"], priority: 1 },
+    { groups: ["PECHO"], roles: ["apertura"], priority: 2 },
+    { groups: ["TRICEP"], roles: ["extension_libre"], priority: 2 },
+    { groups: ["HOMBRO"], roles: ["deltoide_lateral"], priority: 3 },
+    { groups: ["TRICEP"], roles: ["extension_maquina", "empuje_cerrado"], priority: 3 },
+    { groups: ["PECHO"], roles: ["apertura", "empuje_vertical"], priority: 4 },
+  ],
+  /** Día de jalón: espalda primero, bíceps después. Mismo criterio de fatiga. */
+  ESPALDA_BICEP: [
+    { groups: ["ESPALDA"], roles: ["jalon_vertical"], priority: 1 },
+    { groups: ["ESPALDA"], roles: ["jalon_horizontal"], priority: 1 },
+    { groups: ["BICEP"], roles: ["bicep_compuesto", "bicep_aislado"], priority: 1 },
+    { groups: ["ESPALDA"], roles: ["jalon_vertical", "dorsal_aislado"], priority: 2 },
+    { groups: ["BICEP"], roles: ["bicep_aislado"], priority: 2 },
+    { groups: ["ESPALDA"], roles: ["jalon_horizontal", "dorsal_aislado"], priority: 3 },
+    { groups: ["BICEP"], roles: ["braquial"], priority: 3 },
+    { groups: ["HOMBRO"], roles: ["deltoide_posterior", "trapecio"], priority: 4 },
+  ],
   TORSO: [
     { groups: ["PECHO"], roles: ["empuje_horizontal", "calentamiento_empuje"], priority: 1 },
     { groups: ["ESPALDA"], roles: ["jalon_vertical"], priority: 1 },

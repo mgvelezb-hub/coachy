@@ -1,4 +1,11 @@
-import type { DayKind, DisciplineLoad, MuscleGroup, TrainingProfile } from "@/lib/training/types";
+import type {
+  CustomSplit,
+  DayKind,
+  Discipline,
+  DisciplineLoad,
+  MuscleGroup,
+  TrainingProfile,
+} from "@/lib/training/types";
 
 /**
  * El split del coach (metodología §3): pierna/glúteo 2-3×, hombro+trapecio 1×,
@@ -25,6 +32,8 @@ const SPLIT_BY_DAYS: Record<number, DayKind[]> = {
 };
 
 export const DAY_LABELS: Record<DayKind, string> = {
+  PECHO_TRICEP: "Pecho y tríceps",
+  ESPALDA_BICEP: "Espalda y bíceps",
   PIERNA_CUADRICEPS: "Pierna · cuádriceps",
   PIERNA_FEMORAL: "Pierna · femoral y glúteo",
   PIERNA_GLUTEO: "Glúteo",
@@ -37,6 +46,8 @@ export const DAY_LABELS: Record<DayKind, string> = {
 
 /** Grupos que toca cada tipo de día. Sirve para el protocolo de lesión. */
 export const DAY_GROUPS: Record<DayKind, MuscleGroup[]> = {
+  PECHO_TRICEP: ["PECHO", "TRICEP"],
+  ESPALDA_BICEP: ["ESPALDA", "BICEP"],
   PIERNA_CUADRICEPS: ["PIERNA"],
   PIERNA_FEMORAL: ["PIERNA"],
   PIERNA_GLUTEO: ["PIERNA"],
@@ -194,32 +205,65 @@ function collapseRepeats(kinds: DayKind[], groups: MuscleGroup[]): DayKind[] {
  * Protocolo de lesión (metodología §3): la zona afectada se entrena **una vez
  * por semana**, con reps altas y peso bajo. Los días extra de esa zona se
  * reemplazan por trabajo del resto del cuerpo, que sigue normal.
+ *
+ * Con `customSplit` manda lo que la persona escribió: los días son los que
+ * ella listó (lo demás es descanso), NO se reordena por vecindad y lo que
+ * estorbe sale en `avisos` para que Ajustes lo ofrezca como cambio. Sin él, el
+ * motor arma el split por número de días y sí lo reordena — ahí el orden es
+ * suyo, y dejar el hombro el día antes de pecho cuando se puede evitar es un
+ * defecto del plan, no una decisión de nadie.
  */
 export function buildSplit(
   profile: Pick<TrainingProfile, "liftingDays" | "conditions"> &
-    Partial<Pick<TrainingProfile, "avoidRepeatGroups">>,
+    Partial<Pick<TrainingProfile, "avoidRepeatGroups" | "customSplit">>,
 ): {
   kinds: DayKind[];
+  /**
+   * Los días del calendario que corresponden a `kinds`, cuando el split los
+   * fija (`customSplit`). `null` = los decide `trainingDaysOf`, como siempre.
+   */
+  days: WeekDay[] | null;
   /** Índices (dentro de `kinds`) que van con protocolo de rehabilitación. */
   rehabIndexes: number[];
   injury: InjuryState;
+  /** Lo que estorba y no se puede arreglar sin decidir. Ver `avisosDeVecindad`. */
+  avisos: string[];
 } {
-  const days = Math.max(0, Math.min(7, Math.trunc(profile.liftingDays)));
-  const avoidRepeat = profile.avoidRepeatGroups ?? [];
-  const base = collapseRepeats([...(SPLIT_BY_DAYS[days] ?? [])], avoidRepeat);
+  const custom = normalizeCustomSplit(profile.customSplit);
   const injury = parseInjuries(profile.conditions);
 
+  let base: DayKind[];
+  let days: WeekDay[] | null;
+
+  if (custom) {
+    // Escrito a mano: se respeta tal cual. Ni `collapseRepeats` ni la
+    // vecindad lo tocan — solo avisan.
+    days = WEEK_DAYS.filter((day) => custom[day] !== undefined && custom[day] !== "DESCANSO");
+    base = days.map((day) => custom[day] as DayKind);
+  } else {
+    const count = Math.max(0, Math.min(7, Math.trunc(profile.liftingDays)));
+    const avoidRepeat = profile.avoidRepeatGroups ?? [];
+    base = reordenarPorVecindad(collapseRepeats([...(SPLIT_BY_DAYS[count] ?? [])], avoidRepeat));
+    days = null;
+  }
+
+  const avisos = avisosDeVecindad(base, days);
+
   if (injury.zones.length === 0) {
-    return { kinds: base, rehabIndexes: [], injury };
+    return { kinds: base, days, rehabIndexes: [], injury, avisos };
   }
 
   const kinds: DayKind[] = [];
   const rehabIndexes: number[] = [];
+  const diasFinales: WeekDay[] = [];
   let injuredDaysUsed = 0;
 
   base.forEach((kind, position) => {
+    const day = days?.[position];
+
     if (!touchesInjuredZone(kind, injury.zones)) {
       kinds.push(kind);
+      if (day) diasFinales.push(day);
       return;
     }
 
@@ -227,6 +271,7 @@ export function buildSplit(
       injuredDaysUsed += 1;
       rehabIndexes.push(kinds.length);
       kinds.push(kind);
+      if (day) diasFinales.push(day);
       return;
     }
 
@@ -236,10 +281,13 @@ export function buildSplit(
     const usable = FALLBACK_ORDER.filter((candidate) => !touchesInjuredZone(candidate, injury.zones));
     const replacement = usable.find((candidate) => !planned.has(candidate)) ?? usable[0];
 
-    if (replacement) kinds.push(replacement);
+    if (replacement) {
+      kinds.push(replacement);
+      if (day) diasFinales.push(day);
+    }
   });
 
-  return { kinds, rehabIndexes, injury };
+  return { kinds, days: days === null ? null : diasFinales, rehabIndexes, injury, avisos };
 }
 
 /**
@@ -265,3 +313,242 @@ export function trainingDaysOf(
   const days = Math.max(0, Math.min(7, Math.trunc(profile.liftingDays)));
   return WEEK_DAYS.slice(0, days);
 }
+
+// ---------------------------------------------------------------------------
+// Split propio: presets y regla de vecindad
+// ---------------------------------------------------------------------------
+
+/**
+ * Los splits que se pueden elegir de una lista, sin armar la semana día por
+ * día.
+ *
+ * EL PROBLEMA que resuelven: el split del motor es uno solo —el del coach,
+ * repartido por número de días— y quien ya entrena a otro formato (empuje /
+ * jalón / pierna, o inferior / superior) tenía que aceptar el ajeno o no usar
+ * el generador. Un preset es el atajo; el editor por día es la salida
+ * completa.
+ */
+export const SPLIT_PRESETS = [
+  {
+    id: "ACTUAL",
+    nombre: "El de la app",
+    descripcion: "El split del coach, repartido según tus días. Pierna 2-3 veces por semana.",
+  },
+  {
+    id: "INFERIOR_SUPERIOR_3_3",
+    nombre: "3 inferior / 3 superior",
+    descripcion: "Lunes, miércoles y viernes de pierna; martes, jueves y sábado de torso.",
+  },
+  {
+    id: "PPL_X2",
+    nombre: "Pierna / empuje / jalón, dos vueltas",
+    descripcion: "Seis días: pierna, pecho y tríceps, espalda y bíceps — y otra vuelta.",
+  },
+] as const;
+
+export type SplitPresetId = (typeof SPLIT_PRESETS)[number]["id"];
+
+/** L/Mi/V inferior rotando cuádriceps → glúteo → femoral; M/J/S superior. */
+const INFERIOR_SUPERIOR_3_3: CustomSplit = {
+  LUN: "PIERNA_CUADRICEPS",
+  MAR: "PECHO_TRICEP",
+  MIE: "PIERNA_GLUTEO",
+  JUE: "ESPALDA_BICEP",
+  VIE: "PIERNA_FEMORAL",
+  SAB: "HOMBRO_BRAZO",
+  DOM: "DESCANSO",
+};
+
+/** Pierna / empuje / jalón, dos vueltas. La segunda pierna cambia de énfasis. */
+const PPL_X2: CustomSplit = {
+  LUN: "PIERNA_CUADRICEPS",
+  MAR: "PECHO_TRICEP",
+  MIE: "ESPALDA_BICEP",
+  JUE: "PIERNA_GLUTEO",
+  VIE: "PECHO_TRICEP",
+  SAB: "ESPALDA_BICEP",
+  DOM: "DESCANSO",
+};
+
+/**
+ * El preset ya resuelto a días de la semana, listo para guardarse como
+ * `customSplit`.
+ *
+ * `ACTUAL` no es un mapa fijo: es lo que el motor arma hoy para ese número de
+ * días, materializado en el calendario (de lunes en adelante, domingo libre —
+ * la misma repartición que `trainingDaysOf` sin horario declarado). Guardarlo
+ * como split propio es lo que permite editarlo día por día sin empezar de
+ * cero.
+ */
+export function presetSplit(id: SplitPresetId, liftingDays: number): CustomSplit {
+  if (id === "INFERIOR_SUPERIOR_3_3") return { ...INFERIOR_SUPERIOR_3_3 };
+  if (id === "PPL_X2") return { ...PPL_X2 };
+
+  const count = Math.max(0, Math.min(7, Math.trunc(liftingDays)));
+  const kinds = reordenarPorVecindad([...(SPLIT_BY_DAYS[count] ?? [])]);
+
+  const split: CustomSplit = {};
+  WEEK_DAYS.forEach((day, index) => {
+    split[day] = kinds[index] ?? "DESCANSO";
+  });
+  return split;
+}
+
+/** Los `DayKind` válidos, para validar JSON crudo sin importar el catálogo. */
+const DAY_KINDS = Object.keys(DAY_GROUPS) as DayKind[];
+
+/**
+ * `custom_split` es JSON libre en la base: tolerante llave por llave, igual
+ * que `other_disciplines` o `time_per_day`. Lo que no es un día conocido o un
+ * `DayKind` conocido se ignora en vez de tumbar la semana; sin ningún día
+ * entrenable devuelve `null`, que es exactamente "no hay split propio".
+ */
+export function normalizeCustomSplit(raw: unknown): CustomSplit | null {
+  if (raw === null || raw === undefined || typeof raw !== "object" || Array.isArray(raw)) return null;
+
+  const split: CustomSplit = {};
+  let entrenables = 0;
+
+  for (const [key, value] of Object.entries(raw as Record<string, unknown>)) {
+    if (!(WEEK_DAYS as readonly string[]).includes(key)) continue;
+    if (value === "DESCANSO") {
+      split[key as WeekDay] = "DESCANSO";
+      continue;
+    }
+    if (typeof value !== "string" || !(DAY_KINDS as readonly string[]).includes(value)) continue;
+    split[key as WeekDay] = value as DayKind;
+    entrenables += 1;
+  }
+
+  return entrenables > 0 ? split : null;
+}
+
+/**
+ * Pares que no deben caer en días seguidos.
+ *
+ * El caso que lo originó es real y del propio hogar: el split de 6 días ponía
+ * HOMBRO el día antes de PECHO_ESPALDA, y el hombro llegaba tan cansado al
+ * press que la sesión de pecho no se pudo entrenar. El deltoide anterior y el
+ * tríceps son sinergistas del empuje horizontal; agotarlos de víspera no es
+ * intensidad, es perder el día siguiente.
+ */
+const PARES_PROHIBIDOS: Array<{ antes: DayKind[]; despues: DayKind[]; porque: string }> = [
+  {
+    antes: ["HOMBRO", "HOMBRO_BRAZO"],
+    despues: ["PECHO_ESPALDA", "PECHO_TRICEP", "TORSO"],
+    porque: "el hombro llega cansado al press",
+  },
+];
+
+/** Días de pierna pesada: dejan las piernas sin nada para un deporte de piso. */
+const PIERNA_PESADA: DayKind[] = ["PIERNA_CUADRICEPS", "PIERNA_FEMORAL"];
+
+/** Disciplinas que se juegan con las piernas: el día después de pierna pesada duelen. */
+const DISCIPLINAS_DE_PIERNA: Discipline[] = ["SQUASH", "BOX"];
+
+/**
+ * ¿Estos dos días seguidos se estorban? Devuelve el porqué, o `null`.
+ *
+ * `disciplinasDespues` es opcional a propósito: la vecindad con squash o box
+ * solo se puede juzgar si se sabe qué se juega ese día, y quien llama a esta
+ * función desde el editor de Ajustes normalmente no lo sabe. Sin el dato, esa
+ * regla simplemente no aplica — inventarla daría avisos falsos.
+ */
+export function chocaVecindad(
+  antes: DayKind,
+  despues: DayKind | null,
+  disciplinasDespues?: Discipline[],
+): string | null {
+  if (despues !== null) {
+    for (const par of PARES_PROHIBIDOS) {
+      if (par.antes.includes(antes) && par.despues.includes(despues)) return par.porque;
+    }
+  }
+
+  if (
+    PIERNA_PESADA.includes(antes) &&
+    (disciplinasDespues ?? []).some((disciplina) => DISCIPLINAS_DE_PIERNA.includes(disciplina))
+  ) {
+    return "la pierna llega cansada al juego";
+  }
+
+  return null;
+}
+
+/**
+ * Reacomoda el split automático para que ningún par prohibido quede seguido.
+ *
+ * Mueve el día conflictivo hacia adelante —no lo cambia por otro— y solo
+ * acepta el movimiento si no genera un choque nuevo. Si no hay acomodo
+ * posible se deja como estaba: mejor un aviso honesto que una semana
+ * barajada.
+ */
+export function reordenarPorVecindad(kinds: DayKind[]): DayKind[] {
+  const orden = [...kinds];
+
+  for (let i = 0; i + 1 < orden.length; i += 1) {
+    if (chocaVecindad(orden[i]!, orden[i + 1]!) === null) continue;
+
+    for (let j = i + 2; j < orden.length; j += 1) {
+      const intento = [...orden];
+      intento[i + 1] = orden[j]!;
+      intento[j] = orden[i + 1]!;
+      if (sinChoques(intento)) {
+        orden.splice(0, orden.length, ...intento);
+        break;
+      }
+    }
+  }
+
+  return orden;
+}
+
+function sinChoques(kinds: DayKind[]): boolean {
+  return kinds.every((kind, index) => index === 0 || chocaVecindad(kinds[index - 1]!, kind) === null);
+}
+
+/**
+ * Los avisos accionables del split: qué días se estorban y qué cambiar.
+ *
+ * Se escriben en el vocabulario del dueño ("Hombro el martes y pecho el
+ * miércoles: te va a doler. Cambiar") porque la app los enseña tal cual en
+ * Ajustes. Sin días del calendario —split automático— se nombran por tipo de
+ * día, que es lo único que se sabe.
+ */
+export function avisosDeVecindad(
+  kinds: DayKind[],
+  days: WeekDay[] | null,
+  disciplinasPorDia?: Partial<Record<WeekDay, Discipline[]>>,
+): string[] {
+  const avisos: string[] = [];
+
+  kinds.forEach((kind, index) => {
+    const siguiente = kinds[index + 1] ?? null;
+    const dia = days?.[index];
+    const diaSiguiente = days?.[index + 1];
+    const porque = chocaVecindad(
+      kind,
+      siguiente,
+      diaSiguiente ? disciplinasPorDia?.[diaSiguiente] : undefined,
+    );
+    if (porque === null) return;
+
+    const primero = dia ? `${DAY_LABELS[kind]} el ${NOMBRES_DE_DIA[dia]}` : DAY_LABELS[kind];
+    const segundo = siguiente === null ? "lo del día siguiente" : DAY_LABELS[siguiente].toLowerCase();
+    const cuando = diaSiguiente ? `${segundo} el ${NOMBRES_DE_DIA[diaSiguiente]}` : `${segundo} al día siguiente`;
+
+    avisos.push(`${primero} y ${cuando}: ${porque}. Cambiar`);
+  });
+
+  return avisos;
+}
+
+const NOMBRES_DE_DIA: Record<WeekDay, string> = {
+  LUN: "lunes",
+  MAR: "martes",
+  MIE: "miércoles",
+  JUE: "jueves",
+  VIE: "viernes",
+  SAB: "sábado",
+  DOM: "domingo",
+};

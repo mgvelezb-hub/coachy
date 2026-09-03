@@ -9,7 +9,14 @@ import { emphasisFor } from "@/lib/training/emphasis";
 import { planDisciplines, type OtherSession } from "@/lib/training/disciplines";
 import { generateWeek, mondayOf, sundayEndOf } from "@/lib/training/generate";
 import { isoWeekNumber, SCHEME_PREFERENCES } from "@/lib/training/schemes";
-import { WEEK_DAYS, liftingDaysWithinBudget, trainingDaysOf, type WeekDay } from "@/lib/training/split";
+import {
+  WEEK_DAYS,
+  buildSplit,
+  liftingDaysWithinBudget,
+  normalizeCustomSplit,
+  trainingDaysOf,
+  type WeekDay,
+} from "@/lib/training/split";
 import { lastPerformance, type LastPerformance } from "@/lib/training/progression";
 import { DISCIPLINES, MUSCLE_GROUPS } from "@/lib/training/types";
 import type {
@@ -180,6 +187,10 @@ export function toTrainingProfile(profile: Profile): TrainingProfile {
     timePerDay: parseTimePerDay(profile.timePerDay),
     compactDays: profile.compactDays,
     schemePreference: parseSchemePreference(profile.schemePreference),
+    // El split que ella fijó. `normalizeCustomSplit` tolera JSON viejo o
+    // corrupto llave por llave: un día mal escrito no puede dejarla sin
+    // semana.
+    customSplit: normalizeCustomSplit(profile.customSplit),
   };
 }
 
@@ -360,9 +371,17 @@ export function parsePlan(json: Prisma.JsonValue): PlannedExercise[] {
 function plannedDatesOf(profile: Profile, monday: Date): string[] {
   const mondayISO = toISODate(monday);
   const training = toTrainingProfile(profile);
-  return trainingDaysOf(training)
-    .slice(0, liftingDaysWithinBudget(training))
-    .map((day) => shiftISODate(mondayISO, WEEK_DAYS.indexOf(day)));
+  const porHorario = trainingDaysOf(training).slice(0, liftingDaysWithinBudget(training));
+  // Con split propio los días de gimnasio son los que ella escribió. Si aquí
+  // se siguieran calculando por horario, la reconciliación borraría justo las
+  // sesiones que el generador acaba de materializar.
+  const split = buildSplit({
+    liftingDays: porHorario.length,
+    conditions: training.conditions,
+    avoidRepeatGroups: training.avoidRepeatGroups,
+    customSplit: training.customSplit,
+  });
+  return (split.days ?? porHorario).map((day) => shiftISODate(mondayISO, WEEK_DAYS.indexOf(day)));
 }
 
 /**
