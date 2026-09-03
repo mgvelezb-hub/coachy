@@ -5,7 +5,7 @@ import { kcalForDeficit, macrosFor } from '../src/calc.js';
 import { DEFAULT_CONFIG, pickDeficit } from '../src/config.js';
 import { FOODS, findFood } from '../src/foods.js';
 import { CALIBRATION_PROFILE, devPct } from './helpers.js';
-import type { Phase, Profile } from '../src/types.js';
+import type { Food, Phase, Profile } from '../src/types.js';
 
 function planFor(profile: Profile, phase: Phase = 'BASE', seed = 42) {
   const kcal = kcalForDeficit(profile, pickDeficit(phase, DEFAULT_CONFIG), DEFAULT_CONFIG);
@@ -44,6 +44,30 @@ describe('base de alimentos', () => {
     ];
     const missing = required.filter((id) => findFood(id) === undefined);
     expect(missing).toEqual([]);
+  });
+
+  it('todos los alimentos que se sirven en porciones variables tienen maxG, dentro de topes realistas por rol', () => {
+    const MAX_CEILING_BY_ROLE: Partial<Record<Food['role'], number>> = {
+      grasa: 30,
+      carbo_complejo: 250,
+      carbo_pre: 150,
+      carbo_post: 150,
+      proteina_magra: 250,
+      proteina_grasa: 200,
+      fruta: 250,
+    };
+    const EXEMPT_ROLES: Food['role'][] = ['vegetal_libre', 'suplemento'];
+
+    const missing = FOODS.filter(
+      (f) => !EXEMPT_ROLES.includes(f.role) && f.maxG === undefined,
+    ).map((f) => f.id);
+    expect(missing).toEqual([]);
+
+    const overCeiling = FOODS.filter((f) => {
+      const ceiling = MAX_CEILING_BY_ROLE[f.role];
+      return ceiling !== undefined && f.maxG !== undefined && f.maxG > ceiling;
+    }).map((f) => `${f.id}: maxG=${f.maxG} > techo ${MAX_CEILING_BY_ROLE[f.role]}`);
+    expect(overCeiling).toEqual([]);
   });
 
   it('todos los ids son unicos', () => {

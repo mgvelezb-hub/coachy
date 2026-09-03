@@ -18,7 +18,8 @@
       "no_vegetariano"
     ],
     "servingG": 150,
-    "unit": "g"
+    "unit": "g",
+    "maxG": 200
   },
   {
     "id": "pechuga_pavo",
@@ -37,7 +38,8 @@
       "no_vegetariano"
     ],
     "servingG": 150,
-    "unit": "g"
+    "unit": "g",
+    "maxG": 200
   },
   {
     "id": "claras_huevo",
@@ -58,7 +60,8 @@
       "vegetariano"
     ],
     "servingG": 120,
-    "unit": "g"
+    "unit": "g",
+    "maxG": 240
   },
   {
     "id": "atun_agua",
@@ -80,7 +83,8 @@
       "sin_cocinar"
     ],
     "servingG": 130,
-    "unit": "g"
+    "unit": "g",
+    "maxG": 200
   },
   {
     "id": "tilapia",
@@ -99,7 +103,8 @@
       "no_vegetariano"
     ],
     "servingG": 160,
-    "unit": "g"
+    "unit": "g",
+    "maxG": 200
   },
   {
     "id": "bacalao",
@@ -117,7 +122,8 @@
       "no_vegetariano"
     ],
     "servingG": 160,
-    "unit": "g"
+    "unit": "g",
+    "maxG": 200
   },
   {
     "id": "pescado_blanco",
@@ -136,7 +142,8 @@
       "no_vegetariano"
     ],
     "servingG": 150,
-    "unit": "g"
+    "unit": "g",
+    "maxG": 200
   },
   {
     "id": "camaron",
@@ -155,7 +162,8 @@
       "no_vegetariano"
     ],
     "servingG": 150,
-    "unit": "g"
+    "unit": "g",
+    "maxG": 200
   },
   {
     "id": "res_magra",
@@ -176,7 +184,8 @@
       "no_vegetariano"
     ],
     "servingG": 150,
-    "unit": "g"
+    "unit": "g",
+    "maxG": 200
   },
   {
     "id": "yogur_griego_0",
@@ -197,7 +206,8 @@
       "vegetariano"
     ],
     "servingG": 200,
-    "unit": "g"
+    "unit": "g",
+    "maxG": 250
   },
   {
     "id": "cottage",
@@ -217,7 +227,8 @@
       "vegetariano"
     ],
     "servingG": 120,
-    "unit": "g"
+    "unit": "g",
+    "maxG": 180
   },
   {
     "id": "requeson",
@@ -237,7 +248,8 @@
       "vegetariano"
     ],
     "servingG": 120,
-    "unit": "g"
+    "unit": "g",
+    "maxG": 150
   },
   {
     "id": "jamon_pavo",
@@ -257,7 +269,8 @@
       "sin_cocinar"
     ],
     "servingG": 80,
-    "unit": "g"
+    "unit": "g",
+    "maxG": 150
   },
   {
     "id": "whey_isolate",
@@ -320,7 +333,7 @@
     ],
     "servingG": 250,
     "unit": "ml",
-    "maxG": 400
+    "maxG": 250
   },
   {
     "id": "clara_liquida",
@@ -339,7 +352,8 @@
       "vegetariano"
     ],
     "servingG": 150,
-    "unit": "ml"
+    "unit": "ml",
+    "maxG": 240
   },
   {
     "id": "huevo_entero",
@@ -360,7 +374,8 @@
       "vegetariano"
     ],
     "servingG": 55,
-    "unit": "pieza"
+    "unit": "pieza",
+    "maxG": 150
   },
   {
     "id": "salmon",
@@ -378,7 +393,8 @@
       "no_vegetariano"
     ],
     "servingG": 150,
-    "unit": "g"
+    "unit": "g",
+    "maxG": 200
   },
   {
     "id": "sardina_agua",
@@ -399,7 +415,8 @@
       "sin_cocinar"
     ],
     "servingG": 100,
-    "unit": "g"
+    "unit": "g",
+    "maxG": 150
   },
   {
     "id": "muslo_pollo",
@@ -419,7 +436,8 @@
       "no_vegetariano"
     ],
     "servingG": 150,
-    "unit": "g"
+    "unit": "g",
+    "maxG": 200
   },
   {
     "id": "queso_panela",
@@ -440,7 +458,8 @@
       "vegetariano"
     ],
     "servingG": 100,
-    "unit": "g"
+    "unit": "g",
+    "maxG": 40
   },
   {
     "id": "queso_fresco",
@@ -460,7 +479,8 @@
       "vegetariano"
     ],
     "servingG": 80,
-    "unit": "g"
+    "unit": "g",
+    "maxG": 40
   },
   {
     "id": "tofu_firme",
@@ -479,7 +499,8 @@
       "vegetariano"
     ],
     "servingG": 150,
-    "unit": "g"
+    "unit": "g",
+    "maxG": 200
   },
   {
     "id": "edamame",
@@ -497,7 +518,8 @@
       "vegetariano"
     ],
     "servingG": 120,
-    "unit": "g"
+    "unit": "g",
+    "maxG": 150
   },
   {
     "id": "atun_aceite",
@@ -517,7 +539,8 @@
       "sin_cocinar"
     ],
     "servingG": 130,
-    "unit": "g"
+    "unit": "g",
+    "maxG": 150
   },
   {
     "id": "avena",
@@ -641,7 +664,8 @@
       "vegetariano"
     ],
     "servingG": 150,
-    "unit": "g"
+    "unit": "g",
+    "maxG": 150
   },
   {
     "id": "camote",
@@ -662,7 +686,8 @@
       "vegetariano"
     ],
     "servingG": 150,
-    "unit": "g"
+    "unit": "g",
+    "maxG": 150
   },
   {
     "id": "cereal_arroz_inflado",
@@ -703,7 +728,8 @@
       "vegetariano"
     ],
     "servingG": 200,
-    "unit": "g"
+    "unit": "g",
+    "maxG": 150
   },
   {
     "id": "tortilla_maiz",
@@ -747,7 +773,8 @@
       "vegetariano"
     ],
     "servingG": 120,
-    "unit": "pieza"
+    "unit": "pieza",
+    "maxG": 120
   },
   {
     "id": "arroz_integral",
@@ -768,7 +795,8 @@
       "vegetariano"
     ],
     "servingG": 180,
-    "unit": "g"
+    "unit": "g",
+    "maxG": 200
   },
   {
     "id": "quinoa",
@@ -788,7 +816,8 @@
       "vegetariano"
     ],
     "servingG": 180,
-    "unit": "g"
+    "unit": "g",
+    "maxG": 200
   },
   {
     "id": "frijol_negro",
@@ -809,7 +838,8 @@
       "vegetariano"
     ],
     "servingG": 120,
-    "unit": "g"
+    "unit": "g",
+    "maxG": 180
   },
   {
     "id": "lenteja",
@@ -830,7 +860,8 @@
       "vegetariano"
     ],
     "servingG": 150,
-    "unit": "g"
+    "unit": "g",
+    "maxG": 180
   },
   {
     "id": "garbanzo",
@@ -850,7 +881,8 @@
       "vegetariano"
     ],
     "servingG": 120,
-    "unit": "g"
+    "unit": "g",
+    "maxG": 180
   },
   {
     "id": "haba",
@@ -870,7 +902,8 @@
       "vegetariano"
     ],
     "servingG": 120,
-    "unit": "g"
+    "unit": "g",
+    "maxG": 180
   },
   {
     "id": "pasta_integral",
@@ -889,7 +922,8 @@
       "vegetariano"
     ],
     "servingG": 150,
-    "unit": "g"
+    "unit": "g",
+    "maxG": 200
   },
   {
     "id": "pan_centeno",
@@ -930,7 +964,8 @@
       "vegetariano"
     ],
     "servingG": 150,
-    "unit": "g"
+    "unit": "g",
+    "maxG": 150
   },
   {
     "id": "tostada_horneada",
@@ -973,7 +1008,8 @@
       "vegetariano"
     ],
     "servingG": 250,
-    "unit": "g"
+    "unit": "g",
+    "maxG": 250
   },
   {
     "id": "nopal_asado_carb",
@@ -1015,7 +1051,7 @@
     ],
     "servingG": 10,
     "unit": "ml",
-    "maxG": 25
+    "maxG": 10
   },
   {
     "id": "aguacate",
@@ -1037,7 +1073,8 @@
       "vegetariano"
     ],
     "servingG": 70,
-    "unit": "g"
+    "unit": "g",
+    "maxG": 30
   },
   {
     "id": "almendra",
@@ -1058,7 +1095,8 @@
       "vegetariano"
     ],
     "servingG": 20,
-    "unit": "g"
+    "unit": "g",
+    "maxG": 30
   },
   {
     "id": "nuez",
@@ -1078,7 +1116,8 @@
       "vegetariano"
     ],
     "servingG": 20,
-    "unit": "g"
+    "unit": "g",
+    "maxG": 30
   },
   {
     "id": "cacahuate",
@@ -1099,7 +1138,8 @@
       "vegetariano"
     ],
     "servingG": 20,
-    "unit": "g"
+    "unit": "g",
+    "maxG": 30
   },
   {
     "id": "crema_cacahuate",
@@ -1119,7 +1159,7 @@
     ],
     "servingG": 15,
     "unit": "g",
-    "maxG": 30
+    "maxG": 20
   },
   {
     "id": "semilla_girasol",
@@ -1138,7 +1178,8 @@
       "vegetariano"
     ],
     "servingG": 20,
-    "unit": "g"
+    "unit": "g",
+    "maxG": 30
   },
   {
     "id": "chia",
@@ -1240,7 +1281,8 @@
       "vegetariano"
     ],
     "servingG": 20,
-    "unit": "g"
+    "unit": "g",
+    "maxG": 30
   },
   {
     "id": "aceite_aguacate",
@@ -1769,7 +1811,8 @@
       "vegetariano"
     ],
     "servingG": 180,
-    "unit": "pieza"
+    "unit": "pieza",
+    "maxG": 180
   },
   {
     "id": "fresa",
@@ -1790,7 +1833,8 @@
       "vegetariano"
     ],
     "servingG": 150,
-    "unit": "g"
+    "unit": "g",
+    "maxG": 200
   },
   {
     "id": "frambuesa",
@@ -1811,7 +1855,8 @@
       "vegetariano"
     ],
     "servingG": 100,
-    "unit": "g"
+    "unit": "g",
+    "maxG": 200
   },
   {
     "id": "arandano",
@@ -1831,7 +1876,8 @@
       "vegetariano"
     ],
     "servingG": 100,
-    "unit": "g"
+    "unit": "g",
+    "maxG": 200
   },
   {
     "id": "papaya",
@@ -1852,7 +1898,8 @@
       "vegetariano"
     ],
     "servingG": 200,
-    "unit": "g"
+    "unit": "g",
+    "maxG": 200
   },
   {
     "id": "melon",
@@ -1872,7 +1919,8 @@
       "vegetariano"
     ],
     "servingG": 200,
-    "unit": "g"
+    "unit": "g",
+    "maxG": 200
   },
   {
     "id": "platano",
@@ -1894,7 +1942,8 @@
       "vegetariano"
     ],
     "servingG": 120,
-    "unit": "pieza"
+    "unit": "pieza",
+    "maxG": 120
   },
   {
     "id": "naranja",
@@ -1915,7 +1964,8 @@
       "vegetariano"
     ],
     "servingG": 180,
-    "unit": "pieza"
+    "unit": "pieza",
+    "maxG": 200
   },
   {
     "id": "toronja",
@@ -1936,7 +1986,8 @@
       "vegetariano"
     ],
     "servingG": 200,
-    "unit": "pieza"
+    "unit": "pieza",
+    "maxG": 200
   },
   {
     "id": "mango",
@@ -1956,7 +2007,8 @@
       "vegetariano"
     ],
     "servingG": 180,
-    "unit": "g"
+    "unit": "g",
+    "maxG": 200
   },
   {
     "id": "pina",
@@ -1976,7 +2028,8 @@
       "vegetariano"
     ],
     "servingG": 150,
-    "unit": "g"
+    "unit": "g",
+    "maxG": 200
   },
   {
     "id": "pera",
@@ -1996,7 +2049,8 @@
       "vegetariano"
     ],
     "servingG": 170,
-    "unit": "pieza"
+    "unit": "pieza",
+    "maxG": 200
   },
   {
     "id": "durazno",
@@ -2017,7 +2071,8 @@
       "vegetariano"
     ],
     "servingG": 150,
-    "unit": "pieza"
+    "unit": "pieza",
+    "maxG": 200
   },
   {
     "id": "pasas",
