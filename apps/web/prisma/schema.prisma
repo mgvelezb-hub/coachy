@@ -413,6 +413,31 @@ model Profile {
   customSplit       Json?      @map("custom_split")
 
   /**
+   * Lo que la persona ya tiene en casa: `["pechuga_pollo", "arroz_integral",
+   * ...]` (ids del catálogo). El motor los prefiere al armar la semana. Nació
+   * de un cambio de motor que dejó despensas compradas con el menú viejo sin
+   * uso: la comida comprada manda sobre la variedad.
+   */
+  pantry            Json?      @map("pantry")
+
+  /**
+   * Ejercicios elegidos a mano por tipo de día: `{"PECHO_TRICEP":
+   * ["press_banca", "aperturas", ...]}`. `null` = sigue la sugerencia de
+   * Coachy. Cuando existe, el generador usa esa lista en ese orden y solo
+   * completa con sugerencia si falta volumen.
+   */
+  manualExercises   Json?      @map("manual_exercises")
+
+  /**
+   * Bloques agregados a un día concreto, además de la disciplina base:
+   * `{"2026-09-04": [{"discipline": "NATACION", "tipo": "ENTRENO", "minutos": 40}]}`.
+   * `tipo` = `ENTRENO` (Coachy prescribe la sesión) o `LIBRE` (solo se
+   * registra tiempo y datos del reloj). Es la forma nueva de convivir
+   * disciplinas: se deciden el día, con el tiempo que sobra, no en el plan.
+   */
+  dayBlocks         Json?      @map("day_blocks")
+
+  /**
    * Cuál de los dos menús de la semana quiere cocinar: `AMBOS` (por defecto,
    * se reparten la semana), `MENU_1` o `MENU_2`.
    *
