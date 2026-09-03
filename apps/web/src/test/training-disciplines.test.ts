@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { planDisciplines } from "@/lib/training/disciplines";
+import { planDisciplines, sesionesDeDiaOverride } from "@/lib/training/disciplines";
 import { prescribirSesion, DISCIPLINAS_PRESCRIBIBLES } from "@/lib/training/disciplinas";
 import type { DayKind, DisciplineLoad } from "@/lib/training/types";
 import type { WeekDay } from "@/lib/training/split";
@@ -504,6 +504,64 @@ describe("modo DESPUES vs DIA_PROPIO (Fase 11)", () => {
     expect(sessions).toEqual([]);
     expect(avisos.some((aviso) => aviso.includes("no cupo"))).toBe(true);
     expect(avisos.some((aviso) => aviso.includes("riesgo de lesión"))).toBe(false);
+  });
+});
+
+describe("sesionesDeDiaOverride (Fase 11: override de día completo)", () => {
+  it("con una sola disciplina, se lleva todo el tiempo declarado", () => {
+    const [sesion] = sesionesDeDiaOverride({
+      date: "2026-09-04",
+      weekday: "VIE",
+      disciplinas: ["SQUASH"],
+      niveles: {},
+      objetivo: "RECOMPOSICION",
+      isoWeek: 2,
+      minutos: 75,
+    });
+
+    expect(sesion).toMatchObject({
+      date: "2026-09-04",
+      weekday: "VIE",
+      discipline: "SQUASH",
+      minutes: 75,
+      sharesDayWithGym: false,
+      orden: 1,
+    });
+    expect(sesion!.sesion).not.toBeNull();
+  });
+
+  it("con dos, reparte el tiempo y ordena igual que combinaciones.ts", () => {
+    const sesiones = sesionesDeDiaOverride({
+      date: "2026-09-04",
+      weekday: "VIE",
+      disciplinas: ["SQUASH", "NATACION"],
+      niveles: { NATACION: "INTERMEDIO" },
+      objetivo: "RECOMPOSICION",
+      isoWeek: 2,
+      minutos: 120,
+    });
+
+    expect(sesiones).toHaveLength(2);
+    // Natación siempre cierra (ver `ordenar` en combinaciones.ts).
+    expect(sesiones[0]!.discipline).toBe("SQUASH");
+    expect(sesiones[1]!.discipline).toBe("NATACION");
+    expect(sesiones[0]!.orden).toBe(1);
+    expect(sesiones[1]!.orden).toBe(2);
+    expect(sesiones.every((s) => !s.sharesDayWithGym)).toBe(true);
+    expect(sesiones[0]!.minutes + sesiones[1]!.minutes).toBeLessThanOrEqual(120);
+  });
+
+  it("sin minutos declarados, cae en el default de siempre", () => {
+    const [sesion] = sesionesDeDiaOverride({
+      date: "2026-09-04",
+      weekday: "VIE",
+      disciplinas: ["GOLF"],
+      niveles: {},
+      objetivo: "RECOMPOSICION",
+      isoWeek: 2,
+    });
+
+    expect(sesion!.minutes).toBe(90);
   });
 });
 

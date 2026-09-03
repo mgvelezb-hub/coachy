@@ -16,6 +16,7 @@ import {
 } from "@/lib/training/split";
 import {
   ensureWeekMaterialized,
+  otherPlanFor,
   otherSessionsFor,
   lastPerformances,
   loadCatalog,
@@ -178,12 +179,18 @@ export async function weekView(
     };
   });
 
+  const disciplinas = otherPlanFor(profile, mondayOf(reference), workouts);
+
   return {
     weekStart: toISODate(mondayOf(reference)),
     today: toISODate(reference),
     sessions,
-    otherSessions: otherSessionsFor(profile, mondayOf(reference), workouts),
-    avisos: avisosDelSplit(profile),
+    otherSessions: disciplinas.sessions,
+    // El split avisa vecindad ("hombro antes de pecho"); las disciplinas
+    // avisan lo que no cupo o lo que se combinó con riesgo (Fase 9 y 11). Los
+    // dos son "esto no se arregla solo, decide" — se juntan en una sola lista
+    // para que Ajustes no tenga que saber de dos fuentes.
+    avisos: [...avisosDelSplit(profile), ...disciplinas.avisos],
   };
 }
 

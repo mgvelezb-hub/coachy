@@ -23,6 +23,11 @@ import { DISCIPLINES } from "@/lib/training/types";
  * día cambia de disciplina y, si se cambia a pesas, la sesión de gimnasio se
  * materializa completa: split, ejercicios y pesos, como cualquier otra.
  *
+ * `discipline` también acepta un arreglo de una o dos disciplinas (Fase 11):
+ * "hoy solo squash / natación, sin gym" desde Rutinas. Ese día no hay gimnasio
+ * — si ya había una sesión materializada (por ejemplo, un cambio previo a
+ * pesas), se borra, siempre que no esté ya entrenada.
+ *
  * Es una excepción de fecha, no un cambio de plan: el plan se cambia en
  * Ajustes. Por eso se guarda por día y se olvida a las tres semanas.
  *
@@ -35,7 +40,15 @@ export const dynamic = "force-dynamic";
 const schema = z.object({
   /** ISO `YYYY-MM-DD`. */
   date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
-  discipline: z.enum(DISCIPLINES),
+  discipline: z.union([
+    z.enum(DISCIPLINES),
+    z
+      .array(z.enum(DISCIPLINES))
+      .min(1)
+      .max(2)
+      .refine((items) => !items.includes("PESAS"), "PESAS no va en el arreglo: significa 'sin gym'.")
+      .refine((items) => new Set(items).size === items.length, "disciplinas repetidas"),
+  ]),
 });
 
 export async function POST(request: Request): Promise<NextResponse> {
@@ -80,9 +93,24 @@ export async function POST(request: Request): Promise<NextResponse> {
   let sesionCreada = false;
   if (discipline === "PESAS") {
     sesionCreada = await materializaGimnasioEn(user.id, date);
+  } else if (Array.isArray(discipline)) {
+    // "Hoy solo squash / natación, sin gym": si ya había una sesión de
+    // gimnasio materializada ese día (un cambio anterior a PESAS, o un día
+    // que ya era de pesas), deja de serlo. No se toca si ya se entrenó.
+    await borraGimnasioSinEntrenarEn(user.id, date);
   }
 
   return NextResponse.json({ date, discipline, sesionCreada });
+}
+
+/**
+ * Quita la sesión de gimnasio de un día que se acaba de decir que ya NO es de
+ * gimnasio. Solo si nadie la entrenó — un día entrenado es historia, la misma
+ * regla que ya vale para no tocar el pasado.
+ */
+async function borraGimnasioSinEntrenarEn(userId: string, dateISO: string): Promise<void> {
+  const fecha = new Date(`${dateISO}T12:00:00`);
+  await prisma.workout.deleteMany({ where: { userId, date: fecha, completedAt: null } });
 }
 
 /**

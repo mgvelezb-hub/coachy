@@ -47,4 +47,38 @@ describe("cambios de bloque", () => {
       { date: "2026-09-01", discipline: "NATACION", minutos: 60 },
     ]);
   });
+
+  it("un arreglo también es un override válido: hasta dos disciplinas", () => {
+    expect(
+      parseCambiosDeBloque({
+        "2026-09-04": ["SQUASH", "NATACION"],
+        "2026-09-05": ["SQUASH"],
+        "2026-09-06": ["SQUASH", "NATACION", "BOX"],
+        "2026-09-07": [],
+        "2026-09-08": ["SQUASH", "PILATES_DE_LA_LUNA"],
+      }),
+    ).toEqual({
+      "2026-09-04": ["SQUASH", "NATACION"],
+      "2026-09-05": ["SQUASH"],
+      // 2026-09-06: más de dos, se descarta la fecha entera.
+      // 2026-09-07: arreglo vacío, se descarta.
+      "2026-09-08": ["SQUASH"],
+    });
+  });
+
+  it("un override en arreglo saca la sesión original de esa fecha: se reconstruye aparte", () => {
+    const sesiones = [
+      { date: "2026-09-04", discipline: "BOX" },
+      { date: "2026-09-05", discipline: "NATACION" },
+    ];
+
+    expect(aplicaCambios(sesiones, { "2026-09-04": ["SQUASH", "NATACION"] })).toEqual([
+      { date: "2026-09-05", discipline: "NATACION" },
+    ]);
+  });
+
+  it("conCambio también guarda un arreglo", () => {
+    const salida = conCambio({}, "2026-09-04", ["SQUASH", "NATACION"], "2026-09-04");
+    expect(salida["2026-09-04"]).toEqual(["SQUASH", "NATACION"]);
+  });
 });

@@ -727,4 +727,75 @@ export function planDisciplines(input: {
   };
 }
 
+/**
+ * Reconstruye el día completo de un override de bloque en arreglo (Fase 11):
+ * `{ "2026-09-04": ["SQUASH", "NATACION"] }`, "hoy solo squash y natación,
+ * sin gym". No pasa por `planDisciplines` —ese día no compite por huecos, ya
+ * está decidido— pero sí reusa sus mismas piezas: `ordenar`/`repartirMinutos`
+ * para el reparto de tiempo cuando son dos, y `prescribirSesion` para que
+ * cada bloque traiga su plan como cualquier otro.
+ *
+ * Con una sola disciplina no hay nada que repartir: se lleva todo el tiempo
+ * declarado (o el default si no hay dato).
+ */
+export function sesionesDeDiaOverride(input: {
+  date: string;
+  weekday: WeekDay;
+  disciplinas: Discipline[];
+  niveles: Partial<Record<Discipline, NivelDisciplina>>;
+  objetivo: ObjetivoAtleta;
+  isoWeek: number;
+  /** Minutos reales de ese día, o `null` si no se declararon. */
+  minutos?: number | null;
+}): OtherSession[] {
+  const { date, weekday, disciplinas, niveles, objetivo, isoWeek, minutos } = input;
+
+  const sesionPara = (discipline: Discipline, mins: number): SesionDisciplina | null =>
+    prescribirSesion({
+      discipline,
+      nivel: niveles[discipline] ?? "PRINCIPIANTE",
+      isoWeek,
+      ordinal: 1,
+      minutes: mins,
+      objetivo,
+    });
+
+  if (disciplinas.length === 1) {
+    const discipline = disciplinas[0]!;
+    const mins = minutos ?? DEFAULT_MINUTES[discipline];
+    return [
+      {
+        date,
+        weekday,
+        discipline,
+        minutes: mins,
+        sesion: sesionPara(discipline, mins),
+        note: "Cambiaste este día a mano: hoy es solo esto, sin gimnasio.",
+        sharesDayWithGym: false,
+        orden: 1,
+      },
+    ];
+  }
+
+  const [primero, segundo] = ordenar({ discipline: disciplinas[0]! }, { discipline: disciplinas[1]! });
+  const total = minutos ?? DEFAULT_MINUTES[primero.discipline] + DEFAULT_MINUTES[segundo.discipline];
+  // Si ni con los defaults caben los dos mínimos, se reparte a la mitad —
+  // sigue siendo mejor decirle a la atleta un número real que no decir nada.
+  const reparto = repartirMinutos(total, [primero, segundo]) ?? {
+    minutos: [Math.round(total / 2), total - Math.round(total / 2)] as [number, number],
+  };
+  const explicacion = porqueDeCombo(primero, segundo);
+
+  return [primero, segundo].map((bloque, index) => ({
+    date,
+    weekday,
+    discipline: bloque.discipline,
+    minutes: reparto.minutos[index]!,
+    sesion: sesionPara(bloque.discipline, reparto.minutos[index]!),
+    note: explicacion,
+    sharesDayWithGym: false,
+    orden: (index + 1) as 1 | 2,
+  }));
+}
+
 export type { NivelDisciplina, SesionDisciplina };

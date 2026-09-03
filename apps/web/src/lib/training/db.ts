@@ -6,7 +6,7 @@ import { fromISODate, isoFromDateColumn, shiftISODate, toISODate } from "@/lib/f
 import { prisma } from "@/lib/prisma";
 import { aplicaCambios, parseCambiosDeBloque } from "@/lib/training/bloques";
 import { emphasisFor } from "@/lib/training/emphasis";
-import { planDisciplines, type OtherSession } from "@/lib/training/disciplines";
+import { planDisciplines, sesionesDeDiaOverride, type OtherSession } from "@/lib/training/disciplines";
 import { generateWeek, mondayOf, sundayEndOf } from "@/lib/training/generate";
 import { esUnilateral } from "@/lib/training/coach";
 import { isoWeekNumber, SCHEME_PREFERENCES } from "@/lib/training/schemes";
@@ -468,11 +468,21 @@ function plannedDatesOf(profile: Profile, monday: Date): string[] {
  * silencio — por eso los dos siguen llamando a `planDisciplines` con el mismo
  * criterio en vez de cachear el resultado de uno para el otro.
  */
-export function otherSessionsFor(
+export type OtherPlan = {
+  sessions: OtherSession[];
+  /**
+   * Lo que `planDisciplines` no pudo colocar en ningún lado (Fase 9) más lo
+   * que la Fase 11 avisa cuando una combinación explícita (`modo: 'DESPUES'`)
+   * se aceptó con riesgo. Nunca vacío en silencio.
+   */
+  avisos: string[];
+};
+
+export function otherPlanFor(
   profile: Profile,
   monday: Date,
   workouts: Array<{ date: Date; exercisesJson: Prisma.JsonValue }>,
-): OtherSession[] {
+): OtherPlan {
   const mondayISO = toISODate(monday);
   const gymByDay = new Map<WeekDay, DayKind>();
 
@@ -485,23 +495,77 @@ export function otherSessionsFor(
   }
 
   const training = toTrainingProfile(profile);
-  const planeadas = planDisciplines({
+  const isoWeek = isoWeekNumber(monday);
+  const { sessions: planeadas, avisos } = planDisciplines({
     weekStart: monday,
     otherDisciplines: training.otherDisciplines,
     gymByDay,
     niveles: training.disciplineLevels,
     objetivo: training.goal as never,
-    isoWeek: isoWeekNumber(monday),
+    isoWeek,
     timePerDay: training.timePerDay,
     // Mismo `compactDays` que `generateWeek`: si difieren, la vista de
     // "Tu semana" y la semana que de verdad se materializó divergen.
     compactos: training.compactDays,
-  }).sessions;
+  });
+
+  const cambios = parseCambiosDeBloque(profile.blockOverrides);
 
   // Los bloques que se cambiaron ese día concreto ("hoy no pude ir a squash"):
   // el que se cambió a pesas sale de aquí porque ya es una sesión de gimnasio
   // materializada, y el que se cambió a otra disciplina conserva su bloque.
-  return aplicaCambios(planeadas, parseCambiosDeBloque(profile.blockOverrides));
+  const sessions = aplicaCambios(planeadas, cambios);
+
+  // Los overrides de día completo ("hoy solo squash y natación, sin gym",
+  // Fase 11) no vienen del reparto normal: `aplicaCambios` ya sacó lo que
+  // había ese día, aquí se reconstruye con `sesionesDeDiaOverride`.
+  for (const [fecha, cambio] of Object.entries(cambios)) {
+    if (!Array.isArray(cambio)) continue;
+    const index = WEEK_DAYS.findIndex((_, position) => shiftISODate(mondayISO, position) === fecha);
+    if (index === -1) continue; // el override no cae en esta semana
+    const weekday = WEEK_DAYS[index]!;
+    sessions.push(
+      ...sesionesDeDiaOverride({
+        date: fecha,
+        weekday,
+        disciplinas: cambio,
+        niveles: training.disciplineLevels,
+        objetivo: training.goal as never,
+        isoWeek,
+        minutos: training.timePerDay?.[weekday] ?? null,
+      }),
+    );
+  }
+
+  return { sessions: sessions.sort((a, b) => a.date.localeCompare(b.date) || a.orden - b.orden), avisos };
+}
+
+/** Las sesiones de las otras disciplinas de la semana, sin los avisos.
+ *
+ * Se recalculan a partir de la semana de pesas ya materializada en vez de
+ * guardarse: son sugerencias de día con su plan, no filas que alguien vaya a
+ * editar. Lo que sí queda registrado es lo que se hizo, y eso vive en
+ * `ActivitySession`.
+ *
+ * **Por qué esto no diverge de lo que ya se generó.** `planDisciplines` es
+ * pura: misma entrada, misma salida — incluidos `gymMinutesPorFecha` y el
+ * `orden` de cada bloque (Fase 9). `generateWeek` (en `ensureWeekMaterialized`)
+ * y `otherPlanFor` arman `gymByDay` por caminos distintos —una desde el split
+ * recién calculado, esta desde el `dayKind` ya guardado en cada `Workout`—
+ * pero para la MISMA semana ya materializada ambos caminos producen el mismo
+ * mapa, y `otherDisciplines`/`niveles`/`objetivo`/`isoWeek` salen del mismo
+ * `toTrainingProfile(profile)` en los dos lados. Si algún día uno de los dos
+ * empieza a construir `gymByDay` o el `isoWeek` distinto (p. ej. leyendo un
+ * `profile` desactualizado), la semana materializada y la vista se separan en
+ * silencio — por eso los dos siguen llamando a `planDisciplines` con el mismo
+ * criterio en vez de cachear el resultado de uno para el otro.
+ */
+export function otherSessionsFor(
+  profile: Profile,
+  monday: Date,
+  workouts: Array<{ date: Date; exercisesJson: Prisma.JsonValue }>,
+): OtherSession[] {
+  return otherPlanFor(profile, monday, workouts).sessions;
 }
 
 /**
