@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { generateMenu, listaDeSuper, prepMinDelDia } from '../src/menu.js';
+import { generateMenu, incompatibles, listaDeSuper, prepMinDelDia } from '../src/menu.js';
 import { distribute } from '../src/meals.js';
 import { kcalForDeficit, macrosFor } from '../src/calc.js';
 import { DEFAULT_CONFIG, pickDeficit } from '../src/config.js';
@@ -390,6 +390,32 @@ describe('generador de menus (spec §6)', () => {
             expect(gramosDe(meal.items, 'fruto_seco'), donde).toBeLessThanOrEqual(
               composicion.frutoSecoMaxGPorComida,
             );
+          }
+        }
+      }
+    }
+  });
+
+  // La afinidad no cuadra macros: cuida que la comida tenga sentido. Avena con
+  // arroz es desayuno y comida en el mismo plato; dos frutas son postre.
+  it('no sirve combinaciones que no van juntas', () => {
+    for (const seed of SEEDS) {
+      for (const phase of ['BASE', 'CUT', 'REINTRO'] as Phase[]) {
+        const { plan } = planFor(P, phase, seed);
+        for (const menu of plan.menus) {
+          for (const meal of menu.meals) {
+            const foods = meal.items.map((i) => findFood(i.foodId)!);
+            const donde = `${phase} ${meal.slot} seed ${seed}`;
+            for (const a of foods) {
+              for (const b of foods) {
+                if (a === b) continue;
+                expect(
+                  incompatibles(a, b, DEFAULT_CONFIG),
+                  `${a.name} + ${b.name} en ${donde}`,
+                ).toBe(false);
+              }
+            }
+            expect(foods.filter((f) => f.role === 'fruta').length, donde).toBeLessThanOrEqual(1);
           }
         }
       }

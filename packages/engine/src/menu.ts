@@ -89,6 +89,29 @@ interface EligibleOptions {
   quickOnly?: boolean;
   /** Comida o cena: sin polvos ni suplementos. */
   noSupplements?: boolean;
+  /** Lo que ya esta en el plato, para no servir combinaciones que no van. */
+  acompanan?: Food[];
+}
+
+/** true si el alimento responde a ese termino de la tabla de afinidad. */
+function esTermino(food: Food, termino: string): boolean {
+  return food.id === termino || food.role === termino || food.tags.includes(termino);
+}
+
+/** true si esos dos alimentos no se sirven en la misma comida. */
+export function incompatibles(a: Food, b: Food, config: EngineConfig): boolean {
+  return config.afinidad.incompatibles.some(
+    ([uno, otro]) =>
+      (esTermino(a, uno) && esTermino(b, otro)) || (esTermino(a, otro) && esTermino(b, uno)),
+  );
+}
+
+/** true si ese par se busca: frijol con tortilla, huevo con aguacate. */
+function afines(a: Food, b: Food, config: EngineConfig): boolean {
+  return config.afinidad.afines.some(
+    ([uno, otro]) =>
+      (esTermino(a, uno) && esTermino(b, otro)) || (esTermino(a, otro) && esTermino(b, uno)),
+  );
 }
 
 /**
@@ -155,18 +178,37 @@ function eligible(
       : filtered.filter((f) => prepMinDelDia(f) <= (profile.maxPrepMin as number));
   const byPrep = quickEnough.length > 0 ? quickEnough : filtered;
 
+  const conAfinidad =
+    options.acompanan === undefined
+      ? byPrep
+      : byPrep.filter(
+          (f) => !options.acompanan!.some((otro) => incompatibles(f, otro, config)),
+        );
+  // La afinidad es una preferencia fuerte, no un muro: si deja el rol vacio,
+  // manda comer, igual que el tope de tiempo de cocina.
+  const conCompania = conAfinidad.length > 0 ? conAfinidad : byPrep;
+
   if (options.quickOnly) {
-    const quick = byPrep.filter((f) => f.tags.includes('rapido'));
+    const quick = conCompania.filter((f) => f.tags.includes('rapido'));
     if (quick.length > 0) return quick;
   }
-  return byPrep;
+  return conCompania;
 }
 
-function pick(candidates: Food[], profile: Profile, random: () => number, avoid: Set<string>): Food | undefined {
+function pick(
+  candidates: Food[],
+  profile: Profile,
+  random: () => number,
+  avoid: Set<string>,
+  /** Alimentos que se llevan bien con lo que ya esta en el plato. */
+  preferidos: Set<string> = new Set(),
+): Food | undefined {
   if (candidates.length === 0) return undefined;
   const fresh = candidates.filter((f) => !avoid.has(f.id));
   const pool = fresh.length > 0 ? fresh : candidates;
-  const weights = pool.map((f) => (matchesAny(f, profile.favoriteFoods) ? 3 : 1));
+  const weights = pool.map(
+    (f) => (matchesAny(f, profile.favoriteFoods) ? 3 : 1) * (preferidos.has(f.id) ? 2 : 1),
+  );
   const total = weights.reduce((a, b) => a + b, 0);
   let ticket = random() * total;
   for (let i = 0; i < pool.length; i += 1) {
@@ -570,6 +612,15 @@ function aplicarComposicion(comida: Slot[], config: EngineConfig): void {
   }
 }
 
+/** Los que se llevan bien con lo que ya esta en el plato, para pesar el sorteo. */
+function preferidosDe(candidatos: Food[], comida: Slot[], config: EngineConfig): Set<string> {
+  return new Set(
+    candidatos
+      .filter((f) => comida.some((s) => afines(f, s.food, config)))
+      .map((f) => f.id),
+  );
+}
+
 /** Macro que ese alimento viene a cerrar en la comida. */
 function macroDominante(food: Food, role?: FoodRole): 'p' | 'c' | 'f' {
   const key = primaryMacroOf(role ?? food.role);
@@ -662,7 +713,10 @@ function ajustarPorciones(
       const yaEstan = new Set(slots.map((s) => s.food.id));
       const falta = target[faltante] - sum(slots, faltante);
       const clave = primaryMacroOf(topado.role);
-      const candidatos = eligible(pool, profile, config, topado.role, filters).filter(
+      const candidatos = eligible(pool, profile, config, topado.role, {
+        ...filters,
+        acompanan: slots.map((s) => s.food),
+      }).filter(
         // El segundo alimento tiene que CABER en el hueco: si su porcion
         // minima ya se pasa de lo que falta, meterlo cambia un plato corto por
         // uno pasado, y eso no es arreglarlo.
@@ -676,7 +730,14 @@ function ajustarPorciones(
         (f) => !violaComposicion([...slots, { food: f, grams: minGrams(f), fixed: false }], config),
       );
       const cubren = caben.filter((f) => (maxGrams(f) * f[clave]) / 100 >= falta * 0.8);
-      const segundo = pick(cubren.length > 0 ? cubren : caben, profile, random, avoid);
+      const finalistas = cubren.length > 0 ? cubren : caben;
+      const segundo = pick(
+        finalistas,
+        profile,
+        random,
+        avoid,
+        preferidosDe(finalistas, slots, config),
+      );
       if (segundo) {
         reforzados[faltante] += 1;
         slots.push({
@@ -708,6 +769,24 @@ function buildMeal(
   const periWorkout = slot.id === 'PRE' || slot.id === 'POST';
   const filters: EligibleOptions = { quickOnly: periWorkout, noSupplements: !periWorkout };
 
+  /**
+   * Sortea un alimento de ese rol contando con lo que ya esta en el plato: se
+   * descartan las combinaciones que no van (avena con arroz) y pesan doble las
+   * que si (frijol con tortilla).
+   */
+  function elegir(
+    role: FoodRole,
+    key?: 'proteinPer100' | 'carbPer100' | 'fatPer100',
+    targetG = 0,
+  ): Food | undefined {
+    const base = eligible(pool, profile, config, role, {
+      ...filters,
+      acompanan: slots.map((s) => s.food),
+    });
+    const candidatos = key ? feasible(base, key, targetG, 10) : base;
+    return pick(candidatos, profile, random, avoid, preferidosDe(candidatos, slots, config));
+  }
+
   if (slot.freeVegetables && config.freeVegetableGramsPerMeal > 0) {
     const veg = pick(
       eligible(pool, profile, config, 'vegetal_libre', { freeVegetable: true }),
@@ -722,7 +801,7 @@ function buildMeal(
   }
 
   if (slot.id === 'PRE' && slot.allowDenseCarb && !options.simplify) {
-    const fruit = pick(eligible(pool, profile, config, 'fruta', filters), profile, random, avoid);
+    const fruit = elegir('fruta');
     if (fruit) {
       // La fruta del pre-entreno va fija, pero fija en una porcion de verdad:
       // una pieza o una taza, no los 100 g de relleno de antes.
@@ -738,25 +817,9 @@ function buildMeal(
 
   const wantsFat = slot.fatG > 0;
   const proteinRole: FoodRole = wantsFat && random() < 0.35 ? 'proteina_grasa' : 'proteina_magra';
-  const proteinPool = feasible(
-    eligible(pool, profile, config, proteinRole, filters),
-    'proteinPer100',
-    slot.proteinG,
-    10,
-  );
   const protein =
-    pick(proteinPool, profile, random, avoid) ??
-    pick(
-      feasible(
-        eligible(pool, profile, config, 'proteina_magra', filters),
-        'proteinPer100',
-        slot.proteinG,
-        10,
-      ),
-      profile,
-      random,
-      avoid,
-    );
+    elegir(proteinRole, 'proteinPer100', slot.proteinG) ??
+    elegir('proteina_magra', 'proteinPer100', slot.proteinG);
   if (protein) {
     slots.push({ food: protein, grams: 100, fixed: false, role: protein.role });
     avoid.add(protein.id);
@@ -765,12 +828,7 @@ function buildMeal(
   if (slot.carbG > 0 && slot.allowDenseCarb) {
     const carbRole = slotCarbRole(slot.id);
     const carbTarget = slot.carbG - (slot.id === 'PRE' ? 20 : 0);
-    const carb = pick(
-      feasible(eligible(pool, profile, config, carbRole, filters), 'carbPer100', carbTarget, 10),
-      profile,
-      random,
-      avoid,
-    );
+    const carb = elegir(carbRole, 'carbPer100', carbTarget);
     if (carb) {
       slots.push({ food: carb, grams: 100, fixed: false, role: carbRole });
       avoid.add(carb.id);
@@ -778,12 +836,7 @@ function buildMeal(
   }
 
   if (wantsFat) {
-    const fat = pick(
-      feasible(eligible(pool, profile, config, 'grasa', filters), 'fatPer100', slot.fatG, 10),
-      profile,
-      random,
-      avoid,
-    );
+    const fat = elegir('grasa', 'fatPer100', slot.fatG);
     if (fat) {
       slots.push({ food: fat, grams: minGrams(fat) || 15, fixed: false, role: 'grasa' });
       avoid.add(fat.id);
@@ -916,13 +969,10 @@ function sustituirAlimentos(
     for (const slot of comida) {
       if (slot.fixed || !slot.role) continue;
       const yaEstan = new Set(comida.map((s) => s.food.id));
-      const candidatos = eligible(
-        contexto.pool,
-        contexto.profile,
-        config,
-        slot.role,
-        filters,
-      ).filter((f) => !yaEstan.has(f.id));
+      const candidatos = eligible(contexto.pool, contexto.profile, config, slot.role, {
+        ...filters,
+        acompanan: comida.filter((s) => s !== slot).map((s) => s.food),
+      }).filter((f) => !yaEstan.has(f.id));
 
       const original = { food: slot.food, grams: slot.grams };
       let mejorError = error(all, target);
@@ -1059,6 +1109,13 @@ function buildMenu(
       })),
     },
   );
+  // Los gramos se cierran a entero ANTES de pintar: media cucharadita son 2.5
+  // g y la pantalla no muestra decimales. Si el motor se queda con 7.5 y la
+  // pantalla dice 8, las equivalencias se calculan contra una porcion que
+  // nadie ve y salen desviadas de lo que promete la app.
+  for (const b of built) {
+    for (const s of b.slots) s.grams = Math.round(s.grams);
+  }
   const meals = built.map((b) => b.meal);
   for (const b of built) refreshMeal(b.meal, b.slots, pool, profile, config);
   const totals = meals.reduce<MacroTargets>(

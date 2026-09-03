@@ -92,6 +92,16 @@ export const ConfigSchema = z
     /** Un vegetal "libre" no puede pasar de estos carbos por 100 g. */
     freeVegetableMaxCarbPer100: z.number().min(2).max(15),
     /**
+     * Afinidad entre alimentos de una misma comida. Los terminos son id, tag o
+     * rol; `incompatibles` son pares que no se sirven juntos y `afines` pares
+     * que se buscan. La afinidad solo filtra y pondera candidatos: el sorteo
+     * determinista sigue mandando.
+     */
+    afinidad: z.object({
+      incompatibles: z.array(z.tuple([z.string(), z.string()])),
+      afines: z.array(z.tuple([z.string(), z.string()])),
+    }),
+    /**
      * Topes de composicion del platillo (spec F1 §3). No son topes de macro
      * sino de PLATO: nadie sirve dos grasas anadidas en la misma comida ni
      * tres tazas de frijol, aunque los macros cuadren.
@@ -207,6 +217,30 @@ export const DEFAULT_CONFIG: EngineConfig = {
   lowGiMax: 55,
   freeVegetableGramsPerMeal: 200,
   freeVegetableMaxCarbPer100: 6,
+  afinidad: {
+    incompatibles: [
+      // Dos cereales en la misma comida: avena con arroz es desayuno y comida
+      // en el mismo plato.
+      ['avena', 'cereal_cocido'],
+      ['avena', 'carbo_post'],
+      // Dos frutas en una comida son postre, no comida.
+      ['fruta', 'fruta'],
+      // La crema de cacahuate ya es la grasa del plato: con aguacate o aceite
+      // encima son tres grasas disfrazadas de dos.
+      ['crema_cacahuate', 'grasa'],
+    ],
+    afines: [
+      ['frijol_negro', 'tortilla_maiz'],
+      ['frijol_negro', 'arroz_blanco'],
+      ['frijol_negro', 'arroz_integral'],
+      ['lenteja', 'arroz_integral'],
+      ['huevo_entero', 'aguacate'],
+      ['pechuga_pollo', 'arroz_integral'],
+      ['pechuga_pollo', 'arroz_blanco'],
+      ['pechuga_pollo', 'vegetal_libre'],
+      ['tostada_horneada', 'aguacate'],
+    ],
+  },
   composicion: {
     grasaAnadidaMaxGPorComida: 16,
     maxGrasasAnadidasPorComida: 1,
