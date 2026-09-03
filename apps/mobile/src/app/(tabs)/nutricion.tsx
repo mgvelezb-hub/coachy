@@ -18,13 +18,15 @@ import { useTheme } from "@/context/theme";
 import { useScrollTop } from "@/lib/scroll-top";
 import {
   ApiError,
+  getHorariosComidaCompleto,
   getNutrition,
+  ONBOARDING_WEEK_DAYS,
   putMenuPreferido,
   type GroceryItem,
   type MenuPreference,
   type NutritionResponse,
 } from "@/lib/api";
-import { programarComidas } from "@/lib/recordatorio";
+import { programarComidas, type ComidaAviso } from "@/lib/recordatorio";
 import { fonts, radius, spacing, type as typeScale, type Palette } from "@/lib/theme";
 import { actualizarComidaEnElReloj } from "@/lib/reloj-nativo";
 import { formatMealItem, pickNextMeal, syncWidgetData } from "@/lib/widget";
@@ -118,19 +120,52 @@ export default function NutricionScreen() {
    * Los avisos por comida se programan con los horarios del menú vigente.
    *
    * Aquí y no en Hoy porque esta es la pantalla que ya tiene el menú completo
-   * cargado; Hoy solo conoce la siguiente comida.
+   * cargado; Hoy solo conoce la siguiente comida. `comida.timeHint` ya trae
+   * la hora general propia aplicada (`toMenuView` la pisa sobre la del
+   * motor); lo único que falta cruzar aquí es el horario por día
+   * (`horariosPorDia`, Fase 2) para que un sábado con otra hora avise a su
+   * propia hora, no a la de entre semana.
    */
   useFocusEffect(
     useCallback(() => {
       const comidas = data?.menus?.[0]?.meals ?? [];
+      const menuNumber = data?.menus?.[0]?.menuNumber ?? 1;
       if (comidas.length === 0) return;
-      void programarComidas(
-        comidas.map((comida) => ({
-          slot: comida.slot,
-          label: comida.label,
-          timeHint: comida.timeHint,
-        })),
-      );
+
+      let vivo = true;
+      getHorariosComidaCompleto()
+        .then((respuesta) => {
+          if (!vivo) return;
+          const horariosPorDia = respuesta.horariosPorDia ?? {};
+
+          const avisos: ComidaAviso[] = comidas.map((comida) => ({
+            slot: comida.slot,
+            label: comida.label,
+            menuNumber,
+            items: comida.items.map((item) => ({ name: item.name })),
+            horaPorDia: Object.fromEntries(
+              ONBOARDING_WEEK_DAYS.map((dia) => [dia, horariosPorDia[dia]?.[comida.slot] ?? comida.timeHint]),
+            ),
+          }));
+
+          void programarComidas(avisos);
+        })
+        .catch(() => {
+          // Sin poder leer el horario por día, se avisa con la hora general:
+          // peor sería no avisar nada.
+          void programarComidas(
+            comidas.map((comida) => ({
+              slot: comida.slot,
+              label: comida.label,
+              menuNumber,
+              items: comida.items.map((item) => ({ name: item.name })),
+              horaPorDia: Object.fromEntries(ONBOARDING_WEEK_DAYS.map((dia) => [dia, comida.timeHint])),
+            })),
+          );
+        });
+      return () => {
+        vivo = false;
+      };
     }, [data?.menus]),
   );
 

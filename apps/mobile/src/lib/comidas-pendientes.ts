@@ -18,7 +18,18 @@ import { postComidaLog } from "@/lib/api";
 
 const LLAVE = "holygains.comidas.pendientes";
 
-export type RespuestaComida = { date: string; slot: string; taken: boolean };
+export type MotivoSalto = "sin_hambre" | "sin_tiempo" | "comi_otra_cosa";
+
+export type RespuestaComida = {
+  date: string;
+  slot: string;
+  taken: boolean;
+  /** Hora planeada ese día ("14:30"), para que el aprendizaje mida el desfase. */
+  plannedAt?: string;
+  /** Cuándo se comió de verdad, ISO completo. */
+  takenAt?: string;
+  skipped?: MotivoSalto;
+};
 
 async function leer(): Promise<RespuestaComida[]> {
   const crudo = await AsyncStorage.getItem(LLAVE).catch(() => null);

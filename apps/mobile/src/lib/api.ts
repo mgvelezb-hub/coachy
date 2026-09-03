@@ -1681,3 +1681,100 @@ export type OnboardingResponse = {
 export function postOnboarding(payload: OnboardingPayload): Promise<OnboardingResponse> {
   return apiFetch<OnboardingResponse>("/api/v1/onboarding", { method: "POST", body: payload });
 }
+
+// ---------------------------------------------------------------------------
+// Fase 2 — comidas: registro con hora real, horarios por día, aprendizaje
+// ---------------------------------------------------------------------------
+
+/** Por qué no se hizo la comida: los tres motivos que ofrece la hoja de "La salté". */
+export const MOTIVOS_SALTO = ["sin_hambre", "sin_tiempo", "comi_otra_cosa"] as const;
+export type MotivoSalto = (typeof MOTIVOS_SALTO)[number];
+
+export const MOTIVO_SALTO_LABEL: Record<MotivoSalto, string> = {
+  sin_hambre: "Sin hambre",
+  sin_tiempo: "Sin tiempo",
+  comi_otra_cosa: "Comí otra cosa",
+};
+
+/** Un registro de comida con la hora real, no solo el sí/no de siempre. */
+export type RegistroComidaCompleto = RegistroComida & {
+  plannedAt: string | null;
+  takenAt: string | null;
+  skipped: MotivoSalto | null;
+};
+
+/**
+ * `GET /api/v1/meals/log?from&to` — como `getComidasLog`, pero con rango
+ * propio y las horas reales de cada registro. Sin rango, el servidor sigue
+ * usando su ventana por defecto (últimos 14 días).
+ */
+export function getComidasLogRango(rango?: { from?: string; to?: string }): Promise<{
+  registros: RegistroComidaCompleto[];
+  apego: number | null;
+  contestadas: number;
+}> {
+  const query = new URLSearchParams();
+  if (rango?.from) query.set("from", rango.from);
+  if (rango?.to) query.set("to", rango.to);
+  const qs = query.toString();
+  return apiFetch(`/api/v1/meals/log${qs ? `?${qs}` : ""}`);
+}
+
+/**
+ * Confirma una comida con hora real: la versión completa de `postComidaLog`
+ * para el recordatorio en dos tiempos y la hoja "Mis comidas hoy". `taken`
+ * sigue siendo obligatorio para no romper el apego que ya se calculaba antes
+ * de que existiera `takenAt`.
+ */
+export function postComidaLogCompleto(input: {
+  date: string;
+  slot: string;
+  taken: boolean;
+  plannedAt?: string;
+  takenAt?: string;
+  skipped?: MotivoSalto;
+}): Promise<{ registro: RegistroComidaCompleto }> {
+  return apiFetch<{ registro: RegistroComidaCompleto }>("/api/v1/meals/log", {
+    method: "POST",
+    body: input,
+  });
+}
+
+/** Una propuesta de mover un horario, del aprendizaje semanal. Nunca se aplica sola. */
+export type PropuestaHorario = {
+  slot: string;
+  dia: "SEMANA" | "FIN";
+  actual: string;
+  propuesta: string;
+  evidencia: number;
+};
+
+/** `GET /api/v1/meals/propuestas` — qué horarios convendría mover, con su evidencia. */
+export function getPropuestasHorario(): Promise<{ propuestas: PropuestaHorario[] }> {
+  return apiFetch<{ propuestas: PropuestaHorario[] }>("/api/v1/meals/propuestas");
+}
+
+/** `GET /api/v1/me/horarios-comida?dia=SAB` — el horario propio de un solo día. */
+export function getHorariosComidaDia(dia: string): Promise<HorariosResponse> {
+  return apiFetch<HorariosResponse>(`/api/v1/me/horarios-comida?dia=${encodeURIComponent(dia)}`);
+}
+
+/** `PUT /api/v1/me/horarios-comida` con `dia`: mueve horas de ese día nada más. */
+export function putHorariosComidaDia(
+  dia: string,
+  horarios: Record<string, string | null>,
+): Promise<HorariosResponse> {
+  return apiFetch<HorariosResponse>("/api/v1/me/horarios-comida", {
+    method: "PUT",
+    body: { dia, horarios },
+  });
+}
+
+/** El horario general más el resumen por día, tal como lo trae `GET` sin `?dia`. */
+export type HorariosGeneralesResponse = HorariosResponse & {
+  horariosPorDia?: Record<string, Record<string, string>>;
+};
+
+export function getHorariosComidaCompleto(): Promise<HorariosGeneralesResponse> {
+  return apiFetch<HorariosGeneralesResponse>("/api/v1/me/horarios-comida");
+}

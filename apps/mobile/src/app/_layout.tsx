@@ -19,13 +19,8 @@ import { OpeningSequence } from "@/components/OpeningSequence";
 import { SessionProvider, useSession } from "@/context/session";
 import { ThemeProvider, useTheme } from "@/context/theme";
 import { drenarComidas, responderComida } from "@/lib/comidas-pendientes";
-import {
-  ACCION_COMIDA_DESPUES,
-  ACCION_COMIDA_NO,
-  ACCION_COMIDA_SI,
-  posponerComida,
-  registrarAccionesDeComida,
-} from "@/lib/recordatorio";
+import { getComidasLogRango } from "@/lib/api";
+import { ACCION_COMIDA_LISTA, CATEGORIA_COMIDA_SEGUIMIENTO, registrarAccionesDeComida } from "@/lib/recordatorio";
 import { paletteLight } from "@/lib/theme";
 
 SplashScreen.preventAutoHideAsync().catch(() => {
@@ -40,15 +35,18 @@ function hoyISO(): string {
 }
 
 /**
- * Qué pasa cuando se contesta una notificación.
+ * Qué pasa cuando se contesta una notificación de comida.
  *
  * Dos caminos distintos y no conviene confundirlos:
  *
- * - **Con botón** (Sí / No / En 30 min, incluido desde el Apple Watch): se
- *   registra la respuesta y la app NO se abre. Abrirla para contestar un sí o
- *   un no es justo la fricción que los botones quitan.
- * - **Tocando el aviso**: se abre la ruta que traiga en `data.ruta`. Es el
- *   único contrato entre esta pantalla y `lib/recordatorio.ts`.
+ * - **"Ya la hice" / "Ya comí"** (botón, incluido desde el Apple Watch): se
+ *   registra ahora mismo —con la hora planeada que trae el propio aviso en
+ *   `data.comidaPlaneada`, para que el aprendizaje pueda medir el desfase— y
+ *   la app NO se abre. Abrirla para contestar eso es justo la fricción que
+ *   el botón quita.
+ * - **Cualquier otra cosa** (tocar el aviso, "Ver menú", "Comí a otra hora",
+ *   "La salté"): se abre la ruta que traiga en `data.ruta`. Es el único
+ *   contrato entre esta pantalla y `lib/recordatorio.ts`.
  *
  * Se escucha en la raíz porque la respuesta puede llegar con cualquier pestaña
  * abierta —y también con la app cerrada, en cuyo caso iOS la entrega en cuanto
@@ -61,23 +59,53 @@ function useResponderNotificacion() {
       const slot = contenido.data?.comidaSlot;
       const accion = respuesta.actionIdentifier;
 
-      if (typeof slot === "string") {
-        if (accion === ACCION_COMIDA_SI || accion === ACCION_COMIDA_NO) {
-          void responderComida({
-            date: hoyISO(),
-            slot,
-            taken: accion === ACCION_COMIDA_SI,
-          });
-          return;
-        }
-        if (accion === ACCION_COMIDA_DESPUES) {
-          void posponerComida(slot);
-          return;
-        }
+      if (typeof slot === "string" && accion === ACCION_COMIDA_LISTA) {
+        const plannedAt = contenido.data?.comidaPlaneada;
+        void responderComida({
+          date: hoyISO(),
+          slot,
+          taken: true,
+          takenAt: new Date().toISOString(),
+          plannedAt: typeof plannedAt === "string" ? plannedAt : undefined,
+        });
+        return;
       }
 
       const ruta = contenido.data?.ruta;
       if (typeof ruta === "string" && ruta.startsWith("/")) router.push(ruta as never);
+    });
+    return () => sub.remove();
+  }, []);
+}
+
+/**
+ * El seguimiento ("¿cómo te fue con la comida?") solo tiene sentido para
+ * quien no contestó todavía. Expo no deja condicionar un aviso local al
+ * momento de dispararlo, así que la supresión ocurre aquí: si llega con la
+ * app en primer plano y ya hay un registro de esa comida hoy, se descarta
+ * sin mostrarse. En segundo plano sigue llegando — límite conocido del
+ * modelo de notificaciones locales, documentado en `recordatorio.ts`.
+ */
+function useDescartarSeguimientoContestado() {
+  useEffect(() => {
+    const sub = Notifications.addNotificationReceivedListener((evento) => {
+      const contenido = evento.request.content;
+      const slot = contenido.data?.comidaSlot;
+      if (contenido.categoryIdentifier !== CATEGORIA_COMIDA_SEGUIMIENTO || typeof slot !== "string") return;
+
+      void (async () => {
+        try {
+          const hoy = hoyISO();
+          const { registros } = await getComidasLogRango({ from: hoy, to: hoy });
+          const yaContestada = registros.some((registro) => registro.slot === slot);
+          if (yaContestada) {
+            await Notifications.dismissNotificationAsync(evento.request.identifier).catch(() => {});
+          }
+        } catch {
+          // Sin poder confirmar contra el servidor, se deja el aviso: mejor
+          // uno de más que perder el seguimiento de una comida sin contestar.
+        }
+      })();
     });
     return () => sub.remove();
   }, []);
@@ -106,6 +134,7 @@ function useDrenarComidas() {
 
 function RootNavigator() {
   useResponderNotificacion();
+  useDescartarSeguimientoContestado();
   useDrenarComidas();
   const { session, loading, onboarded } = useSession();
   const { colors } = useTheme();
