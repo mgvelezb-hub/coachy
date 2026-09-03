@@ -1,8 +1,9 @@
 import { useRouter } from "expo-router";
 import { Dumbbell, Home } from "lucide-react-native";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { ScrollView, StyleSheet, Text } from "react-native";
+import { ScrollView, StyleSheet, Text, View } from "react-native";
 
+import { EngraneAjustes } from "@/components/EngraneAjustes";
 import { ScoreCard } from "@/components/ScoreCard";
 import { ErrorState, LoadingState } from "@/components/States";
 import { useTheme } from "@/context/theme";
@@ -116,7 +117,10 @@ export default function BibliotecaScreen() {
 
   return (
     <ScrollView ref={scrollRef} style={styles.screen} contentContainerStyle={styles.content}>
-      <Text style={styles.title}>Biblioteca</Text>
+      <View style={styles.header}>
+        <Text style={styles.title}>Biblioteca</Text>
+        <EngraneAjustes seccion="entrenamiento" />
+      </View>
       <Text style={styles.subtitle}>
         Todo lo que la app sabe prescribir, por disciplina y por nivel. Los videos se descargan con
         señal y quedan en tu teléfono para el gimnasio.
@@ -167,6 +171,7 @@ const makeStyles = (colors: Palette) =>
   StyleSheet.create({
     screen: { flex: 1, backgroundColor: colors.obsidiana },
     content: { padding: spacing.lg, gap: spacing.lg, paddingBottom: spacing.huge },
+    header: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
     title: { fontFamily: fonts.display, ...typeScale.title, color: colors.marfil },
     subtitle: { fontFamily: fonts.sans, ...typeScale.bodySm, color: colors.paloRosaLight },
   });

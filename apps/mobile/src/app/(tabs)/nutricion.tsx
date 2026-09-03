@@ -10,6 +10,7 @@ import { useCallback, useMemo, useState } from "react";
 import { ActivityIndicator, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useFocusEffect, useRouter } from "expo-router";
 
+import { EngraneAjustes } from "@/components/EngraneAjustes";
 import { InfoTip, TextoInfo } from "@/components/InfoTip";
 import { ScoreCard } from "@/components/ScoreCard";
 import { SectionLabel } from "@/components/SectionLabel";
@@ -202,7 +203,10 @@ export default function NutricionScreen() {
         <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.paloRosa} />
       }
     >
-      <Text style={styles.titulo}>Nutrición</Text>
+      <View style={styles.header}>
+        <Text style={styles.titulo}>Nutrición</Text>
+        <EngraneAjustes seccion="nutricion" />
+      </View>
 
       <ScoreCard
         icon={Flame}
@@ -401,11 +405,16 @@ const makeStyles = (colors: Palette) => StyleSheet.create({
     paddingBottom: spacing.huge,
     gap: spacing.md,
   },
+  header: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: spacing.xs,
+  },
   titulo: {
     fontFamily: fonts.sansBold,
     ...typeScale.title,
     color: colors.marfil,
-    marginBottom: spacing.xs,
   },
   selectorCard: {
     borderRadius: radius.xxl,

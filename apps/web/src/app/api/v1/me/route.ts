@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 
 import { apiUser, unauthorized } from "@/lib/api/auth";
+import { parsePantry } from "@/lib/coachy/mapping";
 import { decimalToNumber } from "@/lib/format";
 import { parseDisciplineLoads, parseTimePerDay, parseUnilateralMode } from "@/lib/training/db";
 import { normalizeCustomSplit } from "@/lib/training/split";
@@ -47,6 +48,9 @@ export async function GET(request: Request): Promise<NextResponse> {
           // habría que adivinar qué eligió la persona la última vez.
           maxPrepMin: profile.maxPrepMin,
           favoriteFoods: profile.favoriteFoods,
+          // Lo que ya tiene comprado. La pantalla de la despensa lo pinta
+          // marcado y el renglón de Ajustes cuenta cuántos alimentos son.
+          pantry: parsePantry(profile.pantry),
           excludedFoods: profile.excludedFoods,
           avoidRepeatGroups: profile.avoidRepeatGroups,
           primaryDiscipline: profile.primaryDiscipline,

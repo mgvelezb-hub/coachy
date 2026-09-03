@@ -6,6 +6,7 @@ import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from "react-nati
 import { Chip } from "@/components/Chip";
 import { CalendarRange, PlayCircle, Timer } from "lucide-react-native";
 import { Collapsible } from "@/components/Collapsible";
+import { EngraneAjustes } from "@/components/EngraneAjustes";
 import { InfoTip, TextoInfo } from "@/components/InfoTip";
 import { ScoreCard } from "@/components/ScoreCard";
 import { ExerciseCapture } from "@/components/ExerciseCapture";
@@ -545,6 +546,10 @@ export default function GymScreen() {
 
   return (
     <ScrollView ref={scrollRef} style={styles.screen} contentContainerStyle={styles.content}>
+      <View style={styles.screenHeader}>
+        <EngraneAjustes seccion="entrenamiento" />
+      </View>
+
       <ConnectionBadge online={online} pendingCount={pendingCount} onRetry={() => void syncAndNotify()} />
 
       {week && (
@@ -1129,6 +1134,9 @@ function SummaryModal({
 }
 
 const makeStyles = (colors: Palette) => StyleSheet.create({
+  // Sin título propio -la semana ya se presenta sola en WeekOverview-, solo
+  // el engrane alineado a la derecha.
+  screenHeader: { flexDirection: "row", justifyContent: "flex-end" },
   enVivo: {
     flexDirection: "row",
     alignItems: "center",

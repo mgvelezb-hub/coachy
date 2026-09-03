@@ -75,6 +75,18 @@ const EDAD_POR_RANGO: Record<string, number> = {
   "65_MAS": 68,
 };
 
+/**
+ * La despensa guardada, ya limpia: `Profile.pantry` es un `Json?` y puede
+ * traer cualquier cosa —un objeto viejo, `null`, ids repetidos—. El motor
+ * espera ids del catálogo, así que aquí se descarta lo que no lo sea en vez
+ * de dejar que reviente al armar el menú.
+ */
+export function parsePantry(value: Profile["pantry"]): string[] {
+  if (!Array.isArray(value)) return [];
+  const ids = value.filter((item): item is string => typeof item === "string" && item.length > 0);
+  return [...new Set(ids)];
+}
+
 function edadDeclarada(profile: Profile): number {
   const exacta = yearsSince(profile.birthDate);
   if (exacta !== null) return exacta;
@@ -132,6 +144,10 @@ export function toEngineProfile(profile: Profile, latestWeightKg?: number | null
     budget:
       profile.budget === "BAJO" ? "bajo" : profile.budget === "ALTO" ? "alto" : "medio",
     favoriteFoods: profile.favoriteFoods,
+    // Lo que YA está comprado. Pesa más que los favoritos: dentro de su rol
+    // se elige primero, para que la despensa de la semana pasada no quede sin
+    // uso cuando el motor rota alimentos.
+    pantry: parsePantry(profile.pantry),
     excludedFoods: [...profile.excludedFoods, ...profile.allergies],
     allergies: profile.allergies,
     // Tope de tiempo de cocina. El motor lo trata como preferencia: si deja un

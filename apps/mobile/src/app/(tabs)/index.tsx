@@ -5,11 +5,10 @@ import {
   Footprints,
   Moon,
   Ruler,
-  Settings,
   UtensilsCrossed,
 } from "lucide-react-native";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from "react-native";
+import { RefreshControl, ScrollView, StyleSheet, Text, View } from "react-native";
 
 import {
   ApiError,
@@ -37,6 +36,7 @@ import {
   type NutritionResponse,
   type TodayCard,
 } from "@/lib/api";
+import { EngraneAjustes } from "@/components/EngraneAjustes";
 import { HeroCard } from "@/components/HeroCard";
 import { InfoTip, TextoInfo } from "@/components/InfoTip";
 import { ScoreCard } from "@/components/ScoreCard";
@@ -276,9 +276,9 @@ export default function HoyScreen() {
             <Text style={styles.phase}>{me.profile.currentPhase.replace(/_/g, " ")}</Text>
           )}
         </View>
-        <Pressable onPress={() => router.push("/ajustes")} hitSlop={8} style={styles.settingsButton}>
-          <Settings size={24} color={colors.paloRosa} strokeWidth={2} />
-        </Pressable>
+        {/* Hoy vive del entrenamiento del día: su engrane va directo a esa
+            sección, no al índice completo de Ajustes. */}
+        <EngraneAjustes seccion="entrenamiento" />
       </View>
 
       {visibleNotifications.map((notification) => (
@@ -583,9 +583,6 @@ const makeStyles = (colors: Palette) => StyleSheet.create({
   headerText: {
     flex: 1,
     gap: 2,
-  },
-  settingsButton: {
-    padding: spacing.xs,
   },
   greeting: {
     fontFamily: fonts.sansBold,

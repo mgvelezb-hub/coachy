@@ -1,4 +1,3 @@
-import { useRouter } from "expo-router";
 import {
   // El tipo `Activity` de la API ya ocupa ese nombre en este archivo.
   Activity as ActivityIcon,
@@ -8,7 +7,6 @@ import {
   Footprints,
   HeartPulse,
   Moon,
-  Settings,
   Target,
   Timer,
   Trophy,
@@ -29,6 +27,7 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import { ActivityRings, type Ring } from "@/components/ActivityRings";
+import { EngraneAjustes } from "@/components/EngraneAjustes";
 import { BotonEditar, EditorDePaneles } from "@/components/EditorDePaneles";
 import { LineChart } from "@/components/LineChart";
 import { PanelResumen, type VistaResumen } from "@/components/PanelResumen";
@@ -154,7 +153,6 @@ function diasDesde(dateKey: string): number {
 }
 
 export default function ResumenScreen() {
-  const router = useRouter();
   const { colors } = useTheme();
   const { width } = useWindowDimensions();
   const styles = useMemo(() => makeStyles(colors), [colors]);
@@ -518,9 +516,9 @@ export default function ResumenScreen() {
           <Text style={styles.title}>Resumen</Text>
           <View style={styles.headerAcciones}>
             <BotonEditar onPress={() => setEditando(true)} />
-            <Pressable onPress={() => router.push("/ajustes")} hitSlop={8} style={styles.settings}>
-              <Settings size={24} color={colors.paloRosa} strokeWidth={2} />
-            </Pressable>
+            {/* Resumen es la única sin sección propia -"¿voy bien?" no es un
+                tema-, así que su engrane sigue abriendo el índice completo. */}
+            <EngraneAjustes />
           </View>
         </View>
 
@@ -608,7 +606,6 @@ const makeStyles = (colors: Palette) => StyleSheet.create({
     justifyContent: "space-between",
     gap: spacing.sm,
   },
-  settings: { padding: spacing.xs },
   title: {
     fontFamily: fonts.sansBold,
     ...typeScale.title,
