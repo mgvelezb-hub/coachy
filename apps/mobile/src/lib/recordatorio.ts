@@ -90,105 +90,143 @@ export async function recordatorioActivo(): Promise<boolean> {
 const COMIDA_PREFIJO = "holygains-comida-";
 
 /**
- * La categoría que le pone botones al aviso de comida.
+ * El recordatorio en dos tiempos.
  *
- * Es lo que convierte el recordatorio en algo que se puede contestar desde
- * donde llega —incluida la muñeca— en vez de un empujón para abrir la app. La
- * diferencia no es de comodidad: "¿ya comiste?" contestado en el momento vale;
- * contestado tres horas después es adivinar.
+ * Antes había un solo aviso a la hora exacta preguntando "¿ya comiste?" — y
+ * llegaba tarde para lo único que de verdad ayuda: decidir QUÉ preparar. Por
+ * eso ahora son dos, con trabajos distintos:
+ *
+ *  - **T-30 min, "Prepárate".** Con el resumen del menú de ese slot, para que
+ *    dé tiempo de sacar lo que hace falta. Botones: ver el menú completo o
+ *    marcarla como hecha ahí mismo (para quien ya la adelantó).
+ *  - **Hora exacta: nada.** Un aviso a la hora en que se supone que ya se
+ *    está comiendo es ruido, no ayuda.
+ *  - **+45 min, seguimiento.** Solo tiene sentido para quien no contestó: si
+ *    ya se registró (por el botón de "prepárate" o desde la app), no aporta
+ *    nada nuevo. Expo no deja consultar el servidor al momento de disparar
+ *    un aviso local, así que la supresión real ocurre en `_layout.tsx`
+ *    —cuando llega con la app en primer plano y ya hay registro, se
+ *    descarta ahí—; en segundo plano queda como límite conocido del modelo
+ *    de notificaciones locales.
  *
  * Los botones se registran en el **teléfono** y el Apple Watch los pinta solo
  * en la notificación reflejada, sin una línea de código de watchOS.
- *
- * Ninguna acción abre la app (`opensAppToForeground: false`): abrir la app
- * para contestar un sí o un no es exactamente la fricción que se está
- * quitando. La respuesta se atiende en `_layout.tsx` y se guarda antes de
- * intentar mandarla.
  */
-export const CATEGORIA_COMIDA = "holygains-comida";
+export const CATEGORIA_COMIDA_PREP = "holygains-comida-prep";
+export const CATEGORIA_COMIDA_SEGUIMIENTO = "holygains-comida-seguimiento";
 
-export const ACCION_COMIDA_SI = "comida-si";
-export const ACCION_COMIDA_NO = "comida-no";
-export const ACCION_COMIDA_DESPUES = "comida-despues";
+/** "Ya la hice" / "Ya comí": misma acción en las dos categorías, registra ahora mismo. */
+export const ACCION_COMIDA_LISTA = "comida-lista";
+/** Abre el menú completo del día. */
+export const ACCION_COMIDA_VER_MENU = "comida-ver-menu";
+/** Abre la hoja de esa comida para decir a qué hora comió de verdad. */
+export const ACCION_COMIDA_OTRA_HORA = "comida-otra-hora";
+/** Abre la hoja de esa comida para elegir el motivo de por qué se saltó. */
+export const ACCION_COMIDA_SALTAR = "comida-saltar";
 
-/** Cuánto se pospone el aviso al elegir "En 30 min". */
-export const POSPONER_MINUTOS = 30;
+/** Cuánto antes de la hora del plan llega el "Prepárate". */
+const PREP_MINUTOS_ANTES = 30;
+/** Cuánto después de la hora del plan llega el seguimiento, si no hay registro. */
+const SEGUIMIENTO_MINUTOS_DESPUES = 45;
 
 /**
- * Registra los botones. Es idempotente: volver a llamarla reemplaza la
- * categoría con el mismo contenido.
+ * Registra los botones de las dos categorías. Es idempotente: volver a
+ * llamarla reemplaza las categorías con el mismo contenido.
  */
 export async function registrarAccionesDeComida(): Promise<void> {
   if (Platform.OS === "web") return;
 
-  await Notifications.setNotificationCategoryAsync(CATEGORIA_COMIDA, [
-    {
-      identifier: ACCION_COMIDA_SI,
-      buttonTitle: "Sí",
-      options: { opensAppToForeground: false },
-    },
-    {
-      identifier: ACCION_COMIDA_NO,
-      buttonTitle: "No",
-      // Destructiva para que se pinte en rojo y no se toque por error: es la
-      // que ensucia el apego.
-      options: { opensAppToForeground: false, isDestructive: true },
-    },
-    {
-      identifier: ACCION_COMIDA_DESPUES,
-      buttonTitle: `En ${POSPONER_MINUTOS} min`,
-      options: { opensAppToForeground: false },
-    },
+  await Notifications.setNotificationCategoryAsync(CATEGORIA_COMIDA_PREP, [
+    { identifier: ACCION_COMIDA_VER_MENU, buttonTitle: "Ver menú", options: { opensAppToForeground: true } },
+    { identifier: ACCION_COMIDA_LISTA, buttonTitle: "Ya la hice", options: { opensAppToForeground: false } },
   ]).catch(() => {
     // Sin categoría el aviso sigue llegando, solo que sin botones.
   });
+
+  await Notifications.setNotificationCategoryAsync(CATEGORIA_COMIDA_SEGUIMIENTO, [
+    { identifier: ACCION_COMIDA_LISTA, buttonTitle: "Ya comí", options: { opensAppToForeground: false } },
+    {
+      identifier: ACCION_COMIDA_OTRA_HORA,
+      buttonTitle: "Comí a otra hora",
+      options: { opensAppToForeground: true },
+    },
+    {
+      identifier: ACCION_COMIDA_SALTAR,
+      buttonTitle: "La salté",
+      // Destructiva para que se pinte distinto y no se toque por error: es
+      // la que ensucia el apego.
+      options: { opensAppToForeground: true, isDestructive: true },
+    },
+  ]).catch(() => {});
+}
+
+/** `"14:30"` + minutos (puede ser negativo) → hora y minuto dentro de un día. `null` si no es una hora. */
+export function sumaMinutosHora(hora: string, minutos: number): { hour: number; minute: number } | null {
+  const match = /^([01]?\d|2[0-3]):([0-5]\d)$/.exec(hora.trim());
+  if (!match) return null;
+  const total = Number(match[1]) * 60 + Number(match[2]) + minutos;
+  // Envuelve dentro de las 24 horas: cruzar medianoche no debe tronar, solo
+  // cae en el día de calendario contiguo (caso raro, aviso de madrugada).
+  const envuelto = ((total % 1440) + 1440) % 1440;
+  return { hour: Math.floor(envuelto / 60), minute: envuelto % 60 };
+}
+
+/** Código de día de `mealTimesByDay` ("DOM".."SAB") → `weekday` de expo-notifications (1=domingo). */
+const DIA_CODIGO_A_WEEKDAY: Record<string, number> = {
+  DOM: 1,
+  LUN: 2,
+  MAR: 3,
+  MIE: 4,
+  JUE: 5,
+  VIE: 6,
+  SAB: 7,
+};
+
+export function diaCodigoAWeekday(codigo: string): number | undefined {
+  return DIA_CODIGO_A_WEEKDAY[codigo];
+}
+
+export interface ItemMenuAviso {
+  name: string;
+  /** Nombre corto para el aviso, si el del menú es largo. */
+  display?: string;
+}
+
+/** El resumen del menú que va en el cuerpo del "Prepárate": nombres, sin gramos, máximo 4. */
+export function resumenMenu(items: ItemMenuAviso[]): string {
+  return items
+    .slice(0, 4)
+    .map((item) => item.display ?? item.name)
+    .join(", ");
+}
+
+export interface ComidaAviso {
+  slot: string;
+  label: string;
+  /** Menú vigente (1 o 2): a dónde abre "Ver menú". */
+  menuNumber: number;
+  items: ItemMenuAviso[];
+  /**
+   * Hora efectiva por día de la semana (`"DOM"`..`"SAB"` → `"HH:MM"`), ya
+   * resuelta contra `mealTimesByDay` con la general como respaldo. Un día
+   * sin entrada aquí no se programa: sin hora no hay a qué avisar.
+   */
+  horaPorDia: Record<string, string>;
 }
 
 /**
- * Vuelve a preguntar por una comida más tarde.
+ * Programa el "Prepárate" y el seguimiento de cada comida, por cada día de
+ * la semana en que tenga hora.
  *
- * Con identificador propio y por una sola vez: el aviso diario sigue siendo el
- * del plan, y este es el eco de hoy. Sin identificador aparte, posponer
- * borraría el recordatorio permanente de esa comida.
+ * Son avisos `WEEKLY` —no `DAILY`— justo porque `horaPorDia` puede traer una
+ * hora distinta el sábado: un solo trigger diario no puede representar eso.
  */
-export async function posponerComida(slot: string, minutos = POSPONER_MINUTOS): Promise<void> {
-  if (Platform.OS === "web") return;
-
-  await Notifications.scheduleNotificationAsync({
-    identifier: `${COMIDA_PREFIJO}${slot}-eco`,
-    content: {
-      title: "Volvemos a lo de tu comida",
-      body: "¿La hiciste como venía en tu plan?",
-      categoryIdentifier: CATEGORIA_COMIDA,
-      data: { ruta: "/", comidaSlot: slot },
-    },
-    trigger: {
-      type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL,
-      seconds: minutos * 60,
-      repeats: false,
-    },
-  }).catch(() => {});
-}
-
-/**
- * Un aviso por comida, a la hora que dice el plan.
- *
- * Por qué diarios y locales: los horarios del menú se conocen de antemano, así
- * que no hace falta servidor ni cuenta de paga. Y por qué por comida y no uno
- * al final del día: confirmar "¿te la comiste?" en el momento cuesta un toque
- * y se acuerda; preguntarlo el domingo por las veintiuna comidas de la semana
- * es justo lo que nadie contesta bien.
- *
- * Cada aviso lleva su slot y su hora en `data`, para que la app pueda
- * registrar la respuesta sin volver a preguntar de qué comida se trataba.
- */
-export async function programarComidas(
-  comidas: Array<{ slot: string; label: string; timeHint: string }>,
-): Promise<boolean> {
+export async function programarComidas(comidas: ComidaAviso[]): Promise<boolean> {
   if (Platform.OS === "web") return false;
 
-  // Se cancelan todos antes de reprogramar: el menú cambia de semana a semana
-  // y un aviso viejo a una hora que ya no existe es peor que ninguno.
+  // Se cancelan todos antes de reprogramar: el menú y los horarios cambian de
+  // semana a semana y un aviso viejo a una hora que ya no existe es peor que
+  // ninguno.
   const programados = await Notifications.getAllScheduledNotificationsAsync().catch(() => []);
   await Promise.all(
     programados
@@ -202,25 +240,50 @@ export async function programarComidas(
   await registrarAccionesDeComida();
 
   for (const comida of comidas) {
-    const [hora, minuto] = comida.timeHint.split(":").map((parte) => Number(parte));
-    if (!Number.isFinite(hora)) continue;
+    for (const [dia, hora] of Object.entries(comida.horaPorDia)) {
+      const weekday = diaCodigoAWeekday(dia);
+      if (weekday === undefined) continue;
 
-    await Notifications.scheduleNotificationAsync({
-      identifier: `${COMIDA_PREFIJO}${comida.slot}`,
-      content: {
-        title: comida.label,
-        body: "¿La hiciste como venía en tu plan?",
-        categoryIdentifier: CATEGORIA_COMIDA,
-        data: { ruta: "/", comidaSlot: comida.slot },
-      },
-      trigger: {
-        type: Notifications.SchedulableTriggerInputTypes.DAILY,
-        hour: Math.max(0, Math.min(23, Math.round(hora))),
-        minute: Number.isFinite(minuto) ? Math.max(0, Math.min(59, Math.round(minuto!))) : 0,
-      },
-    }).catch(() => {
-      // Un aviso que no se pudo programar no puede tumbar los demás.
-    });
+      const prep = sumaMinutosHora(hora, -PREP_MINUTOS_ANTES);
+      if (prep) {
+        await Notifications.scheduleNotificationAsync({
+          identifier: `${COMIDA_PREFIJO}${comida.slot}-${dia}-prep`,
+          content: {
+            title: `Prepárate: ${comida.label}`,
+            body: resumenMenu(comida.items) || "Ya casi es hora de tu comida.",
+            categoryIdentifier: CATEGORIA_COMIDA_PREP,
+            data: { ruta: `/menu/${comida.menuNumber}`, comidaSlot: comida.slot, comidaPlaneada: hora },
+          },
+          trigger: {
+            type: Notifications.SchedulableTriggerInputTypes.WEEKLY,
+            weekday,
+            hour: prep.hour,
+            minute: prep.minute,
+          },
+        }).catch(() => {
+          // Un aviso que no se pudo programar no puede tumbar los demás.
+        });
+      }
+
+      const seguimiento = sumaMinutosHora(hora, SEGUIMIENTO_MINUTOS_DESPUES);
+      if (seguimiento) {
+        await Notifications.scheduleNotificationAsync({
+          identifier: `${COMIDA_PREFIJO}${comida.slot}-${dia}-seguimiento`,
+          content: {
+            title: "¿Cómo te fue con la comida?",
+            body: comida.label,
+            categoryIdentifier: CATEGORIA_COMIDA_SEGUIMIENTO,
+            data: { ruta: `/comida/${comida.slot}`, comidaSlot: comida.slot, comidaPlaneada: hora },
+          },
+          trigger: {
+            type: Notifications.SchedulableTriggerInputTypes.WEEKLY,
+            weekday,
+            hour: seguimiento.hour,
+            minute: seguimiento.minute,
+          },
+        }).catch(() => {});
+      }
+    }
   }
 
   return true;
