@@ -255,6 +255,42 @@ export type FoodRole =
   | 'fruta'
   | 'suplemento';
 
+/**
+ * Unidad casera en que se sirve un alimento. Es la referencia del SMAE
+ * (Sistema Mexicano de Alimentos Equivalentes) traducida a lo que alguien
+ * tiene en la cocina: cucharitas, tazas, piezas y rebanadas. `g` existe para
+ * lo que de verdad se pesa (la pechuga, el pescado).
+ */
+export type ServingUnit =
+  | 'cdita'
+  | 'cda'
+  | 'taza'
+  | 'media_taza'
+  | 'pieza'
+  | 'rebanada'
+  | 'scoop'
+  | 'g';
+
+/**
+ * Porcion realista de un alimento: entre `minUnits` y `maxUnits` de su unidad
+ * casera, en saltos de `step`.
+ *
+ * `minUnits` no es un minimo tecnico sino una **porcion minima digna**: nadie
+ * sirve 12 g de aguacate ni media cucharadita de aceite. Si el solver no
+ * alcanza ese minimo, el alimento se cae de la comida en vez de aparecer como
+ * una pizca; si se pasa de `maxUnits`, entra un segundo alimento del mismo rol
+ * en vez de estirar el primero a 400 g.
+ */
+export interface FoodServing {
+  unit: ServingUnit;
+  /** Gramos de UNA unidad. Para `unit: 'g'` siempre es 1. */
+  gramsPerUnit: number;
+  minUnits: number;
+  maxUnits: number;
+  /** Salto de redondeo en unidades. Default 0.5; pieza y scoop van a 1. */
+  step?: number;
+}
+
 export interface Food {
   id: string;
   /** Nombre en espanol. */
@@ -279,6 +315,13 @@ export interface Food {
   servingG?: number;
   /** Unidad de compra para la lista de super. */
   unit?: string;
+  /**
+   * Medida casera y cotas de porcion. Es el freno real del generador: `maxG`
+   * queda como techo absoluto, pero quien manda es `[minUnits, maxUnits]`.
+   * Los vegetales libres y los suplementos no la necesitan (uno no se cuenta,
+   * el otro se dosifica).
+   */
+  serving?: FoodServing;
 }
 
 export interface MenuItem {

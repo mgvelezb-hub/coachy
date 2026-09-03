@@ -5,7 +5,7 @@ import { kcalForDeficit, macrosFor } from '../src/calc.js';
 import { DEFAULT_CONFIG, pickDeficit } from '../src/config.js';
 import { FOODS, findFood } from '../src/foods.js';
 import { CALIBRATION_PROFILE, devPct } from './helpers.js';
-import type { Food, Phase, Profile } from '../src/types.js';
+import type { Food, MealSlot, Phase, Profile } from '../src/types.js';
 
 function planFor(profile: Profile, phase: Phase = 'BASE', seed = 42) {
   const kcal = kcalForDeficit(profile, pickDeficit(phase, DEFAULT_CONFIG), DEFAULT_CONFIG);
@@ -46,28 +46,65 @@ describe('base de alimentos', () => {
     expect(missing).toEqual([]);
   });
 
-  it('todos los alimentos que se sirven en porciones variables tienen maxG, dentro de topes realistas por rol', () => {
-    const MAX_CEILING_BY_ROLE: Partial<Record<Food['role'], number>> = {
-      grasa: 30,
-      carbo_complejo: 250,
-      carbo_pre: 150,
-      carbo_post: 150,
-      proteina_magra: 250,
-      proteina_grasa: 200,
-      fruta: 250,
-    };
-    const EXEMPT_ROLES: Food['role'][] = ['vegetal_libre', 'suplemento'];
+  // El techo por ROL de F0 resulto demasiado rigido: capaba el aguacate a 30 g
+  // y la papa a 150 g porque compartian tope con el aceite y con el arroz. El
+  // techo real es por ALIMENTO y sale de su medida casera: `maxUnits` piezas,
+  // tazas o cucharadas de eso. `maxG` se queda como techo absoluto.
+  it('todo alimento que se sirve en porciones tiene medida casera coherente', () => {
+    const EXENTOS: Food['role'][] = ['vegetal_libre', 'suplemento'];
 
-    const missing = FOODS.filter(
-      (f) => !EXEMPT_ROLES.includes(f.role) && f.maxG === undefined,
+    const sinMedida = FOODS.filter(
+      (f) => !EXENTOS.includes(f.role) && f.serving === undefined,
     ).map((f) => f.id);
-    expect(missing).toEqual([]);
+    expect(sinMedida).toEqual([]);
 
-    const overCeiling = FOODS.filter((f) => {
-      const ceiling = MAX_CEILING_BY_ROLE[f.role];
-      return ceiling !== undefined && f.maxG !== undefined && f.maxG > ceiling;
-    }).map((f) => `${f.id}: maxG=${f.maxG} > techo ${MAX_CEILING_BY_ROLE[f.role]}`);
-    expect(overCeiling).toEqual([]);
+    const incoherentes = FOODS.flatMap((f) => {
+      const s = f.serving;
+      if (!s) return [];
+      const problemas: string[] = [];
+      if (s.gramsPerUnit <= 0) problemas.push('gramsPerUnit <= 0');
+      if (s.unit === 'g' && s.gramsPerUnit !== 1) problemas.push('unit g con gramsPerUnit != 1');
+      if (s.minUnits <= 0) problemas.push('minUnits <= 0');
+      if (s.minUnits > s.maxUnits) problemas.push('minUnits > maxUnits');
+      if (s.step !== undefined && s.step <= 0) problemas.push('step <= 0');
+      // El scoop va entero (medio scoop no se mide); la pieza se parte a lo
+      // mucho por la mitad, porque media manzana si es una porcion que la
+      // gente sirve, pero un tercio de tortilla no.
+      if (s.unit === 'scoop' && (s.step ?? 1) !== 1) problemas.push('el scoop va entero');
+      if (s.unit === 'pieza' && ![0.5, 1].includes(s.step ?? 1)) {
+        problemas.push('la pieza se parte a lo mucho por la mitad');
+      }
+      if (f.maxG !== undefined && s.maxUnits * s.gramsPerUnit > f.maxG + 1e-6) {
+        problemas.push(`maxUnits*gramsPerUnit=${s.maxUnits * s.gramsPerUnit} > maxG=${f.maxG}`);
+      }
+      return problemas.map((p) => `${f.id}: ${p}`);
+    });
+    expect(incoherentes).toEqual([]);
+  });
+
+  // Porciones minimas dignas: el reclamo original era "un pedacito de aguacate"
+  // de 12 g y 25 g de aceite. Estas son las cotas que lo impiden.
+  it('las porciones minimas son porciones de verdad', () => {
+    const gramosMin = (id: string): number => {
+      const f = findFood(id)!;
+      return f.serving!.minUnits * f.serving!.gramsPerUnit;
+    };
+    const gramosMax = (id: string): number => {
+      const f = findFood(id)!;
+      return f.serving!.maxUnits * f.serving!.gramsPerUnit;
+    };
+
+    expect(gramosMin('aguacate')).toBeGreaterThanOrEqual(45);
+    expect(gramosMax('aguacate')).toBeGreaterThanOrEqual(100);
+    expect(gramosMin('aceite_oliva')).toBeGreaterThanOrEqual(5);
+    expect(gramosMin('frijol_negro')).toBeGreaterThanOrEqual(80);
+    expect(gramosMin('arroz_blanco')).toBeGreaterThanOrEqual(80);
+    expect(gramosMax('arroz_blanco')).toBeGreaterThanOrEqual(200);
+    expect(gramosMin('pechuga_pollo')).toBeGreaterThanOrEqual(100);
+    expect(gramosMin('almendra')).toBeGreaterThanOrEqual(14);
+    expect(gramosMax('papa')).toBeGreaterThanOrEqual(250);
+    expect(gramosMax('camote')).toBeGreaterThanOrEqual(250);
+    expect(gramosMax('leche_descremada')).toBeGreaterThanOrEqual(300);
   });
 
   it('todos los ids son unicos', () => {
@@ -233,6 +270,89 @@ describe('generador de menus (spec §6)', () => {
       const food = findFood(item.foodId)!;
       if (food.kcalPer100 < DEFAULT_CONFIG.denseFoodKcalPer100) {
         expect(item.grams % 5, food.name).toBe(0);
+      }
+    }
+  });
+
+  // La queja original, en dos formas: 25 g de aceite y 400 g de frijol por un
+  // lado; "un pedacito de aguacate" de 12 g por el otro. Ninguna es comida.
+  it('ningun alimento sale fuera de su porcion: ni pizca ni exceso', () => {
+    for (const seed of SEEDS) {
+      for (const phase of ['BASE', 'CUT', 'CUT_AGRESIVO', 'REINTRO'] as Phase[]) {
+        const { plan } = planFor(P, phase, seed);
+        for (const menu of plan.menus) {
+          for (const meal of menu.meals) {
+            expect(meal.items.length, `${phase} ${meal.slot} seed ${seed}`).toBeLessThanOrEqual(
+              DEFAULT_CONFIG.maxFoodsPerMeal,
+            );
+            for (const item of meal.items) {
+              const food = findFood(item.foodId)!;
+              if (!food.serving) continue;
+              const min = food.serving.minUnits * food.serving.gramsPerUnit;
+              const max = food.serving.maxUnits * food.serving.gramsPerUnit;
+              const donde = `${food.name} ${phase} ${meal.slot} seed ${seed}`;
+              expect(item.grams, donde).toBeGreaterThanOrEqual(Math.floor(min));
+              expect(item.grams, donde).toBeLessThanOrEqual(Math.ceil(max));
+            }
+          }
+        }
+      }
+    }
+  });
+
+  it('un slot con casi nada de grasa no deja un pedacito de aguacate', () => {
+    const slots: MealSlot[] = [
+      {
+        id: 'COMIDA',
+        label: 'Comida',
+        timeHint: '14:00',
+        proteinG: 35,
+        carbG: 40,
+        fatG: 5,
+        kcal: 345,
+        allowDenseCarb: true,
+        freeVegetables: true,
+      },
+    ];
+    for (const seed of SEEDS) {
+      const plan = generateMenu(slots, P, DEFAULT_CONFIG, seed, { phase: 'BASE' });
+      for (const menu of plan.menus) {
+        for (const item of menu.meals[0]!.items) {
+          const food = findFood(item.foodId)!;
+          if (food.role !== 'grasa') continue;
+          // O no esta, o esta en una porcion que alguien sirve.
+          expect(item.grams, `${food.name} seed ${seed}`).toBeGreaterThanOrEqual(
+            Math.floor(food.serving!.minUnits * food.serving!.gramsPerUnit),
+          );
+        }
+      }
+    }
+  });
+
+  it('un slot con mucho carbohidrato usa dos fuentes, no 400 g de arroz', () => {
+    const slots: MealSlot[] = [
+      {
+        id: 'COMIDA',
+        label: 'Comida',
+        timeHint: '14:00',
+        proteinG: 35,
+        carbG: 120,
+        fatG: 15,
+        kcal: 755,
+        allowDenseCarb: true,
+        freeVegetables: true,
+      },
+    ];
+    for (const seed of SEEDS) {
+      const plan = generateMenu(slots, P, DEFAULT_CONFIG, seed, { phase: 'BASE' });
+      for (const menu of plan.menus) {
+        const carbos = menu.meals[0]!.items.filter((item) =>
+          ['carbo_pre', 'carbo_post', 'carbo_complejo'].includes(findFood(item.foodId)!.role),
+        );
+        expect(carbos.length, `seed ${seed}`).toBeGreaterThanOrEqual(2);
+        for (const item of carbos) {
+          expect(item.grams, `${item.name} seed ${seed}`).toBeLessThanOrEqual(250);
+        }
       }
     }
   });

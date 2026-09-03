@@ -32,7 +32,11 @@ function rng(seed: number): () => number {
 }
 
 /** Gramos maximos razonables por alimento, para no proponer 400 g de aceite. */
-function maxGrams(food: Food): number {
+export function maxGrams(food: Food): number {
+  // La medida casera manda: el techo real es `maxUnits` piezas, tazas o
+  // cucharadas de ese alimento. `maxG` se queda como techo absoluto para lo
+  // que no la tiene (vegetales libres, suplementos).
+  if (food.serving) return food.serving.maxUnits * food.serving.gramsPerUnit;
   if (food.maxG !== undefined) return food.maxG;
   if (food.role === 'suplemento') return 20;
   if (food.kcalPer100 >= 700) return 40;
@@ -42,11 +46,32 @@ function maxGrams(food: Food): number {
 }
 
 /**
- * Paso de redondeo por alimento. Los alimentos muy densos (aceites, semillas,
- * polvos) se redondean al gramo: 5 g de aceite son 45 kcal y romperian el target.
+ * Porcion minima digna. No es un minimo tecnico: es la cantidad por debajo de
+ * la cual el alimento deja de ser un ingrediente y pasa a ser una pizca —el
+ * "pedacito de aguacate" de 12 g que nadie sirve—. Por debajo de esto el
+ * alimento se cae de la comida en vez de aparecer en migajas.
+ */
+export function minGrams(food: Food): number {
+  if (!food.serving) return 0;
+  return food.serving.minUnits * food.serving.gramsPerUnit;
+}
+
+/**
+ * Paso de redondeo por alimento. Con medida casera el paso es fraccion de la
+ * unidad (media taza, media cucharadita, una pieza): asi el menu dice "1½
+ * tazas" y no "173 g". Sin ella, los alimentos muy densos se redondean al
+ * gramo, porque 5 g de aceite son 45 kcal y romperian el target.
  */
 function roundingFor(food: Food, config: EngineConfig): number {
+  if (food.serving) return (food.serving.step ?? 0.5) * food.serving.gramsPerUnit;
   return food.kcalPer100 >= config.denseFoodKcalPer100 ? 1 : config.menuGramRoundingG;
+}
+
+/** Redondea al paso del alimento y lo encaja en su rango de porcion. */
+function quantize(grams: number, food: Food, config: EngineConfig): number {
+  const paso = roundingFor(food, config);
+  const redondeado = roundTo(grams, paso);
+  return Math.min(Math.max(redondeado, minGrams(food)), maxGrams(food));
 }
 
 export interface MenuOptions {
@@ -155,6 +180,14 @@ interface Slot {
   food: Food;
   grams: number;
   fixed: boolean;
+  /** Rol con el que se eligio: lo necesita el refill y la explicabilidad. */
+  role?: FoodRole;
+  /**
+   * Gramos que el solver pedia ANTES de encajarlos en la medida casera. Es lo
+   * que delata a un alimento que no cabe en la comida: si pedia 12 g y su
+   * porcion minima son 45, no es que sobre poco, es que no va.
+   */
+  raw?: number;
 }
 
 function macrosOf(slot: Slot): { p: number; c: number; f: number; fib: number; kcal: number } {
@@ -181,23 +214,33 @@ function solveGrams(
   target: { p: number; c: number; f: number },
   config: EngineConfig,
 ): void {
-  const proteinSlot = slots.find((s) => !s.fixed && s.food.proteinPer100 >= 8);
-  const carbSlot = slots.find((s) => !s.fixed && s.food.carbPer100 >= 10 && s !== proteinSlot);
+  // Cada alimento cierra el macro de SU ROL, no el del primer macro denso que
+  // tenga. La crema de cacahuate trae 20 g de carbohidrato por 100: elegida
+  // por densidad terminaba de "fuente de carbohidrato" de una cena sin carbos
+  // —el solver le pedia 0 g— y la grasa de esa cena se quedaba sin quien la
+  // cerrara. El rol con el que se eligio es el dato que no miente.
+  const esProteina = (s: Slot): boolean =>
+    s.role ? s.role.startsWith('proteina') : s.food.proteinPer100 >= 8;
+  const esCarbo = (s: Slot): boolean =>
+    s.role ? DENSE_CARB_ROLES.includes(s.role) || s.role === 'fruta' : s.food.carbPer100 >= 10;
+  const esGrasa = (s: Slot): boolean => (s.role ? s.role === 'grasa' : s.food.fatPer100 >= 10);
+
+  const proteinSlot = slots.find((s) => !s.fixed && esProteina(s));
+  const carbSlot = slots.find((s) => !s.fixed && esCarbo(s) && s !== proteinSlot);
   const carbSlot2 = slots.find(
-    (s) => !s.fixed && s.food.carbPer100 >= 10 && s !== proteinSlot && s !== carbSlot,
+    (s) => !s.fixed && esCarbo(s) && s !== proteinSlot && s !== carbSlot,
   );
   const fatSlot = slots.find(
-    (s) =>
-      !s.fixed &&
-      s.food.fatPer100 >= 10 &&
-      s !== proteinSlot &&
-      s !== carbSlot &&
-      s !== carbSlot2,
+    (s) => !s.fixed && esGrasa(s) && s !== proteinSlot && s !== carbSlot && s !== carbSlot2,
   );
 
   if (carbSlot2) {
-    // El primero se lleva lo que puede; el segundo cierra.
-    carbSlot2.grams = maxGrams(carbSlot2.food);
+    // El primero se lleva lo que puede; el segundo cierra. Arrancarlo en su
+    // tope invertia el reparto —el arroz se quedaba con las sobras del
+    // segundo— y el segundo terminaba por debajo de su porcion minima, que es
+    // justo lo que hace que se caiga de la comida y el slot vuelva a quedar
+    // corto.
+    carbSlot2.grams = Math.max(minGrams(carbSlot2.food), 0);
   }
 
   for (let iter = 0; iter < 24; iter += 1) {
@@ -227,7 +270,8 @@ function solveGrams(
 
   for (const slot of slots) {
     if (slot.fixed) continue;
-    slot.grams = Math.max(0, roundTo(slot.grams, roundingFor(slot.food, config)));
+    slot.raw = Math.max(0, slot.grams);
+    slot.grams = quantize(slot.grams, slot.food, config);
   }
 
   // Pase de reparacion: ajusta el carbo y luego la grasa en pasos de `roundingG`.
@@ -243,7 +287,7 @@ function solveGrams(
       if (errUp < best && errUp <= errDown && up.grams <= maxGrams(slot.food)) {
         slot.grams = up.grams;
         best = errUp;
-      } else if (errDown < best) {
+      } else if (errDown < best && down.grams >= minGrams(slot.food)) {
         slot.grams = down.grams;
         best = errDown;
       } else {
@@ -338,14 +382,14 @@ function equivalencesFor(
     .filter((f) => f.id !== slot.food.id && f[key] > 0)
     .map((f) => {
       const paso = roundingFor(f, config);
-      const ideal = roundTo((slot.grams * base) / f[key], paso);
+      const ideal = quantize((slot.grams * base) / f[key], f, config);
       // Los gramos se topan al maximo del alimento en vez de descartarlo:
       // antes, una porcion grande (300 g de platano) se quedaba sin ninguna
       // equivalencia porque CUALQUIER sustituto pedia mas gramos de los que
       // se puede servir de el. Topado, el arroz o el camote siguen sirviendo
       // —cubren casi todo el carbohidrato— y la desviacion que queda se mide
       // abajo y decide si la equivalencia es exacta, aproximada o ninguna.
-      const grams = Math.min(Math.max(paso, ideal), maxGrams(f));
+      const grams = Math.max(paso, ideal);
       // La desviacion se mide DESPUES de redondear y topar, que es como la va
       // a comer quien la siga: una porcion que se pasa del tope ya no es
       // equivalente, es otra comida.
@@ -430,10 +474,20 @@ function feasible(
   targetG: number,
   minDensity: number,
 ): Food[] {
-  const ok = candidates.filter(
-    (f) => f[key] >= minDensity && (maxGrams(f) * f[key]) / 100 >= targetG * 0.9,
-  );
-  return ok.length > 0 ? ok : candidates;
+  const alcance = (f: Food): number => (maxGrams(f) * f[key]) / 100;
+  const ok = candidates.filter((f) => f[key] >= minDensity && alcance(f) >= targetG * 0.9);
+  if (ok.length > 0) return ok;
+
+  // Cuando NINGUN alimento solo alcanza el macro del slot —el post-entreno de
+  // 99 g de carbohidrato: ni la tortilla ni el arroz llegan— la eleccion deja
+  // de ser libre. Antes se sorteaba entre todo el catalogo y podia caer el
+  // platano, que cubre 27 g y deja el slot corto para siempre. Se sortea entre
+  // los que mas cubren, y el segundo alimento cierra el resto.
+  const densos = candidates.filter((f) => f[key] >= minDensity);
+  const pool = densos.length > 0 ? densos : candidates;
+  const mejor = Math.max(...pool.map(alcance));
+  const cercanos = pool.filter((f) => alcance(f) >= mejor * 0.6);
+  return cercanos.length > 0 ? cercanos : pool;
 }
 
 function slotCarbRole(slotId: MealSlot['id']): FoodRole {
@@ -446,6 +500,125 @@ interface Residual {
   p: number;
   c: number;
   f: number;
+}
+
+/** Macro que ese alimento viene a cerrar en la comida. */
+function macroDominante(food: Food, role?: FoodRole): 'p' | 'c' | 'f' {
+  const key = primaryMacroOf(role ?? food.role);
+  if (key === 'proteinPer100') return 'p';
+  if (key === 'fatPer100') return 'f';
+  return 'c';
+}
+
+/**
+ * Resuelve gramos y arregla lo que NO cabe en una porcion de verdad.
+ *
+ * El solver por si solo estira: si al slot le faltan 40 g de carbohidrato,
+ * pide 400 g de arroz; si le sobran, deja 12 g de aguacate. Ninguna de las dos
+ * es comida. Aqui se cierran las dos salidas:
+ *
+ * (a) lo que se queda por debajo de su porcion minima se cae de la comida y el
+ *     resto se reparte —salvo que sea el unico que cubre ese macro, en cuyo
+ *     caso se sirve en su minimo digno y el sobrante lo absorbe el dia;
+ * (b) lo que se pasa de su tope no se estira: entra un SEGUNDO alimento del
+ *     mismo rol y se vuelve a resolver.
+ */
+function ajustarPorciones(
+  slots: Slot[],
+  target: { p: number; c: number; f: number },
+  profile: Profile,
+  config: EngineConfig,
+  pool: Food[],
+  filters: EligibleOptions,
+  random: () => number,
+  avoid: Set<string>,
+): void {
+  // Un macro se refuerza a lo mucho dos veces. Sin freno, cada pasada metia
+  // otro alimento del mismo rol y la comida terminaba con tres leguminosas: la
+  // suma de sus minimos se pasaba del target por mas de lo que faltaba. Lo que
+  // falte despues lo cierra la reparacion del dia moviendo gramos.
+  const reforzados: Record<'p' | 'c' | 'f', number> = { p: 0, c: 0, f: 0 };
+  const MAX_REFUERZOS = 1;
+
+  for (let intento = 0; intento < 4; intento += 1) {
+    solveGrams(slots, target, config);
+    const movibles = slots.filter((s) => !s.fixed);
+
+    const flaco = movibles.find(
+      (s) => (s.raw ?? s.grams) < minGrams(s.food) - roundingFor(s.food, config) / 2,
+    );
+    if (flaco) {
+      const macro = macroDominante(flaco.food, flaco.role);
+      const hayRelevo = movibles.some(
+        (s) => s !== flaco && macroDominante(s.food, s.role) === macro,
+      );
+      if (hayRelevo) {
+        slots.splice(slots.indexOf(flaco), 1);
+        continue;
+      }
+    }
+
+    // (b) el macro que se quedo corto porque su alimento ya toco su tope. No se
+    // detecta con los gramos que pidio el solver (vienen ya recortados al
+    // tope), sino con lo que falta en el plato: si al carbohidrato le faltan
+    // 50 g y el arroz ya va en su taza y cuarto, lo que falta es OTRO
+    // carbohidrato, no mas arroz.
+    // Se atiende el macro MAS corto que ademas tenga a su alimento topado, no
+    // el primero de la lista: si la proteina va corta 3 g pero nadie esta
+    // topado, y al carbohidrato le faltan 60 g con el arroz en su taza y
+    // cuarto, el que necesita un segundo alimento es el carbohidrato.
+    const topadoDe = (macro: 'p' | 'c' | 'f'): Slot | undefined =>
+      movibles.find(
+        (s) =>
+          s.role !== undefined &&
+          macroDominante(s.food, s.role) === macro &&
+          // `raw` es lo que el solver pidio antes de encajarlo en la medida
+          // casera: si pidio el tope, el alimento ya dio todo lo que tenia,
+          // aunque el pase de reparacion lo haya dejado por debajo.
+          Math.max(s.grams, s.raw ?? 0) >= maxGrams(s.food) - 1e-6,
+      );
+
+    const cortos = (['p', 'c', 'f'] as const)
+      .filter((macro) => {
+        if (target[macro] <= 0 || reforzados[macro] >= MAX_REFUERZOS) return false;
+        return target[macro] - sum(slots, macro) > Math.max(target[macro] * 0.12, 3);
+      })
+      .sort(
+        (a, b) =>
+          (target[b] - sum(slots, b)) / target[b] - (target[a] - sum(slots, a)) / target[a],
+      );
+
+    const faltante = cortos.find((macro) => topadoDe(macro) !== undefined);
+    const topado = faltante ? topadoDe(faltante) : undefined;
+    if (topado && topado.role && faltante && slots.length < config.maxFoodsPerMeal) {
+      const yaEstan = new Set(slots.map((s) => s.food.id));
+      const falta = target[faltante] - sum(slots, faltante);
+      const clave = primaryMacroOf(topado.role);
+      const candidatos = eligible(pool, profile, config, topado.role, filters).filter(
+        // El segundo alimento tiene que CABER en el hueco: si su porcion
+        // minima ya se pasa de lo que falta, meterlo cambia un plato corto por
+        // uno pasado, y eso no es arreglarlo.
+        (f) => !yaEstan.has(f.id) && (minGrams(f) * f[clave]) / 100 <= falta * 1.2,
+      );
+      // Primero los que ademas ALCANZAN a cerrar el hueco: si uno solo puede,
+      // se prefiere a dos a medias.
+      const cubren = candidatos.filter((f) => (maxGrams(f) * f[clave]) / 100 >= falta * 0.8);
+      const segundo = pick(cubren.length > 0 ? cubren : candidatos, profile, random, avoid);
+      if (segundo) {
+        reforzados[faltante] += 1;
+        slots.push({
+          food: segundo,
+          grams: minGrams(segundo) || 50,
+          fixed: false,
+          role: topado.role,
+        });
+        avoid.add(segundo.id);
+        continue;
+      }
+    }
+
+    return;
+  }
 }
 
 function buildMeal(
@@ -478,7 +651,14 @@ function buildMeal(
   if (slot.id === 'PRE' && slot.allowDenseCarb && !options.simplify) {
     const fruit = pick(eligible(pool, profile, config, 'fruta', filters), profile, random, avoid);
     if (fruit) {
-      slots.push({ food: fruit, grams: fruit.servingG ?? 100, fixed: true });
+      // La fruta del pre-entreno va fija, pero fija en una porcion de verdad:
+      // una pieza o una taza, no los 100 g de relleno de antes.
+      slots.push({
+        food: fruit,
+        grams: quantize(fruit.servingG ?? 100, fruit, config),
+        fixed: true,
+        role: 'fruta',
+      });
       avoid.add(fruit.id);
     }
   }
@@ -505,46 +685,22 @@ function buildMeal(
       avoid,
     );
   if (protein) {
-    slots.push({ food: protein, grams: 100, fixed: false });
+    slots.push({ food: protein, grams: 100, fixed: false, role: protein.role });
     avoid.add(protein.id);
   }
 
   if (slot.carbG > 0 && slot.allowDenseCarb) {
+    const carbRole = slotCarbRole(slot.id);
     const carbTarget = slot.carbG - (slot.id === 'PRE' ? 20 : 0);
     const carb = pick(
-      feasible(
-        eligible(pool, profile, config, slotCarbRole(slot.id), filters),
-        'carbPer100',
-        carbTarget,
-        10,
-      ),
+      feasible(eligible(pool, profile, config, carbRole, filters), 'carbPer100', carbTarget, 10),
       profile,
       random,
       avoid,
     );
     if (carb) {
-      slots.push({ food: carb, grams: 100, fixed: false });
+      slots.push({ food: carb, grams: 100, fixed: false, role: carbRole });
       avoid.add(carb.id);
-      // Un solo alimento no siempre alcanza el carbo del slot (topes de gramos):
-      // en ese caso se agrega un segundo carbohidrato del mismo rol.
-      const reach = (maxGrams(carb) * carb.carbPer100) / 100;
-      if (reach < carbTarget * 0.95) {
-        const second = pick(
-          feasible(
-            eligible(pool, profile, config, slotCarbRole(slot.id), filters),
-            'carbPer100',
-            carbTarget - reach,
-            10,
-          ),
-          profile,
-          random,
-          avoid,
-        );
-        if (second && second.id !== carb.id) {
-          slots.push({ food: second, grams: 50, fixed: false });
-          avoid.add(second.id);
-        }
-      }
     }
   }
 
@@ -556,7 +712,7 @@ function buildMeal(
       avoid,
     );
     if (fat) {
-      slots.push({ food: fat, grams: 15, fixed: false });
+      slots.push({ food: fat, grams: minGrams(fat) || 15, fixed: false, role: 'grasa' });
       avoid.add(fat.id);
     }
   }
@@ -570,7 +726,7 @@ function buildMeal(
     c: cap(slot.carbG, residual.c),
     f: cap(slot.fatG, residual.f),
   };
-  solveGrams(slots, effective, config);
+  ajustarPorciones(slots, effective, profile, config, pool, filters, random, avoid);
 
   const kept = slots.filter((s) => s.grams > 0);
   const items = kept.map((s) => toItem(s, s.fixed && s.food.role === 'vegetal_libre'));
@@ -633,29 +789,161 @@ function refreshMeal(meal: MenuMeal, slots: Slot[], pool: Food[], profile: Profi
  * Reparacion a nivel dia: ajusta gramos en pasos del redondeo del alimento
  * hasta que los macros del menu completo caen lo mas cerca posible del target.
  */
-function repairDay(all: Slot[], target: { p: number; c: number; f: number }, config: EngineConfig): void {
-  const movable = all.filter((s) => !s.fixed && s.grams > 0);
-  for (let pass = 0; pass < 40; pass += 1) {
-    let improved = false;
-    const scale = pass < 4 ? 8 : pass < 10 ? 3 : 1;
-    for (const slot of movable) {
-      const step = roundingFor(slot.food, config) * scale;
-      let best = error(all, target);
-      for (const delta of [step, -step]) {
-        const grams = slot.grams + delta;
-        if (grams <= 0 || grams > maxGrams(slot.food)) continue;
-        const previous = slot.grams;
-        slot.grams = grams;
-        const candidate = error(all, target);
-        if (candidate < best - 1e-9) {
-          best = candidate;
-          improved = true;
-        } else {
-          slot.grams = previous;
+function repairDay(
+  comidas: Slot[][],
+  target: { p: number; c: number; f: number },
+  config: EngineConfig,
+  contexto?: {
+    profile: Profile;
+    pool: Food[];
+    filtersPorComida: EligibleOptions[];
+  },
+): void {
+  moverGramos(comidas.flat(), target, config);
+  podarSobrantes(comidas, target);
+  moverGramos(comidas.flat(), target, config);
+
+  // Si el dia sigue fuera de tolerancia, ya no es cuestion de gramos: es que
+  // un alimento no era el adecuado. Cambiarlo por otro de su mismo rol es el
+  // ultimo recurso, y solo se usa aqui —si se usara siempre, todos los menus
+  // convergerian al mismo alimento "optimo" y se acabaria la variedad que el
+  // sorteo determinista existe para dar.
+  if (contexto && fueraDeTolerancia(comidas.flat(), target)) {
+    sustituirAlimentos(comidas, target, config, contexto);
+    moverGramos(comidas.flat(), target, config);
+  }
+}
+
+function fueraDeTolerancia(all: Slot[], target: { p: number; c: number; f: number }): boolean {
+  return (['p', 'c', 'f'] as const).some(
+    (macro) => target[macro] > 0 && Math.abs(sum(all, macro) - target[macro]) / target[macro] > 0.04,
+  );
+}
+
+/**
+ * Cambia un alimento por otro de su mismo rol cuando eso acerca el dia al
+ * target. El caso real: el refuerzo de carbohidrato metio una leguminosa, que
+ * ademas trae 8 g de proteina, y el dia termino con proteina de mas que no se
+ * puede quitar porque el pollo ya va en su porcion minima. Cambiar la lenteja
+ * por arroz cierra el carbohidrato sin la proteina de pilon.
+ */
+function sustituirAlimentos(
+  comidas: Slot[][],
+  target: { p: number; c: number; f: number },
+  config: EngineConfig,
+  contexto: { profile: Profile; pool: Food[]; filtersPorComida: EligibleOptions[] },
+): void {
+  const all = comidas.flat();
+  for (let i = 0; i < comidas.length; i += 1) {
+    const comida = comidas[i] ?? [];
+    const filters = contexto.filtersPorComida[i] ?? {};
+    for (const slot of comida) {
+      if (slot.fixed || !slot.role) continue;
+      const yaEstan = new Set(comida.map((s) => s.food.id));
+      const candidatos = eligible(
+        contexto.pool,
+        contexto.profile,
+        config,
+        slot.role,
+        filters,
+      ).filter((f) => !yaEstan.has(f.id));
+
+      const original = { food: slot.food, grams: slot.grams };
+      let mejorError = error(all, target);
+      let mejor = original;
+
+      for (const food of candidatos) {
+        slot.food = food;
+        for (const grams of porcionesPosibles(food, config)) {
+          slot.grams = grams;
+          const candidato = error(all, target);
+          if (candidato < mejorError - 1e-9) {
+            mejorError = candidato;
+            mejor = { food, grams };
+          }
         }
       }
+
+      slot.food = mejor.food;
+      slot.grams = mejor.grams;
     }
-    if (!improved && scale === 1) break;
+  }
+}
+
+/** Todas las porciones legales de un alimento, de su minimo a su tope. */
+function porcionesPosibles(food: Food, config: EngineConfig): number[] {
+  const paso = roundingFor(food, config);
+  const min = Math.max(minGrams(food), paso);
+  const max = maxGrams(food);
+  const salida: number[] = [];
+  for (let grams = min; grams <= max + 1e-6; grams += paso) salida.push(grams);
+  return salida;
+}
+
+/**
+ * Quita el alimento que sobra.
+ *
+ * Cuando el refuerzo de una comida se pasa —la segunda leguminosa que ya no
+ * hacia falta—, moverle gramos no lo arregla: su porcion minima ya es mas de
+ * lo que faltaba. La unica reparacion honesta es sacarlo, y solo se saca si
+ * su macro se queda cubierto por otro alimento de la misma comida.
+ */
+function podarSobrantes(comidas: Slot[][], target: { p: number; c: number; f: number }): void {
+  for (const comida of comidas) {
+    for (const slot of [...comida]) {
+      if (slot.fixed) continue;
+      const macro = macroDominante(slot.food, slot.role);
+      const hayRelevo = comida.some(
+        (s) => s !== slot && !s.fixed && macroDominante(s.food, s.role) === macro,
+      );
+      if (!hayRelevo) continue;
+
+      const antes = error(comidas.flat(), target);
+      const donde = comida.indexOf(slot);
+      comida.splice(donde, 1);
+
+      // Quitarlo tiene que mejorar el dia SIN abrir un hueco en su propio
+      // macro: el error pesa la proteina el doble, asi que sin este freno
+      // sacaba la lenteja —que sobraba de proteina— y dejaba la comida 40 %
+      // corta de carbohidrato, que es peor de lo que arreglaba.
+      const despues = comidas.flat();
+      const faltaSuMacro =
+        target[macro] > 0 && (target[macro] - sum(despues, macro)) / target[macro] > 0.05;
+      if (error(despues, target) >= antes || faltaSuMacro) comida.splice(donde, 0, slot);
+    }
+  }
+}
+
+function moverGramos(
+  all: Slot[],
+  target: { p: number; c: number; f: number },
+  config: EngineConfig,
+): void {
+  const movable = all.filter((s) => !s.fixed && s.grams > 0);
+
+  // Busqueda exhaustiva por alimento, no a pasitos: con medida casera cada
+  // alimento tiene POCAS porciones legales (de media taza a taza y cuarto son
+  // cuatro valores), asi que probarlas todas cuesta lo mismo que tantear y no
+  // se queda atorada en el primer minimo local, que es lo que dejaba el dia
+  // 5 % arriba de proteina con las claras servidas en su minimo.
+  for (let pass = 0; pass < 12; pass += 1) {
+    let improved = false;
+    for (const slot of movable) {
+      let mejorGramos = slot.grams;
+      let mejor = error(all, target);
+      const original = slot.grams;
+      for (const grams of porcionesPosibles(slot.food, config)) {
+        slot.grams = grams;
+        const candidato = error(all, target);
+        if (candidato < mejor - 1e-9) {
+          mejor = candidato;
+          mejorGramos = grams;
+        }
+      }
+      slot.grams = mejorGramos;
+      if (mejorGramos !== original) improved = true;
+    }
+    if (!improved) break;
   }
 }
 
@@ -675,8 +963,19 @@ function buildMenu(
   const built = slots.map((slot) =>
     buildMeal(slot, profile, config, random, avoid, pool, options, residual),
   );
-  const allSlots = built.flatMap((b) => b.slots);
-  repairDay(allSlots, { p: target.proteinG, c: target.carbG, f: target.fatG }, config);
+  repairDay(
+    built.map((b) => b.slots),
+    { p: target.proteinG, c: target.carbG, f: target.fatG },
+    config,
+    {
+      profile,
+      pool,
+      filtersPorComida: slots.map((slot) => ({
+        quickOnly: slot.id === 'PRE' || slot.id === 'POST',
+        noSupplements: !(slot.id === 'PRE' || slot.id === 'POST'),
+      })),
+    },
+  );
   const meals = built.map((b) => b.meal);
   for (const b of built) refreshMeal(b.meal, b.slots, pool, profile, config);
   const totals = meals.reduce<MacroTargets>(

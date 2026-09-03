@@ -91,6 +91,11 @@ export const ConfigSchema = z
     freeVegetableGramsPerMeal: z.number().int().min(0).max(600),
     /** Un vegetal "libre" no puede pasar de estos carbos por 100 g. */
     freeVegetableMaxCarbPer100: z.number().min(2).max(15),
+    /**
+     * Tope de alimentos por comida. Un platillo con siete ingredientes no se
+     * cocina entre semana: se abandona.
+     */
+    maxFoodsPerMeal: z.number().int().min(3).max(8),
     /** Alimentos con esta densidad o mas se redondean al gramo, no a 5 g. */
     denseFoodKcalPer100: z.number().int().min(150).max(900),
     menuGramRoundingG: z.number().int().min(1).max(25),
@@ -187,6 +192,7 @@ export const DEFAULT_CONFIG: EngineConfig = {
   lowGiMax: 55,
   freeVegetableGramsPerMeal: 200,
   freeVegetableMaxCarbPer100: 6,
+  maxFoodsPerMeal: 6,
   denseFoodKcalPer100: 300,
   menuGramRoundingG: 5,
   // 20: la pantalla las muestra en una lista desplegable, no en botones

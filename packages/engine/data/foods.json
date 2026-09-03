@@ -3,10 +3,10 @@
     "id": "pechuga_pollo",
     "name": "Pechuga de pollo cocida",
     "role": "proteina_magra",
-    "proteinPer100": 31.0,
-    "carbPer100": 0.0,
+    "proteinPer100": 31,
+    "carbPer100": 0,
     "fatPer100": 3.6,
-    "fiberPer100": 0.0,
+    "fiberPer100": 0,
     "kcalPer100": 156.4,
     "gi": null,
     "costRel": 2,
@@ -19,16 +19,23 @@
     ],
     "servingG": 150,
     "unit": "g",
-    "maxG": 200
+    "maxG": 200,
+    "serving": {
+      "unit": "g",
+      "gramsPerUnit": 1,
+      "minUnits": 100,
+      "maxUnits": 200,
+      "step": 5
+    }
   },
   {
     "id": "pechuga_pavo",
     "name": "Pechuga de pavo cocida",
     "role": "proteina_magra",
-    "proteinPer100": 29.0,
-    "carbPer100": 0.0,
+    "proteinPer100": 29,
+    "carbPer100": 0,
     "fatPer100": 1.7,
-    "fiberPer100": 0.0,
+    "fiberPer100": 0,
     "kcalPer100": 131.3,
     "gi": null,
     "costRel": 2,
@@ -39,7 +46,14 @@
     ],
     "servingG": 150,
     "unit": "g",
-    "maxG": 200
+    "maxG": 200,
+    "serving": {
+      "unit": "g",
+      "gramsPerUnit": 1,
+      "minUnits": 100,
+      "maxUnits": 200,
+      "step": 5
+    }
   },
   {
     "id": "claras_huevo",
@@ -48,7 +62,7 @@
     "proteinPer100": 10.9,
     "carbPer100": 0.7,
     "fatPer100": 0.2,
-    "fiberPer100": 0.0,
+    "fiberPer100": 0,
     "kcalPer100": 48.2,
     "gi": null,
     "costRel": 1,
@@ -61,17 +75,24 @@
     ],
     "servingG": 120,
     "unit": "g",
-    "maxG": 240
+    "maxG": 240,
+    "serving": {
+      "unit": "g",
+      "gramsPerUnit": 1,
+      "minUnits": 90,
+      "maxUnits": 240,
+      "step": 30
+    }
   },
   {
     "id": "atun_agua",
     "name": "Atun en agua drenado",
     "role": "proteina_magra",
     "proteinPer100": 25.5,
-    "carbPer100": 0.0,
-    "fatPer100": 1.0,
-    "fiberPer100": 0.0,
-    "kcalPer100": 111.0,
+    "carbPer100": 0,
+    "fatPer100": 1,
+    "fiberPer100": 0,
+    "kcalPer100": 111,
     "gi": null,
     "costRel": 1,
     "prepMin": 2,
@@ -84,16 +105,23 @@
     ],
     "servingG": 130,
     "unit": "g",
-    "maxG": 200
+    "maxG": 200,
+    "serving": {
+      "unit": "g",
+      "gramsPerUnit": 1,
+      "minUnits": 60,
+      "maxUnits": 200,
+      "step": 10
+    }
   },
   {
     "id": "tilapia",
     "name": "Tilapia",
     "role": "proteina_magra",
     "proteinPer100": 26.2,
-    "carbPer100": 0.0,
+    "carbPer100": 0,
     "fatPer100": 2.7,
-    "fiberPer100": 0.0,
+    "fiberPer100": 0,
     "kcalPer100": 129.1,
     "gi": null,
     "costRel": 2,
@@ -104,16 +132,23 @@
     ],
     "servingG": 160,
     "unit": "g",
-    "maxG": 200
+    "maxG": 200,
+    "serving": {
+      "unit": "g",
+      "gramsPerUnit": 1,
+      "minUnits": 100,
+      "maxUnits": 200,
+      "step": 5
+    }
   },
   {
     "id": "bacalao",
     "name": "Bacalao fresco",
     "role": "proteina_magra",
-    "proteinPer100": 23.0,
-    "carbPer100": 0.0,
+    "proteinPer100": 23,
+    "carbPer100": 0,
     "fatPer100": 0.9,
-    "fiberPer100": 0.0,
+    "fiberPer100": 0,
     "kcalPer100": 100.1,
     "gi": null,
     "costRel": 3,
@@ -123,16 +158,23 @@
     ],
     "servingG": 160,
     "unit": "g",
-    "maxG": 200
+    "maxG": 200,
+    "serving": {
+      "unit": "g",
+      "gramsPerUnit": 1,
+      "minUnits": 100,
+      "maxUnits": 200,
+      "step": 5
+    }
   },
   {
     "id": "pescado_blanco",
     "name": "Pescado blanco (huachinango, robalo)",
     "role": "proteina_magra",
-    "proteinPer100": 24.0,
-    "carbPer100": 0.0,
+    "proteinPer100": 24,
+    "carbPer100": 0,
     "fatPer100": 1.5,
-    "fiberPer100": 0.0,
+    "fiberPer100": 0,
     "kcalPer100": 109.5,
     "gi": null,
     "costRel": 3,
@@ -143,16 +185,23 @@
     ],
     "servingG": 150,
     "unit": "g",
-    "maxG": 200
+    "maxG": 200,
+    "serving": {
+      "unit": "g",
+      "gramsPerUnit": 1,
+      "minUnits": 100,
+      "maxUnits": 200,
+      "step": 5
+    }
   },
   {
     "id": "camaron",
     "name": "Camaron cocido",
     "role": "proteina_magra",
-    "proteinPer100": 24.0,
+    "proteinPer100": 24,
     "carbPer100": 0.2,
     "fatPer100": 0.3,
-    "fiberPer100": 0.0,
+    "fiberPer100": 0,
     "kcalPer100": 99.5,
     "gi": null,
     "costRel": 3,
@@ -163,17 +212,24 @@
     ],
     "servingG": 150,
     "unit": "g",
-    "maxG": 200
+    "maxG": 200,
+    "serving": {
+      "unit": "g",
+      "gramsPerUnit": 1,
+      "minUnits": 100,
+      "maxUnits": 200,
+      "step": 5
+    }
   },
   {
     "id": "res_magra",
     "name": "Res magra (bistec, falda)",
     "role": "proteina_magra",
-    "proteinPer100": 27.0,
-    "carbPer100": 0.0,
-    "fatPer100": 6.0,
-    "fiberPer100": 0.0,
-    "kcalPer100": 162.0,
+    "proteinPer100": 27,
+    "carbPer100": 0,
+    "fatPer100": 6,
+    "fiberPer100": 0,
+    "kcalPer100": 162,
     "gi": null,
     "costRel": 3,
     "prepMin": 15,
@@ -185,17 +241,24 @@
     ],
     "servingG": 150,
     "unit": "g",
-    "maxG": 200
+    "maxG": 200,
+    "serving": {
+      "unit": "g",
+      "gramsPerUnit": 1,
+      "minUnits": 100,
+      "maxUnits": 200,
+      "step": 5
+    }
   },
   {
     "id": "yogur_griego_0",
     "name": "Yogur griego natural 0%",
     "role": "proteina_magra",
-    "proteinPer100": 10.0,
+    "proteinPer100": 10,
     "carbPer100": 3.6,
     "fatPer100": 0.4,
-    "fiberPer100": 0.0,
-    "kcalPer100": 58.0,
+    "fiberPer100": 0,
+    "kcalPer100": 58,
     "gi": 35,
     "costRel": 2,
     "prepMin": 1,
@@ -207,16 +270,23 @@
     ],
     "servingG": 200,
     "unit": "g",
-    "maxG": 250
+    "maxG": 250,
+    "serving": {
+      "unit": "g",
+      "gramsPerUnit": 1,
+      "minUnits": 120,
+      "maxUnits": 250,
+      "step": 10
+    }
   },
   {
     "id": "cottage",
     "name": "Queso cottage bajo en grasa",
     "role": "proteina_magra",
-    "proteinPer100": 11.0,
+    "proteinPer100": 11,
     "carbPer100": 3.4,
-    "fatPer100": 1.0,
-    "fiberPer100": 0.0,
+    "fatPer100": 1,
+    "fiberPer100": 0,
     "kcalPer100": 66.6,
     "gi": null,
     "costRel": 2,
@@ -228,16 +298,23 @@
     ],
     "servingG": 120,
     "unit": "g",
-    "maxG": 180
+    "maxG": 180,
+    "serving": {
+      "unit": "g",
+      "gramsPerUnit": 1,
+      "minUnits": 90,
+      "maxUnits": 180,
+      "step": 10
+    }
   },
   {
     "id": "requeson",
     "name": "Requeson",
     "role": "proteina_magra",
     "proteinPer100": 11.4,
-    "carbPer100": 3.0,
-    "fatPer100": 4.0,
-    "fiberPer100": 0.0,
+    "carbPer100": 3,
+    "fatPer100": 4,
+    "fiberPer100": 0,
     "kcalPer100": 93.6,
     "gi": null,
     "costRel": 1,
@@ -249,17 +326,24 @@
     ],
     "servingG": 120,
     "unit": "g",
-    "maxG": 150
+    "maxG": 150,
+    "serving": {
+      "unit": "g",
+      "gramsPerUnit": 1,
+      "minUnits": 60,
+      "maxUnits": 150,
+      "step": 10
+    }
   },
   {
     "id": "jamon_pavo",
     "name": "Jamon de pechuga de pavo",
     "role": "proteina_magra",
-    "proteinPer100": 17.0,
-    "carbPer100": 2.0,
-    "fatPer100": 2.0,
-    "fiberPer100": 0.0,
-    "kcalPer100": 94.0,
+    "proteinPer100": 17,
+    "carbPer100": 2,
+    "fatPer100": 2,
+    "fiberPer100": 0,
+    "kcalPer100": 94,
     "gi": null,
     "costRel": 2,
     "prepMin": 1,
@@ -270,17 +354,24 @@
     ],
     "servingG": 80,
     "unit": "g",
-    "maxG": 150
+    "maxG": 150,
+    "serving": {
+      "unit": "rebanada",
+      "gramsPerUnit": 25,
+      "minUnits": 2,
+      "maxUnits": 6,
+      "step": 1
+    }
   },
   {
     "id": "whey_isolate",
     "name": "Proteina whey isolate en polvo",
     "role": "proteina_magra",
-    "proteinPer100": 85.0,
-    "carbPer100": 5.0,
-    "fatPer100": 1.0,
-    "fiberPer100": 0.0,
-    "kcalPer100": 369.0,
+    "proteinPer100": 85,
+    "carbPer100": 5,
+    "fatPer100": 1,
+    "fiberPer100": 0,
+    "kcalPer100": 369,
     "gi": null,
     "costRel": 3,
     "prepMin": 1,
@@ -292,17 +383,24 @@
     ],
     "servingG": 30,
     "unit": "g",
-    "maxG": 50
+    "maxG": 60,
+    "serving": {
+      "unit": "scoop",
+      "gramsPerUnit": 30,
+      "minUnits": 1,
+      "maxUnits": 2,
+      "step": 1
+    }
   },
   {
     "id": "proteina_vegetal",
     "name": "Proteina vegetal en polvo",
     "role": "proteina_magra",
-    "proteinPer100": 75.0,
-    "carbPer100": 8.0,
-    "fatPer100": 3.0,
-    "fiberPer100": 4.0,
-    "kcalPer100": 359.0,
+    "proteinPer100": 75,
+    "carbPer100": 8,
+    "fatPer100": 3,
+    "fiberPer100": 4,
+    "kcalPer100": 359,
     "gi": null,
     "costRel": 3,
     "prepMin": 1,
@@ -313,7 +411,14 @@
     ],
     "servingG": 30,
     "unit": "g",
-    "maxG": 50
+    "maxG": 60,
+    "serving": {
+      "unit": "scoop",
+      "gramsPerUnit": 30,
+      "minUnits": 1,
+      "maxUnits": 2,
+      "step": 1
+    }
   },
   {
     "id": "leche_descremada",
@@ -322,7 +427,7 @@
     "proteinPer100": 3.4,
     "carbPer100": 4.8,
     "fatPer100": 0.2,
-    "fiberPer100": 0.0,
+    "fiberPer100": 0,
     "kcalPer100": 34.6,
     "gi": 32,
     "costRel": 1,
@@ -333,17 +438,24 @@
     ],
     "servingG": 250,
     "unit": "ml",
-    "maxG": 250
+    "maxG": 300,
+    "serving": {
+      "unit": "taza",
+      "gramsPerUnit": 240,
+      "minUnits": 0.5,
+      "maxUnits": 1.25,
+      "step": 0.25
+    }
   },
   {
     "id": "clara_liquida",
     "name": "Clara de huevo liquida pasteurizada",
     "role": "proteina_magra",
-    "proteinPer100": 11.0,
+    "proteinPer100": 11,
     "carbPer100": 0.8,
     "fatPer100": 0.2,
-    "fiberPer100": 0.0,
-    "kcalPer100": 49.0,
+    "fiberPer100": 0,
+    "kcalPer100": 49,
     "gi": null,
     "costRel": 2,
     "prepMin": 3,
@@ -353,7 +465,14 @@
     ],
     "servingG": 150,
     "unit": "ml",
-    "maxG": 240
+    "maxG": 240,
+    "serving": {
+      "unit": "g",
+      "gramsPerUnit": 1,
+      "minUnits": 90,
+      "maxUnits": 240,
+      "step": 30
+    }
   },
   {
     "id": "huevo_entero",
@@ -362,7 +481,7 @@
     "proteinPer100": 12.6,
     "carbPer100": 1.1,
     "fatPer100": 9.9,
-    "fiberPer100": 0.0,
+    "fiberPer100": 0,
     "kcalPer100": 143.9,
     "gi": null,
     "costRel": 1,
@@ -375,17 +494,24 @@
     ],
     "servingG": 55,
     "unit": "pieza",
-    "maxG": 150
+    "maxG": 165,
+    "serving": {
+      "unit": "pieza",
+      "gramsPerUnit": 55,
+      "minUnits": 1,
+      "maxUnits": 3,
+      "step": 1
+    }
   },
   {
     "id": "salmon",
     "name": "Salmon",
     "role": "proteina_grasa",
-    "proteinPer100": 25.0,
-    "carbPer100": 0.0,
-    "fatPer100": 13.0,
-    "fiberPer100": 0.0,
-    "kcalPer100": 217.0,
+    "proteinPer100": 25,
+    "carbPer100": 0,
+    "fatPer100": 13,
+    "fiberPer100": 0,
+    "kcalPer100": 217,
     "gi": null,
     "costRel": 3,
     "prepMin": 15,
@@ -394,17 +520,24 @@
     ],
     "servingG": 150,
     "unit": "g",
-    "maxG": 200
+    "maxG": 200,
+    "serving": {
+      "unit": "g",
+      "gramsPerUnit": 1,
+      "minUnits": 100,
+      "maxUnits": 200,
+      "step": 5
+    }
   },
   {
     "id": "sardina_agua",
     "name": "Sardina en agua",
     "role": "proteina_grasa",
-    "proteinPer100": 25.0,
-    "carbPer100": 0.0,
-    "fatPer100": 11.0,
-    "fiberPer100": 0.0,
-    "kcalPer100": 199.0,
+    "proteinPer100": 25,
+    "carbPer100": 0,
+    "fatPer100": 11,
+    "fiberPer100": 0,
+    "kcalPer100": 199,
     "gi": null,
     "costRel": 1,
     "prepMin": 2,
@@ -416,17 +549,24 @@
     ],
     "servingG": 100,
     "unit": "g",
-    "maxG": 150
+    "maxG": 150,
+    "serving": {
+      "unit": "g",
+      "gramsPerUnit": 1,
+      "minUnits": 60,
+      "maxUnits": 150,
+      "step": 10
+    }
   },
   {
     "id": "muslo_pollo",
     "name": "Muslo de pollo sin piel",
     "role": "proteina_grasa",
-    "proteinPer100": 24.0,
-    "carbPer100": 0.0,
-    "fatPer100": 8.0,
-    "fiberPer100": 0.0,
-    "kcalPer100": 168.0,
+    "proteinPer100": 24,
+    "carbPer100": 0,
+    "fatPer100": 8,
+    "fiberPer100": 0,
+    "kcalPer100": 168,
     "gi": null,
     "costRel": 2,
     "prepMin": 25,
@@ -437,17 +577,24 @@
     ],
     "servingG": 150,
     "unit": "g",
-    "maxG": 200
+    "maxG": 200,
+    "serving": {
+      "unit": "g",
+      "gramsPerUnit": 1,
+      "minUnits": 100,
+      "maxUnits": 200,
+      "step": 5
+    }
   },
   {
     "id": "queso_panela",
     "name": "Queso panela",
     "role": "proteina_grasa",
-    "proteinPer100": 18.0,
-    "carbPer100": 2.0,
-    "fatPer100": 17.0,
-    "fiberPer100": 0.0,
-    "kcalPer100": 233.0,
+    "proteinPer100": 18,
+    "carbPer100": 2,
+    "fatPer100": 17,
+    "fiberPer100": 0,
+    "kcalPer100": 233,
     "gi": null,
     "costRel": 2,
     "prepMin": 1,
@@ -459,17 +606,24 @@
     ],
     "servingG": 100,
     "unit": "g",
-    "maxG": 40
+    "maxG": 120,
+    "serving": {
+      "unit": "rebanada",
+      "gramsPerUnit": 40,
+      "minUnits": 1,
+      "maxUnits": 3,
+      "step": 1
+    }
   },
   {
     "id": "queso_fresco",
     "name": "Queso fresco",
     "role": "proteina_grasa",
-    "proteinPer100": 17.0,
-    "carbPer100": 3.0,
-    "fatPer100": 15.0,
-    "fiberPer100": 0.0,
-    "kcalPer100": 215.0,
+    "proteinPer100": 17,
+    "carbPer100": 3,
+    "fatPer100": 15,
+    "fiberPer100": 0,
+    "kcalPer100": 215,
     "gi": null,
     "costRel": 2,
     "prepMin": 1,
@@ -480,17 +634,24 @@
     ],
     "servingG": 80,
     "unit": "g",
-    "maxG": 40
+    "maxG": 80,
+    "serving": {
+      "unit": "rebanada",
+      "gramsPerUnit": 40,
+      "minUnits": 1,
+      "maxUnits": 2,
+      "step": 1
+    }
   },
   {
     "id": "tofu_firme",
     "name": "Tofu firme",
     "role": "proteina_grasa",
-    "proteinPer100": 12.0,
-    "carbPer100": 2.0,
-    "fatPer100": 7.0,
-    "fiberPer100": 1.0,
-    "kcalPer100": 119.0,
+    "proteinPer100": 12,
+    "carbPer100": 2,
+    "fatPer100": 7,
+    "fiberPer100": 1,
+    "kcalPer100": 119,
     "gi": 15,
     "costRel": 2,
     "prepMin": 10,
@@ -500,17 +661,24 @@
     ],
     "servingG": 150,
     "unit": "g",
-    "maxG": 200
+    "maxG": 200,
+    "serving": {
+      "unit": "g",
+      "gramsPerUnit": 1,
+      "minUnits": 100,
+      "maxUnits": 200,
+      "step": 10
+    }
   },
   {
     "id": "edamame",
     "name": "Edamame cocido",
     "role": "proteina_grasa",
-    "proteinPer100": 11.0,
-    "carbPer100": 9.0,
-    "fatPer100": 5.0,
-    "fiberPer100": 5.0,
-    "kcalPer100": 125.0,
+    "proteinPer100": 11,
+    "carbPer100": 9,
+    "fatPer100": 5,
+    "fiberPer100": 5,
+    "kcalPer100": 125,
     "gi": 18,
     "costRel": 2,
     "prepMin": 8,
@@ -519,17 +687,24 @@
     ],
     "servingG": 120,
     "unit": "g",
-    "maxG": 150
+    "maxG": 150,
+    "serving": {
+      "unit": "g",
+      "gramsPerUnit": 1,
+      "minUnits": 80,
+      "maxUnits": 150,
+      "step": 10
+    }
   },
   {
     "id": "atun_aceite",
     "name": "Atun en aceite drenado",
     "role": "proteina_grasa",
-    "proteinPer100": 25.0,
-    "carbPer100": 0.0,
-    "fatPer100": 8.0,
-    "fiberPer100": 0.0,
-    "kcalPer100": 172.0,
+    "proteinPer100": 25,
+    "carbPer100": 0,
+    "fatPer100": 8,
+    "fiberPer100": 0,
+    "kcalPer100": 172,
     "gi": null,
     "costRel": 1,
     "prepMin": 2,
@@ -540,14 +715,21 @@
     ],
     "servingG": 130,
     "unit": "g",
-    "maxG": 150
+    "maxG": 150,
+    "serving": {
+      "unit": "g",
+      "gramsPerUnit": 1,
+      "minUnits": 60,
+      "maxUnits": 150,
+      "step": 10
+    }
   },
   {
     "id": "avena",
     "name": "Avena en hojuelas (cruda)",
     "role": "carbo_pre",
     "proteinPer100": 13.2,
-    "carbPer100": 67.0,
+    "carbPer100": 67,
     "fatPer100": 6.5,
     "fiberPer100": 10.1,
     "kcalPer100": 379.3,
@@ -561,16 +743,23 @@
     ],
     "servingG": 50,
     "unit": "g",
-    "maxG": 100
+    "maxG": 100,
+    "serving": {
+      "unit": "g",
+      "gramsPerUnit": 1,
+      "minUnits": 30,
+      "maxUnits": 80,
+      "step": 10
+    }
   },
   {
     "id": "pan_integral",
     "name": "Pan integral",
     "role": "carbo_pre",
-    "proteinPer100": 13.0,
-    "carbPer100": 43.0,
+    "proteinPer100": 13,
+    "carbPer100": 43,
     "fatPer100": 3.4,
-    "fiberPer100": 7.0,
+    "fiberPer100": 7,
     "kcalPer100": 254.6,
     "gi": 53,
     "costRel": 1,
@@ -582,15 +771,22 @@
     ],
     "servingG": 60,
     "unit": "g",
-    "maxG": 120
+    "maxG": 120,
+    "serving": {
+      "unit": "rebanada",
+      "gramsPerUnit": 30,
+      "minUnits": 1,
+      "maxUnits": 3,
+      "step": 1
+    }
   },
   {
     "id": "miel",
     "name": "Miel de abeja",
     "role": "carbo_pre",
     "proteinPer100": 0.3,
-    "carbPer100": 82.0,
-    "fatPer100": 0.0,
+    "carbPer100": 82,
+    "fatPer100": 0,
     "fiberPer100": 0.2,
     "kcalPer100": 329.2,
     "gi": 58,
@@ -602,17 +798,24 @@
     ],
     "servingG": 15,
     "unit": "g",
-    "maxG": 30
+    "maxG": 28,
+    "serving": {
+      "unit": "cdita",
+      "gramsPerUnit": 7,
+      "minUnits": 1,
+      "maxUnits": 4,
+      "step": 1
+    }
   },
   {
     "id": "amaranto",
     "name": "Amaranto tostado",
     "role": "carbo_pre",
-    "proteinPer100": 14.0,
-    "carbPer100": 65.0,
-    "fatPer100": 7.0,
+    "proteinPer100": 14,
+    "carbPer100": 65,
+    "fatPer100": 7,
     "fiberPer100": 6.7,
-    "kcalPer100": 379.0,
+    "kcalPer100": 379,
     "gi": null,
     "costRel": 2,
     "prepMin": 2,
@@ -623,17 +826,24 @@
     ],
     "servingG": 30,
     "unit": "g",
-    "maxG": 80
+    "maxG": 80,
+    "serving": {
+      "unit": "g",
+      "gramsPerUnit": 1,
+      "minUnits": 20,
+      "maxUnits": 60,
+      "step": 10
+    }
   },
   {
     "id": "granola_sin_azucar",
     "name": "Granola sin azucar",
     "role": "carbo_pre",
-    "proteinPer100": 10.0,
-    "carbPer100": 60.0,
-    "fatPer100": 12.0,
-    "fiberPer100": 8.0,
-    "kcalPer100": 388.0,
+    "proteinPer100": 10,
+    "carbPer100": 60,
+    "fatPer100": 12,
+    "fiberPer100": 8,
+    "kcalPer100": 388,
     "gi": 50,
     "costRel": 3,
     "prepMin": 1,
@@ -643,7 +853,14 @@
     ],
     "servingG": 40,
     "unit": "g",
-    "maxG": 60
+    "maxG": 60,
+    "serving": {
+      "unit": "g",
+      "gramsPerUnit": 1,
+      "minUnits": 20,
+      "maxUnits": 60,
+      "step": 10
+    }
   },
   {
     "id": "arroz_blanco",
@@ -665,13 +882,20 @@
     ],
     "servingG": 150,
     "unit": "g",
-    "maxG": 150
+    "maxG": 200,
+    "serving": {
+      "unit": "taza",
+      "gramsPerUnit": 160,
+      "minUnits": 0.5,
+      "maxUnits": 1.25,
+      "step": 0.25
+    }
   },
   {
     "id": "camote",
     "name": "Camote cocido",
     "role": "carbo_post",
-    "proteinPer100": 2.0,
+    "proteinPer100": 2,
     "carbPer100": 20.7,
     "fatPer100": 0.1,
     "fiberPer100": 3.3,
@@ -687,17 +911,24 @@
     ],
     "servingG": 150,
     "unit": "g",
-    "maxG": 150
+    "maxG": 250,
+    "serving": {
+      "unit": "g",
+      "gramsPerUnit": 1,
+      "minUnits": 100,
+      "maxUnits": 250,
+      "step": 10
+    }
   },
   {
     "id": "cereal_arroz_inflado",
     "name": "Cereal de arroz inflado sin azucar",
     "role": "carbo_post",
     "proteinPer100": 6.5,
-    "carbPer100": 85.0,
-    "fatPer100": 1.0,
+    "carbPer100": 85,
+    "fatPer100": 1,
     "fiberPer100": 1.5,
-    "kcalPer100": 375.0,
+    "kcalPer100": 375,
     "gi": 82,
     "costRel": 2,
     "prepMin": 1,
@@ -708,14 +939,21 @@
     ],
     "servingG": 40,
     "unit": "g",
-    "maxG": 60
+    "maxG": 60,
+    "serving": {
+      "unit": "taza",
+      "gramsPerUnit": 15,
+      "minUnits": 1,
+      "maxUnits": 3,
+      "step": 1
+    }
   },
   {
     "id": "papa",
     "name": "Papa cocida",
     "role": "carbo_post",
-    "proteinPer100": 2.0,
-    "carbPer100": 17.0,
+    "proteinPer100": 2,
+    "carbPer100": 17,
     "fatPer100": 0.1,
     "fiberPer100": 2.2,
     "kcalPer100": 76.9,
@@ -729,7 +967,14 @@
     ],
     "servingG": 200,
     "unit": "g",
-    "maxG": 150
+    "maxG": 250,
+    "serving": {
+      "unit": "g",
+      "gramsPerUnit": 1,
+      "minUnits": 100,
+      "maxUnits": 250,
+      "step": 10
+    }
   },
   {
     "id": "tortilla_maiz",
@@ -751,7 +996,14 @@
     ],
     "servingG": 30,
     "unit": "pieza",
-    "maxG": 120
+    "maxG": 120,
+    "serving": {
+      "unit": "pieza",
+      "gramsPerUnit": 30,
+      "minUnits": 1,
+      "maxUnits": 4,
+      "step": 1
+    }
   },
   {
     "id": "platano_post",
@@ -774,14 +1026,21 @@
     ],
     "servingG": 120,
     "unit": "pieza",
-    "maxG": 120
+    "maxG": 120,
+    "serving": {
+      "unit": "pieza",
+      "gramsPerUnit": 120,
+      "minUnits": 0.5,
+      "maxUnits": 1,
+      "step": 0.5
+    }
   },
   {
     "id": "arroz_integral",
     "name": "Arroz integral cocido",
     "role": "carbo_complejo",
     "proteinPer100": 2.6,
-    "carbPer100": 23.0,
+    "carbPer100": 23,
     "fatPer100": 0.9,
     "fiberPer100": 1.8,
     "kcalPer100": 110.5,
@@ -796,7 +1055,14 @@
     ],
     "servingG": 180,
     "unit": "g",
-    "maxG": 200
+    "maxG": 200,
+    "serving": {
+      "unit": "taza",
+      "gramsPerUnit": 160,
+      "minUnits": 0.5,
+      "maxUnits": 1.25,
+      "step": 0.25
+    }
   },
   {
     "id": "quinoa",
@@ -817,7 +1083,14 @@
     ],
     "servingG": 180,
     "unit": "g",
-    "maxG": 200
+    "maxG": 200,
+    "serving": {
+      "unit": "taza",
+      "gramsPerUnit": 160,
+      "minUnits": 0.5,
+      "maxUnits": 1.25,
+      "step": 0.25
+    }
   },
   {
     "id": "frijol_negro",
@@ -839,14 +1112,21 @@
     ],
     "servingG": 120,
     "unit": "g",
-    "maxG": 180
+    "maxG": 180,
+    "serving": {
+      "unit": "taza",
+      "gramsPerUnit": 180,
+      "minUnits": 0.5,
+      "maxUnits": 1,
+      "step": 0.25
+    }
   },
   {
     "id": "lenteja",
     "name": "Lenteja cocida",
     "role": "carbo_complejo",
-    "proteinPer100": 9.0,
-    "carbPer100": 20.0,
+    "proteinPer100": 9,
+    "carbPer100": 20,
     "fatPer100": 0.4,
     "fiberPer100": 7.9,
     "kcalPer100": 119.6,
@@ -861,7 +1141,14 @@
     ],
     "servingG": 150,
     "unit": "g",
-    "maxG": 180
+    "maxG": 180,
+    "serving": {
+      "unit": "taza",
+      "gramsPerUnit": 180,
+      "minUnits": 0.5,
+      "maxUnits": 1,
+      "step": 0.25
+    }
   },
   {
     "id": "garbanzo",
@@ -882,7 +1169,14 @@
     ],
     "servingG": 120,
     "unit": "g",
-    "maxG": 180
+    "maxG": 180,
+    "serving": {
+      "unit": "taza",
+      "gramsPerUnit": 160,
+      "minUnits": 0.5,
+      "maxUnits": 1,
+      "step": 0.25
+    }
   },
   {
     "id": "haba",
@@ -903,14 +1197,21 @@
     ],
     "servingG": 120,
     "unit": "g",
-    "maxG": 180
+    "maxG": 180,
+    "serving": {
+      "unit": "taza",
+      "gramsPerUnit": 180,
+      "minUnits": 0.5,
+      "maxUnits": 1,
+      "step": 0.25
+    }
   },
   {
     "id": "pasta_integral",
     "name": "Pasta integral cocida",
     "role": "carbo_complejo",
     "proteinPer100": 5.3,
-    "carbPer100": 25.0,
+    "carbPer100": 25,
     "fatPer100": 1.1,
     "fiberPer100": 3.9,
     "kcalPer100": 131.1,
@@ -923,7 +1224,14 @@
     ],
     "servingG": 150,
     "unit": "g",
-    "maxG": 200
+    "maxG": 200,
+    "serving": {
+      "unit": "taza",
+      "gramsPerUnit": 140,
+      "minUnits": 0.5,
+      "maxUnits": 1.25,
+      "step": 0.25
+    }
   },
   {
     "id": "pan_centeno",
@@ -944,16 +1252,23 @@
     ],
     "servingG": 60,
     "unit": "g",
-    "maxG": 120
+    "maxG": 120,
+    "serving": {
+      "unit": "rebanada",
+      "gramsPerUnit": 30,
+      "minUnits": 1,
+      "maxUnits": 3,
+      "step": 1
+    }
   },
   {
     "id": "elote",
     "name": "Elote desgranado cocido",
     "role": "carbo_complejo",
     "proteinPer100": 3.3,
-    "carbPer100": 19.0,
+    "carbPer100": 19,
     "fatPer100": 1.4,
-    "fiberPer100": 2.0,
+    "fiberPer100": 2,
     "kcalPer100": 101.8,
     "gi": 52,
     "costRel": 1,
@@ -965,17 +1280,24 @@
     ],
     "servingG": 150,
     "unit": "g",
-    "maxG": 150
+    "maxG": 160,
+    "serving": {
+      "unit": "taza",
+      "gramsPerUnit": 160,
+      "minUnits": 0.5,
+      "maxUnits": 1,
+      "step": 0.25
+    }
   },
   {
     "id": "tostada_horneada",
     "name": "Tostada de maiz horneada",
     "role": "carbo_complejo",
-    "proteinPer100": 8.0,
-    "carbPer100": 75.0,
-    "fatPer100": 4.0,
-    "fiberPer100": 7.0,
-    "kcalPer100": 368.0,
+    "proteinPer100": 8,
+    "carbPer100": 75,
+    "fatPer100": 4,
+    "fiberPer100": 7,
+    "kcalPer100": 368,
     "gi": 60,
     "costRel": 1,
     "prepMin": 1,
@@ -988,14 +1310,21 @@
     ],
     "servingG": 15,
     "unit": "pieza",
-    "maxG": 45
+    "maxG": 45,
+    "serving": {
+      "unit": "pieza",
+      "gramsPerUnit": 15,
+      "minUnits": 1,
+      "maxUnits": 3,
+      "step": 1
+    }
   },
   {
     "id": "avena_cocida",
     "name": "Avena cocida en agua",
     "role": "carbo_complejo",
     "proteinPer100": 2.4,
-    "carbPer100": 12.0,
+    "carbPer100": 12,
     "fatPer100": 1.4,
     "fiberPer100": 1.7,
     "kcalPer100": 70.2,
@@ -1009,17 +1338,24 @@
     ],
     "servingG": 250,
     "unit": "g",
-    "maxG": 250
+    "maxG": 250,
+    "serving": {
+      "unit": "taza",
+      "gramsPerUnit": 160,
+      "minUnits": 0.5,
+      "maxUnits": 1.5,
+      "step": 0.25
+    }
   },
   {
     "id": "nopal_asado_carb",
     "name": "Tortilla de nopal",
     "role": "carbo_complejo",
-    "proteinPer100": 6.0,
-    "carbPer100": 40.0,
-    "fatPer100": 2.0,
-    "fiberPer100": 9.0,
-    "kcalPer100": 202.0,
+    "proteinPer100": 6,
+    "carbPer100": 40,
+    "fatPer100": 2,
+    "fiberPer100": 9,
+    "kcalPer100": 202,
     "gi": 45,
     "costRel": 2,
     "prepMin": 2,
@@ -1031,17 +1367,24 @@
     ],
     "servingG": 30,
     "unit": "pieza",
-    "maxG": 90
+    "maxG": 90,
+    "serving": {
+      "unit": "pieza",
+      "gramsPerUnit": 30,
+      "minUnits": 1,
+      "maxUnits": 3,
+      "step": 1
+    }
   },
   {
     "id": "aceite_oliva",
     "name": "Aceite de oliva extra virgen",
     "role": "grasa",
-    "proteinPer100": 0.0,
-    "carbPer100": 0.0,
-    "fatPer100": 100.0,
-    "fiberPer100": 0.0,
-    "kcalPer100": 900.0,
+    "proteinPer100": 0,
+    "carbPer100": 0,
+    "fatPer100": 100,
+    "fiberPer100": 0,
+    "kcalPer100": 900,
     "gi": null,
     "costRel": 2,
     "prepMin": 1,
@@ -1051,13 +1394,20 @@
     ],
     "servingG": 10,
     "unit": "ml",
-    "maxG": 10
+    "maxG": 10,
+    "serving": {
+      "unit": "cdita",
+      "gramsPerUnit": 5,
+      "minUnits": 1,
+      "maxUnits": 2,
+      "step": 0.5
+    }
   },
   {
     "id": "aguacate",
     "name": "Aguacate",
     "role": "grasa",
-    "proteinPer100": 2.0,
+    "proteinPer100": 2,
     "carbPer100": 8.5,
     "fatPer100": 14.7,
     "fiberPer100": 6.7,
@@ -1074,7 +1424,14 @@
     ],
     "servingG": 70,
     "unit": "g",
-    "maxG": 30
+    "maxG": 100,
+    "serving": {
+      "unit": "g",
+      "gramsPerUnit": 1,
+      "minUnits": 45,
+      "maxUnits": 100,
+      "step": 5
+    }
   },
   {
     "id": "almendra",
@@ -1096,7 +1453,14 @@
     ],
     "servingG": 20,
     "unit": "g",
-    "maxG": 30
+    "maxG": 30,
+    "serving": {
+      "unit": "pieza",
+      "gramsPerUnit": 1.2,
+      "minUnits": 12,
+      "maxUnits": 25,
+      "step": 1
+    }
   },
   {
     "id": "nuez",
@@ -1117,7 +1481,14 @@
     ],
     "servingG": 20,
     "unit": "g",
-    "maxG": 30
+    "maxG": 30,
+    "serving": {
+      "unit": "pieza",
+      "gramsPerUnit": 2.5,
+      "minUnits": 6,
+      "maxUnits": 12,
+      "step": 1
+    }
   },
   {
     "id": "cacahuate",
@@ -1139,17 +1510,24 @@
     ],
     "servingG": 20,
     "unit": "g",
-    "maxG": 30
+    "maxG": 30,
+    "serving": {
+      "unit": "g",
+      "gramsPerUnit": 1,
+      "minUnits": 15,
+      "maxUnits": 30,
+      "step": 5
+    }
   },
   {
     "id": "crema_cacahuate",
     "name": "Crema de cacahuate natural",
     "role": "grasa",
-    "proteinPer100": 25.0,
-    "carbPer100": 20.0,
-    "fatPer100": 50.0,
-    "fiberPer100": 6.0,
-    "kcalPer100": 630.0,
+    "proteinPer100": 25,
+    "carbPer100": 20,
+    "fatPer100": 50,
+    "fiberPer100": 6,
+    "kcalPer100": 630,
     "gi": null,
     "costRel": 2,
     "prepMin": 1,
@@ -1159,14 +1537,21 @@
     ],
     "servingG": 15,
     "unit": "g",
-    "maxG": 20
+    "maxG": 16,
+    "serving": {
+      "unit": "cda",
+      "gramsPerUnit": 16,
+      "minUnits": 0.5,
+      "maxUnits": 1,
+      "step": 0.5
+    }
   },
   {
     "id": "semilla_girasol",
     "name": "Semilla de girasol",
     "role": "grasa",
     "proteinPer100": 20.8,
-    "carbPer100": 20.0,
+    "carbPer100": 20,
     "fatPer100": 51.5,
     "fiberPer100": 8.6,
     "kcalPer100": 626.7,
@@ -1179,7 +1564,14 @@
     ],
     "servingG": 20,
     "unit": "g",
-    "maxG": 30
+    "maxG": 30,
+    "serving": {
+      "unit": "cda",
+      "gramsPerUnit": 10,
+      "minUnits": 1,
+      "maxUnits": 3,
+      "step": 0.5
+    }
   },
   {
     "id": "chia",
@@ -1200,7 +1592,14 @@
     ],
     "servingG": 15,
     "unit": "g",
-    "maxG": 30
+    "maxG": 24,
+    "serving": {
+      "unit": "cda",
+      "gramsPerUnit": 12,
+      "minUnits": 0.5,
+      "maxUnits": 2,
+      "step": 0.5
+    }
   },
   {
     "id": "linaza",
@@ -1220,7 +1619,14 @@
     ],
     "servingG": 15,
     "unit": "g",
-    "maxG": 30
+    "maxG": 30,
+    "serving": {
+      "unit": "cda",
+      "gramsPerUnit": 10,
+      "minUnits": 0.5,
+      "maxUnits": 3,
+      "step": 0.5
+    }
   },
   {
     "id": "ajonjoli",
@@ -1241,7 +1647,14 @@
     ],
     "servingG": 10,
     "unit": "g",
-    "maxG": 20
+    "maxG": 20,
+    "serving": {
+      "unit": "cda",
+      "gramsPerUnit": 10,
+      "minUnits": 0.5,
+      "maxUnits": 2,
+      "step": 0.5
+    }
   },
   {
     "id": "mantequilla",
@@ -1250,7 +1663,7 @@
     "proteinPer100": 0.9,
     "carbPer100": 0.1,
     "fatPer100": 81.1,
-    "fiberPer100": 0.0,
+    "fiberPer100": 0,
     "kcalPer100": 733.9,
     "gi": null,
     "costRel": 2,
@@ -1261,17 +1674,24 @@
     ],
     "servingG": 10,
     "unit": "g",
-    "maxG": 25
+    "maxG": 15,
+    "serving": {
+      "unit": "cdita",
+      "gramsPerUnit": 5,
+      "minUnits": 1,
+      "maxUnits": 3,
+      "step": 0.5
+    }
   },
   {
     "id": "avellana",
     "name": "Avellana",
     "role": "grasa",
-    "proteinPer100": 15.0,
+    "proteinPer100": 15,
     "carbPer100": 16.7,
     "fatPer100": 60.8,
     "fiberPer100": 9.7,
-    "kcalPer100": 674.0,
+    "kcalPer100": 674,
     "gi": null,
     "costRel": 3,
     "prepMin": 1,
@@ -1282,17 +1702,24 @@
     ],
     "servingG": 20,
     "unit": "g",
-    "maxG": 30
+    "maxG": 30,
+    "serving": {
+      "unit": "pieza",
+      "gramsPerUnit": 1.5,
+      "minUnits": 10,
+      "maxUnits": 20,
+      "step": 1
+    }
   },
   {
     "id": "aceite_aguacate",
     "name": "Aceite de aguacate",
     "role": "grasa",
-    "proteinPer100": 0.0,
-    "carbPer100": 0.0,
-    "fatPer100": 100.0,
-    "fiberPer100": 0.0,
-    "kcalPer100": 900.0,
+    "proteinPer100": 0,
+    "carbPer100": 0,
+    "fatPer100": 100,
+    "fiberPer100": 0,
+    "kcalPer100": 900,
     "gi": null,
     "costRel": 3,
     "prepMin": 1,
@@ -1303,7 +1730,14 @@
     ],
     "servingG": 10,
     "unit": "ml",
-    "maxG": 25
+    "maxG": 10,
+    "serving": {
+      "unit": "cdita",
+      "gramsPerUnit": 5,
+      "minUnits": 1,
+      "maxUnits": 2,
+      "step": 0.5
+    }
   },
   {
     "id": "brocoli",
@@ -1418,7 +1852,7 @@
     "proteinPer100": 1.2,
     "carbPer100": 3.1,
     "fatPer100": 0.3,
-    "fiberPer100": 1.0,
+    "fiberPer100": 1,
     "kcalPer100": 19.9,
     "gi": 15,
     "costRel": 1,
@@ -1457,9 +1891,9 @@
     "name": "Coliflor",
     "role": "vegetal_libre",
     "proteinPer100": 1.9,
-    "carbPer100": 5.0,
+    "carbPer100": 5,
     "fatPer100": 0.3,
-    "fiberPer100": 2.0,
+    "fiberPer100": 2,
     "kcalPer100": 30.3,
     "gi": 15,
     "costRel": 1,
@@ -1479,7 +1913,7 @@
     "proteinPer100": 3.1,
     "carbPer100": 3.3,
     "fatPer100": 0.3,
-    "fiberPer100": 1.0,
+    "fiberPer100": 1,
     "kcalPer100": 28.3,
     "gi": 15,
     "costRel": 2,
@@ -1521,7 +1955,7 @@
     "carbPer100": 3.9,
     "fatPer100": 0.2,
     "fiberPer100": 1.2,
-    "kcalPer100": 21.0,
+    "kcalPer100": 21,
     "gi": 15,
     "costRel": 1,
     "prepMin": 2,
@@ -1596,7 +2030,7 @@
     "name": "Apio",
     "role": "vegetal_libre",
     "proteinPer100": 0.7,
-    "carbPer100": 3.0,
+    "carbPer100": 3,
     "fatPer100": 0.2,
     "fiberPer100": 1.6,
     "kcalPer100": 16.6,
@@ -1634,8 +2068,8 @@
     "id": "chile_poblano",
     "name": "Chile poblano",
     "role": "vegetal_libre",
-    "proteinPer100": 1.0,
-    "carbPer100": 6.0,
+    "proteinPer100": 1,
+    "carbPer100": 6,
     "fatPer100": 0.2,
     "fiberPer100": 1.7,
     "kcalPer100": 29.8,
@@ -1655,7 +2089,7 @@
     "name": "Ejote",
     "role": "vegetal_libre",
     "proteinPer100": 1.8,
-    "carbPer100": 7.0,
+    "carbPer100": 7,
     "fatPer100": 0.1,
     "fiberPer100": 2.7,
     "kcalPer100": 36.1,
@@ -1736,7 +2170,7 @@
     "name": "Betabel cocido",
     "role": "vegetal_libre",
     "proteinPer100": 1.6,
-    "carbPer100": 10.0,
+    "carbPer100": 10,
     "fatPer100": 0.2,
     "fiberPer100": 2.8,
     "kcalPer100": 48.2,
@@ -1755,7 +2189,7 @@
     "id": "germen_alfalfa",
     "name": "Germen de alfalfa",
     "role": "vegetal_libre",
-    "proteinPer100": 4.0,
+    "proteinPer100": 4,
     "carbPer100": 2.1,
     "fatPer100": 0.7,
     "fiberPer100": 1.9,
@@ -1775,7 +2209,7 @@
     "id": "pico_de_gallo",
     "name": "Pico de gallo (jitomate, cebolla, cilantro)",
     "role": "vegetal_libre",
-    "proteinPer100": 1.0,
+    "proteinPer100": 1,
     "carbPer100": 4.5,
     "fatPer100": 0.2,
     "fiberPer100": 1.3,
@@ -1812,7 +2246,14 @@
     ],
     "servingG": 180,
     "unit": "pieza",
-    "maxG": 180
+    "maxG": 180,
+    "serving": {
+      "unit": "pieza",
+      "gramsPerUnit": 180,
+      "minUnits": 0.5,
+      "maxUnits": 1,
+      "step": 0.5
+    }
   },
   {
     "id": "fresa",
@@ -1821,7 +2262,7 @@
     "proteinPer100": 0.7,
     "carbPer100": 7.7,
     "fatPer100": 0.3,
-    "fiberPer100": 2.0,
+    "fiberPer100": 2,
     "kcalPer100": 36.3,
     "gi": 40,
     "costRel": 2,
@@ -1834,7 +2275,14 @@
     ],
     "servingG": 150,
     "unit": "g",
-    "maxG": 200
+    "maxG": 200,
+    "serving": {
+      "unit": "taza",
+      "gramsPerUnit": 160,
+      "minUnits": 0.5,
+      "maxUnits": 1.25,
+      "step": 0.25
+    }
   },
   {
     "id": "frambuesa",
@@ -1856,7 +2304,14 @@
     ],
     "servingG": 100,
     "unit": "g",
-    "maxG": 200
+    "maxG": 200,
+    "serving": {
+      "unit": "taza",
+      "gramsPerUnit": 120,
+      "minUnits": 0.5,
+      "maxUnits": 1.5,
+      "step": 0.25
+    }
   },
   {
     "id": "arandano",
@@ -1877,7 +2332,14 @@
     ],
     "servingG": 100,
     "unit": "g",
-    "maxG": 200
+    "maxG": 200,
+    "serving": {
+      "unit": "taza",
+      "gramsPerUnit": 140,
+      "minUnits": 0.5,
+      "maxUnits": 1.25,
+      "step": 0.25
+    }
   },
   {
     "id": "papaya",
@@ -1899,7 +2361,14 @@
     ],
     "servingG": 200,
     "unit": "g",
-    "maxG": 200
+    "maxG": 200,
+    "serving": {
+      "unit": "taza",
+      "gramsPerUnit": 140,
+      "minUnits": 0.5,
+      "maxUnits": 1.25,
+      "step": 0.25
+    }
   },
   {
     "id": "melon",
@@ -1920,7 +2389,14 @@
     ],
     "servingG": 200,
     "unit": "g",
-    "maxG": 200
+    "maxG": 200,
+    "serving": {
+      "unit": "taza",
+      "gramsPerUnit": 160,
+      "minUnits": 0.5,
+      "maxUnits": 1.25,
+      "step": 0.25
+    }
   },
   {
     "id": "platano",
@@ -1943,7 +2419,14 @@
     ],
     "servingG": 120,
     "unit": "pieza",
-    "maxG": 120
+    "maxG": 120,
+    "serving": {
+      "unit": "pieza",
+      "gramsPerUnit": 120,
+      "minUnits": 0.5,
+      "maxUnits": 1,
+      "step": 0.5
+    }
   },
   {
     "id": "naranja",
@@ -1965,7 +2448,14 @@
     ],
     "servingG": 180,
     "unit": "pieza",
-    "maxG": 200
+    "maxG": 200,
+    "serving": {
+      "unit": "pieza",
+      "gramsPerUnit": 180,
+      "minUnits": 0.5,
+      "maxUnits": 1,
+      "step": 0.5
+    }
   },
   {
     "id": "toronja",
@@ -1987,14 +2477,21 @@
     ],
     "servingG": 200,
     "unit": "pieza",
-    "maxG": 200
+    "maxG": 200,
+    "serving": {
+      "unit": "pieza",
+      "gramsPerUnit": 200,
+      "minUnits": 0.5,
+      "maxUnits": 1,
+      "step": 0.5
+    }
   },
   {
     "id": "mango",
     "name": "Mango",
     "role": "fruta",
     "proteinPer100": 0.8,
-    "carbPer100": 15.0,
+    "carbPer100": 15,
     "fatPer100": 0.4,
     "fiberPer100": 1.6,
     "kcalPer100": 66.8,
@@ -2008,7 +2505,14 @@
     ],
     "servingG": 180,
     "unit": "g",
-    "maxG": 200
+    "maxG": 200,
+    "serving": {
+      "unit": "taza",
+      "gramsPerUnit": 160,
+      "minUnits": 0.5,
+      "maxUnits": 1.25,
+      "step": 0.25
+    }
   },
   {
     "id": "pina",
@@ -2029,7 +2533,14 @@
     ],
     "servingG": 150,
     "unit": "g",
-    "maxG": 200
+    "maxG": 200,
+    "serving": {
+      "unit": "taza",
+      "gramsPerUnit": 160,
+      "minUnits": 0.5,
+      "maxUnits": 1.25,
+      "step": 0.25
+    }
   },
   {
     "id": "pera",
@@ -2050,7 +2561,14 @@
     ],
     "servingG": 170,
     "unit": "pieza",
-    "maxG": 200
+    "maxG": 200,
+    "serving": {
+      "unit": "pieza",
+      "gramsPerUnit": 170,
+      "minUnits": 0.5,
+      "maxUnits": 1,
+      "step": 0.5
+    }
   },
   {
     "id": "durazno",
@@ -2072,7 +2590,14 @@
     ],
     "servingG": 150,
     "unit": "pieza",
-    "maxG": 200
+    "maxG": 200,
+    "serving": {
+      "unit": "pieza",
+      "gramsPerUnit": 150,
+      "minUnits": 0.5,
+      "maxUnits": 1,
+      "step": 0.5
+    }
   },
   {
     "id": "pasas",
@@ -2093,16 +2618,23 @@
     ],
     "servingG": 25,
     "unit": "g",
-    "maxG": 40
+    "maxG": 40,
+    "serving": {
+      "unit": "cda",
+      "gramsPerUnit": 10,
+      "minUnits": 1,
+      "maxUnits": 4,
+      "step": 0.5
+    }
   },
   {
     "id": "psyllium",
     "name": "Psyllium (cascara)",
     "role": "suplemento",
     "proteinPer100": 1.5,
-    "carbPer100": 80.0,
+    "carbPer100": 80,
     "fatPer100": 0.5,
-    "fiberPer100": 78.0,
+    "fiberPer100": 78,
     "kcalPer100": 330.5,
     "gi": null,
     "costRel": 2,
@@ -2120,11 +2652,11 @@
     "id": "creatina",
     "name": "Creatina monohidratada",
     "role": "suplemento",
-    "proteinPer100": 0.0,
-    "carbPer100": 0.0,
-    "fatPer100": 0.0,
-    "fiberPer100": 0.0,
-    "kcalPer100": 0.0,
+    "proteinPer100": 0,
+    "carbPer100": 0,
+    "fatPer100": 0,
+    "fiberPer100": 0,
+    "kcalPer100": 0,
     "gi": null,
     "costRel": 2,
     "prepMin": 1,
@@ -2141,7 +2673,7 @@
     "id": "canela",
     "name": "Canela molida",
     "role": "suplemento",
-    "proteinPer100": 4.0,
+    "proteinPer100": 4,
     "carbPer100": 80.6,
     "fatPer100": 1.2,
     "fiberPer100": 53.1,
@@ -2163,10 +2695,10 @@
     "name": "Vinagre balsamico",
     "role": "suplemento",
     "proteinPer100": 0.5,
-    "carbPer100": 17.0,
-    "fatPer100": 0.0,
-    "fiberPer100": 0.0,
-    "kcalPer100": 70.0,
+    "carbPer100": 17,
+    "fatPer100": 0,
+    "fiberPer100": 0,
+    "kcalPer100": 70,
     "gi": null,
     "costRel": 2,
     "prepMin": 1,
