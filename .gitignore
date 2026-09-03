@@ -30,3 +30,9 @@ prisma/*.db
 .vercel
 # Videos libres preparados para subir a Storage — pesan 111 MB, no van al repo
 videos-libres/
+
+# paquete de validacion con expertos (Fase 5): perfiles reales de atletas,
+# nunca al repo. El script que los genera si va (apps/web/scripts/paquete-validacion.ts).
+/validacion/*.md
+/validacion/*.pdf
+!/validacion/README.md
