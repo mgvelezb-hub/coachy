@@ -92,6 +92,21 @@ export const ConfigSchema = z
     /** Un vegetal "libre" no puede pasar de estos carbos por 100 g. */
     freeVegetableMaxCarbPer100: z.number().min(2).max(15),
     /**
+     * Topes de composicion del platillo (spec F1 §3). No son topes de macro
+     * sino de PLATO: nadie sirve dos grasas anadidas en la misma comida ni
+     * tres tazas de frijol, aunque los macros cuadren.
+     */
+    composicion: z.object({
+      /** Aceite, mantequilla, crema de cacahuate: 1 cucharada equivalente. */
+      grasaAnadidaMaxGPorComida: z.number().int().min(5).max(40),
+      maxGrasasAnadidasPorComida: z.number().int().min(1).max(3),
+      /** Frijol, lenteja, garbanzo, haba, edamame: 1 taza. */
+      leguminosaMaxGPorComida: z.number().int().min(80).max(400),
+      /** Arroz, pasta, quinoa, avena cocida: 1.5 tazas. */
+      cerealCocidoMaxGPorComida: z.number().int().min(100).max(500),
+      frutoSecoMaxGPorComida: z.number().int().min(10).max(80),
+    }),
+    /**
      * Tope de alimentos por comida. Un platillo con siete ingredientes no se
      * cocina entre semana: se abandona.
      */
@@ -192,6 +207,13 @@ export const DEFAULT_CONFIG: EngineConfig = {
   lowGiMax: 55,
   freeVegetableGramsPerMeal: 200,
   freeVegetableMaxCarbPer100: 6,
+  composicion: {
+    grasaAnadidaMaxGPorComida: 16,
+    maxGrasasAnadidasPorComida: 1,
+    leguminosaMaxGPorComida: 180,
+    cerealCocidoMaxGPorComida: 240,
+    frutoSecoMaxGPorComida: 30,
+  },
   maxFoodsPerMeal: 6,
   denseFoodKcalPer100: 300,
   menuGramRoundingG: 5,

@@ -502,6 +502,74 @@ interface Residual {
   f: number;
 }
 
+/**
+ * Familias del platillo. No son roles del motor sino como se ve la comida en
+ * el plato: una cena con aceite Y crema de cacahuate cuadra macros y aun asi
+ * nadie la cocina.
+ */
+const FAMILIAS = ['grasa_anadida', 'leguminosa', 'cereal_cocido', 'fruto_seco'] as const;
+type Familia = (typeof FAMILIAS)[number];
+
+function topeDeFamilia(familia: Familia, config: EngineConfig): number {
+  const c = config.composicion;
+  if (familia === 'grasa_anadida') return c.grasaAnadidaMaxGPorComida;
+  if (familia === 'leguminosa') return c.leguminosaMaxGPorComida;
+  if (familia === 'cereal_cocido') return c.cerealCocidoMaxGPorComida;
+  return c.frutoSecoMaxGPorComida;
+}
+
+function gramosDeFamilia(comida: Slot[], familia: Familia): number {
+  return comida
+    .filter((s) => s.food.tags.includes(familia))
+    .reduce((acc, s) => acc + s.grams, 0);
+}
+
+/** true si la comida se pasa de algun tope de composicion. */
+function violaComposicion(comida: Slot[], config: EngineConfig): boolean {
+  const grasas = comida.filter((s) => s.food.tags.includes('grasa_anadida'));
+  if (grasas.length > config.composicion.maxGrasasAnadidasPorComida) return true;
+  return FAMILIAS.some(
+    (familia) => gramosDeFamilia(comida, familia) > topeDeFamilia(familia, config) + 1e-6,
+  );
+}
+
+/**
+ * Baja la comida a sus topes de composicion. Primero recorta gramos hasta la
+ * porcion minima de los ultimos que entraron; si aun asi se pasa, los saca.
+ * El primero de cada familia nunca se toca: es el que define el platillo.
+ */
+function aplicarComposicion(comida: Slot[], config: EngineConfig): void {
+  const grasas = comida.filter((s) => s.food.tags.includes('grasa_anadida'));
+  for (const sobrante of grasas.slice(config.composicion.maxGrasasAnadidasPorComida)) {
+    const donde = comida.indexOf(sobrante);
+    if (donde >= 0) comida.splice(donde, 1);
+  }
+
+  for (const familia of FAMILIAS) {
+    const tope = topeDeFamilia(familia, config);
+    for (let vuelta = 0; vuelta < 4; vuelta += 1) {
+      const miembros = comida.filter((s) => s.food.tags.includes(familia));
+      const total = miembros.reduce((acc, s) => acc + s.grams, 0);
+      if (total <= tope + 1e-6 || miembros.length === 0) break;
+
+      const ultimo = miembros[miembros.length - 1]!;
+      const exceso = total - tope;
+      // Se recorta a una porcion legal, no a "lo que sobra": media taza menos
+      // sigue siendo media taza; 137 g de frijol no es nada.
+      const recortado = quantize(ultimo.grams - exceso, ultimo.food, config);
+      if (recortado <= ultimo.grams - exceso + 1e-6 && recortado < ultimo.grams) {
+        ultimo.grams = recortado;
+        continue;
+      }
+      if (miembros.length === 1) {
+        ultimo.grams = Math.min(ultimo.grams, tope);
+        break;
+      }
+      comida.splice(comida.indexOf(ultimo), 1);
+    }
+  }
+}
+
 /** Macro que ese alimento viene a cerrar en la comida. */
 function macroDominante(food: Food, role?: FoodRole): 'p' | 'c' | 'f' {
   const key = primaryMacroOf(role ?? food.role);
@@ -602,8 +670,13 @@ function ajustarPorciones(
       );
       // Primero los que ademas ALCANZAN a cerrar el hueco: si uno solo puede,
       // se prefiere a dos a medias.
-      const cubren = candidatos.filter((f) => (maxGrams(f) * f[clave]) / 100 >= falta * 0.8);
-      const segundo = pick(cubren.length > 0 ? cubren : candidatos, profile, random, avoid);
+      // Un refuerzo que rompe el platillo no es refuerzo: la segunda grasa
+      // anadida, la tercera taza de frijol.
+      const caben = candidatos.filter(
+        (f) => !violaComposicion([...slots, { food: f, grams: minGrams(f), fixed: false }], config),
+      );
+      const cubren = caben.filter((f) => (maxGrams(f) * f[clave]) / 100 >= falta * 0.8);
+      const segundo = pick(cubren.length > 0 ? cubren : caben, profile, random, avoid);
       if (segundo) {
         reforzados[faltante] += 1;
         slots.push({
@@ -799,9 +872,10 @@ function repairDay(
     filtersPorComida: EligibleOptions[];
   },
 ): void {
-  moverGramos(comidas.flat(), target, config);
+  for (const comida of comidas) aplicarComposicion(comida, config);
+  moverGramos(comidas, target, config);
   podarSobrantes(comidas, target);
-  moverGramos(comidas.flat(), target, config);
+  moverGramos(comidas, target, config);
 
   // Si el dia sigue fuera de tolerancia, ya no es cuestion de gramos: es que
   // un alimento no era el adecuado. Cambiarlo por otro de su mismo rol es el
@@ -810,8 +884,10 @@ function repairDay(
   // sorteo determinista existe para dar.
   if (contexto && fueraDeTolerancia(comidas.flat(), target)) {
     sustituirAlimentos(comidas, target, config, contexto);
-    moverGramos(comidas.flat(), target, config);
+    moverGramos(comidas, target, config);
   }
+
+  for (const comida of comidas) aplicarComposicion(comida, config);
 }
 
 function fueraDeTolerancia(all: Slot[], target: { p: number; c: number; f: number }): boolean {
@@ -856,6 +932,7 @@ function sustituirAlimentos(
         slot.food = food;
         for (const grams of porcionesPosibles(food, config)) {
           slot.grams = grams;
+          if (violaComposicion(comida, config)) continue;
           const candidato = error(all, target);
           if (candidato < mejorError - 1e-9) {
             mejorError = candidato;
@@ -915,11 +992,14 @@ function podarSobrantes(comidas: Slot[][], target: { p: number; c: number; f: nu
 }
 
 function moverGramos(
-  all: Slot[],
+  comidas: Slot[][],
   target: { p: number; c: number; f: number },
   config: EngineConfig,
 ): void {
-  const movable = all.filter((s) => !s.fixed && s.grams > 0);
+  const all = comidas.flat();
+  const movable = all
+    .filter((s) => !s.fixed && s.grams > 0)
+    .map((slot) => ({ slot, comida: comidas.find((c) => c.includes(slot)) ?? [] }));
 
   // Busqueda exhaustiva por alimento, no a pasitos: con medida casera cada
   // alimento tiene POCAS porciones legales (de media taza a taza y cuarto son
@@ -928,12 +1008,15 @@ function moverGramos(
   // 5 % arriba de proteina con las claras servidas en su minimo.
   for (let pass = 0; pass < 12; pass += 1) {
     let improved = false;
-    for (const slot of movable) {
+    for (const { slot, comida } of movable) {
       let mejorGramos = slot.grams;
       let mejor = error(all, target);
       const original = slot.grams;
       for (const grams of porcionesPosibles(slot.food, config)) {
         slot.grams = grams;
+        // Cerrar el macro pasandose de taza y media de arroz no cierra nada:
+        // deja un plato que no se sirve asi.
+        if (violaComposicion(comida, config)) continue;
         const candidato = error(all, target);
         if (candidato < mejor - 1e-9) {
           mejor = candidato;

@@ -357,6 +357,45 @@ describe('generador de menus (spec §6)', () => {
     }
   });
 
+  // El plato tambien tiene reglas, no solo los macros: una cena con aceite Y
+  // crema de cacahuate cuadra numeros y aun asi nadie la cocina.
+  it('ninguna comida rompe los topes de composicion del platillo', () => {
+    const { composicion } = DEFAULT_CONFIG;
+    const gramosDe = (items: { foodId: string; grams: number }[], tag: string): number =>
+      items
+        .filter((i) => findFood(i.foodId)?.tags.includes(tag))
+        .reduce((acc, i) => acc + i.grams, 0);
+
+    for (const seed of SEEDS) {
+      for (const phase of ['BASE', 'CUT', 'CUT_AGRESIVO', 'REINTRO'] as Phase[]) {
+        const { plan } = planFor(P, phase, seed);
+        for (const menu of plan.menus) {
+          for (const meal of menu.meals) {
+            const donde = `${phase} ${meal.slot} seed ${seed}`;
+            const grasas = meal.items.filter((i) =>
+              findFood(i.foodId)?.tags.includes('grasa_anadida'),
+            );
+            expect(grasas.length, `dos grasas anadidas en ${donde}`).toBeLessThanOrEqual(
+              composicion.maxGrasasAnadidasPorComida,
+            );
+            expect(gramosDe(meal.items, 'grasa_anadida'), donde).toBeLessThanOrEqual(
+              composicion.grasaAnadidaMaxGPorComida,
+            );
+            expect(gramosDe(meal.items, 'leguminosa'), donde).toBeLessThanOrEqual(
+              composicion.leguminosaMaxGPorComida,
+            );
+            expect(gramosDe(meal.items, 'cereal_cocido'), donde).toBeLessThanOrEqual(
+              composicion.cerealCocidoMaxGPorComida,
+            );
+            expect(gramosDe(meal.items, 'fruto_seco'), donde).toBeLessThanOrEqual(
+              composicion.frutoSecoMaxGPorComida,
+            );
+          }
+        }
+      }
+    }
+  });
+
   it('produce lista de super agregada y sin duplicados', () => {
     const { plan } = planFor(P);
     expect(plan.shoppingList.length).toBeGreaterThan(5);
