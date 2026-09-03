@@ -1,23 +1,43 @@
-import { useRouter } from "expo-router";
-import { ChevronLeft } from "lucide-react-native";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useFocusEffect, useRouter } from "expo-router";
+import { ChevronLeft, ChevronRight } from "lucide-react-native";
+import { useCallback, useMemo, useState } from "react";
 import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import { EmptyState, ErrorState, LoadingState } from "@/components/States";
 import { useTheme } from "@/context/theme";
-import { ApiError, getComidasLog, getNutrition, postComidaLog, type NutritionResponse } from "@/lib/api";
+import {
+  ApiError,
+  getComidasLogRango,
+  getNutrition,
+  MOTIVO_SALTO_LABEL,
+  type NutritionResponse,
+  type RegistroComidaCompleto,
+} from "@/lib/api";
 import { todayISO } from "@/lib/streak";
-import { fonts, radius, spacing, type as typeScale, withAlpha, type Palette } from "@/lib/theme";
+import { fonts, radius, spacing, type as typeScale, type Palette } from "@/lib/theme";
+
+/** "HH:MM" de un ISO completo, en hora local. */
+function horaLocal(iso: string): string {
+  const fecha = new Date(iso);
+  return `${String(fecha.getHours()).padStart(2, "0")}:${String(fecha.getMinutes()).padStart(2, "0")}`;
+}
+
+/** "✓ 15:10" / "la saltaste: sin tiempo" / "pendiente", según lo que diga el registro de hoy. */
+function estadoDe(registro: RegistroComidaCompleto | undefined): string {
+  if (!registro) return "pendiente";
+  if (registro.skipped) return `saltada: ${MOTIVO_SALTO_LABEL[registro.skipped]}`;
+  if (registro.taken) return `✓${registro.takenAt ? ` ${horaLocal(registro.takenAt)}` : ""}`;
+  return "no la hizo";
+}
 
 /**
- * El zoom de "Tu comida de hoy": el menú completo, con la confirmación de
- * cada comida.
+ * "Mis comidas hoy": una tarjeta de una línea por comida del menú vigente.
  *
- * Antes vivía en Hoy como tarjeta desplegable —abría hacia abajo y empujaba
- * todo lo de debajo—. La LEY DE DISEÑO lo prohíbe: Hoy solo trae el resumen
- * en una línea (qué sigue y a qué hora) y aquí vive el detalle, con el mismo
- * botón de "la hice / no" de siempre.
+ * Tocar una tarjeta abre `/comida/[slot]` — ahí vive la edición (hora real,
+ * motivo del salto, el menú de ese slot). Aquí solo se lee el estado, igual
+ * que pide la LEY DE DISEÑO: nada se abre hacia abajo, cada zoom-in es su
+ * propia hoja.
  */
 export default function ComidaHoyScreen() {
   const router = useRouter();
@@ -27,25 +47,18 @@ export default function ComidaHoyScreen() {
   const [nutrition, setNutrition] = useState<NutritionResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
-  const [registros, setRegistros] = useState<Record<string, boolean>>({});
+  const [registros, setRegistros] = useState<Record<string, RegistroComidaCompleto>>({});
 
   const load = useCallback(async () => {
     try {
+      const hoy = todayISO();
       const [nutritionRes, comidasRes] = await Promise.all([
         getNutrition(),
-        getComidasLog().catch(() => null),
+        getComidasLogRango({ from: hoy, to: hoy }).catch(() => null),
       ]);
       setNutrition(nutritionRes);
       if (comidasRes) {
-        const hoy = todayISO();
-        setRegistros(
-          Object.fromEntries(
-            comidasRes.registros.filter((registro) => registro.date === hoy).map((registro) => [
-              registro.slot,
-              registro.taken,
-            ]),
-          ),
-        );
+        setRegistros(Object.fromEntries(comidasRes.registros.map((registro) => [registro.slot, registro])));
       }
       setError(null);
     } catch (e) {
@@ -53,22 +66,18 @@ export default function ComidaHoyScreen() {
     }
   }, []);
 
-  useEffect(() => {
-    void load();
-  }, [load]);
+  // Al enfocar, no solo al montar: volver de `/comida/[slot]` con un
+  // registro nuevo tiene que verse aquí sin jalar para refrescar.
+  useFocusEffect(
+    useCallback(() => {
+      void load();
+    }, [load]),
+  );
 
   async function onRefresh() {
     setRefreshing(true);
     await load();
     setRefreshing(false);
-  }
-
-  function confirmar(slot: string, taken: boolean) {
-    setRegistros((previos) => ({ ...previos, [slot]: taken }));
-    void postComidaLog({ date: todayISO(), slot, taken }).catch(() => {
-      // Se reintenta la próxima vez que se toque: un error aquí no vale una
-      // alerta a media comida.
-    });
   }
 
   if (!nutrition && !error) return <LoadingState label="Cargando tu comida..." />;
@@ -96,42 +105,18 @@ export default function ComidaHoyScreen() {
           <EmptyState message="Tu menú se sirve en cuanto tu coach publique tu decisión." />
         ) : (
           <View style={styles.lista}>
-            {menu.meals.map((meal) => {
-              const respuesta = registros[meal.slot];
-              return (
-                <View key={meal.slot} style={styles.meal}>
-                  <Text style={styles.mealLabel}>
-                    {meal.label} · {meal.timeHint}
-                  </Text>
-                  {meal.items.map((item) => (
-                    <Text key={item.name} style={styles.mealItem}>
-                      · {item.name} {item.free ? "(libre)" : `— ${item.grams} g`}
-                    </Text>
-                  ))}
-
-                  {/* Dos botones y nada más: "la hice" o "no". Un deslizador de
-                      porcentaje por comida sería precisión inventada. */}
-                  <View style={styles.mealBotones}>
-                    <Pressable
-                      onPress={() => confirmar(meal.slot, true)}
-                      style={[styles.mealBoton, respuesta === true && styles.mealBotonSi]}
-                    >
-                      <Text style={[styles.mealBotonTexto, respuesta === true && styles.mealBotonTextoOn]}>
-                        La hice
-                      </Text>
-                    </Pressable>
-                    <Pressable
-                      onPress={() => confirmar(meal.slot, false)}
-                      style={[styles.mealBoton, respuesta === false && styles.mealBotonNo]}
-                    >
-                      <Text style={[styles.mealBotonTexto, respuesta === false && styles.mealBotonTextoOn]}>
-                        No
-                      </Text>
-                    </Pressable>
-                  </View>
-                </View>
-              );
-            })}
+            {menu.meals.map((meal) => (
+              <Pressable
+                key={meal.slot}
+                style={styles.fila}
+                onPress={() => router.push(`/comida/${meal.slot}` as never)}
+              >
+                <Text style={styles.filaTexto}>
+                  {meal.label} · {meal.timeHint} · {estadoDe(registros[meal.slot])}
+                </Text>
+                <ChevronRight size={16} color={colors.paloRosa} strokeWidth={2} />
+              </Pressable>
+            ))}
           </View>
         )}
       </ScrollView>
@@ -157,34 +142,18 @@ const makeStyles = (colors: Palette) =>
       color: colors.marfil,
       marginBottom: spacing.sm,
     },
-    lista: { gap: spacing.lg },
-    meal: {
+    lista: { gap: spacing.xs },
+    fila: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "space-between",
+      minHeight: 44,
       paddingVertical: spacing.sm,
-      borderBottomWidth: 1,
-      borderBottomColor: colors.cardBorder,
-      gap: 2,
-    },
-    mealLabel: {
-      fontFamily: fonts.sansSemiBold,
-      ...typeScale.bodySm,
-      color: colors.paloRosa,
-      marginBottom: 2,
-    },
-    mealItem: {
-      fontFamily: fonts.sans,
-      ...typeScale.body,
-      color: colors.marfil,
-    },
-    mealBotones: { flexDirection: "row", gap: spacing.sm, marginTop: spacing.sm },
-    mealBoton: {
-      paddingHorizontal: spacing.lg,
-      paddingVertical: spacing.sm,
-      borderRadius: radius.full,
+      paddingHorizontal: spacing.md,
+      borderRadius: radius.md,
       borderWidth: 1,
       borderColor: colors.cardBorder,
+      backgroundColor: colors.cardBg,
     },
-    mealBotonSi: { backgroundColor: colors.guinda, borderColor: colors.guindaLight },
-    mealBotonNo: { backgroundColor: withAlpha(colors.error, 0.7), borderColor: colors.error },
-    mealBotonTexto: { fontFamily: fonts.sansMedium, ...typeScale.bodySm, color: colors.marfil },
-    mealBotonTextoOn: { color: colors.pergamino, fontFamily: fonts.sansSemiBold },
+    filaTexto: { flex: 1, fontFamily: fonts.sansMedium, ...typeScale.bodySm, color: colors.marfil },
   });
