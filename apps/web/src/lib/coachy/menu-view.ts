@@ -10,12 +10,42 @@ import type { Prisma } from "@prisma/client";
  * hacen falta, solo transforman el `Json` que ya trajo el caller.
  */
 
+/** Por qué está ese alimento en esa comida (motor F1). */
+export interface MenuItemWhyView {
+  closes: "proteina" | "carbo" | "grasa" | "fibra";
+  units: number;
+  unitLabel: string;
+  note?: string;
+}
+
 export interface MenuItemView {
   name: string;
   grams: number;
   free: boolean;
   /** "3 tortillas de maíz" cuando el alimento se sirve por pieza. */
   portion: string | null;
+  /**
+   * "1 taza de arroz integral cocido (160 g)", tal como lo arma el motor.
+   * `null` en los menús guardados antes de que existiera: la pantalla cae a
+   * `portion` y luego a los gramos, que es lo que esos menús siempre tuvieron.
+   */
+  display: string | null;
+  why: MenuItemWhyView | null;
+}
+
+const MACROS_QUE_CIERRA = ["proteina", "carbo", "grasa", "fibra"] as const;
+
+function toWhy(raw: unknown): MenuItemWhyView | null {
+  if (typeof raw !== "object" || raw === null) return null;
+  const row = raw as Record<string, unknown>;
+  const closes = String(row.closes ?? "");
+  if (!MACROS_QUE_CIERRA.includes(closes as MenuItemWhyView["closes"])) return null;
+  return {
+    closes: closes as MenuItemWhyView["closes"],
+    units: Number(row.units ?? 0),
+    unitLabel: String(row.unitLabel ?? "g"),
+    ...(typeof row.note === "string" ? { note: row.note } : {}),
+  };
 }
 
 export interface MenuMealView {
@@ -94,6 +124,8 @@ export function toMenuView(
             // Lo que se compra por pieza se dice en piezas: nadie pesa una
             // tortilla, y "90 g" obliga a dividir para saber si son tres.
             portion: porcionNatural(name, grams),
+            display: typeof row.display === "string" ? row.display : null,
+            why: toWhy(row.why),
           };
         }),
         equivalences: equivalences.map((equivalence) => {

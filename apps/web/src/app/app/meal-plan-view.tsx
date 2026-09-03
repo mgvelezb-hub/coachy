@@ -13,7 +13,18 @@ export interface MenuItemView {
   name: string;
   grams: number;
   free: boolean;
+  /** "1 taza de arroz integral cocido (160 g)". `null` en menús viejos. */
+  display?: string | null;
+  why?: { closes: "proteina" | "carbo" | "grasa" | "fibra" } | null;
 }
+
+/** Lo que ese alimento viene a cerrar, dicho como lo diría el dueño. */
+const CIERRA: Record<"proteina" | "carbo" | "grasa" | "fibra", string> = {
+  proteina: "Cierra la proteína de esta comida",
+  carbo: "Cierra el carbohidrato de esta comida",
+  grasa: "Cierra la grasa de esta comida",
+  fibra: "Aporta la fibra y el volumen de esta comida",
+};
 
 export interface MenuMealView {
   slot: string;
@@ -46,9 +57,13 @@ function Meal({ meal }: { meal: MenuMealView }): React.JSX.Element {
       <ul className="space-y-1 text-sm">
         {meal.items.map((item) => (
           <li key={item.name} className="flex justify-between gap-3">
-            <span>{item.name}</span>
+            {/* La cantidad se lee en la unidad en que se sirve —"1 taza de
+                arroz (160 g)"—; los gramos siguen ahí, ya no van primero. */}
+            <span title={item.why ? CIERRA[item.why.closes] : undefined}>
+              {item.display ?? item.name}
+            </span>
             <span className="shrink-0 tabular-nums text-muted-foreground">
-              {item.free ? "libre" : `${item.grams} g`}
+              {item.free ? "libre" : item.display ? "" : `${item.grams} g`}
             </span>
           </li>
         ))}

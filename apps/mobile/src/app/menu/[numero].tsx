@@ -16,8 +16,32 @@ import { Card } from "@/components/Card";
 import { InfoTip, TextoInfo } from "@/components/InfoTip";
 import { EmptyState, ErrorState, LoadingState } from "@/components/States";
 import { useTheme } from "@/context/theme";
-import { ApiError, getNutrition, postSwap, type Menu, type MenuMeal } from "@/lib/api";
+import { ApiError, getNutrition, postSwap, type Menu, type MenuItem, type MenuMeal } from "@/lib/api";
 import { fonts, radius, spacing, type as typeScale, type Palette } from "@/lib/theme";
+
+/**
+ * Lo que el motor agregó en F1 y el tipo compartido de `api.ts` todavía no
+ * declara: la porción ya escrita como se sirve y el porqué de ese alimento en
+ * esa comida. Ambos opcionales — los menús guardados antes de F1 no los
+ * traen y esta hoja cae a lo de siempre.
+ */
+type ItemDelMenu = MenuItem & {
+  display?: string | null;
+  why?: {
+    closes: "proteina" | "carbo" | "grasa" | "fibra";
+    units: number;
+    unitLabel: string;
+    note?: string;
+  } | null;
+};
+
+/** Lo que ese alimento viene a cerrar, en el vocabulario del dueño. */
+const CIERRA: Record<"proteina" | "carbo" | "grasa" | "fibra", string> = {
+  proteina: "Cierra la proteína de esta comida",
+  carbo: "Cierra el carbohidrato de esta comida",
+  grasa: "Cierra la grasa de esta comida",
+  fibra: "Aporta la fibra y el volumen de esta comida",
+};
 
 /**
  * Hoja de un menú completo — `/menu/1` o `/menu/2`.
@@ -156,9 +180,15 @@ function ComidaDelMenu({
         {meal.label} · {meal.timeHint}
       </Text>
 
-      {meal.items.map((item) => {
+      {(meal.items as ItemDelMenu[]).map((item) => {
         const equivalencia = equivalenciaDe(item.name);
         const expandido = abierto === item.name;
+        // El motor ya escribe la cantidad como se sirve —"2 cditas"—; si el
+        // menú es viejo, se cae a la porción por pieza y luego a los gramos.
+        const cantidad =
+          item.why && item.why.unitLabel !== "g"
+            ? `${item.display?.split(" de ")[0] ?? ""}`.trim()
+            : (item.portion ?? "");
 
         return (
           <View key={item.name}>
@@ -171,20 +201,30 @@ function ComidaDelMenu({
               disabled={!equivalencia}
               style={styles.itemFila}
             >
-              <Text style={styles.item}>
-                {item.name}
-                {item.free ? " · libre" : ""}
-              </Text>
+              <View style={styles.itemNombre}>
+                <Text style={styles.item}>
+                  {item.name}
+                  {item.free ? " · libre" : ""}
+                </Text>
+                {item.why ? (
+                  <InfoTip titulo={item.name}>
+                    <TextoInfo>
+                      {CIERRA[item.why.closes]}
+                      {item.why.note ? ` · ${item.why.note}` : ""} · {item.grams} g
+                    </TextoInfo>
+                  </InfoTip>
+                ) : null}
+              </View>
 
               <View style={styles.itemCantidad}>
-                {item.portion ? (
+                {cantidad ? (
                   <Text style={styles.itemPorcion} numberOfLines={2}>
-                    {item.portion}
+                    {cantidad}
                   </Text>
                 ) : !item.free ? (
                   <Text style={styles.itemPorcion}>{item.grams} g</Text>
                 ) : null}
-                {item.portion && !item.free ? (
+                {cantidad && !item.free ? (
                   <Text style={styles.itemGramos}>{item.grams} g</Text>
                 ) : null}
               </View>
@@ -275,9 +315,15 @@ const makeStyles = (colors: Palette) =>
       gap: spacing.sm,
       paddingVertical: 5,
     },
-    item: {
+    itemNombre: {
       flex: 1,
       minWidth: 110,
+      flexDirection: "row",
+      alignItems: "center",
+      gap: spacing.xs,
+    },
+    item: {
+      flexShrink: 1,
       fontFamily: fonts.sans,
       ...typeScale.body,
       color: colors.marfil,

@@ -32,13 +32,52 @@ describe("toMenuView", () => {
           allowDenseCarb: true,
           // La avena y el amaranto se pesan: su porción natural es `null`.
           // Un alimento por pieza —tortilla, huevo— sí trae texto aquí.
-          items: [{ name: "Avena", grams: 60, free: false, portion: null }],
+          // `display` y `why` son del motor F1: un menú guardado antes no los
+          // trae, y la pantalla cae a la porción natural y luego a los gramos.
+          items: [
+            { name: "Avena", grams: 60, free: false, portion: null, display: null, why: null },
+          ],
           equivalences: [
             { forName: "Avena", options: [{ name: "Amaranto", grams: 55, portion: null }] },
           ],
         },
       ],
     });
+  });
+
+  it("pasa la porción legible y el porqué que ya trae el motor", () => {
+    const view = toMenuView(1, [
+      {
+        slot: "comida",
+        label: "Comida",
+        timeHint: "14:00",
+        items: [
+          {
+            name: "Aceite de oliva extra virgen",
+            grams: 10,
+            free: false,
+            display: "2 cditas de aceite de oliva extra virgen (10 g)",
+            why: { role: "grasa", closes: "grasa", units: 2, unitLabel: "cditas", note: "tope de la porcion" },
+          },
+        ],
+      },
+    ]);
+
+    const item = view.meals[0]!.items[0]!;
+    expect(item.display).toBe("2 cditas de aceite de oliva extra virgen (10 g)");
+    expect(item.why).toEqual({
+      closes: "grasa",
+      units: 2,
+      unitLabel: "cditas",
+      note: "tope de la porcion",
+    });
+  });
+
+  it("ignora un porqué que no viene del motor", () => {
+    const view = toMenuView(1, [
+      { slot: "a", label: "A", timeHint: "", items: [{ name: "X", grams: 1, why: { closes: "vitaminas" } }] },
+    ]);
+    expect(view.meals[0]!.items[0]!.why).toBeNull();
   });
 
   it("trata allowDenseCarb ausente como true: solo false lo apaga", () => {
