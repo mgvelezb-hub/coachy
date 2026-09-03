@@ -7,7 +7,8 @@ import { materializeMealPlans } from "@/lib/coachy/menu";
 import { prisma } from "@/lib/prisma";
 import { PROPOSITOS } from "@/lib/training/replan";
 import { SCHEME_PREFERENCES } from "@/lib/training/schemes";
-import { WEEK_DAYS } from "@/lib/training/split";
+import { DAY_KIND_VALUES, WEEK_DAYS, normalizeCustomSplit } from "@/lib/training/split";
+import { UNILATERAL_MODES } from "@/lib/training/types";
 import { TRAINING_TIMES, bloqueDelMotor } from "@/lib/training/horario";
 import { DISCIPLINES, MUSCLE_GROUPS, SWIM_LEVELS } from "@/lib/training/types";
 
@@ -91,6 +92,23 @@ const schema = z
      */
     schemePreference: z.enum(SCHEME_PREFERENCES).optional(),
     /**
+     * El split fijado a mano, día por día: `{"LUN": "PIERNA_CUADRICEPS",
+     * "MAR": "DESCANSO"}`. `null` lo limpia y devuelve la decisión al motor.
+     * Se manda el mapa entero, igual que `disciplineLevels`: parcharlo día
+     * por día abriría la puerta a que dos ediciones seguidas se pisen.
+     */
+    customSplit: z
+      .partialRecord(z.enum(WEEK_DAYS), z.enum([...DAY_KIND_VALUES, "DESCANSO"]))
+      .nullable()
+      .optional(),
+    /**
+     * Cómo se hacen los unilaterales: `SEGUIDO` (todas las del derecho y
+     * luego las del izquierdo) o `ALTERNADO`. Se guarda DENTRO de
+     * `custom_split` porque no hay columna y el schema está congelado en esta
+     * fase — ver `parseUnilateralMode` en `training/db.ts`.
+     */
+    unilateralMode: z.enum(UNILATERAL_MODES).optional(),
+    /**
      * A qué hora entrena, parejo toda la semana.
      *
      * Cambia la ESTRUCTURA de las comidas, no solo una etiqueta: quien
@@ -149,6 +167,8 @@ export async function PATCH(request: Request): Promise<NextResponse> {
     timePerDay,
     compactDays,
     schemePreference,
+    customSplit,
+    unilateralMode,
     trainingTime,
     trainingSchedule,
   } = parsed.data;
@@ -157,6 +177,15 @@ export async function PATCH(request: Request): Promise<NextResponse> {
   // dos veces del mismo presupuesto.
   const primary = primaryDiscipline ?? user.profile.primaryDiscipline;
   const others = otherDisciplines?.filter((load) => load.discipline !== primary);
+
+  // El split y el modo unilateral comparten columna: se escriben juntos o el
+  // que llega solo pisaría al otro. `null` en `customSplit` limpia los días
+  // pero conserva la preferencia de lados, que no es parte del split.
+  const splitGuardado = construyeSplitGuardado(
+    user.profile.customSplit,
+    customSplit,
+    unilateralMode,
+  );
 
   const profile = await prisma.profile.update({
     where: { userId: user.id },
@@ -171,6 +200,7 @@ export async function PATCH(request: Request): Promise<NextResponse> {
       ...(timePerDay !== undefined ? { timePerDay: timePerDay ?? Prisma.JsonNull } : {}),
       ...(compactDays !== undefined ? { compactDays } : {}),
       ...(schemePreference !== undefined ? { schemePreference } : {}),
+      ...(splitGuardado === undefined ? {} : { customSplit: splitGuardado }),
       ...(trainingTime !== undefined ? { trainingTime } : {}),
       ...(trainingSchedule !== undefined
         ? { trainingSchedule: trainingSchedule ?? Prisma.JsonNull }
@@ -185,6 +215,7 @@ export async function PATCH(request: Request): Promise<NextResponse> {
       timePerDay: true,
       compactDays: true,
       schemePreference: true,
+      customSplit: true,
       trainingTime: true,
       trainingSchedule: true,
     },
@@ -218,4 +249,32 @@ export async function PATCH(request: Request): Promise<NextResponse> {
   }
 
   return NextResponse.json({ ...profile, menuRearmado });
+}
+
+/**
+ * El JSON de `custom_split` que hay que guardar, o `undefined` si esta
+ * petición no lo toca.
+ *
+ * Los días y el modo de los unilaterales viven en la MISMA columna (no hay
+ * otra, y el schema está congelado en esta fase), así que escribir uno sin
+ * leer el otro lo borraría. `Prisma.JsonNull` es la única forma de limpiar la
+ * columna sin que Prisma lo confunda con "no tocar este campo".
+ */
+function construyeSplitGuardado(
+  actual: unknown,
+  dias: Record<string, string> | null | undefined,
+  unilateral: string | undefined,
+): Prisma.InputJsonValue | typeof Prisma.JsonNull | undefined {
+  if (dias === undefined && unilateral === undefined) return undefined;
+
+  const modo =
+    unilateral ?? (actual !== null && typeof actual === "object" && !Array.isArray(actual)
+      ? ((actual as Record<string, unknown>)._unilateral as string | undefined)
+      : undefined);
+
+  const base = dias === undefined ? (normalizeCustomSplit(actual) ?? {}) : (dias ?? {});
+  const guardado: Record<string, string> = { ...base };
+  if (modo !== undefined) guardado._unilateral = modo;
+
+  return Object.keys(guardado).length === 0 ? Prisma.JsonNull : guardado;
 }

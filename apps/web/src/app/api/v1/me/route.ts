@@ -2,7 +2,8 @@ import { NextResponse } from "next/server";
 
 import { apiUser, unauthorized } from "@/lib/api/auth";
 import { decimalToNumber } from "@/lib/format";
-import { parseDisciplineLoads, parseTimePerDay } from "@/lib/training/db";
+import { parseDisciplineLoads, parseTimePerDay, parseUnilateralMode } from "@/lib/training/db";
+import { normalizeCustomSplit } from "@/lib/training/split";
 
 /**
  * `GET /api/v1/me` — quién es el atleta autenticado y si ya terminó el
@@ -62,6 +63,12 @@ export async function GET(request: Request): Promise<NextResponse> {
           // Estilo de esquema fijo, o `RECOMENDADO` si dejó la rotación
           // decidiendo. Ajustes lo pinta prellenado, igual que `compactDays`.
           schemePreference: profile.schemePreference,
+          // El split que fijó a mano, día por día (Fase 3). `null` = lo
+          // decide el motor. `unilateralMode` viaja dentro del mismo JSON —
+          // ver `parseUnilateralMode` en `training/db.ts` para el porqué.
+          customSplit: normalizeCustomSplit(profile.customSplit),
+          unilateralMode: parseUnilateralMode(profile.customSplit),
+          trainingSchedule: profile.trainingSchedule,
           dietStyle: profile.dietStyle,
           supplements: profile.supplements,
           // A qué hora entrena: la pantalla de dieta lo necesita para avisar

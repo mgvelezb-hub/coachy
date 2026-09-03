@@ -2,6 +2,7 @@ import { useFocusEffect, useRouter } from "expo-router";
 import {
   CalendarRange,
   Clock,
+  FlipHorizontal,
   LayoutGrid,
   Plus,
   Repeat,
@@ -33,9 +34,11 @@ import { DIAS_SEMANA, PROPOSITOS } from "@/lib/replantear";
 import { HORARIOS, leeHorarioPorDia } from "@/components/ajustes/HorarioDeEntrenamiento";
 import {
   OPCIONES_ESQUEMA,
+  OPCIONES_UNILATERAL,
   avisosDeLaSemana,
   diasResumenDe,
   disciplinaNombre,
+  resumenDeSplit,
 } from "@/components/ajustes/detalle/EditoresEntrenamiento";
 import { fonts, radius, spacing, type as typeScale, withAlpha, type Palette } from "@/lib/theme";
 
@@ -120,6 +123,12 @@ export function SeccionEntrenamiento({ me }: { me: MeResponse | null }) {
       : nombreHorario;
 
   const resumenArmado = (me?.profile?.compactDays ?? true) ? "Días compactos" : "Días repartidos";
+
+  const resumenSplit = resumenDeSplit(me?.profile?.customSplit);
+  const resumenUnilateral =
+    OPCIONES_UNILATERAL.find(
+      (opcion) => opcion.valor === (me?.profile?.unilateralMode ?? "SEGUIDO"),
+    )?.corto ?? "Seguido";
 
   const resumenEsquema =
     OPCIONES_ESQUEMA.find(
@@ -243,11 +252,27 @@ export function SeccionEntrenamiento({ me }: { me: MeResponse | null }) {
       />
 
       <ScoreCard
+        icon={CalendarRange}
+        tint={colors.champan}
+        title="Tu split"
+        summary={resumenSplit}
+        onPress={() => router.push("/ajustes/detalle/split")}
+      />
+
+      <ScoreCard
         icon={Repeat}
         tint={colors.champan}
         title="Cómo te gusta entrenar"
         summary={resumenEsquema}
         onPress={() => router.push("/ajustes/detalle/esquema")}
+      />
+
+      <ScoreCard
+        icon={FlipHorizontal}
+        tint={colors.champan}
+        title="Unilaterales"
+        summary={resumenUnilateral}
+        onPress={() => router.push("/ajustes/detalle/unilaterales")}
       />
 
       <ScoreCard

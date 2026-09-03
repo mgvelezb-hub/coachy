@@ -394,8 +394,12 @@ export function presetSplit(id: SplitPresetId, liftingDays: number): CustomSplit
   return split;
 }
 
-/** Los `DayKind` válidos, para validar JSON crudo sin importar el catálogo. */
-const DAY_KINDS = Object.keys(DAY_GROUPS) as DayKind[];
+/**
+ * Los `DayKind` válidos, para validar JSON crudo y para el `z.enum` de la API
+ * sin repetir la lista. Sale de `DAY_GROUPS`, que es donde se declara cada
+ * tipo de día: agregar uno ahí lo hace elegible aquí sin tocar nada más.
+ */
+export const DAY_KIND_VALUES = Object.keys(DAY_GROUPS) as [DayKind, ...DayKind[]];
 
 /**
  * `custom_split` es JSON libre en la base: tolerante llave por llave, igual
@@ -415,7 +419,7 @@ export function normalizeCustomSplit(raw: unknown): CustomSplit | null {
       split[key as WeekDay] = "DESCANSO";
       continue;
     }
-    if (typeof value !== "string" || !(DAY_KINDS as readonly string[]).includes(value)) continue;
+    if (typeof value !== "string" || !(DAY_KIND_VALUES as readonly string[]).includes(value)) continue;
     split[key as WeekDay] = value as DayKind;
     entrenables += 1;
   }

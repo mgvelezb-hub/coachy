@@ -21,7 +21,9 @@ import {
   EditorDisciplina,
   EditorEsquema,
   EditorGrupos,
+  EditorSplit,
   EditorTiempoPorDia,
+  EditorUnilateral,
   disciplinaNombre,
 } from "@/components/ajustes/detalle/EditoresEntrenamiento";
 import {
@@ -54,6 +56,8 @@ const TITULOS: Record<string, string> = {
   semana: "Tu semana",
   armado: "Cómo se arma tu semana",
   esquema: "Cómo te gusta entrenar",
+  split: "Tu split",
+  unilaterales: "Unilaterales",
   disciplina: "Disciplina",
   tiempo: "Tiempo por día",
   grupos: "Grupos que no repites",
@@ -125,6 +129,8 @@ export default function AjustesDetalleScreen() {
           {me && tema === "horario" && <HorarioDeEntrenamiento me={me} />}
           {me && tema === "armado" && <EditorArmadoSemana me={me} />}
           {me && tema === "esquema" && <EditorEsquema me={me} />}
+          {me && tema === "split" && <EditorSplit me={me} />}
+          {me && tema === "unilaterales" && <EditorUnilateral me={me} />}
           {me && tema === "disciplina" && disciplina && (
             <EditorDisciplina me={me} discipline={disciplina} />
           )}

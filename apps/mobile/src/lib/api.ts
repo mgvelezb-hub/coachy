@@ -90,6 +90,10 @@ export type MeResponse = {
      * de la base (`RECOMENDADO`).
      */
     schemePreference?: SchemePreference;
+    /** El split fijado a mano, día por día. `null` = lo decide el motor. */
+    customSplit?: CustomSplit | null;
+    /** Cómo se hacen los unilaterales. Ver `UNILATERAL_MODES`. */
+    unilateralMode?: UnilateralMode;
   } | null;
 };
 
@@ -647,6 +651,12 @@ export type WeekView = {
    * 7 no la trae, y la pantalla tiene que pintarse igual.
    */
   otherSessions?: OtherSessionView[];
+  /**
+   * Avisos del split: lo que estorba y hay que decidir ("Hombro el martes y
+   * pecho el miércoles: te va a doler. Cambiar"). Opcional: una semana
+   * cacheada antes de la Fase 3 no los trae.
+   */
+  avisos?: string[];
 };
 
 /**
@@ -896,6 +906,14 @@ export type PreferenciasEntrenamiento = {
    */
   schemePreference?: SchemePreference;
   /**
+   * El split día por día. Se manda el mapa entero, igual que
+   * `disciplineLevels`: parcharlo día a día dejaría que dos ediciones
+   * seguidas se pisen. `null` lo limpia y devuelve la decisión al motor.
+   */
+  customSplit?: CustomSplit | null;
+  /** `SEGUIDO` (default) o `ALTERNADO`. Ver `UNILATERAL_MODES`. */
+  unilateralMode?: UnilateralMode;
+  /**
    * A qué hora entrena, parejo toda la semana. Cambia la ESTRUCTURA de las
    * comidas —quien entrena de noche desayuna bajo en carbohidratos— así que
    * al cambiarlo el servidor rearma el menú y responde `menuRearmado: true`.
@@ -913,8 +931,41 @@ export type TrainingTime = (typeof TRAINING_TIMES)[number];
  * Los cuatro estilos de esquema que puede elegir la atleta en preferencias.
  * `RECOMENDADO` va primero: es y sigue siendo el default (la rotación).
  */
-export const SCHEME_PREFERENCES = ["RECOMENDADO", "FUERZA", "HIPERTROFIA", "METABOLICO"] as const;
+export const SCHEME_PREFERENCES = [
+  "RECOMENDADO",
+  "FUERZA",
+  "HIPERTROFIA",
+  "METABOLICO",
+  /** El método del coach completo: piramidal de peso / rango medio, tempo y fallo. */
+  "COACH",
+] as const;
 export type SchemePreference = (typeof SCHEME_PREFERENCES)[number];
+
+/**
+ * Los tipos de día del split. Mismos valores que `DayKind` en
+ * `apps/web/src/lib/training/types.ts`, repetidos aquí porque este cliente no
+ * importa del motor.
+ */
+export const DAY_KINDS = [
+  "PIERNA_CUADRICEPS",
+  "PIERNA_FEMORAL",
+  "PIERNA_GLUTEO",
+  "HOMBRO",
+  "PECHO_ESPALDA",
+  "BRAZO",
+  "HOMBRO_BRAZO",
+  "TORSO",
+  "PECHO_TRICEP",
+  "ESPALDA_BICEP",
+] as const;
+export type DayKind = (typeof DAY_KINDS)[number];
+
+/** El split por día de la semana. Lo que no aparece —o es `DESCANSO`— descansa. */
+export type CustomSplit = Partial<Record<string, DayKind | "DESCANSO">>;
+
+/** Cómo se hacen los ejercicios de un lado a la vez. */
+export const UNILATERAL_MODES = ["SEGUIDO", "ALTERNADO"] as const;
+export type UnilateralMode = (typeof UNILATERAL_MODES)[number];
 
 export type PreferenciasEntrenamientoResponse = {
   avoidRepeatGroups: MuscleGroup[];

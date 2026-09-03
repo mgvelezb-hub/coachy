@@ -13,8 +13,11 @@ import {
   type Discipline,
   type DisciplineLoad,
   type MeResponse,
+  type CustomSplit,
+  type DayKind,
   type MuscleGroup,
   type SchemePreference,
+  type UnilateralMode,
   type SessionView,
   type SwimLevel,
   type WeekView,
@@ -86,7 +89,117 @@ export const OPCIONES_ESQUEMA: Array<{
     corto: "Poco peso, muchas reps",
     detalle: "Series de 25–30, quema y resistencia.",
   },
+  {
+    valor: "COACH",
+    nombre: "Como el coach",
+    corto: "Coach",
+    detalle: "15-12-10-8 subiendo peso, tempo 3-1-1 y la última del accesorio al fallo.",
+  },
 ];
+
+/** Los tipos de día, con el nombre que ve la atleta. Mismo orden que en el motor. */
+export const OPCIONES_DIA: Array<{ valor: DayKind | "DESCANSO"; nombre: string }> = [
+  { valor: "DESCANSO", nombre: "Descanso" },
+  { valor: "PIERNA_CUADRICEPS", nombre: "Pierna · cuádriceps" },
+  { valor: "PIERNA_FEMORAL", nombre: "Pierna · femoral" },
+  { valor: "PIERNA_GLUTEO", nombre: "Glúteo" },
+  { valor: "PECHO_ESPALDA", nombre: "Pecho y espalda" },
+  { valor: "PECHO_TRICEP", nombre: "Pecho y tríceps" },
+  { valor: "ESPALDA_BICEP", nombre: "Espalda y bíceps" },
+  { valor: "HOMBRO", nombre: "Hombro" },
+  { valor: "BRAZO", nombre: "Bíceps y tríceps" },
+  { valor: "HOMBRO_BRAZO", nombre: "Hombro y brazo" },
+  { valor: "TORSO", nombre: "Torso completo" },
+];
+
+/**
+ * Los presets del split, con el nombre y la descripción del motor
+ * (`SPLIT_PRESETS` en `apps/web/src/lib/training/split.ts`). El mapa de días
+ * de cada uno lo arma el servidor al guardarlo — aquí solo se elige.
+ */
+export const OPCIONES_SPLIT: Array<{
+  valor: "ACTUAL" | "INFERIOR_SUPERIOR_3_3" | "PPL_X2";
+  nombre: string;
+  corto: string;
+  detalle: string;
+  dias: CustomSplit;
+}> = [
+  {
+    valor: "ACTUAL",
+    nombre: "El de la app (recomendado)",
+    corto: "El de la app",
+    detalle: "El split del coach, repartido según tus días. Pierna 2-3 veces por semana.",
+    dias: {},
+  },
+  {
+    valor: "INFERIOR_SUPERIOR_3_3",
+    nombre: "3 inferior / 3 superior",
+    corto: "3 inferior / 3 superior",
+    detalle: "Lunes, miércoles y viernes de pierna; martes, jueves y sábado de torso.",
+    dias: {
+      LUN: "PIERNA_CUADRICEPS",
+      MAR: "PECHO_TRICEP",
+      MIE: "PIERNA_GLUTEO",
+      JUE: "ESPALDA_BICEP",
+      VIE: "PIERNA_FEMORAL",
+      SAB: "HOMBRO_BRAZO",
+      DOM: "DESCANSO",
+    },
+  },
+  {
+    valor: "PPL_X2",
+    nombre: "Pierna / empuje / jalón, dos vueltas",
+    corto: "PPL ×2",
+    detalle: "Seis días: pierna, pecho y tríceps, espalda y bíceps — y otra vuelta.",
+    dias: {
+      LUN: "PIERNA_CUADRICEPS",
+      MAR: "PECHO_TRICEP",
+      MIE: "ESPALDA_BICEP",
+      JUE: "PIERNA_GLUTEO",
+      VIE: "PECHO_TRICEP",
+      SAB: "ESPALDA_BICEP",
+      DOM: "DESCANSO",
+    },
+  },
+];
+
+/** Cómo se hacen los unilaterales, en el vocabulario del gimnasio. */
+export const OPCIONES_UNILATERAL: Array<{
+  valor: UnilateralMode;
+  nombre: string;
+  corto: string;
+  detalle: string;
+}> = [
+  {
+    valor: "SEGUIDO",
+    nombre: "Seguido",
+    corto: "Seguido",
+    detalle: "Todas las series del derecho y luego las del izquierdo.",
+  },
+  {
+    valor: "ALTERNADO",
+    nombre: "Alternado",
+    corto: "Alternado",
+    detalle: "Cambias de lado serie a serie. Cada lado descansa más.",
+  },
+];
+
+/** El renglón-resumen del split: el preset que coincide, o cuántos días tiene. */
+export function resumenDeSplit(split: CustomSplit | null | undefined): string {
+  if (!split) return "El de la app";
+
+  const preset = OPCIONES_SPLIT.find(
+    (opcion) =>
+      opcion.valor !== "ACTUAL" &&
+      DIAS_SEMANA.every((dia) => (split[dia.valor] ?? "DESCANSO") === (opcion.dias[dia.valor] ?? "DESCANSO")),
+  );
+  if (preset) return preset.corto;
+
+  const dias = DIAS_SEMANA.filter(
+    (dia) => split[dia.valor] !== undefined && split[dia.valor] !== "DESCANSO",
+  ).length;
+  return dias === 0 ? "El de la app" : `Propio · ${dias} ${dias === 1 ? "día" : "días"}`;
+}
 
 export function disciplinaNombre(discipline: Discipline): string {
   return DISCIPLINAS.find((entrada) => entrada.valor === discipline)?.nombre ?? discipline;
@@ -135,7 +248,9 @@ export function diasResumenDe(semana: WeekView | null): DiaResumen[] {
 export function avisosDeLaSemana(semana: WeekView | null): string[] {
   if (!semana) return [];
   const otras = semana.otherSessions ?? [];
-  const avisos = new Set<string>();
+  // Los del split van primero: son los únicos que piden una decisión hoy
+  // ("Hombro el martes y pecho el miércoles: te va a doler. Cambiar").
+  const avisos = new Set<string>(semana.avisos ?? []);
 
   for (const otra of otras) {
     const comparteConGym = semana.sessions.some((sesion) => sesion.date === otra.date);
@@ -737,6 +852,17 @@ const makeStyles = (colors: Palette) =>
       padding: spacing.md,
     },
     diaFila: { flexDirection: "row", alignItems: "center", gap: spacing.sm, marginTop: spacing.sm },
+    // El editor del split: el día arriba y sus chips debajo. En fila no cabían
+    // once tipos de día sin que cada chip quedara ilegible.
+    splitDia: { gap: spacing.xs, marginTop: spacing.md },
+    splitDiaNombre: {
+      fontFamily: fonts.sansSemiBold,
+      ...typeScale.label,
+      letterSpacing: 1,
+      color: colors.paloRosa,
+    },
+    splitChips: { flexDirection: "row", flexWrap: "wrap", gap: spacing.xs },
+    mensaje: { fontFamily: fonts.sans, ...typeScale.bodySm, color: colors.champan },
     diaNombre: { width: 40, fontFamily: fonts.sansMedium, ...typeScale.bodySm, color: colors.marfil },
     diaOpciones: { flexDirection: "row", gap: 6, flex: 1 },
     diaChip: {
@@ -763,3 +889,186 @@ const makeStyles = (colors: Palette) =>
       marginTop: spacing.md,
     },
   });
+
+/**
+ * "Tu split": qué se entrena cada día de la semana.
+ *
+ * Dos niveles, en el orden en que se decide: primero un preset (un toque
+ * resuelve el 90 % de los casos) y debajo el editor día por día, con chips —
+ * porque el 10 % restante es gente que ya sabe qué quiere entrenar el martes y
+ * a la que ofrecerle solo tres plantillas la deja fuera.
+ *
+ * Con split propio el motor NO reordena: si dos días se estorban lo dice en
+ * los avisos de "Tu entrenamiento" y ella decide. Reacomodarle la semana a
+ * quien la escribió con sus manos es como se pierde la confianza en el plan.
+ */
+export function EditorSplit({ me }: { me: MeResponse | null }) {
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
+
+  const [split, setSplit] = useState<CustomSplit | null>(null);
+  const [mensaje, setMensaje] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!me?.profile) return;
+    setSplit(me.profile.customSplit ?? null);
+  }, [me]);
+
+  async function guardar(siguiente: CustomSplit | null) {
+    const anterior = split;
+    setSplit(siguiente);
+    setMensaje(null);
+    try {
+      await patchEntrenamiento({ customSplit: siguiente });
+      setMensaje(
+        siguiente === null
+          ? "Listo: el split vuelve a armarlo la app."
+          : "Guardado. Aplica desde la próxima semana que se arme.",
+      );
+    } catch (error) {
+      setSplit(anterior);
+      setMensaje(error instanceof ApiError ? error.message : "No se pudo guardar tu split");
+    }
+  }
+
+  /** Cambiar un solo día conserva los demás; sin split propio arranca del vacío. */
+  function cambiarDia(dia: WeekDay, valor: DayKind | "DESCANSO") {
+    void guardar({ ...(split ?? {}), [dia]: valor });
+  }
+
+  const actual = resumenDeSplit(split);
+
+  return (
+    <>
+      <Card>
+        <View style={styles.sectionHeader}>
+          <SectionLabel>Elige un formato</SectionLabel>
+          <InfoTip titulo="Qué decide esto">
+            <TextoInfo>
+              Qué grupo entrenas cada día. Si lo dejas en el de la app, ella lo reparte según tus
+              días y evita que el hombro caiga justo antes del día de pecho.
+            </TextoInfo>
+            <TextoInfo>
+              Si lo eliges tú, la app respeta tu orden tal cual y solo te avisa cuando dos días se
+              estorban. Aplica desde la próxima semana que se arme.
+            </TextoInfo>
+          </InfoTip>
+        </View>
+
+        <View style={styles.lista}>
+          {OPCIONES_SPLIT.map((opcion) => {
+            const activo =
+              opcion.valor === "ACTUAL" ? split === null : actual === opcion.corto;
+            return (
+              <Pressable
+                key={opcion.valor}
+                onPress={() => guardar(opcion.valor === "ACTUAL" ? null : { ...opcion.dias })}
+                style={[styles.fila, activo && styles.filaOn]}
+              >
+                <Text style={[styles.filaNombre, activo && styles.filaNombreOn]}>
+                  {opcion.nombre}
+                </Text>
+                <Text style={styles.filaDetalle}>{opcion.detalle}</Text>
+              </Pressable>
+            );
+          })}
+        </View>
+      </Card>
+
+      <Card>
+        <SectionLabel>Día por día</SectionLabel>
+        <View style={styles.lista}>
+          {DIAS_SEMANA.map((dia) => {
+            const valor = split?.[dia.valor] ?? "DESCANSO";
+            return (
+              <View key={dia.valor} style={styles.splitDia}>
+                <Text style={styles.splitDiaNombre}>{dia.nombre}</Text>
+                <View style={styles.splitChips}>
+                  {OPCIONES_DIA.map((opcion) => {
+                    const activo = valor === opcion.valor;
+                    return (
+                      <Pressable
+                        key={opcion.valor}
+                        onPress={() => cambiarDia(dia.valor, opcion.valor)}
+                        style={[styles.chip, activo && styles.chipOn]}
+                      >
+                        <Text style={[styles.chipText, activo && styles.chipTextOn]}>
+                          {opcion.nombre}
+                        </Text>
+                      </Pressable>
+                    );
+                  })}
+                </View>
+              </View>
+            );
+          })}
+        </View>
+      </Card>
+
+      {mensaje && <Text style={styles.mensaje}>{mensaje}</Text>}
+    </>
+  );
+}
+
+/**
+ * "Unilaterales": cómo se reparten las series de los ejercicios que se hacen
+ * de un lado a la vez (búlgara, remo con mancuerna, curl concentrado).
+ */
+export function EditorUnilateral({ me }: { me: MeResponse | null }) {
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
+
+  const [modo, setModo] = useState<UnilateralMode>("SEGUIDO");
+  const [mensaje, setMensaje] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!me?.profile) return;
+    setModo(me.profile.unilateralMode ?? "SEGUIDO");
+  }, [me]);
+
+  async function guardar(valor: UnilateralMode) {
+    const anterior = modo;
+    setModo(valor);
+    setMensaje(null);
+    try {
+      await patchEntrenamiento({ unilateralMode: valor });
+      setMensaje("Guardado. Aplica desde la próxima semana que se arme.");
+    } catch (error) {
+      setModo(anterior);
+      setMensaje(error instanceof ApiError ? error.message : "No se pudo guardar tu preferencia");
+    }
+  }
+
+  return (
+    <Card>
+      <View style={styles.sectionHeader}>
+        <SectionLabel>Ejercicios de un lado a la vez</SectionLabel>
+        <InfoTip titulo="Cuáles son">
+          <TextoInfo>
+            La búlgara, el remo con mancuerna, el curl concentrado: los que se hacen con un brazo o
+            una pierna. La app te cuenta las series por lado ("Derecho · serie 2 de 3") en vez de
+            en una lista corrida.
+          </TextoInfo>
+        </InfoTip>
+      </View>
+
+      <View style={styles.lista}>
+        {OPCIONES_UNILATERAL.map((opcion) => {
+          const activo = modo === opcion.valor;
+          return (
+            <Pressable
+              key={opcion.valor}
+              onPress={() => guardar(opcion.valor)}
+              style={[styles.fila, activo && styles.filaOn]}
+            >
+              <Text style={[styles.filaNombre, activo && styles.filaNombreOn]}>{opcion.nombre}</Text>
+              <Text style={styles.filaDetalle}>{opcion.detalle}</Text>
+            </Pressable>
+          );
+        })}
+      </View>
+
+      {mensaje && <Text style={styles.mensaje}>{mensaje}</Text>}
+    </Card>
+  );
+}

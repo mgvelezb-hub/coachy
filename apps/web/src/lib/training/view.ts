@@ -10,12 +10,18 @@ import { prisma } from "@/lib/prisma";
 import { signedExerciseVideoUrls } from "@/lib/storage";
 import type { OtherSession } from "@/lib/training/disciplines";
 import {
+  buildSplit,
+  liftingDaysWithinBudget,
+  trainingDaysOf,
+} from "@/lib/training/split";
+import {
   ensureWeekMaterialized,
   otherSessionsFor,
   lastPerformances,
   loadCatalog,
   parseStoredPlan,
   personalRecords,
+  toTrainingProfile,
   type PersonalRecord,
 } from "@/lib/training/db";
 import {
@@ -91,6 +97,13 @@ export type WeekView = {
    * natación se pueda leer en la orilla de la alberca, sin señal.
    */
   otherSessions: OtherSession[];
+  /**
+   * Lo que estorba en el split y no se puede arreglar sin decidir: hombro el
+   * día antes de pecho, pierna pesada antes de squash. Solo aparecen cuando
+   * el split lo fijó ella — el automático se reordena solo. Ajustes los pinta
+   * tal cual, porque cada uno termina en la acción ("Cambiar").
+   */
+  avisos: string[];
 };
 
 /**
@@ -170,7 +183,25 @@ export async function weekView(
     today: toISODate(reference),
     sessions,
     otherSessions: otherSessionsFor(profile, mondayOf(reference), workouts),
+    avisos: avisosDelSplit(profile),
   };
+}
+
+/**
+ * Los avisos de vecindad del split de esta persona.
+ *
+ * Se recalculan aquí y no se guardan: son función del perfil, y guardarlos
+ * abriría la puerta a enseñar un aviso de un split que ya se cambió.
+ */
+function avisosDelSplit(profile: Profile): string[] {
+  const training = toTrainingProfile(profile);
+  const porHorario = trainingDaysOf(training).slice(0, liftingDaysWithinBudget(training));
+  return buildSplit({
+    liftingDays: porHorario.length,
+    conditions: training.conditions,
+    avoidRepeatGroups: training.avoidRepeatGroups,
+    customSplit: training.customSplit,
+  }).avisos;
 }
 
 /** La sesión de hoy, o null si hoy toca descanso. */
