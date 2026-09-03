@@ -422,6 +422,53 @@ describe('generador de menus (spec §6)', () => {
     }
   });
 
+  // "173 g de arroz" obliga a traducir; "1 taza de arroz (160 g)" ya viene en
+  // el idioma de la cocina. Los gramos no se van, dejan de ir primero.
+  it('cada alimento trae su porcion legible y por que esta ahi', () => {
+    for (const seed of SEEDS) {
+      const { plan } = planFor(P, 'BASE', seed);
+      for (const menu of plan.menus) {
+        for (const meal of menu.meals) {
+          for (const item of meal.items) {
+            const donde = `${item.name} seed ${seed}`;
+            expect(item.display, donde).toBeTruthy();
+            expect(item.display, donde).toContain(`${item.grams} g`);
+            expect(['proteina', 'carbo', 'grasa', 'fibra'], donde).toContain(item.why.closes);
+            expect(item.why.units, donde).toBeGreaterThan(0);
+            expect(item.why.unitLabel, donde).toBeTruthy();
+            expect(item.why.role, donde).toBe(findFood(item.foodId)!.role);
+          }
+        }
+      }
+    }
+  });
+
+  it('la etiqueta dice piezas, tazas y cucharaditas, no solo gramos', () => {
+    const conMedida = SEEDS.flatMap((seed) =>
+      planFor(P, 'BASE', seed).plan.menus.flatMap((m) =>
+        m.meals.flatMap((meal) =>
+          meal.items.filter((i) => {
+            const unidad = findFood(i.foodId)?.serving?.unit;
+            return unidad !== undefined && unidad !== 'g';
+          }),
+        ),
+      ),
+    );
+    expect(conMedida.length).toBeGreaterThan(0);
+    for (const item of conMedida) {
+      const unidad = findFood(item.foodId)!.serving!.unit;
+      const esperado = { cdita: 'cdita', cda: 'cda', taza: 'taza', pieza: 'pieza', rebanada: 'rebanada', scoop: 'scoop', media_taza: 'media taza', g: 'g' }[unidad];
+      expect(item.display, item.display).toContain(esperado);
+      expect(item.why.unitLabel, item.display).toContain(esperado);
+    }
+  });
+
+  it('es determinista: la etiqueta no trae texto libre', () => {
+    const uno = planFor(P, 'BASE', 5).plan.menus[0]!.meals.flatMap((m) => m.items.map((i) => i.display));
+    const dos = planFor(P, 'BASE', 5).plan.menus[0]!.meals.flatMap((m) => m.items.map((i) => i.display));
+    expect(uno).toEqual(dos);
+  });
+
   it('produce lista de super agregada y sin duplicados', () => {
     const { plan } = planFor(P);
     expect(plan.shoppingList.length).toBeGreaterThan(5);

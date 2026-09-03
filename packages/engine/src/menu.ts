@@ -11,9 +11,11 @@ import type {
   Menu,
   MenuItem,
   MenuMeal,
+  MenuItemWhy,
   MenuPlan,
   Phase,
   Profile,
+  ServingUnit,
   ShoppingItem,
 } from './types.js';
 
@@ -356,12 +358,99 @@ function error(slots: Slot[], target: { p: number; c: number; f: number }): numb
   return p * p * 2 + c * c + f * f * 1.5;
 }
 
+/** Plural de la unidad casera, como se dice en la cocina. */
+const UNIDADES: Record<ServingUnit, [string, string]> = {
+  cdita: ['cdita', 'cditas'],
+  cda: ['cda', 'cdas'],
+  taza: ['taza', 'tazas'],
+  media_taza: ['media taza', 'medias tazas'],
+  pieza: ['pieza', 'piezas'],
+  rebanada: ['rebanada', 'rebanadas'],
+  scoop: ['scoop', 'scoops'],
+  g: ['g', 'g'],
+};
+
+/** Fracciones como se sirven: "1½", no "1.5". */
+function formatoUnidades(cantidad: number): string {
+  const entero = Math.floor(cantidad + 1e-9);
+  const resto = cantidad - entero;
+  const fraccion = resto < 0.125 ? '' : resto < 0.375 ? '¼' : resto < 0.625 ? '½' : resto < 0.875 ? '¾' : '';
+  const acarreo = resto >= 0.875 ? 1 : 0;
+  const cabeza = entero + acarreo;
+  if (fraccion === '') return String(cabeza);
+  return cabeza === 0 ? fraccion : `${cabeza}${fraccion}`;
+}
+
+/** El macro que ese alimento viene a cerrar, en el vocabulario del dueno. */
+function cierraQue(food: Food, role?: FoodRole): MenuItemWhy['closes'] {
+  const efectivo = role ?? food.role;
+  if (efectivo === 'vegetal_libre') return 'fibra';
+  const macro = macroDominante(food, efectivo);
+  if (macro === 'p') return 'proteina';
+  if (macro === 'f') return 'grasa';
+  return 'carbo';
+}
+
+/**
+ * La porcion en el idioma de la cocina: "2 cditas de aceite de oliva (10 g)".
+ *
+ * Los gramos no desaparecen —siguen siendo la cifra exacta— pero dejan de ser
+ * lo primero que hay que interpretar. Nadie pesa una cucharadita.
+ */
+function describirPorcion(
+  food: Food,
+  gramos: number,
+  free: boolean,
+  role: FoodRole | undefined,
+): { display: string; why: MenuItemWhy } {
+  const nombre = food.name.charAt(0).toLowerCase() + food.name.slice(1);
+  const why: MenuItemWhy = {
+    role: role ?? food.role,
+    closes: cierraQue(food, role),
+    units: gramos,
+    unitLabel: 'g',
+    ...(free ? { note: 'libre' } : {}),
+  };
+
+  const s = food.serving;
+  if (!s || s.unit === 'g') {
+    return { display: `${gramos} g de ${nombre}`, why };
+  }
+
+  const unidades = gramos / s.gramsPerUnit;
+  const texto = formatoUnidades(unidades);
+  const plural = Math.abs(unidades - 1) < 1e-9 ? 0 : 1;
+  const etiqueta = UNIDADES[s.unit][plural]!;
+
+  const nota = free
+    ? 'libre'
+    : unidades <= s.minUnits + 1e-9
+      ? 'porcion minima'
+      : unidades >= s.maxUnits - 1e-9
+        ? 'tope de la porcion'
+        : undefined;
+
+  return {
+    display: `${texto} ${etiqueta} de ${nombre} (${gramos} g)`,
+    why: {
+      ...why,
+      units: Math.round(unidades * 100) / 100,
+      unitLabel: etiqueta,
+      ...(nota ? { note: nota } : {}),
+    },
+  };
+}
+
 function toItem(slot: Slot, free: boolean): MenuItem {
   const m = macrosOf(slot);
+  const gramos = Math.round(slot.grams);
+  const { display, why } = describirPorcion(slot.food, gramos, free, slot.role);
   return {
     foodId: slot.food.id,
     name: slot.food.name,
-    grams: Math.round(slot.grams),
+    grams: gramos,
+    display,
+    why,
     proteinG: round1(m.p),
     carbG: round1(m.c),
     fatG: round1(m.f),

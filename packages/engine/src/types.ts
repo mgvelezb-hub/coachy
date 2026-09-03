@@ -324,6 +324,22 @@ export interface Food {
   serving?: FoodServing;
 }
 
+/**
+ * Por que esta ese alimento en esa comida. Determinista y sin texto libre: la
+ * app arma la frase, el motor da los datos.
+ */
+export interface MenuItemWhy {
+  role: FoodRole;
+  /** Macro que ese alimento viene a cerrar en la comida. */
+  closes: 'proteina' | 'carbo' | 'grasa' | 'fibra';
+  /** Cuantas unidades caseras: 2 cditas, 1.5 tazas, 3 piezas. */
+  units: number;
+  /** La unidad ya en plural correcto: "cditas", "tazas", "piezas", "g". */
+  unitLabel: string;
+  /** Nota corta: "libre", "porcion minima", "tope de la porcion". */
+  note?: string;
+}
+
 export interface MenuItem {
   foodId: string;
   name: string;
@@ -334,6 +350,9 @@ export interface MenuItem {
   fiberG: number;
   kcal: number;
   free: boolean;
+  /** "2 cditas de aceite de oliva (10 g)". Lo que se lee primero. */
+  display: string;
+  why: MenuItemWhy;
 }
 
 export interface Equivalence {
