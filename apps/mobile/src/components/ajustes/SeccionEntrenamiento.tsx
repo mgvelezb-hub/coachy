@@ -39,6 +39,8 @@ import {
   diasResumenDe,
   disciplinaNombre,
   resumenDeSplit,
+  textoModo,
+  type CargaConModo,
 } from "@/components/ajustes/detalle/EditoresEntrenamiento";
 import { fonts, radius, spacing, type as typeScale, withAlpha, type Palette } from "@/lib/theme";
 
@@ -68,7 +70,7 @@ export function SeccionEntrenamiento({ me }: { me: MeResponse | null }) {
   const styles = useMemo(() => makeStyles(colors), [colors]);
 
   const [primaria, setPrimaria] = useState<Discipline>("PESAS");
-  const [otras, setOtras] = useState<DisciplineLoad[]>([]);
+  const [otras, setOtras] = useState<CargaConModo[]>([]);
   const [entrenoMsg, setEntrenoMsg] = useState<string | null>(null);
 
   useEffect(() => {
@@ -162,11 +164,16 @@ export function SeccionEntrenamiento({ me }: { me: MeResponse | null }) {
    * un toque, no un editor.
    */
   async function agregarDisciplina(disciplina: Discipline) {
-    const entry: DisciplineLoad = {
+    const entry: CargaConModo = {
       discipline: disciplina,
       sessionsPerWeek: 1,
       proposito: "COMPLEMENTO",
       importancia: 2,
+      // Default de formulario para una disciplina NUEVA: casi siempre se
+      // quiere después de pesas (el caso real de Mau e Irma). El parser del
+      // servidor, en cambio, no inventa un default para cargas viejas sin el
+      // campo — ver el docblock de `ModoDisciplina` en `types.ts`.
+      modo: "DESPUES",
     };
     const siguiente = [...otras.filter((carga) => carga.discipline !== disciplina), entry];
 
@@ -208,6 +215,7 @@ export function SeccionEntrenamiento({ me }: { me: MeResponse | null }) {
       partes.push(`${diasGym} ${diasGym === 1 ? "día" : "días"} de gimnasio`);
     } else if (carga) {
       partes.push(`${carga.sessionsPerWeek} ${carga.sessionsPerWeek === 1 ? "sesión" : "sesiones"}`);
+      partes.push(textoModo(carga.modo));
       if (nombreProposito) partes.push(nombreProposito.toLowerCase());
     }
     partes.push(nombreNivel.toLowerCase());

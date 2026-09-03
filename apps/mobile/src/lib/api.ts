@@ -1888,3 +1888,19 @@ export function getSessionDetail(workoutId: string): Promise<SessionDetail> {
 export function getExerciseProgress(exerciseId: string): Promise<ExerciseProgress> {
   return apiFetch<ExerciseProgress>(`/api/v1/history/exercise/${exerciseId}`);
 }
+
+/**
+ * `POST /api/v1/training/cambiar-bloque` — variante de día completo (Fase 11):
+ * "hoy solo squash / natación, sin gym". Mismo endpoint que `postCambiarBloque`,
+ * pero `discipline` va en arreglo de una o dos disciplinas — ese día no hay
+ * gimnasio, se materializan solo esos bloques.
+ */
+export function postCambiarBloqueDia(
+  date: string,
+  disciplinas: Discipline[],
+): Promise<{ date: string; discipline: Discipline[]; sesionCreada: boolean }> {
+  return apiFetch<{ date: string; discipline: Discipline[]; sesionCreada: boolean }>(
+    "/api/v1/training/cambiar-bloque",
+    { method: "POST", body: { date, discipline: disciplinas } },
+  );
+}

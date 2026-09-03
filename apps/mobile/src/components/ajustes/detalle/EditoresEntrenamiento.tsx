@@ -205,6 +205,30 @@ export function disciplinaNombre(discipline: Discipline): string {
   return DISCIPLINAS.find((entrada) => entrada.valor === discipline)?.nombre ?? discipline;
 }
 
+/**
+ * Cómo convive una disciplina secundaria con el gimnasio (Fase 11).
+ *
+ * `DisciplineLoad` en `lib/api.ts` no trae `modo` todavía — otros agentes
+ * editan ese archivo en paralelo y solo se les permite agregar funciones al
+ * final, así que el campo se declara aquí en vez de tocar el tipo compartido.
+ * El servidor ya lo acepta y lo guarda (`parseDisciplineLoads` en
+ * `apps/web/src/lib/training/db.ts`); esto es solo la forma de pedírselo sin
+ * romper la regla del archivo.
+ */
+export type ModoDisciplina = "DESPUES" | "DIA_PROPIO";
+export type CargaConModo = DisciplineLoad & { modo?: ModoDisciplina };
+
+/**
+ * "2/semana · después de pesas" — el renglón de una disciplina secundaria.
+ *
+ * Sin `modo` declarado el motor se comporta como `DIA_PROPIO` (compatibilidad
+ * hacia atrás, ver `types.ts` del motor): el texto dice lo mismo que hace, no
+ * lo que una disciplina nueva elegiría por default.
+ */
+export function textoModo(modo: ModoDisciplina | undefined): string {
+  return modo === "DESPUES" ? "después de pesas" : "día propio";
+}
+
 /** Suma días a una fecha ISO. Misma cuenta que en `(tabs)/rutinas.tsx`. */
 function addDaysISO(dateISO: string, days: number): string {
   const [year, month, day] = dateISO.split("-").map(Number);
@@ -633,7 +657,7 @@ export function EditorDisciplina({
   const styles = useMemo(() => makeStyles(colors), [colors]);
 
   const [primaria, setPrimaria] = useState<Discipline>("PESAS");
-  const [otras, setOtras] = useState<DisciplineLoad[]>([]);
+  const [otras, setOtras] = useState<CargaConModo[]>([]);
   const [niveles, setNiveles] = useState<Partial<Record<Discipline, SwimLevel>>>({});
   const [entrenoMsg, setEntrenoMsg] = useState<string | null>(null);
 
@@ -660,10 +684,10 @@ export function EditorDisciplina({
    * perdería los otros en el camino.
    */
   async function actualizarCarga(
-    cambios: Partial<Pick<DisciplineLoad, "sessionsPerWeek" | "proposito" | "importancia">>,
+    cambios: Partial<Pick<CargaConModo, "sessionsPerWeek" | "proposito" | "importancia" | "modo">>,
   ) {
     const actual = otras.find((entrada) => entrada.discipline === discipline);
-    const entry: DisciplineLoad = {
+    const entry: CargaConModo = {
       discipline,
       sessionsPerWeek: Math.max(
         0,
@@ -671,6 +695,12 @@ export function EditorDisciplina({
       ),
       proposito: cambios.proposito ?? actual?.proposito ?? "COMPLEMENTO",
       importancia: cambios.importancia ?? actual?.importancia ?? 2,
+      // `modo` no se toca a menos que se pida explícito: subir sesiones o
+      // cambiar propósito no debe voltear en silencio una preferencia que la
+      // persona ya declaró (ni inventarle una a una carga vieja sin ella).
+      ...(cambios.modo !== undefined || actual?.modo !== undefined
+        ? { modo: cambios.modo ?? actual?.modo }
+        : {}),
     };
     const siguiente =
       entry.sessionsPerWeek > 0
@@ -724,8 +754,9 @@ export function EditorDisciplina({
             </TextoInfo>
           ) : (
             <TextoInfo>
-              Sus sesiones salen de tu presupuesto semanal: subirle aquí le quita días al
-              gimnasio. En cero, la disciplina se quita de tu semana.
+              "Después de pesas" se anexa a tus días de gimnasio y no te quita presupuesto. "Día
+              propio" busca un día libre y sí le quita días al gimnasio. En cero, la disciplina se
+              quita de tu semana.
             </TextoInfo>
           )}
         </InfoTip>
@@ -765,6 +796,38 @@ export function EditorDisciplina({
         </View>
       )}
 
+      {!esPrimaria && carga && (
+        <View style={styles.subHeader}>
+          <Text style={styles.subLabel}>Cómo convive con el gimnasio</Text>
+          <InfoTip titulo="Después de pesas vs. día propio">
+            <TextoInfo>
+              Después de pesas: se anexa a un día que ya tienes de gimnasio, con sus minutos
+              repartidos entre las dos — no te quita presupuesto de pesas. Día propio: busca un día
+              libre para ella sola, y ese día sí sale de tu presupuesto semanal.
+            </TextoInfo>
+          </InfoTip>
+        </View>
+      )}
+
+      {!esPrimaria && carga && (
+        <View style={styles.chipsRow}>
+          {(["DESPUES", "DIA_PROPIO"] as const).map((opcion) => {
+            const activo = (carga.modo ?? "DIA_PROPIO") === opcion;
+            return (
+              <Pressable
+                key={opcion}
+                onPress={() => actualizarCarga({ modo: opcion })}
+                style={[styles.chip, activo && styles.chipOn]}
+              >
+                <Text style={[styles.chipText, activo && styles.chipTextOn]}>
+                  {textoModo(opcion)}
+                </Text>
+              </Pressable>
+            );
+          })}
+        </View>
+      )}
+
       {!esPrimaria && !carga && (
         <Text style={styles.nota}>
           Esta disciplina ya no está en tu semana. Regresa a la sección para volver a agregarla.
@@ -796,6 +859,8 @@ export function EditorDisciplina({
 const makeStyles = (colors: Palette) =>
   StyleSheet.create({
     sectionHeader: { flexDirection: "row", alignItems: "center", gap: spacing.xs },
+    subHeader: { flexDirection: "row", alignItems: "center", gap: spacing.xs, marginTop: spacing.md },
+    subLabel: { fontFamily: fonts.sansMedium, ...typeScale.bodySm, color: colors.paloRosa },
     lista: { gap: spacing.sm, marginTop: spacing.md },
     fila: {
       borderRadius: radius.xl,
