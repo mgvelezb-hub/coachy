@@ -135,7 +135,7 @@ export const OPCIONES_SPLIT: Array<{
     valor: "INFERIOR_SUPERIOR_3_3",
     nombre: "3 inferior / 3 superior",
     corto: "3 inferior / 3 superior",
-    detalle: "Lunes, miércoles y viernes de pierna; martes, jueves y sábado de torso.",
+    detalle: "Alterna pierna y torso. Si entrenas menos de seis días, se ajusta a los tuyos.",
     dias: {
       LUN: "PIERNA_CUADRICEPS",
       MAR: "PECHO_TRICEP",
@@ -150,7 +150,7 @@ export const OPCIONES_SPLIT: Array<{
     valor: "PPL_X2",
     nombre: "Pierna / empuje / jalón, dos vueltas",
     corto: "PPL ×2",
-    detalle: "Seis días: pierna, pecho y tríceps, espalda y bíceps — y otra vuelta.",
+    detalle: "Pierna, pecho y tríceps, espalda y bíceps — y otra vuelta, hasta donde alcancen tus días.",
     dias: {
       LUN: "PIERNA_CUADRICEPS",
       MAR: "PECHO_TRICEP",

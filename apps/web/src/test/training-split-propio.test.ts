@@ -136,3 +136,75 @@ describe("split propio", () => {
     });
   });
 });
+
+describe("el split propio se ajusta al presupuesto de días", () => {
+  /** El preset "3 inferior / 3 superior" tal como lo guarda Ajustes: seis días fijos. */
+  const TRES_TRES: CustomSplit = {
+    LUN: "PIERNA_CUADRICEPS",
+    MAR: "PECHO_TRICEP",
+    MIE: "PIERNA_GLUTEO",
+    JUE: "ESPALDA_BICEP",
+    VIE: "PIERNA_FEMORAL",
+    SAB: "HOMBRO_BRAZO",
+    DOM: "DESCANSO",
+  };
+
+  /** Cuántos de esos días son de tren inferior. */
+  function inferiores(kinds: DayKind[]): number {
+    return kinds.filter((kind) => DAY_GROUPS[kind].includes("PIERNA")).length;
+  }
+
+  it("con 5 días elegidos, la semana tiene 5 días de gimnasio y no 6", () => {
+    const { kinds, days } = buildSplit({
+      liftingDays: 5,
+      conditions: [],
+      customSplit: TRES_TRES,
+    });
+    expect(kinds).toHaveLength(5);
+    expect(days).toHaveLength(5);
+  });
+
+  it("con 5 días reparte 2 inferior + 3 superior, y 3 + 2 si el objetivo es músculo", () => {
+    const normal = buildSplit(
+      { liftingDays: 5, conditions: [], customSplit: TRES_TRES },
+      { objetivo: "PERDIDA_GRASA" },
+    );
+    expect(inferiores(normal.kinds)).toBe(2);
+
+    const musculo = buildSplit(
+      { liftingDays: 5, conditions: [], customSplit: TRES_TRES },
+      { objetivo: "GANANCIA_MUSCULO" },
+    );
+    expect(inferiores(musculo.kinds)).toBe(3);
+  });
+
+  it("con 4 días queda 2 + 2", () => {
+    const { kinds } = buildSplit({ liftingDays: 4, conditions: [], customSplit: TRES_TRES });
+    expect(kinds).toHaveLength(4);
+    expect(inferiores(kinds)).toBe(2);
+  });
+
+  it("el día que se cae rota semana a semana", () => {
+    const caidos = [0, 1, 2].map((semana) => {
+      const { days } = buildSplit(
+        { liftingDays: 5, conditions: [], customSplit: TRES_TRES },
+        { semana },
+      );
+      return WEEK_DAYS.filter(
+        (day) => TRES_TRES[day] !== undefined && TRES_TRES[day] !== "DESCANSO",
+      ).find((day) => !(days ?? []).includes(day));
+    });
+    expect(new Set(caidos).size).toBeGreaterThan(1);
+  });
+
+  it("los días que quedan conservan el orden del calendario", () => {
+    const { days } = buildSplit({ liftingDays: 5, conditions: [], customSplit: TRES_TRES });
+    const orden = (days ?? []).map((day) => WEEK_DAYS.indexOf(day));
+    expect([...orden].sort((a, b) => a - b)).toEqual(orden);
+  });
+
+  it("si el split propio ya cabe, no se le quita nada", () => {
+    const { kinds } = buildSplit({ liftingDays: 6, conditions: [], customSplit: TRES_TRES });
+    expect(kinds).toHaveLength(6);
+  });
+});

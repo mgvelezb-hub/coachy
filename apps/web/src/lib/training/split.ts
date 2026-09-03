@@ -203,6 +203,69 @@ function collapseRepeats(kinds: DayKind[], groups: MuscleGroup[]): DayKind[] {
 }
 
 /**
+ * Objetivos en los que el tren inferior es el motor del resultado.
+ *
+ * La metodología pide pierna/glúteo 2-3 veces por semana; cuando hay que
+ * recortar, el objetivo decide si son tres o dos. Con músculo o
+ * recomposición el glúteo y la pierna son lo que mueve la aguja, así que el
+ * día que se cae es de torso. Con perder grasa, salud o rendimiento en otra
+ * disciplina, el tren inferior ya se trabaja fuera del gimnasio (correr,
+ * squash, box) y el día extra rinde más arriba.
+ */
+const OBJETIVOS_DE_PIERNA = ["GANANCIA_MUSCULO", "RECOMPOSICION"];
+
+/** ¿Este tipo de día es de tren inferior? */
+function esInferior(kind: DayKind): boolean {
+  return DAY_GROUPS[kind].includes("PIERNA");
+}
+
+/**
+ * Recorta un split escrito a mano para que quepa en los días que la persona
+ * eligió entrenar.
+ *
+ * EL DEFECTO QUE ARREGLA: los presets de Ajustes (3 inferior / 3 superior,
+ * PPL ×2) son mapas fijos de seis días. Quien elegía cinco días de pesas y
+ * luego tocaba un preset veía seis en "Tu semana" — el número que contestó en
+ * el perfil dejaba de significar nada. El split propio manda en QUÉ se
+ * entrena cada día; el presupuesto manda en CUÁNTOS días hay. Son dos
+ * preguntas distintas y antes una se comía a la otra.
+ *
+ * Qué se cae: un día de la mitad que va sobrada (inferior o superior); si
+ * están empatadas, la que el objetivo no cuida. Y rota semana a semana, para
+ * que no sea siempre el mismo día el que se pierde — con 3/3 a cinco días,
+ * las tres piernas siguen entrenándose a lo largo del mes.
+ */
+export function ajustarSplitAlPresupuesto(
+  kinds: DayKind[],
+  days: WeekDay[],
+  presupuesto: number,
+  semana = 0,
+  objetivo?: string,
+): { kinds: DayKind[]; days: WeekDay[] } {
+  const limite = Math.max(0, Math.trunc(presupuesto));
+  if (kinds.length <= limite) return { kinds, days };
+
+  const cuidarPierna = OBJETIVOS_DE_PIERNA.includes(objetivo ?? "");
+  const rotacion = Math.max(0, Math.trunc(semana));
+  let vivos = kinds.map((kind, index) => ({ kind, day: days[index] as WeekDay }));
+
+  for (let vuelta = 0; vivos.length > limite; vuelta += 1) {
+    const inferior = vivos.filter((entrada) => esInferior(entrada.kind));
+    const superior = vivos.filter((entrada) => !esInferior(entrada.kind));
+
+    let candidatos: typeof vivos;
+    if (inferior.length === superior.length) candidatos = cuidarPierna ? superior : inferior;
+    else candidatos = inferior.length > superior.length ? inferior : superior;
+    if (candidatos.length === 0) candidatos = vivos;
+
+    const fuera = candidatos[(rotacion + vuelta) % candidatos.length]!;
+    vivos = vivos.filter((entrada) => entrada !== fuera);
+  }
+
+  return { kinds: vivos.map((e) => e.kind), days: vivos.map((e) => e.day) };
+}
+
+/**
  * Split de la semana según días disponibles, lesiones y lo que se pidió no
  * repetir.
  *
@@ -220,6 +283,13 @@ function collapseRepeats(kinds: DayKind[], groups: MuscleGroup[]): DayKind[] {
 export function buildSplit(
   profile: Pick<TrainingProfile, "liftingDays" | "conditions"> &
     Partial<Pick<TrainingProfile, "avoidRepeatGroups" | "customSplit">>,
+  /**
+   * Lo que hace falta para recortar un split propio que no cabe: la semana
+   * ISO (para rotar cuál día se cae) y el objetivo (para decidir si sobra
+   * pierna o torso). Ambos opcionales: sin ellos el recorte sigue siendo
+   * determinista, solo deja de rotar.
+   */
+  opciones?: { semana?: number; objetivo?: string },
 ): {
   kinds: DayKind[];
   /**
@@ -242,8 +312,21 @@ export function buildSplit(
   if (custom) {
     // Escrito a mano: se respeta tal cual. Ni `collapseRepeats` ni la
     // vecindad lo tocan — solo avisan.
-    days = WEEK_DAYS.filter((day) => custom[day] !== undefined && custom[day] !== "DESCANSO");
-    base = days.map((day) => custom[day] as DayKind);
+    const escritos = WEEK_DAYS.filter(
+      (day) => custom[day] !== undefined && custom[day] !== "DESCANSO",
+    );
+    // El split propio dice QUÉ se entrena cada día; `liftingDays` dice
+    // CUÁNTOS días hay. Si el preset trae más días de los que ella eligió, se
+    // recorta aquí — no en la pantalla, que ni sabe del presupuesto.
+    const cabe = ajustarSplitAlPresupuesto(
+      escritos.map((day) => custom[day] as DayKind),
+      escritos,
+      Math.max(0, Math.min(7, Math.trunc(profile.liftingDays))),
+      opciones?.semana ?? 0,
+      opciones?.objetivo,
+    );
+    days = cabe.days;
+    base = cabe.kinds;
   } else {
     const count = Math.max(0, Math.min(7, Math.trunc(profile.liftingDays)));
     const avoidRepeat = profile.avoidRepeatGroups ?? [];
@@ -341,12 +424,12 @@ export const SPLIT_PRESETS = [
   {
     id: "INFERIOR_SUPERIOR_3_3",
     nombre: "3 inferior / 3 superior",
-    descripcion: "Lunes, miércoles y viernes de pierna; martes, jueves y sábado de torso.",
+    descripcion: "Alterna pierna y torso. Si entrenas menos de seis días, se ajusta a los tuyos.",
   },
   {
     id: "PPL_X2",
     nombre: "Pierna / empuje / jalón, dos vueltas",
-    descripcion: "Seis días: pierna, pecho y tríceps, espalda y bíceps — y otra vuelta.",
+    descripcion: "Pierna, pecho y tríceps, espalda y bíceps — y otra vuelta, hasta donde alcancen tus días.",
   },
 ] as const;
 

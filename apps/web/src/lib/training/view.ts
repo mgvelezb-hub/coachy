@@ -33,7 +33,7 @@ import {
 import { alternativesFor, type ExerciseAlternative } from "@/lib/training/substitutes";
 import { mondayOf, sundayEndOf } from "@/lib/training/generate";
 import { prefillSets } from "@/lib/training/progression";
-import { SCHEMES } from "@/lib/training/schemes";
+import { isoWeekNumber, SCHEMES } from "@/lib/training/schemes";
 import type { PlannedExercise, Warmup } from "@/lib/training/types";
 
 /**
@@ -190,7 +190,7 @@ export async function weekView(
     // avisan lo que no cupo o lo que se combinó con riesgo (Fase 9 y 11). Los
     // dos son "esto no se arregla solo, decide" — se juntan en una sola lista
     // para que Ajustes no tenga que saber de dos fuentes.
-    avisos: [...avisosDelSplit(profile), ...disciplinas.avisos],
+    avisos: [...avisosDelSplit(profile, reference), ...disciplinas.avisos],
   };
 }
 
@@ -200,15 +200,20 @@ export async function weekView(
  * Se recalculan aquí y no se guardan: son función del perfil, y guardarlos
  * abriría la puerta a enseñar un aviso de un split que ya se cambió.
  */
-function avisosDelSplit(profile: Profile): string[] {
+function avisosDelSplit(profile: Profile, reference: Date): string[] {
   const training = toTrainingProfile(profile);
   const porHorario = trainingDaysOf(training).slice(0, liftingDaysWithinBudget(training));
-  return buildSplit({
-    liftingDays: porHorario.length,
-    conditions: training.conditions,
-    avoidRepeatGroups: training.avoidRepeatGroups,
-    customSplit: training.customSplit,
-  }).avisos;
+  return buildSplit(
+    {
+      liftingDays: porHorario.length,
+      conditions: training.conditions,
+      avoidRepeatGroups: training.avoidRepeatGroups,
+      customSplit: training.customSplit,
+    },
+    // La misma semana que materializó el generador: avisar de un choque entre
+    // dos días que esta semana ni siquiera se entrenan sería ruido.
+    { semana: isoWeekNumber(mondayOf(reference)), objetivo: training.goal },
+  ).avisos;
 }
 
 /** La sesión de hoy, o null si hoy toca descanso. */

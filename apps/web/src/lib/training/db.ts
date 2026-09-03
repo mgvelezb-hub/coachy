@@ -438,12 +438,18 @@ function plannedDatesOf(profile: Profile, monday: Date): string[] {
   // Con split propio los días de gimnasio son los que ella escribió. Si aquí
   // se siguieran calculando por horario, la reconciliación borraría justo las
   // sesiones que el generador acaba de materializar.
-  const split = buildSplit({
-    liftingDays: porHorario.length,
-    conditions: training.conditions,
-    avoidRepeatGroups: training.avoidRepeatGroups,
-    customSplit: training.customSplit,
-  });
+  const split = buildSplit(
+    {
+      liftingDays: porHorario.length,
+      conditions: training.conditions,
+      avoidRepeatGroups: training.avoidRepeatGroups,
+      customSplit: training.customSplit,
+    },
+    // Misma semana ISO y mismo objetivo que `generateWeek`: si el recorte del
+    // split propio se calculara distinto aquí, la reconciliación borraría las
+    // sesiones que el generador acaba de materializar.
+    { semana: isoWeekNumber(monday), objetivo: training.goal },
+  );
   return (split.days ?? porHorario).map((day) => shiftISODate(mondayISO, WEEK_DAYS.indexOf(day)));
 }
 

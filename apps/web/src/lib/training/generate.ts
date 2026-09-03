@@ -242,12 +242,18 @@ export function generateWeek(
   // los que pidió.
   const gymDays = liftingDaysWithinBudget(profile);
   const porHorario = trainingDaysOf(profile).slice(0, gymDays);
-  const split = buildSplit({
-    liftingDays: porHorario.length,
-    conditions: profile.conditions,
-    avoidRepeatGroups: profile.avoidRepeatGroups,
-    customSplit: profile.customSplit,
-  });
+  const split = buildSplit(
+    {
+      liftingDays: porHorario.length,
+      conditions: profile.conditions,
+      avoidRepeatGroups: profile.avoidRepeatGroups,
+      customSplit: profile.customSplit,
+    },
+    // Con split propio que no cabe en el presupuesto, el recorte tiene que
+    // salir igual aquí, en `plannedDatesOf` y en los avisos de la vista: por
+    // eso los tres pasan la misma semana ISO y el mismo objetivo.
+    { semana: isoWeek, objetivo: profile.goal },
+  );
   const { kinds, rehabIndexes, injury } = split;
   // Con split propio los días los fija ella, no el horario: el presupuesto
   // semanal ya no puede recortarlos por la mitad sin decir cuáles.
