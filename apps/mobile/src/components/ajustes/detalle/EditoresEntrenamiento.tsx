@@ -1,3 +1,5 @@
+import { useRouter } from "expo-router";
+import { ChevronDown, ChevronUp, X } from "lucide-react-native";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 
@@ -8,8 +10,13 @@ import { SectionLabel } from "@/components/SectionLabel";
 import { useTheme } from "@/context/theme";
 import {
   ApiError,
+  getCatalogoGym,
+  getEjerciciosPorDia,
   getTrainingWeek,
+  patchEjerciciosManuales,
   patchEntrenamiento,
+  type DiaDeEjercicios,
+  type EjercicioGym,
   type Discipline,
   type DisciplineLoad,
   type MeResponse,
@@ -941,6 +948,23 @@ const makeStyles = (colors: Palette) =>
     diaChipOn: { backgroundColor: colors.guinda, borderColor: colors.guindaLight },
     diaChipTexto: { fontFamily: fonts.sansMedium, ...typeScale.label, color: colors.marfil },
     diaChipTextoOn: { color: colors.pergamino },
+    ejercicioFila: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: spacing.sm,
+      borderRadius: radius.md,
+      borderWidth: 1,
+      borderColor: colors.cardBorder,
+      paddingVertical: spacing.sm,
+      paddingHorizontal: spacing.md,
+    },
+    ejercicioNombre: {
+      flex: 1,
+      fontFamily: fonts.sansMedium,
+      ...typeScale.bodySm,
+      color: colors.marfil,
+    },
+    ejercicioBoton: { padding: 2 },
     nota: {
       fontFamily: fonts.sans,
       ...typeScale.bodySm,
@@ -1133,6 +1157,306 @@ export function EditorUnilateral({ me }: { me: MeResponse | null }) {
         })}
       </View>
 
+      {mensaje && <Text style={styles.mensaje}>{mensaje}</Text>}
+    </Card>
+  );
+}
+
+/**
+ * "Ejercicios": la sugerencia de Coachy, o los que ella eligió.
+ *
+ * EL PROBLEMA: el generador elegía los ejercicios y no había forma de decir
+ * "ese no, este sí". Quien ya sabe con qué entrena su pecho tenía que
+ * cambiarlos uno por uno cada semana desde el gimnasio — que es como se
+ * termina entrenando fuera de la app.
+ *
+ * Tres niveles, cada uno en su hoja (la ley de densidad: nada se abre hacia
+ * abajo): la lista de tipos de día, el editor de un día, y el catálogo para
+ * agregar. Lo que se guarda es el mapa completo `{tipoDeDía: [ids]}`, igual
+ * que el split, para que dos ediciones seguidas no se pisen.
+ */
+export function EditorEjercicios() {
+  const router = useRouter();
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
+
+  const { dias, error, recargar } = useEjerciciosPorDia();
+
+  if (error) return <Text style={styles.mensaje}>{error}</Text>;
+  if (!dias) return <Text style={styles.mensaje}>Cargando tus ejercicios...</Text>;
+
+  return (
+    <>
+      <Card>
+        <View style={styles.sectionHeader}>
+          <SectionLabel>Por tipo de día</SectionLabel>
+          <InfoTip titulo="Quién elige los ejercicios">
+            <TextoInfo>
+              Coachy los propone según tu objetivo, tu condición de hoy y las zonas que están lejos
+              de tu referencia. Es lo que pasa si no tocas nada.
+            </TextoInfo>
+            <TextoInfo>
+              Si prefieres los tuyos, los eliges por tipo de día y en el orden que quieras. Coachy
+              solo completa si te falta volumen, y el tiempo del día sigue mandando: lo que no cabe
+              en tus minutos se recorta igual.
+            </TextoInfo>
+          </InfoTip>
+        </View>
+
+        <View style={styles.lista}>
+          {dias.map((dia) => (
+            <Pressable
+              key={dia.dayKind}
+              onPress={() => router.push(`/ajustes/detalle/ejercicios?k=${dia.dayKind}`)}
+              style={styles.fila}
+            >
+              <Text style={styles.filaNombre}>{dia.label}</Text>
+              <Text style={styles.filaDetalle}>
+                {dia.sigueACoachy
+                  ? "Sugerencia de Coachy"
+                  : `Elegidos por ti · ${dia.elegidos.length}`}
+              </Text>
+            </Pressable>
+          ))}
+        </View>
+      </Card>
+
+      {dias.length === 0 && (
+        <Text style={styles.mensaje} onPress={recargar}>
+          Todavía no hay split armado. Toca para reintentar.
+        </Text>
+      )}
+    </>
+  );
+}
+
+/** Los días con su sugerencia, recargables. Lo comparten las tres hojas. */
+function useEjerciciosPorDia(): {
+  dias: DiaDeEjercicios[] | null;
+  error: string | null;
+  recargar: () => void;
+} {
+  const [dias, setDias] = useState<DiaDeEjercicios[] | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  const recargar = useCallback(() => {
+    setError(null);
+    getEjerciciosPorDia()
+      .then((respuesta) => setDias(respuesta.dias))
+      .catch((problema) =>
+        setError(problema instanceof ApiError ? problema.message : "No se pudieron cargar"),
+      );
+  }, []);
+
+  useEffect(() => recargar(), [recargar]);
+
+  return { dias, error, recargar };
+}
+
+/** El mapa completo que espera el servidor, con un día sustituido. */
+function mapaDeEjercicios(
+  dias: DiaDeEjercicios[],
+  dayKind: string,
+  ejercicios: string[],
+): Record<string, string[]> {
+  const mapa: Record<string, string[]> = {};
+  for (const dia of dias) {
+    const lista = dia.dayKind === dayKind ? ejercicios : dia.elegidos;
+    if (lista.length > 0) mapa[dia.dayKind] = lista;
+  }
+  return mapa;
+}
+
+/**
+ * El editor de un tipo de día: quitar, reordenar, agregar, o volver a la
+ * sugerencia.
+ *
+ * Arranca de la sugerencia de Coachy cuando no hay lista propia — editarla es
+ * quitarle uno, no armar la sesión desde cero. En el momento en que se toca
+ * algo, esa lista se vuelve suya y se guarda entera.
+ */
+export function EditorEjerciciosDia({ dayKind }: { dayKind: string }) {
+  const router = useRouter();
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
+
+  const { dias, error } = useEjerciciosPorDia();
+  const [lista, setLista] = useState<string[] | null>(null);
+  const [mensaje, setMensaje] = useState<string | null>(null);
+
+  const dia = dias?.find((entrada) => entrada.dayKind === dayKind) ?? null;
+
+  useEffect(() => {
+    if (!dia) return;
+    setLista(dia.elegidos.length > 0 ? dia.elegidos : dia.sugeridos.map((e) => e.id));
+  }, [dia]);
+
+  /** El nombre de un id, venga de la sugerencia o del catálogo cacheado. */
+  const nombres = useMemo(() => {
+    const mapa: Record<string, string> = {};
+    for (const entrada of dias ?? []) {
+      for (const ejercicio of entrada.sugeridos) mapa[ejercicio.id] = ejercicio.name;
+    }
+    return mapa;
+  }, [dias]);
+
+  async function guardar(siguiente: string[] | null) {
+    if (!dias) return;
+    const anterior = lista;
+    setLista(siguiente);
+    setMensaje(null);
+    try {
+      await patchEjerciciosManuales(
+        siguiente === null ? mapaDeEjercicios(dias, dayKind, []) : mapaDeEjercicios(dias, dayKind, siguiente),
+      );
+      setMensaje(
+        siguiente === null
+          ? "Listo: este día vuelve a la sugerencia de Coachy."
+          : "Guardado. Aplica desde la próxima semana que se arme.",
+      );
+    } catch (problema) {
+      setLista(anterior);
+      setMensaje(problema instanceof ApiError ? problema.message : "No se pudo guardar");
+    }
+  }
+
+  function mover(indice: number, salto: number) {
+    if (!lista) return;
+    const destino = indice + salto;
+    if (destino < 0 || destino >= lista.length) return;
+    const siguiente = [...lista];
+    siguiente[indice] = lista[destino]!;
+    siguiente[destino] = lista[indice]!;
+    void guardar(siguiente);
+  }
+
+  if (error) return <Text style={styles.mensaje}>{error}</Text>;
+  if (!dia || !lista) return <Text style={styles.mensaje}>Cargando...</Text>;
+
+  return (
+    <>
+      <Card>
+        <View style={styles.sectionHeader}>
+          <SectionLabel>{dia.label}</SectionLabel>
+          <InfoTip titulo="Por qué te propone esto">
+            <TextoInfo>{dia.porque}</TextoInfo>
+            <TextoInfo>
+              El orden es el de la sesión: lo primero es lo que entrenas con más fuerza. Si tu lista
+              se queda corta, Coachy completa con su sugerencia.
+            </TextoInfo>
+          </InfoTip>
+        </View>
+
+        <Text style={styles.nota}>{dia.porque}</Text>
+
+        <View style={styles.lista}>
+          {lista.map((id, indice) => (
+            <View key={id} style={styles.ejercicioFila}>
+              <Text style={styles.ejercicioNombre} numberOfLines={1}>
+                {nombres[id] ?? id}
+              </Text>
+              <Pressable onPress={() => mover(indice, -1)} hitSlop={8} style={styles.ejercicioBoton}>
+                <ChevronUp size={18} color={colors.paloRosa} strokeWidth={2} />
+              </Pressable>
+              <Pressable onPress={() => mover(indice, 1)} hitSlop={8} style={styles.ejercicioBoton}>
+                <ChevronDown size={18} color={colors.paloRosa} strokeWidth={2} />
+              </Pressable>
+              <Pressable
+                onPress={() => guardar(lista.filter((otro) => otro !== id))}
+                hitSlop={8}
+                style={styles.ejercicioBoton}
+              >
+                <X size={18} color={colors.champan} strokeWidth={2} />
+              </Pressable>
+            </View>
+          ))}
+        </View>
+      </Card>
+
+      <Card>
+        <View style={styles.lista}>
+          <Pressable
+            onPress={() => router.push(`/ajustes/detalle/ejercicios?k=${dayKind}&agregar=1`)}
+            style={styles.fila}
+          >
+            <Text style={styles.filaNombre}>Agregar del catálogo</Text>
+            <Text style={styles.filaDetalle}>Los del grupo que entrenas este día</Text>
+          </Pressable>
+
+          {!dia.sigueACoachy && (
+            <Pressable onPress={() => guardar(null)} style={styles.fila}>
+              <Text style={styles.filaNombre}>Volver a la sugerencia</Text>
+              <Text style={styles.filaDetalle}>Coachy vuelve a elegir este día</Text>
+            </Pressable>
+          )}
+        </View>
+
+        {mensaje && <Text style={styles.mensaje}>{mensaje}</Text>}
+      </Card>
+    </>
+  );
+}
+
+/**
+ * El catálogo para agregar un ejercicio a un tipo de día.
+ *
+ * Filtrado por los grupos musculares que ese día entrena: ofrecer curl de
+ * bíceps en el día de pierna solo hace la lista más larga. Agregar guarda y
+ * regresa — un toque, una decisión.
+ */
+export function EditorAgregarEjercicio({ dayKind }: { dayKind: string }) {
+  const router = useRouter();
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
+
+  const { dias, error } = useEjerciciosPorDia();
+  const [catalogo, setCatalogo] = useState<EjercicioGym[] | null>(null);
+  const [mensaje, setMensaje] = useState<string | null>(null);
+
+  useEffect(() => {
+    getCatalogoGym()
+      .then((respuesta) => setCatalogo(respuesta.ejercicios))
+      .catch(() => setMensaje("No se pudo cargar el catálogo"));
+  }, []);
+
+  const dia = dias?.find((entrada) => entrada.dayKind === dayKind) ?? null;
+
+  const candidatos = useMemo(() => {
+    if (!dia || !catalogo) return [];
+    // Los grupos del día salen de la propia sugerencia: es la misma receta que
+    // usa el generador, así que no hay una segunda lista que mantener.
+    const grupos = new Set(dia.sugeridos.map((ejercicio) => ejercicio.muscleGroup));
+    const yaEstan = new Set(dia.elegidos.length > 0 ? dia.elegidos : dia.sugeridos.map((e) => e.id));
+    return catalogo.filter(
+      (ejercicio) => grupos.has(ejercicio.muscleGroup) && !yaEstan.has(ejercicio.id),
+    );
+  }, [dia, catalogo]);
+
+  async function agregar(id: string) {
+    if (!dias || !dia) return;
+    const base = dia.elegidos.length > 0 ? dia.elegidos : dia.sugeridos.map((e) => e.id);
+    try {
+      await patchEjerciciosManuales(mapaDeEjercicios(dias, dayKind, [...base, id]));
+      router.back();
+    } catch (problema) {
+      setMensaje(problema instanceof ApiError ? problema.message : "No se pudo agregar");
+    }
+  }
+
+  if (error) return <Text style={styles.mensaje}>{error}</Text>;
+  if (!dia || !catalogo) return <Text style={styles.mensaje}>Cargando el catálogo...</Text>;
+
+  return (
+    <Card>
+      <SectionLabel>{dia.label}</SectionLabel>
+      <View style={styles.lista}>
+        {candidatos.map((ejercicio) => (
+          <Pressable key={ejercicio.id} onPress={() => agregar(ejercicio.id)} style={styles.fila}>
+            <Text style={styles.filaNombre}>{ejercicio.name}</Text>
+            <Text style={styles.filaDetalle}>{ejercicio.equipment}</Text>
+          </Pressable>
+        ))}
+      </View>
       {mensaje && <Text style={styles.mensaje}>{mensaje}</Text>}
     </Card>
   );

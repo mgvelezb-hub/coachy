@@ -374,6 +374,18 @@ export type TrainingProfile = {
    * cambiando de lado serie a serie.
    */
   unilateralMode?: UnilateralMode;
+  /**
+   * Los ejercicios que la persona eligió a mano, por tipo de día:
+   * `{PECHO_TRICEP: ["id1", "id2"]}`. Ausente o vacío = sigue la sugerencia
+   * de Coachy.
+   *
+   * Cuando hay lista, esos ejercicios van PRIMERO y en ese orden; la
+   * sugerencia solo completa lo que falte de volumen. Lo que NO cambia: el
+   * protocolo de lesión (un ejercicio con impacto no entra por estar en la
+   * lista) ni el recorte por minutos — el tiempo del día sigue siendo el
+   * tiempo del día.
+   */
+  manualExercises?: Partial<Record<DayKind, string[]>>;
 };
 
 /** Ver `TrainingProfile.unilateralMode`. */

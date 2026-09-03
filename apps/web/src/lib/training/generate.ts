@@ -25,10 +25,13 @@ import {
   WEEK_DAYS,
   buildSplit,
   liftingDaysWithinBudget,
+  parseInjuries,
   trainingDaysOf,
+  type InjuryState,
   type WeekDay,
 } from "@/lib/training/split";
 import type {
+  DayKind,
   ExerciseOption,
   GenerateWeekConfig,
   GeneratedWeek,
@@ -224,6 +227,135 @@ function pickExercise(slot: Slot, context: PickContext): ExerciseOption | null {
   return pool[context.seed % pool.length] ?? null;
 }
 
+/**
+ * Los huecos de la receta que este día puede llenar, con el protocolo de
+ * lesión ya aplicado.
+ *
+ * Vive aparte porque lo necesitan dos caminos: la semana que se genera y la
+ * sugerencia que se enseña en Ajustes. Si cada uno filtrara por su cuenta, la
+ * hoja acabaría proponiendo ejercicios que el generador nunca elegiría.
+ */
+function huecosDelDia(kind: DayKind, injury: InjuryState, rehabDay: boolean): Slot[] {
+  return recipeFor(kind).filter((slot) => {
+    if (injury.zones.length === 0) return true;
+    const touches = slot.groups.some((group) => injury.zones.includes(group));
+    if (!touches) return true;
+    if (!rehabDay) return false;
+    // Día de rehabilitación: solo aislados y máquinas, nada pesado.
+    return slot.roles.some((role) => !HEAVY_ROLES.has(role));
+  });
+}
+
+/**
+ * ¿Este ejercicio se puede hacer hoy, aunque ella lo haya elegido a mano?
+ *
+ * El protocolo de lesión no es una sugerencia que se pueda desactivar
+ * eligiendo el ejercicio uno mismo: con lesión activa no hay impacto, y en la
+ * zona en rehabilitación no hay nada pesado. Lo que sí se le concede a la
+ * elección manual es el nivel: quien pone un ejercicio avanzado en su lista
+ * sabe lo que está poniendo.
+ */
+function permitidoHoy(exercise: ExerciseOption, context: PickContext): boolean {
+  if (context.usedToday.has(exercise.id)) return false;
+  if (context.noImpact && hasImpact(exercise.name)) return false;
+  return !(
+    context.lightOnly.includes(exercise.muscleGroup as MuscleGroup) &&
+    HEAVY_ROLES.has(exercise.poolRole)
+  );
+}
+
+/**
+ * Los ejercicios que la persona fijó a mano para este tipo de día, resueltos
+ * contra el catálogo y emparejados con un hueco de la receta.
+ *
+ * El hueco es lo que le da esquema, prioridad de recorte y series: un
+ * ejercicio suelto no sabe si es el básico del día o el último accesorio.
+ * Cuando ninguno de la receta le queda —porque ella metió algo que esa receta
+ * no contempla— se le arma uno a su medida, con la prioridad que le
+ * corresponde por rol: los compuestos pesados son intocables, el resto se
+ * recorta como accesorio.
+ */
+function manualesDelDia(
+  ids: string[],
+  slots: Slot[],
+  context: PickContext,
+): Array<{ option: ExerciseOption; slot: Slot }> {
+  const salida: Array<{ option: ExerciseOption; slot: Slot }> = [];
+  const tomados = new Set<Slot>();
+
+  for (const id of ids) {
+    // Un id que ya no está en el catálogo (ejercicio retirado) se ignora: no
+    // puede dejar el día a medias ni tumbar la generación.
+    const option = context.catalog.find((exercise) => exercise.id === id);
+    if (!option || !permitidoHoy(option, context)) continue;
+
+    const exacto = slots.find(
+      (slot) =>
+        !tomados.has(slot) &&
+        slot.groups.includes(option.muscleGroup as MuscleGroup) &&
+        slot.roles.includes(option.poolRole),
+    );
+    const porGrupo =
+      exacto ??
+      slots.find((slot) => !tomados.has(slot) && slot.groups.includes(option.muscleGroup as MuscleGroup));
+    const slot: Slot =
+      porGrupo ??
+      {
+        groups: [option.muscleGroup as MuscleGroup],
+        roles: [option.poolRole],
+        priority: HEAVY_ROLES.has(option.poolRole) ? 1 : 3,
+      };
+
+    if (porGrupo) tomados.add(porGrupo);
+    context.usedToday.add(option.id);
+    salida.push({ option, slot });
+  }
+
+  return salida;
+}
+
+/**
+ * Lo que Coachy propondría para un tipo de día, sin generar la semana.
+ *
+ * Es lo que enseña la hoja de "Ejercicios" en Ajustes para que la elección
+ * manual arranque de algo, no de una lista vacía. Sale de la MISMA receta y
+ * el MISMO `pickExercise` que la semana real — por eso se puede prometer que
+ * lo que ahí se ve es lo que se entrena.
+ */
+export function sugerenciaDeEjercicios(
+  profile: Pick<
+    TrainingProfile,
+    "conditions" | "sessionMinutes" | "volumeBias" | "gymLevel" | "exerciseSwaps"
+  >,
+  kind: DayKind,
+  catalog: ExerciseOption[],
+  semana = 0,
+): ExerciseOption[] {
+  const injury = parseInjuries(profile.conditions);
+  const slots = huecosDelDia(kind, injury, false);
+  const cupo = Math.max(3, exerciseCountFor(profile.sessionMinutes, profile.volumeBias));
+  const usedToday = new Set<string>();
+
+  const salida: ExerciseOption[] = [];
+  chooseSlots(slots, cupo).forEach((slot, index) => {
+    const option = pickExercise(slot, {
+      catalog,
+      usedToday,
+      lastWeekNames: new Set<string>(),
+      noImpact: injury.active,
+      lightOnly: [],
+      gymLevel: profile.gymLevel,
+      exerciseSwaps: profile.exerciseSwaps,
+      seed: semana + index,
+    });
+    if (!option) return;
+    usedToday.add(option.id);
+    salida.push(option);
+  });
+
+  return salida;
+}
+
 export function generateWeek(
   profile: TrainingProfile,
   history: HistoryWorkout[],
@@ -324,14 +456,7 @@ export function generateWeek(
 
     // En un día normal no se toca la zona lesionada: ese trabajo vive en su
     // único día de rehabilitación.
-    const slots = recipeFor(kind).filter((slot) => {
-      if (injury.zones.length === 0) return true;
-      const touches = slot.groups.some((group) => injury.zones.includes(group));
-      if (!touches) return true;
-      if (!rehabDay) return false;
-      // Día de rehabilitación: solo aislados y máquinas, nada pesado.
-      return slot.roles.some((role) => !HEAVY_ROLES.has(role));
-    });
+    const slots = huecosDelDia(kind, injury, rehabDay);
 
     // Un ejercicio extra en los días que tocan un grupo con prioridad —la que
     // salió de comparar tus fotos contra tu referencia—. Es lo único que el
@@ -373,20 +498,53 @@ export function generateWeek(
     // accesorio, igual que el recorte por número de huecos.
     const candidatos: Array<{ exercise: PlannedExercise; priority: number; enfasis: boolean }> = [];
 
+    const contextoDelDia: PickContext = {
+      catalog: config.catalog,
+      usedToday,
+      lastWeekNames,
+      noImpact: injury.active,
+      lightOnly: rehabDay ? injury.zones : [],
+      gymLevel: profile.gymLevel,
+      exerciseSwaps: profile.exerciseSwaps,
+      seed: 0,
+    };
+
+    // Lo que ella eligió a mano va PRIMERO y en su orden; la sugerencia solo
+    // completa lo que falte de volumen. Es la diferencia entre una app que
+    // propone y una que impone.
+    const manuales = manualesDelDia(
+      profile.manualExercises?.[kind] ?? [],
+      slots,
+      contextoDelDia,
+    );
+    const huecosManuales = new Set(manuales.map((entrada) => entrada.slot));
+    const cupoAuto = Math.max(0, cupo - manuales.length);
+    let automaticos = 0;
+
+    const elegidos: Array<{ option: ExerciseOption; slot: Slot; enfasis: boolean }> = manuales.map(
+      (entrada) => ({ ...entrada, enfasis: false }),
+    );
+
     chosen.forEach((slot, slotIndex) => {
+      if (huecosManuales.has(slot)) return;
+
+      const esEnfasis = extraDeEnfasis.includes(slot);
+      // El ejercicio del énfasis nunca cuenta contra el cupo: es el +1 que la
+      // persona pidió expresamente.
+      if (!esEnfasis && automaticos >= cupoAuto) return;
+
       const option = pickExercise(slot, {
-        catalog: config.catalog,
-        usedToday,
-        lastWeekNames,
-        noImpact: injury.active,
-        lightOnly: rehabDay ? injury.zones : [],
-        gymLevel: profile.gymLevel,
-        exerciseSwaps: profile.exerciseSwaps,
+        ...contextoDelDia,
         seed: isoWeek + slotIndex + index * 3,
       });
       if (!option) return;
 
       usedToday.add(option.id);
+      if (!esEnfasis) automaticos += 1;
+      elegidos.push({ option, slot, enfasis: esEnfasis });
+    });
+
+    elegidos.forEach(({ option, slot, enfasis }) => {
 
       const rehabExercise =
         rehabDay && injury.zones.includes(option.muscleGroup as MuscleGroup);
@@ -445,11 +603,7 @@ export function generateWeek(
         ...(unilateral ? { unilateral: true } : {}),
       };
 
-      candidatos.push({
-        exercise,
-        priority: slot.priority,
-        enfasis: extraDeEnfasis.includes(slot),
-      });
+      candidatos.push({ exercise, priority: slot.priority, enfasis });
     });
 
     // El recorte por MINUTOS, antes de emitir. La cuenta de `exerciseCountFor`

@@ -102,6 +102,16 @@ const schema = z
       .nullable()
       .optional(),
     /**
+     * Los ejercicios elegidos a mano por tipo de día: `{"PECHO_TRICEP":
+     * ["id1", "id2"]}`. `null` vuelve entero a la sugerencia de Coachy; un
+     * día con lista vacía vuelve a la sugerencia solo en ese día. Se manda el
+     * mapa completo, igual que `customSplit`.
+     */
+    manualExercises: z
+      .partialRecord(z.enum(DAY_KIND_VALUES), z.array(z.string().min(1)).max(12))
+      .nullable()
+      .optional(),
+    /**
      * Cómo se hacen los unilaterales: `SEGUIDO` (todas las del derecho y
      * luego las del izquierdo) o `ALTERNADO`. Se guarda DENTRO de
      * `custom_split` porque no hay columna y el schema está congelado en esta
@@ -168,6 +178,7 @@ export async function PATCH(request: Request): Promise<NextResponse> {
     compactDays,
     schemePreference,
     customSplit,
+    manualExercises,
     unilateralMode,
     trainingTime,
     trainingSchedule,
@@ -201,6 +212,11 @@ export async function PATCH(request: Request): Promise<NextResponse> {
       ...(compactDays !== undefined ? { compactDays } : {}),
       ...(schemePreference !== undefined ? { schemePreference } : {}),
       ...(splitGuardado === undefined ? {} : { customSplit: splitGuardado }),
+      // `null` limpia la columna y devuelve todos los días a la sugerencia de
+      // Coachy; Prisma exige `JsonNull` para no leerlo como "no tocar".
+      ...(manualExercises !== undefined
+        ? { manualExercises: manualExercises ?? Prisma.JsonNull }
+        : {}),
       ...(trainingTime !== undefined ? { trainingTime } : {}),
       ...(trainingSchedule !== undefined
         ? { trainingSchedule: trainingSchedule ?? Prisma.JsonNull }
@@ -216,6 +232,7 @@ export async function PATCH(request: Request): Promise<NextResponse> {
       compactDays: true,
       schemePreference: true,
       customSplit: true,
+      manualExercises: true,
       trainingTime: true,
       trainingSchedule: true,
     },

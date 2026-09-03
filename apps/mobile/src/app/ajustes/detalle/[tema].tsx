@@ -17,8 +17,11 @@ import { HorarioDeEntrenamiento } from "@/components/ajustes/HorarioDeEntrenamie
 import { EditorCierreSemana } from "@/components/ajustes/detalle/EditorCierreSemana";
 import {
   DetalleSemana,
+  EditorAgregarEjercicio,
   EditorArmadoSemana,
   EditorDisciplina,
+  EditorEjercicios,
+  EditorEjerciciosDia,
   EditorEsquema,
   EditorGrupos,
   EditorSplit,
@@ -57,6 +60,7 @@ const TITULOS: Record<string, string> = {
   armado: "Cómo se arma tu semana",
   esquema: "Cómo te gusta entrenar",
   split: "Tu split",
+  ejercicios: "Ejercicios",
   unilaterales: "Unilaterales",
   disciplina: "Disciplina",
   tiempo: "Tiempo por día",
@@ -70,10 +74,17 @@ const TITULOS: Record<string, string> = {
 };
 
 /** Temas que se pintan sin esperar `/me` (cargan lo suyo por su cuenta). */
-const SIN_ME = new Set(["semana", "horarios-comida"]);
+const SIN_ME = new Set(["semana", "horarios-comida", "ejercicios"]);
 
 export default function AjustesDetalleScreen() {
-  const { tema, d } = useLocalSearchParams<{ tema: string; d?: string }>();
+  const { tema, d, k, agregar } = useLocalSearchParams<{
+    tema: string;
+    d?: string;
+    /** Tipo de día de la hoja de ejercicios: `?k=PECHO_TRICEP`. */
+    k?: string;
+    /** `?agregar=1` abre el catálogo en vez del editor del día. */
+    agregar?: string;
+  }>();
   const router = useRouter();
   const { colors } = useTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
@@ -120,6 +131,12 @@ export default function AjustesDetalleScreen() {
           <Text style={styles.title}>{titulo}</Text>
 
           {tema === "semana" && <DetalleSemana />}
+          {/* Tres hojas en un tema: la lista de días, el editor de un día y el
+              catálogo para agregar. Cada zoom abre hoja nueva, nunca se
+              despliega hacia abajo. */}
+          {tema === "ejercicios" && !k && <EditorEjercicios />}
+          {tema === "ejercicios" && k && agregar !== "1" && <EditorEjerciciosDia dayKind={k} />}
+          {tema === "ejercicios" && k && agregar === "1" && <EditorAgregarEjercicio dayKind={k} />}
           {tema === "horarios-comida" && <SeccionHorariosComida />}
 
           {necesitaMe && !me && !meError && <LoadingState label="Cargando tus ajustes..." />}

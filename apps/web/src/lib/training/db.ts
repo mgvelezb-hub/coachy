@@ -11,6 +11,7 @@ import { generateWeek, mondayOf, sundayEndOf } from "@/lib/training/generate";
 import { esUnilateral } from "@/lib/training/coach";
 import { isoWeekNumber, SCHEME_PREFERENCES } from "@/lib/training/schemes";
 import {
+  DAY_KIND_VALUES,
   WEEK_DAYS,
   buildSplit,
   liftingDaysWithinBudget,
@@ -154,6 +155,31 @@ function parseExerciseSwaps(json: unknown): Record<string, string> {
 }
 
 /**
+ * Los ejercicios elegidos a mano, por tipo de día.
+ *
+ * Tolerante llave por llave, igual que `exercise_swaps`: un `DayKind` que ya
+ * no existe o una lista con basura adentro se ignoran, no dejan a nadie sin
+ * rutina. Los ids no se validan contra el catálogo aquí —eso lo hace el
+ * generador, que es quien lo tiene cargado— porque un ejercicio retirado del
+ * catálogo no debe borrar los demás de la lista.
+ */
+export function parseManualExercises(json: unknown): Partial<Record<DayKind, string[]>> {
+  if (typeof json !== "object" || json === null || Array.isArray(json)) return {};
+
+  const salida: Partial<Record<DayKind, string[]>> = {};
+  for (const [dia, lista] of Object.entries(json as Record<string, unknown>)) {
+    if (!(DAY_KIND_VALUES as readonly string[]).includes(dia)) continue;
+    if (!Array.isArray(lista)) continue;
+
+    const ids = [
+      ...new Set(lista.filter((id): id is string => typeof id === "string" && id.length > 0)),
+    ];
+    if (ids.length > 0) salida[dia as DayKind] = ids;
+  }
+  return salida;
+}
+
+/**
  * `scheme_preference` es `TEXT` libre en la base, no un enum de Postgres
  * (ver el docblock del campo en `schema.prisma`): tolerante igual que
  * `other_disciplines` o `time_per_day` — un valor que ya no existe (una
@@ -198,6 +224,9 @@ export function toTrainingProfile(profile: Profile): TrainingProfile {
     // semana.
     customSplit: normalizeCustomSplit(profile.customSplit),
     unilateralMode: parseUnilateralMode(profile.customSplit),
+    // Lo que ella eligió con sus manos por tipo de día. Vacío = sugerencia de
+    // Coachy, que es el default de toda la vida.
+    manualExercises: parseManualExercises(profile.manualExercises),
   };
 }
 

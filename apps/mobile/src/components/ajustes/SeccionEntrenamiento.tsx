@@ -2,6 +2,7 @@ import { useFocusEffect, useRouter } from "expo-router";
 import {
   CalendarRange,
   Clock,
+  Dumbbell,
   FlipHorizontal,
   LayoutGrid,
   Plus,
@@ -20,8 +21,10 @@ import { SectionLabel } from "@/components/SectionLabel";
 import { useTheme } from "@/context/theme";
 import {
   ApiError,
+  getEjerciciosPorDia,
   getTrainingWeek,
   patchEntrenamiento,
+  type DiaDeEjercicios,
   type Discipline,
   type DisciplineLoad,
   type MeResponse,
@@ -103,6 +106,20 @@ export function SeccionEntrenamiento({ me }: { me: MeResponse | null }) {
     }, [cargarSemana]),
   );
 
+  // Quién elige los ejercicios de cada tipo de día. Se pide al servidor junto
+  // con la semana porque la respuesta de `/me` no la trae: el mapa por tipo de
+  // día solo tiene sentido leído contra el split vigente.
+  const [diasDeEjercicios, setDiasDeEjercicios] = useState<DiaDeEjercicios[]>([]);
+  useFocusEffect(
+    useCallback(() => {
+      getEjerciciosPorDia()
+        .then((respuesta) => setDiasDeEjercicios(respuesta.dias))
+        .catch(() => {
+          // Sin esto el renglón dice "Sugerencia de Coachy", que es el default.
+        });
+    }, []),
+  );
+
   const diasDeLaSemana = useMemo(() => diasResumenDe(semana), [semana]);
   const avisos = useMemo(() => avisosDeLaSemana(semana), [semana]);
   const resumenSemana = useMemo(() => {
@@ -127,6 +144,14 @@ export function SeccionEntrenamiento({ me }: { me: MeResponse | null }) {
   const resumenArmado = (me?.profile?.compactDays ?? true) ? "Días compactos" : "Días repartidos";
 
   const resumenSplit = resumenDeSplit(me?.profile?.customSplit);
+
+  // Quién elige los ejercicios. El detalle por tipo de día vive en su hoja:
+  // aquí solo se contesta "¿sigo a Coachy o ya los elegí yo?".
+  const diasPropios = diasDeEjercicios.filter((dia) => !dia.sigueACoachy).length;
+  const resumenEjercicios =
+    diasPropios === 0
+      ? "Sugerencia de Coachy"
+      : `Elegidos por ti · ${diasPropios} ${diasPropios === 1 ? "día" : "días"}`;
   const resumenUnilateral =
     OPCIONES_UNILATERAL.find(
       (opcion) => opcion.valor === (me?.profile?.unilateralMode ?? "SEGUIDO"),
@@ -265,6 +290,14 @@ export function SeccionEntrenamiento({ me }: { me: MeResponse | null }) {
         title="Tu split"
         summary={resumenSplit}
         onPress={() => router.push("/ajustes/detalle/split")}
+      />
+
+      <ScoreCard
+        icon={Dumbbell}
+        tint={colors.champan}
+        title="Ejercicios"
+        summary={resumenEjercicios}
+        onPress={() => router.push("/ajustes/detalle/ejercicios")}
       />
 
       <ScoreCard
