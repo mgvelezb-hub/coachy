@@ -828,6 +828,11 @@ export default function EnVivoScreen() {
           ) : null}
           <Text style={styles.progresoTexto}>
             {avance.hechas} de {avance.total} series · {volumenKg(estado)} kg
+            {/* Los minutos que de verdad se lleva la sesión: series, descansos
+                y calentamiento medidos, no la tabla de "60 min ⇒ 6 ejercicios"
+                que producía sesiones de dos horas. Ausente en sesiones armadas
+                antes de la Fase 3 — ahí no se enseña nada. */}
+            {sesion.estimatedMin ? ` · ≈ ${sesion.estimatedMin} min` : ""}
           </Text>
         </View>
       </View>

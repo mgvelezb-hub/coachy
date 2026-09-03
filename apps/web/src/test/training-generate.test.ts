@@ -682,12 +682,19 @@ describe("día combinado con otra disciplina (Fase 9)", () => {
     // transición = 95, repartidos 60/40 a favor del primero (gimnasio, que va
     // antes porque natación siempre cierra) y redondeados a múltiplos de 5.
     const minutosReales = 55;
-    expect(dia.exercises.length).toBe(exerciseCountFor(minutosReales, "normal"));
 
-    // El parche viejo ("un accesorio menos" sobre los 60 min completos de la
-    // sesión) hubiera dado 5. Redimensionar a los ~55 minutos reales da 6: la
-    // diferencia es justo la que separa un recorte a ciegas de uno que mide.
-    expect(dia.exercises.length).toBe(6);
+    // La sesión se mide contra ESOS minutos, no contra los 60 del perfil ni
+    // contra un accesorio menos a ciegas (Fase 3: `duracion.ts`). La tabla de
+    // `exerciseCountFor` sigue siendo el punto de partida; el número final lo
+    // pone el reloj.
+    expect(dia.exercises.length).toBeLessThanOrEqual(exerciseCountFor(minutosReales, "normal"));
+    expect(dia.estimatedMin).toBeLessThanOrEqual(minutosReales);
+
+    // El día completo del mismo perfil, sin natación encima, sí cabe en sus
+    // 60 minutos: el combo recorta porque el día es más corto, no porque
+    // compartirlo cueste un accesorio fijo.
+    const solo = generate(profile({ liftingDays: 7, sessionMinutes: 60 }));
+    expect(solo.workouts[0]!.estimatedMin).toBeGreaterThan(dia.estimatedMin!);
   });
 });
 

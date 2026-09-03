@@ -53,6 +53,11 @@ export type SessionView = {
   scheme: string;
   schemeLabel: string;
   cardioMinutes: number | null;
+  /**
+   * Minutos estimados de la sesión, calentamiento incluido (Fase 3). `null`
+   * en sesiones materializadas antes — la cabecera simplemente no lo enseña.
+   */
+  estimatedMin: number | null;
   completedAt: string | null;
   /** Minutos a los que se recortó la sesión, o `null` si está completa. */
   trimmedMinutes: number | null;
@@ -127,6 +132,7 @@ export async function weekView(
       scheme: workout.scheme,
       schemeLabel: plan.schemeLabel,
       cardioMinutes: plan.cardioMinutes,
+      estimatedMin: plan.estimatedMin,
       completedAt: workout.completedAt ? workout.completedAt.toISOString() : null,
       trimmedMinutes: workout.trimmedMinutes,
       cycleNote: cycleNoteForProfile(profile, date),

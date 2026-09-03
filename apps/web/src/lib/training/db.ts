@@ -32,6 +32,7 @@ import type {
   TargetSet,
   SchemePreference,
   SwimLevel,
+  Tempo,
   TrainingProfile,
   VolumeBias,
   Warmup,
@@ -264,10 +265,20 @@ export async function loadHistory(
   }));
 }
 
+/** El tempo tal como se guardó. Cualquier cosa que no sean tres números se ignora. */
+function parseTempo(raw: unknown): Tempo | null {
+  if (raw === null || typeof raw !== "object" || Array.isArray(raw)) return null;
+  const { ecc, pause, con } = raw as Record<string, unknown>;
+  if (typeof ecc !== "number" || typeof pause !== "number" || typeof con !== "number") return null;
+  return { ecc, pause, con };
+}
+
 export type StoredPlan = {
   dayKind: string;
   schemeLabel: string;
   cardioMinutes: number | null;
+  /** Minutos estimados de la sesión. `null` en planes anteriores a la Fase 3. */
+  estimatedMin: number | null;
   /**
    * El calentamiento dinámico previo a la sesión. `null` en sesiones que ya
    * estaban guardadas ANTES de esta fase (el generador de entonces no lo
@@ -314,10 +325,24 @@ function parseWarmup(raw: unknown): Warmup | null {
  */
 export function parseStoredPlan(json: Prisma.JsonValue): StoredPlan {
   if (Array.isArray(json)) {
-    return { dayKind: "", schemeLabel: "", cardioMinutes: null, warmup: null, exercises: parsePlan(json) };
+    return {
+      dayKind: "",
+      schemeLabel: "",
+      cardioMinutes: null,
+      estimatedMin: null,
+      warmup: null,
+      exercises: parsePlan(json),
+    };
   }
   if (json === null || typeof json !== "object") {
-    return { dayKind: "", schemeLabel: "", cardioMinutes: null, warmup: null, exercises: [] };
+    return {
+      dayKind: "",
+      schemeLabel: "",
+      cardioMinutes: null,
+      estimatedMin: null,
+      warmup: null,
+      exercises: [],
+    };
   }
 
   const row = json as Record<string, unknown>;
@@ -325,6 +350,7 @@ export function parseStoredPlan(json: Prisma.JsonValue): StoredPlan {
     dayKind: String(row.dayKind ?? ""),
     schemeLabel: String(row.schemeLabel ?? ""),
     cardioMinutes: typeof row.cardioMinutes === "number" ? row.cardioMinutes : null,
+    estimatedMin: typeof row.estimatedMin === "number" ? row.estimatedMin : null,
     warmup: parseWarmup(row.warmup),
     exercises: parsePlan((row.exercises ?? []) as Prisma.JsonValue),
   };
@@ -349,12 +375,23 @@ export function parsePlan(json: Prisma.JsonValue): PlannedExercise[] {
       videoPath: typeof row.videoPath === "string" ? row.videoPath : null,
       tracker: row.tracker === true,
       note: typeof row.note === "string" ? row.note : null,
+      // Los planes viejos no traen minutos ni lados: se dejan ausentes y la
+      // app se pinta igual, que es lo que hace segura una columna JSON.
+      ...(typeof row.estimatedMin === "number" ? { estimatedMin: row.estimatedMin } : {}),
+      ...(row.unilateral === true ? { unilateral: true } : {}),
       sets: sets.map((rawSet): TargetSet => {
         const set = rawSet as Record<string, unknown>;
         return {
           reps: Number(set.reps ?? 0),
           weightKg: typeof set.weightKg === "number" ? set.weightKg : null,
           warmup: set.warmup === true,
+          ...(parseTempo(set.tempo) ? { tempo: parseTempo(set.tempo)! } : {}),
+          ...(set.intensity === "fallo" || set.intensity === "dropset"
+            ? { intensity: set.intensity }
+            : {}),
+          ...(set.side === "IZQ" || set.side === "DER" || set.side === "AMBOS"
+            ? { side: set.side }
+            : {}),
         };
       }),
     };
@@ -539,6 +576,7 @@ export async function ensureWeekMaterialized(
           dayKind: workout.dayKind,
           schemeLabel: workout.schemeLabel,
           cardioMinutes: workout.cardioMinutes,
+          estimatedMin: workout.estimatedMin,
           warmup: workout.warmup,
           exercises: workout.exercises,
         } as unknown as Prisma.InputJsonValue,

@@ -87,7 +87,32 @@ export type ExerciseOption = {
   level: string;
   /** `BARRA` | `MANCUERNA` | `MAQUINA` | `POLEA` | `PESO_CORPORAL`. */
   equipment: string;
+  /**
+   * Se hace un lado a la vez (remo con mancuerna, búlgara, curl concentrado).
+   * No es columna de la base: sale del catálogo con `esUnilateral` en
+   * `coach.ts` — ver ahí el porqué.
+   */
+  unilateral?: boolean;
 };
+
+/**
+ * Tempo de la repetición, en segundos: excéntrica (bajar), pausa, concéntrica
+ * (subir). Se escribe "3-1-1" y es como el coach prescribe el control: la
+ * misma serie de 10 con 3-1-1 dura el triple que a tirones.
+ */
+export type Tempo = { ecc: number; pause: number; con: number };
+
+/**
+ * Cómo se lleva la serie. `normal` es el default y no se escribe.
+ *
+ * - `fallo`: se va hasta que no salga otra, con el número del plan como piso.
+ * - `dropset`: serie extra pegada a la anterior, sin descanso, con ~20 %
+ *   menos peso.
+ */
+export type SetIntensity = "normal" | "fallo" | "dropset";
+
+/** Con qué lado se hace la serie, en los ejercicios unilaterales. */
+export type SetSide = "IZQ" | "DER" | "AMBOS";
 
 /** Una serie objetivo: reps y el peso que sugerimos, si hay con qué. */
 export type TargetSet = {
@@ -96,6 +121,12 @@ export type TargetSet = {
   weightKg: number | null;
   /** Serie de calentamiento: no cuenta para progresión ni para volumen objetivo. */
   warmup: boolean;
+  /** Tempo prescrito. Ausente = a ritmo propio (3 s por repetición para la cuenta de minutos). */
+  tempo?: Tempo;
+  /** Ausente = `normal`. Ver `SetIntensity`. */
+  intensity?: SetIntensity;
+  /** Solo en unilaterales. Ausente = el ejercicio no distingue lados. */
+  side?: SetSide;
 };
 
 export type PlannedExercise = {
@@ -113,6 +144,14 @@ export type PlannedExercise = {
   /** Nota del coach para este ejercicio (calentamiento, protocolo de lesión). */
   note: string | null;
   sets: TargetSet[];
+  /**
+   * Minutos que se lleva este ejercicio: ejecución + descansos + transición.
+   * Ver `minutosDeEjercicio` en `duracion.ts`. Opcional porque los planes
+   * materializados antes de esta fase no lo traen.
+   */
+  estimatedMin?: number;
+  /** Se hace un lado a la vez: sus series vienen con `side`. */
+  unilateral?: boolean;
 };
 
 /**
@@ -144,6 +183,12 @@ export type PlannedWorkout = {
   /** Calentamiento dinámico previo, antes de tocar `exercises[0]`. */
   warmup: Warmup;
   exercises: PlannedExercise[];
+  /**
+   * Minutos estimados de la sesión completa, calentamiento incluido. Es el
+   * número contra el que el generador recorta y el que la sesión en vivo
+   * enseña ("≈ 58 min"). Opcional: los planes viejos no lo traen.
+   */
+  estimatedMin?: number;
 };
 
 export type GeneratedWeek = {

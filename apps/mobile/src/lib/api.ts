@@ -512,6 +512,12 @@ export type TargetSet = {
   reps: number;
   weightKg: number | null;
   warmup: boolean;
+  /** Tempo prescrito, en segundos: bajar, pausa, subir. Se lee "3-1-1". */
+  tempo?: { ecc: number; pause: number; con: number };
+  /** `fallo` = hasta que no salga otra; `dropset` = serie extra sin descanso. */
+  intensity?: "normal" | "fallo" | "dropset";
+  /** Solo en unilaterales: con qué lado va esta serie. */
+  side?: "IZQ" | "DER" | "AMBOS";
 };
 
 /** A qué se puede cambiar un ejercicio si la máquina está ocupada. */
@@ -534,6 +540,10 @@ export type SessionExerciseView = {
   tracker: boolean;
   note: string | null;
   sets: TargetSet[];
+  /** Minutos estimados del ejercicio (Fase 3). Ausente en planes viejos. */
+  estimatedMin?: number;
+  /** Se hace un lado a la vez: sus series traen `side`. */
+  unilateral?: boolean;
   /** URL firmada del video. Caduca; sin red la pantalla se pinta igual. */
   videoUrl: string | null;
   lastWeightKg: number | null;
@@ -560,6 +570,11 @@ export type SessionView = {
   scheme: SchemeId;
   schemeLabel: string;
   cardioMinutes: number | null;
+  /**
+   * Minutos estimados de la sesión, calentamiento incluido. `null` en
+   * sesiones armadas antes de la Fase 3: la cabecera no enseña el dato.
+   */
+  estimatedMin?: number | null;
   completedAt: string | null;
   /** Minutos a los que se recortó la sesión, o `null` si está completa. */
   trimmedMinutes: number | null;

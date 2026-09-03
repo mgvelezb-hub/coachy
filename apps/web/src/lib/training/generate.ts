@@ -9,6 +9,12 @@ import {
   suggestTopWeight,
   warmupRepsFor,
 } from "@/lib/training/progression";
+import {
+  minutosDeEjercicio,
+  minutosDeSesion,
+  recortarPorPrioridad,
+  redondeaMinutos,
+} from "@/lib/training/duracion";
 import { exerciseCountFor, recipeFor, type Slot } from "@/lib/training/recipes";
 import { SCHEMES, isoWeekNumber, schemeForExercise, schemeForWeek } from "@/lib/training/schemes";
 import { planDisciplines, type OtherSession } from "@/lib/training/disciplines";
@@ -102,12 +108,13 @@ function ordenarPorFatiga(slots: Slot[], cansados: MuscleGroup[]): Slot[] {
 }
 
 function chooseSlots(slots: Slot[], count: number): Slot[] {
-  const ranked = slots
-    .map((slot, index) => ({ slot, index }))
-    .sort((a, b) => a.slot.priority - b.slot.priority || a.index - b.index)
-    .slice(0, count);
-
-  return ranked.sort((a, b) => a.index - b.index).map((entry) => entry.slot);
+  // Misma regla de recorte que el de minutos (`duracion.ts`): cae primero el
+  // accesorio y, a igualdad de prioridad, lo que va más tarde en la sesión.
+  return recortarPorPrioridad(
+    slots,
+    (slot) => slot.priority,
+    (candidatos) => candidatos.length <= count,
+  );
 }
 
 /**
@@ -345,11 +352,19 @@ export function generateWeek(
         ? ordenarPorFatiga(slots, cansados)
         : slots;
 
-    // El +1 de énfasis se suma DESPUÉS del recuento por minutos: el ejercicio
-    // del objetivo prioritario nunca es el que se recorta por compartir día.
-    const chosen = chooseSlots(disponibles, Math.max(3, cuentaBase + (tocaPrioridad ? 1 : 0)));
+    // El +1 de énfasis se suma DESPUÉS de todo recorte —el de huecos y el de
+    // minutos—: el ejercicio del objetivo prioritario nunca es el que se cae
+    // por compartir día ni por ir justos de tiempo. Es el único que puede
+    // empujar la sesión por encima de los minutos declarados, y lo hace
+    // porque la persona pidió expresamente ese grupo.
+    const cupo = Math.max(3, cuentaBase);
+    const chosenBase = chooseSlots(disponibles, cupo);
+    const chosen = tocaPrioridad ? chooseSlots(disponibles, cupo + 1) : chosenBase;
+    const extraDeEnfasis = chosen.filter((slot) => !chosenBase.includes(slot));
     const usedToday = new Set<string>();
-    const exercises: PlannedExercise[] = [];
+    // Se guardan con su prioridad: el recorte por minutos suelta primero el
+    // accesorio, igual que el recorte por número de huecos.
+    const candidatos: Array<{ exercise: PlannedExercise; priority: number; enfasis: boolean }> = [];
 
     chosen.forEach((slot, slotIndex) => {
       const option = pickExercise(slot, {
@@ -378,9 +393,16 @@ export function generateWeek(
           : null
         : suggestTopWeight(option, scheme, last);
 
-      const isFirst = exercises.length === 0;
+      const isFirst = candidatos.length === 0;
 
-      exercises.push({
+      const sets = buildTargetSets(scheme, suggested, {
+        warmupSets: isFirst ? WARMUP_SETS : 0,
+        // Si la última vez se quedó corta, esta semana arranca en lo que sí
+        // hizo: pedirle otra vez el número que no alcanzó no es un objetivo.
+        reps: repsObjetivo(scheme, last),
+      });
+
+      const exercise: PlannedExercise = {
         exerciseId: option.id,
         name: option.name,
         muscleGroup: option.muscleGroup,
@@ -395,14 +417,38 @@ export function generateWeek(
           : isFirst
             ? `Antes de la serie 1: 1 serie de aproximación de ${warmupRepsFor(scheme)} reps a ~50% del peso.`
             : null,
-        sets: buildTargetSets(scheme, suggested, {
-          warmupSets: isFirst ? WARMUP_SETS : 0,
-          // Si la última vez se quedó corta, esta semana arranca en lo que sí
-          // hizo: pedirle otra vez el número que no alcanzó no es un objetivo.
-          reps: repsObjetivo(scheme, last),
-        }),
+        sets,
+        estimatedMin: minutosDeEjercicio(sets, scheme.restSeconds),
+      };
+
+      candidatos.push({
+        exercise,
+        priority: slot.priority,
+        enfasis: extraDeEnfasis.includes(slot),
       });
     });
+
+    // El recorte por MINUTOS, antes de emitir. La cuenta de `exerciseCountFor`
+    // traduce minutos a número de ejercicios sin saber el esquema del día, y
+    // por eso un perfil de 60 minutos podía salir con una sesión de 110: seis
+    // ejercicios de 9×20 no duran lo que seis de 5×6. Aquí se mide de verdad
+    // —serie por serie, con descansos y calentamiento— y lo que no cabe se
+    // suelta por prioridad.
+    const minutosTope = minutosDelDia ?? profile.sessionMinutes;
+    const warmup = calentamientoPara(kind);
+    const recortables = candidatos.filter((candidato) => !candidato.enfasis);
+    const exercises = [
+      ...recortarPorPrioridad(
+        recortables,
+        (candidato) => candidato.priority,
+        (quedan) => minutosDeSesion(quedan.map((c) => c.exercise), warmup.totalSeg) <= minutosTope,
+        // Piso: por debajo de cuatro ejercicios no es una sesión recortada, es
+        // no haber entrenado. Si ni con cuatro cabe, se emite y el número que
+        // ve la atleta dice la verdad.
+        Math.min(4, recortables.length),
+      ),
+      ...candidatos.filter((candidato) => candidato.enfasis),
+    ].map((candidato) => candidato.exercise);
 
     workouts.push({
       date: dateOfDay(weekStart, dayIndex),
@@ -416,8 +462,9 @@ export function generateWeek(
           : Math.round(profile.cardioMinWk / Math.max(1, kinds.length)),
       // El calentamiento dinámico previo, específico del grupo del día —
       // corre ANTES del primer ejercicio, no dentro de él.
-      warmup: calentamientoPara(kind),
+      warmup,
       exercises,
+      estimatedMin: minutosDeSesion(exercises, warmup.totalSeg),
     });
   });
 
