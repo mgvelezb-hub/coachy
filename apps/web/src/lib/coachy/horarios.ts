@@ -153,3 +153,42 @@ export function parseMealTimes(json: unknown): Record<string, string> {
   }
   return salida;
 }
+
+/** Los códigos de día que usa `mealTimesByDay`, los mismos del split de entrenamiento. */
+export const DIAS_SEMANA = ["LUN", "MAR", "MIE", "JUE", "VIE", "SAB", "DOM"] as const;
+export type DiaSemana = (typeof DIAS_SEMANA)[number];
+
+/**
+ * Revisa el horario de cada día por separado.
+ *
+ * Cada día vive con sus propios candados: mover el desayuno del sábado no
+ * puede chocar con la cena del sábado, pero no tiene nada que ver con el
+ * horario de un martes cualquiera.
+ */
+export function validaHorariosPorDia(
+  porDia: Record<string, TiempoDeComida[]>,
+): Record<string, ValidacionHorarios> {
+  const salida: Record<string, ValidacionHorarios> = {};
+  for (const [dia, tiempos] of Object.entries(porDia)) {
+    salida[dia] = validaHorarios(tiempos);
+  }
+  return salida;
+}
+
+/**
+ * Lee `mealTimesByDay` del perfil sin confiar en su forma.
+ *
+ * Solo se aceptan los días válidos (`DIAS_SEMANA`) y, dentro de cada uno,
+ * solo las horas que se entienden — igual que `parseMealTimes`, pero un
+ * nivel más anidado.
+ */
+export function parseMealTimesByDay(json: unknown): Record<string, Record<string, string>> {
+  if (typeof json !== "object" || json === null || Array.isArray(json)) return {};
+
+  const salida: Record<string, Record<string, string>> = {};
+  for (const [dia, horarios] of Object.entries(json as Record<string, unknown>)) {
+    if (!(DIAS_SEMANA as readonly string[]).includes(dia)) continue;
+    salida[dia] = parseMealTimes(horarios);
+  }
+  return salida;
+}

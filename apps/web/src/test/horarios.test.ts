@@ -5,7 +5,9 @@ import {
   minutosDeHora,
   normalizaHorarios,
   parseMealTimes,
+  parseMealTimesByDay,
   validaHorarios,
+  validaHorariosPorDia,
   type TiempoDeComida,
 } from "@/lib/coachy/horarios";
 
@@ -99,5 +101,34 @@ describe("guardado", () => {
     expect(parseMealTimes(["07:00"])).toEqual({});
     expect(parseMealTimes({ COMIDA: 14 })).toEqual({});
     expect(parseMealTimes({ COMIDA: "14:00" })).toEqual({ COMIDA: "14:00" });
+  });
+});
+
+describe("validaHorariosPorDia", () => {
+  it("valida cada día por separado, con sus propios candados", () => {
+    const resultado = validaHorariosPorDia({
+      SAB: [tiempo("DESAYUNO", "Desayuno", "10:00"), tiempo("COMIDA", "Comida", "15:00")],
+      DOM: [tiempo("DESAYUNO", "Desayuno", "10:00"), tiempo("COMIDA", "Comida", "10:30")],
+    });
+
+    expect(resultado.SAB!.ok).toBe(true);
+    expect(resultado.DOM!.ok).toBe(false);
+    expect(resultado.DOM!.errores[0]).toContain("90 minutos");
+  });
+
+  it("un día vacío es válido: no hay nada que chocar", () => {
+    const resultado = validaHorariosPorDia({ SAB: [] });
+    expect(resultado.SAB!.ok).toBe(true);
+  });
+});
+
+describe("mealTimesByDay", () => {
+  it("un json raro no rompe nada", () => {
+    expect(parseMealTimesByDay(null)).toEqual({});
+    expect(parseMealTimesByDay({ SAB: "10:00" })).toEqual({ SAB: {} });
+    expect(parseMealTimesByDay({ SAB: { COMIDA: 14 } })).toEqual({ SAB: {} });
+    expect(parseMealTimesByDay({ SAB: { COMIDA: "10:00" }, LUNES_MAL: { COMIDA: "10:00" } })).toEqual({
+      SAB: { COMIDA: "10:00" },
+    });
   });
 });
