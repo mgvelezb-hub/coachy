@@ -709,6 +709,11 @@ export type PersonalRecord = {
   weightKg: number;
   reps: number;
   date: string;
+  /**
+   * El ejercicio del catálogo, para abrir su tendencia desde el récord.
+   * `null`/ausente cuando la serie se capturó suelta o el catálogo cambió.
+   */
+  exerciseId?: string | null;
 };
 
 export type HistoryTrainingResponse = {
@@ -1777,4 +1782,58 @@ export type HorariosGeneralesResponse = HorariosResponse & {
 
 export function getHorariosComidaCompleto(): Promise<HorariosGeneralesResponse> {
   return apiFetch<HorariosGeneralesResponse>("/api/v1/me/horarios-comida");
+}
+
+// ---------------------------------------------------------------------------
+// Historial: planeado contra real (Fase 3)
+// ---------------------------------------------------------------------------
+
+/** Una serie del historial, con lo que pedía el plan al lado. */
+export type SerieComparada = {
+  exerciseName: string;
+  setIndex: number;
+  targetReps: number;
+  targetWeightKg: number | null;
+  reps: number;
+  weightKg: number | null;
+  rpe: number | null;
+  warmup: boolean;
+  /** `IZQ` / `DER` en unilaterales. */
+  side: string | null;
+  /** `fallo` / `dropset` si el plan lo prescribió. */
+  intensity: string | null;
+};
+
+export type SessionDetail = {
+  workoutId: string;
+  date: string;
+  muscleGroup: string;
+  completedAt: string | null;
+  estimatedMin: number | null;
+  ejercicios: Array<{ name: string; series: SerieComparada[] }>;
+};
+
+/** Una semana de un ejercicio: el tope que se levantó y el volumen que se hizo. */
+export type SemanaDeEjercicio = {
+  weekStart: string;
+  topWeightKg: number;
+  volumeKg: number;
+  sets: number;
+};
+
+export type ExerciseProgress = {
+  exerciseId: string;
+  name: string;
+  semanas: SemanaDeEjercicio[];
+  record: PersonalRecord | null;
+};
+
+/** `GET /api/v1/history/training/:workoutId` — el detalle de una sesión. */
+export function getSessionDetail(workoutId: string): Promise<SessionDetail> {
+  return apiFetch<SessionDetail>(`/api/v1/history/training/${workoutId}`);
+}
+
+/** `GET /api/v1/history/exercise/:exerciseId` — la tendencia de un ejercicio. */
+export function getExerciseProgress(exerciseId: string): Promise<ExerciseProgress> {
+  return apiFetch<ExerciseProgress>(`/api/v1/history/exercise/${exerciseId}`);
 }

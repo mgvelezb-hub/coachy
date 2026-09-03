@@ -183,14 +183,24 @@ export default function HistorialScreen() {
             {data.entrenamientos.slice(0, 20).map((entrenamiento) => {
               const Icono = iconoDe(entrenamiento.discipline);
               return (
-                <View key={entrenamiento.id} style={styles.prRow}>
+                <Pressable
+                  key={entrenamiento.id}
+                  // Solo las de pesas se abren: el detalle serie por serie sale
+                  // de `WorkoutSet`, y una sesión de alberca no tiene series
+                  // que comparar contra un plan.
+                  onPress={() =>
+                    entrenamiento.esPesas && router.push(`/historial/${entrenamiento.id}`)
+                  }
+                  disabled={!entrenamiento.esPesas}
+                  style={styles.prRow}
+                >
                   <Icono size={20} color={colors.paloRosa} strokeWidth={2} />
                   <View style={{ flex: 1 }}>
                     <Text style={styles.prName}>{entrenamiento.titulo}</Text>
                     <Text style={styles.entrenamientoDetalle}>{entrenamiento.detalle}</Text>
                   </View>
                   <Text style={styles.entrenamientoFecha}>{entrenamiento.fecha.slice(5)}</Text>
-                </View>
+                </Pressable>
               );
             })}
           </View>
@@ -203,14 +213,25 @@ export default function HistorialScreen() {
           <EmptyState message="Tus PRs van a aparecer aquí en cuanto los rompas." />
         ) : (
           <View style={styles.list}>
-            {data.records.map((record) => (
-              <View key={record.exerciseName} style={styles.prRow}>
-                <Text style={styles.prName}>{record.exerciseName}</Text>
-                <Text style={styles.prValue}>
-                  {record.weightKg} kg × {record.reps}
-                </Text>
-              </View>
-            ))}
+            {data.records.map((record) => {
+              const exerciseId = record.exerciseId;
+              return (
+                <Pressable
+                  key={record.exerciseName}
+                  // Tocar un récord abre su tendencia. Sin `exerciseId` —el
+                  // catálogo cambió, o la serie se capturó suelta— la fila se
+                  // queda como estaba en vez de llevar a una hoja vacía.
+                  onPress={() => exerciseId && router.push(`/progreso/${exerciseId}`)}
+                  disabled={!exerciseId}
+                  style={styles.prRow}
+                >
+                  <Text style={styles.prName}>{record.exerciseName}</Text>
+                  <Text style={styles.prValue}>
+                    {record.weightKg} kg × {record.reps}
+                  </Text>
+                </Pressable>
+              );
+            })}
           </View>
         )}
       </Card>

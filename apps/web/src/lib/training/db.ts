@@ -669,6 +669,12 @@ export type PersonalRecord = {
   reps: number;
   /** ISO `YYYY-MM-DD` de la sesión donde ocurrió. */
   date: string;
+  /**
+   * El ejercicio del catálogo, para poder abrir su tendencia desde el récord.
+   * `null` cuando la serie se capturó suelta o el catálogo cambió después: el
+   * récord sigue valiendo, lo que no hay es a dónde ir.
+   */
+  exerciseId: string | null;
 };
 
 /**
@@ -692,6 +698,7 @@ export async function personalRecords(
       ...(exerciseNames === undefined ? {} : { exerciseName: { in: exerciseNames } }),
     },
     select: {
+      exerciseId: true,
       exerciseName: true,
       reps: true,
       weightKg: true,
@@ -715,6 +722,7 @@ export async function personalRecords(
         weightKg,
         reps: row.reps,
         date: isoFromDateColumn(row.workout.date),
+        exerciseId: row.exerciseId,
       };
     }
   }

@@ -18,6 +18,11 @@ import {
   personalRecords,
   type PersonalRecord,
 } from "@/lib/training/db";
+import {
+  tendenciaSemanal,
+  type SemanaDeEjercicio,
+  type SerieComparada,
+} from "@/lib/training/progreso";
 import { alternativesFor, type ExerciseAlternative } from "@/lib/training/substitutes";
 import { mondayOf, sundayEndOf } from "@/lib/training/generate";
 import { prefillSets } from "@/lib/training/progression";
@@ -301,4 +306,123 @@ export function weekRange(date: Date): { from: Date; to: Date } {
   return { from: mondayOf(date), to: sundayEndOf(date) };
 }
 
-export type { PersonalRecord };
+export type { PersonalRecord, SemanaDeEjercicio, SerieComparada };
+
+/**
+ * El detalle de UNA sesión, serie por serie, con el plan al lado.
+ *
+ * El historial contestaba "5 series · 4,200 kg" y ahí se acababa. La pregunta
+ * de después de entrenar es otra: cuál serie se quedó corta y en qué
+ * ejercicio. El objetivo ya vivía en `WorkoutSet.targetReps`; el peso planeado
+ * sale del plan guardado (`exercisesJson`), que es donde está.
+ */
+export type SessionDetailView = {
+  workoutId: string;
+  date: string;
+  muscleGroup: string;
+  completedAt: string | null;
+  /** Minutos estimados del plan, si la sesión se armó con la Fase 3 en pie. */
+  estimatedMin: number | null;
+  ejercicios: Array<{
+    name: string;
+    series: SerieComparada[];
+  }>;
+};
+
+export async function sessionDetail(
+  userId: string,
+  workoutId: string,
+): Promise<SessionDetailView | null> {
+  const workout = await prisma.workout.findFirst({
+    where: { id: workoutId, userId },
+    include: { sets: { orderBy: { setIndex: "asc" } } },
+  });
+  if (!workout) return null;
+
+  const plan = parseStoredPlan(workout.exercisesJson);
+
+  // El plan se indexa por nombre: es lo que sobrevive a un cambio de
+  // ejercicio a media sesión (`exerciseName` se guarda con la serie justo
+  // por eso) y a que el catálogo cambie después.
+  const planPorNombre = new Map(plan.exercises.map((exercise) => [exercise.name, exercise]));
+
+  const porEjercicio = new Map<string, SerieComparada[]>();
+  for (const set of workout.sets) {
+    const planeado = planPorNombre.get(set.exerciseName)?.sets[set.setIndex];
+    const fila: SerieComparada = {
+      exerciseName: set.exerciseName,
+      setIndex: set.setIndex,
+      targetReps: set.targetReps,
+      targetWeightKg: planeado?.weightKg ?? null,
+      reps: set.reps,
+      weightKg: set.weightKg === null ? null : Number(set.weightKg),
+      rpe: set.rpe,
+      warmup: set.warmup,
+      side: planeado?.side ?? null,
+      intensity: planeado?.intensity ?? null,
+    };
+    porEjercicio.set(set.exerciseName, [...(porEjercicio.get(set.exerciseName) ?? []), fila]);
+  }
+
+  // El orden de la sesión manda: primero los ejercicios del plan, y al final
+  // los que se hayan capturado fuera de él (una sustitución vieja, por ejemplo).
+  const nombresDelPlan = plan.exercises.map((exercise) => exercise.name);
+  const extras = [...porEjercicio.keys()].filter((name) => !nombresDelPlan.includes(name));
+
+  return {
+    workoutId: workout.id,
+    date: isoFromDateColumn(workout.date),
+    muscleGroup: workout.muscleGroup,
+    completedAt: workout.completedAt ? workout.completedAt.toISOString() : null,
+    estimatedMin: plan.estimatedMin,
+    ejercicios: [...nombresDelPlan, ...extras]
+      .map((name) => ({ name, series: porEjercicio.get(name) ?? [] }))
+      .filter((entrada) => entrada.series.length > 0),
+  };
+}
+
+export type ExerciseProgressView = {
+  exerciseId: string;
+  name: string;
+  semanas: SemanaDeEjercicio[];
+  /** El récord vigente, para tener contra qué leer la tendencia. */
+  record: PersonalRecord | null;
+};
+
+/**
+ * La tendencia semanal de un ejercicio: peso tope y volumen.
+ *
+ * Se lee por semana y no por sesión a propósito — ver `tendenciaSemanal`.
+ */
+export async function exerciseProgress(
+  userId: string,
+  exerciseId: string,
+): Promise<ExerciseProgressView | null> {
+  const exercise = await prisma.exercise.findUnique({
+    where: { id: exerciseId },
+    select: { id: true, name: true },
+  });
+  if (!exercise) return null;
+
+  const sets = await prisma.workoutSet.findMany({
+    where: { exerciseId, workout: { userId } },
+    select: { reps: true, weightKg: true, warmup: true, workout: { select: { date: true } } },
+    orderBy: { performedAt: "asc" },
+  });
+
+  const records = await personalRecords(userId, [exercise.name]);
+
+  return {
+    exerciseId: exercise.id,
+    name: exercise.name,
+    semanas: tendenciaSemanal(
+      sets.map((set) => ({
+        date: isoFromDateColumn(set.workout.date),
+        reps: set.reps,
+        weightKg: set.weightKg === null ? null : Number(set.weightKg),
+        warmup: set.warmup,
+      })),
+    ),
+    record: records[exercise.name] ?? null,
+  };
+}
