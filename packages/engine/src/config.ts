@@ -107,9 +107,14 @@ export const ConfigSchema = z
      * tres tazas de frijol, aunque los macros cuadren.
      */
     composicion: z.object({
-      /** Aceite, mantequilla, crema de cacahuate: 1 cucharada equivalente. */
+      /** Aceite, mantequilla, crema de cacahuate, semillas: 2 cdas de tope. */
       grasaAnadidaMaxGPorComida: z.number().int().min(5).max(40),
       maxGrasasAnadidasPorComida: z.number().int().min(1).max(3),
+      /**
+       * Fuentes de grasa por comida, contando las enteras. Una anadida mas el
+       * aguacate o las nueces; tres grasas ya no son un plato, son un antojo.
+       */
+      maxGrasasPorComida: z.number().int().min(1).max(3),
       /** Frijol, lenteja, garbanzo, haba, edamame: 1 taza. */
       leguminosaMaxGPorComida: z.number().int().min(80).max(400),
       /** Arroz, pasta, quinoa, avena cocida: 1.5 tazas. */
@@ -249,8 +254,9 @@ export const DEFAULT_CONFIG: EngineConfig = {
     ],
   },
   composicion: {
-    grasaAnadidaMaxGPorComida: 16,
+    grasaAnadidaMaxGPorComida: 24,
     maxGrasasAnadidasPorComida: 1,
+    maxGrasasPorComida: 2,
     leguminosaMaxGPorComida: 180,
     cerealCocidoMaxGPorComida: 240,
     frutoSecoMaxGPorComida: 30,

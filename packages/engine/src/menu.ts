@@ -658,6 +658,11 @@ function gramosDeFamilia(comida: Slot[], familia: Familia): number {
     .reduce((acc, s) => acc + s.grams, 0);
 }
 
+/** Los alimentos de la comida que son fuente de grasa, anadida o entera. */
+function grasasDe(comida: Slot[]): Slot[] {
+  return comida.filter((s) => (s.role ?? s.food.role) === 'grasa');
+}
+
 /** Los alimentos de la comida que son fuente de carbohidrato denso. */
 function carbosDe(comida: Slot[]): Slot[] {
   return comida.filter((s) => DENSE_CARB_ROLES.includes(s.role ?? s.food.role));
@@ -667,6 +672,7 @@ function carbosDe(comida: Slot[]): Slot[] {
 function violaComposicion(comida: Slot[], config: EngineConfig): boolean {
   const grasas = comida.filter((s) => s.food.tags.includes('grasa_anadida'));
   if (grasas.length > config.composicion.maxGrasasAnadidasPorComida) return true;
+  if (grasasDe(comida).length > config.composicion.maxGrasasPorComida) return true;
 
   // Dos carbohidratos del mismo subtipo son el mismo plato dos veces: avena
   // con pan, frijol con haba, arroz con pasta.
@@ -698,10 +704,13 @@ function aplicarComposicion(comida: Slot[], config: EngineConfig): void {
     comida.splice(comida.indexOf(sobrante), 1);
   }
 
-  const grasas = comida.filter((s) => s.food.tags.includes('grasa_anadida'));
-  for (const sobrante of grasas.slice(config.composicion.maxGrasasAnadidasPorComida)) {
+  const anadidas = comida.filter((s) => s.food.tags.includes('grasa_anadida'));
+  for (const sobrante of anadidas.slice(config.composicion.maxGrasasAnadidasPorComida)) {
     const donde = comida.indexOf(sobrante);
     if (donde >= 0) comida.splice(donde, 1);
+  }
+  for (const sobrante of grasasDe(comida).slice(config.composicion.maxGrasasPorComida)) {
+    comida.splice(comida.indexOf(sobrante), 1);
   }
 
   for (const familia of FAMILIAS) {

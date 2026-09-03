@@ -1602,17 +1602,18 @@
     "prepMin": 1,
     "tags": [
       "fruto_seco",
+      "grasa_anadida",
       "rapido",
       "vegetariano"
     ],
     "servingG": 20,
     "unit": "g",
-    "maxG": 30,
+    "maxG": 20,
     "serving": {
       "unit": "cda",
       "gramsPerUnit": 10,
       "minUnits": 1,
-      "maxUnits": 3,
+      "maxUnits": 2,
       "step": 0.5
     }
   },
@@ -1631,6 +1632,7 @@
     "tags": [
       "favorito",
       "fruto_seco",
+      "grasa_anadida",
       "rapido",
       "vegetariano"
     ],
@@ -1659,17 +1661,18 @@
     "prepMin": 1,
     "tags": [
       "fruto_seco",
+      "grasa_anadida",
       "rapido",
       "vegetariano"
     ],
     "servingG": 15,
     "unit": "g",
-    "maxG": 30,
+    "maxG": 20,
     "serving": {
       "unit": "cda",
       "gramsPerUnit": 10,
       "minUnits": 0.5,
-      "maxUnits": 3,
+      "maxUnits": 2,
       "step": 0.5
     }
   },
@@ -1687,6 +1690,7 @@
     "prepMin": 1,
     "tags": [
       "fruto_seco",
+      "grasa_anadida",
       "mexicano",
       "rapido",
       "vegetariano"

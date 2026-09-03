@@ -357,6 +357,38 @@ describe('generador de menus (spec §6)', () => {
     }
   });
 
+  // El reclamo: pollo + garbanzo + 3 cdas de linaza + aguacate + mantequilla.
+  // Tres grasas en un plato. Las semillas SON grasa anadida —se espolvorean,
+  // como el aceite se vierte— y el tope no las contaba.
+  it('nunca tres grasas en una comida, ni dos anadidas', () => {
+    const { maxGrasasPorComida, maxGrasasAnadidasPorComida } = DEFAULT_CONFIG.composicion;
+    for (const seed of SEEDS) {
+      for (const phase of ['BASE', 'CUT', 'CUT_AGRESIVO', 'REINTRO'] as Phase[]) {
+        const { plan } = planFor(P, phase, seed);
+        for (const menu of plan.menus) {
+          for (const meal of menu.meals) {
+            const grasas = meal.items.filter((i) => findFood(i.foodId)!.role === 'grasa');
+            const donde = `${phase} ${meal.slot} seed ${seed}: ${grasas.map((g) => g.name).join(' + ')}`;
+            expect(grasas.length, donde).toBeLessThanOrEqual(maxGrasasPorComida);
+            expect(
+              grasas.filter((i) => findFood(i.foodId)!.tags.includes('grasa_anadida')).length,
+              donde,
+            ).toBeLessThanOrEqual(maxGrasasAnadidasPorComida);
+          }
+        }
+      }
+    }
+  });
+
+  it('las semillas cuentan como grasa anadida y no pasan de dos cucharadas', () => {
+    for (const id of ['linaza', 'chia', 'ajonjoli', 'semilla_girasol']) {
+      const food = findFood(id)!;
+      expect(food.tags, id).toContain('grasa_anadida');
+      expect(food.serving!.unit, id).toBe('cda');
+      expect(food.serving!.maxUnits, id).toBeLessThanOrEqual(2);
+    }
+  });
+
   // Avena con pan es el mismo desayuno dos veces; frijol con haba, el mismo
   // guiso. El reclamo fue literal: un desayuno con pan, avena Y amaranto.
   it('nunca dos carbohidratos del mismo subtipo, ni mas de dos en total', () => {
