@@ -48,6 +48,24 @@ export function weekdayIn(date: Date): number {
   return WEEKDAY_INDEX[WEEKDAY_IN_TZ.format(date)] ?? date.getUTCDay();
 }
 
+const HORA_EN_TZ = new Intl.DateTimeFormat("en-GB", {
+  timeZone: APP_TIMEZONE,
+  hour: "2-digit",
+  minute: "2-digit",
+  hour12: false,
+});
+
+/**
+ * `"HH:MM"` de un instante, leído en la zona de la atleta.
+ *
+ * Sirve para comparar `takenAt` (un timestamp) contra `plannedAt` (un
+ * `"HH:MM"` de reloj de pared): sin pasar por la zona de la atleta, la misma
+ * hora real se leería distinto según en qué servidor corriera el proceso.
+ */
+export function horaEnZona(date: Date): string {
+  return HORA_EN_TZ.format(date);
+}
+
 /** Parsea YYYY-MM-DD como fecha local a mediodía UTC (evita saltos de día). */
 export function fromISODate(iso: string): Date {
   return new Date(`${iso}T12:00:00.000Z`);
