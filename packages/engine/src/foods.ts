@@ -124,3 +124,20 @@ export function buscaAlimentos(query: string, catalogo: Food[] = FOODS): Food[] 
     );
   });
 }
+
+/**
+ * El catalogo de una persona: el de siempre mas los alimentos que dio de alta
+ * ella.
+ *
+ * Los propios se agregan al final y con las mismas reglas —rol, plantilla del
+ * slot, cotas de porcion, afinidad, presupuesto—: no son una lista aparte que
+ * el motor tenga que consultar, son alimentos. Si la planeacion no los pide,
+ * no entran; si si, entran igual que los demas. Un id repetido no duplica el
+ * renglon: gana el propio, que es el que la persona edito.
+ */
+export function catalogoCon(extras: Food[] | undefined, base: Food[] = FOODS): Food[] {
+  if (!extras || extras.length === 0) return base;
+  const propios = new Map<string, Food>();
+  for (const food of extras) propios.set(food.id, food);
+  return [...base.filter((f) => !propios.has(f.id)), ...propios.values()];
+}

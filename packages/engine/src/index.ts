@@ -46,6 +46,7 @@ export {
 export {
   FOODS,
   buscaAlimentos,
+  catalogoCon,
   findFood,
   foodsByRole,
   matchesAny,

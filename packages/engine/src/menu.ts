@@ -1,7 +1,7 @@
 import { DEFAULT_CONFIG, type EngineConfig } from './config.js';
 import { permitePolvos } from './suplementos.js';
 import { roundTo } from './calc.js';
-import { FOODS, matchesAny, normalize } from './foods.js';
+import { FOODS, catalogoCon, matchesAny, normalize } from './foods.js';
 import type {
   Equivalence,
   Food,
@@ -86,6 +86,12 @@ export interface MenuOptions {
   simplify?: boolean;
   /** Dias por semana que se usa cada menu, para la lista de super. */
   daysPerMenu?: number;
+  /**
+   * Alimentos que la persona dio de alta porque el catalogo no los tiene (el
+   * yogur de su marca, su proteina en polvo). Se mezclan con el catalogo y
+   * compiten con las mismas reglas: aqui no hay trato especial.
+   */
+  extraFoods?: Food[];
 }
 
 interface EligibleOptions {
@@ -1797,8 +1803,12 @@ export function generateMenu(
   config: EngineConfig = DEFAULT_CONFIG,
   seed = 1,
   options: MenuOptions = {},
-  pool: Food[] = FOODS,
+  base: Food[] = FOODS,
 ): MenuPlan {
+  // Los alimentos propios se mezclan UNA vez, aqui: de este punto para abajo
+  // el motor no sabe cuales vinieron del catalogo y cuales dio de alta la
+  // persona, que es justo lo que hace que compitan con las mismas reglas.
+  const pool = catalogoCon(options.extraFoods, base);
   const target = slots.reduce<MacroTargets>(
     (acc, slot) => ({
       kcal: acc.kcal + slot.kcal,
