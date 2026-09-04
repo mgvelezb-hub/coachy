@@ -183,6 +183,7 @@ model User {
   activitySessions   ActivitySession[]
   labResults         LabResult[]
   mealLogs           MealLog[]
+  customFoods        CustomFood[]
   conversations      Conversation[]
   notifications      Notification[]
   trainingExamples   TrainingExample[] @relation("TrainingExampleAthlete")
@@ -876,6 +877,43 @@ model Food {
 /// el domingo: cada comida se confirma en el momento, con un toque desde la
 /// notificación. El check-in llega prellenado con la cuenta real y la semana
 /// deja de depender de la memoria.
+/// Alimento que la persona dio de alta porque no estaba en el catálogo
+/// (el yogur de su marca, la proteína que compra). Entra al motor con las
+/// mismas reglas que cualquier alimento del catálogo: rol, macros por 100 g,
+/// porción casera y tope. Si la planeación no lo pide, no entra; si sí, se
+/// considera igual que los demás.
+model CustomFood {
+  id     String @id @default(uuid()) @db.Uuid
+  userId String @map("user_id") @db.Uuid
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  /// Nombre como lo escribió la persona ("Yogurt griego Oikos").
+  name String
+  /// Rol del motor: `proteina_magra`, `proteina_grasa`, `carbo_complejo`,
+  /// `carbo_pre`, `carbo_post`, `grasa`, `fruta`, `vegetal_libre`.
+  role String
+
+  proteinPer100 Decimal @map("protein_per_100") @db.Decimal(6, 2)
+  carbPer100    Decimal @map("carb_per_100") @db.Decimal(6, 2)
+  fatPer100     Decimal @map("fat_per_100") @db.Decimal(6, 2)
+  fiberPer100   Decimal @default(0) @map("fiber_per_100") @db.Decimal(6, 2)
+
+  /// Porción casera: unidad, gramos por unidad y rango de unidades por comida.
+  servingUnit  String @map("serving_unit")
+  gramsPerUnit Decimal @map("grams_per_unit") @db.Decimal(7, 2)
+  minUnits     Decimal @map("min_units") @db.Decimal(5, 2)
+  maxUnits     Decimal @map("max_units") @db.Decimal(5, 2)
+
+  /// Etiquetas del motor que apliquen (`vegetariano`, `sin_cocinar`, `cereal_desayuno`, ...).
+  tags String[]
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@index([userId])
+  @@map("custom_foods")
+}
+
 model MealLog {
   id     String @id @default(uuid()) @db.Uuid
   userId String @map("user_id") @db.Uuid
