@@ -2049,3 +2049,75 @@ export function deleteBloqueDia(
     body: { date, discipline },
   });
 }
+
+/** Grupo con el que la pantalla habla de un alimento: nadie dice "carbo_post". */
+export type GrupoAlimento = "proteina" | "carbo" | "grasa" | "fruta" | "verdura";
+
+/** Unidad casera de una porción, la del SMAE traducida a la cocina. */
+export type UnidadPorcion =
+  | "cdita"
+  | "cda"
+  | "taza"
+  | "media_taza"
+  | "pieza"
+  | "rebanada"
+  | "scoop"
+  | "g";
+
+/** Lo que se captura de un alimento propio: la etiqueta y la porción de casa. */
+export type AlimentoPropioInput = {
+  name: string;
+  role: string;
+  proteinPer100: number;
+  carbPer100: number;
+  fatPer100: number;
+  fiberPer100: number;
+  servingUnit: UnidadPorcion;
+  gramsPerUnit: number;
+  minUnits: number;
+  maxUnits: number;
+  tags?: string[];
+  /** "Guardar y marcar en mi alacena". */
+  enDespensa?: boolean;
+};
+
+export type AlimentoPropio = Omit<AlimentoPropioInput, "enDespensa" | "tags"> & {
+  id: string;
+  /** El id con el que vive dentro del motor y de la despensa. */
+  idMotor: string;
+  grupo: GrupoAlimento;
+  tags: string[];
+};
+
+/** `GET /api/v1/profile/alimentos` — los alimentos que diste de alta. */
+export function getAlimentosPropios(): Promise<{ alimentos: AlimentoPropio[] }> {
+  return apiFetch<{ alimentos: AlimentoPropio[] }>("/api/v1/profile/alimentos");
+}
+
+/** `POST /api/v1/profile/alimentos` — dar de alta uno nuevo. */
+export function postAlimentoPropio(
+  input: AlimentoPropioInput,
+): Promise<{ alimento: AlimentoPropio }> {
+  return apiFetch<{ alimento: AlimentoPropio }>("/api/v1/profile/alimentos", {
+    method: "POST",
+    body: input,
+  });
+}
+
+/** `PATCH /api/v1/profile/alimentos` — corregir uno que ya existe. */
+export function patchAlimentoPropio(
+  id: string,
+  input: AlimentoPropioInput,
+): Promise<{ alimento: AlimentoPropio }> {
+  return apiFetch<{ alimento: AlimentoPropio }>("/api/v1/profile/alimentos", {
+    method: "PATCH",
+    body: { id, ...input },
+  });
+}
+
+/** `DELETE /api/v1/profile/alimentos?id=` — borrarlo, y sacarlo de la despensa. */
+export function deleteAlimentoPropio(id: string): Promise<{ borrado: boolean }> {
+  return apiFetch<{ borrado: boolean }>(`/api/v1/profile/alimentos?id=${encodeURIComponent(id)}`, {
+    method: "DELETE",
+  });
+}

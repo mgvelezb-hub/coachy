@@ -1,6 +1,6 @@
-import { useRouter } from "expo-router";
-import { ChevronLeft } from "lucide-react-native";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useFocusEffect, useRouter } from "expo-router";
+import { ChevronLeft, ChevronRight } from "lucide-react-native";
+import { useCallback, useMemo, useState } from "react";
 import {
   Alert,
   KeyboardAvoidingView,
@@ -82,9 +82,13 @@ export default function DespensaScreen() {
     }
   }, []);
 
-  useEffect(() => {
-    void cargar();
-  }, [cargar]);
+  // Se recarga al volver: la hoja de alimento nuevo pudo agregar uno, editarlo
+  // o borrarlo, y el catalogo de esta pantalla es justo el que cambio.
+  useFocusEffect(
+    useCallback(() => {
+      void cargar();
+    }, [cargar]),
+  );
 
   function alternar(id: string) {
     setMsg(null);
@@ -94,6 +98,27 @@ export default function DespensaScreen() {
   }
 
   const termino = busqueda.trim();
+
+  /**
+   * Lo que no está en el catálogo se da de alta en su propia hoja, con lo que
+   * ya se había escrito en el buscador: quien tecleó "yogurt griego" y no lo
+   * encontró no tiene que volver a escribirlo.
+   */
+  function agregarPropio() {
+    router.push({
+      pathname: "/ajustes/alimento-nuevo",
+      params: termino ? { nombre: termino } : {},
+    } as never);
+  }
+
+  /** Los tuyos se editan y se borran desde su misma hoja. */
+  function editarPropio(idMotor: string) {
+    router.push({
+      pathname: "/ajustes/alimento-nuevo",
+      params: { id: idMotor.replace("custom:", "") },
+    } as never);
+  }
+
 
   const filtrados = useMemo(() => {
     return catalogo.filter((alimento) => {
@@ -199,7 +224,9 @@ export default function DespensaScreen() {
                         alimento={alimento}
                         activo={marcados.includes(alimento.id)}
                         onPress={() => alternar(alimento.id)}
+                        onEditar={() => editarPropio(alimento.id)}
                         styles={styles}
+                        colors={colors}
                       />
                     ))}
                   </View>
@@ -215,9 +242,16 @@ export default function DespensaScreen() {
                       alimento={alimento}
                       activo={marcados.includes(alimento.id)}
                       onPress={() => alternar(alimento.id)}
+                      onEditar={() => editarPropio(alimento.id)}
                       styles={styles}
+                      colors={colors}
                     />
                   ))}
+                  <Pressable onPress={agregarPropio} style={styles.agregar}>
+                    <Text style={styles.agregarText} numberOfLines={1}>
+                      {termino ? `Agregar «${termino}» como alimento nuevo` : "Agregar un alimento que no está"}
+                    </Text>
+                  </Pressable>
                 </View>
               </Card>
 
@@ -239,25 +273,40 @@ export default function DespensaScreen() {
   );
 }
 
-/** Un alimento del catálogo: una línea, un toque. */
+/**
+ * Un alimento del catálogo: una línea, un toque. Los tuyos traen además la
+ * flecha que lleva a editarlos, que es lo único que se puede hacer con ellos
+ * y no con los del catálogo.
+ */
 function Fila({
   alimento,
   activo,
   onPress,
+  onEditar,
   styles,
+  colors,
 }: {
   alimento: AlimentoDeCatalogo;
   activo: boolean;
   onPress: () => void;
+  onEditar: () => void;
   styles: ReturnType<typeof makeStyles>;
+  colors: Palette;
 }) {
   return (
-    <Pressable onPress={onPress} style={[styles.fila, activo && styles.filaOn]}>
-      <Text style={[styles.filaNombre, activo && styles.filaNombreOn]} numberOfLines={1}>
-        {activo ? "✓ " : ""}
-        {alimento.nombre}
-      </Text>
-    </Pressable>
+    <View style={[styles.fila, activo && styles.filaOn]}>
+      <Pressable onPress={onPress} style={styles.filaToque}>
+        <Text style={[styles.filaNombre, activo && styles.filaNombreOn]} numberOfLines={1}>
+          {activo ? "✓ " : ""}
+          {alimento.nombre}
+        </Text>
+      </Pressable>
+      {alimento.tuyo === true && (
+        <Pressable onPress={onEditar} hitSlop={10} accessibilityLabel={`Editar ${alimento.nombre}`}>
+          <ChevronRight size={18} color={colors.paloRosa} strokeWidth={2} />
+        </Pressable>
+      )}
+    </View>
   );
 }
 
@@ -294,13 +343,19 @@ const makeStyles = (colors: Palette) =>
     chips: { flexDirection: "row", flexWrap: "wrap", gap: spacing.sm, marginTop: spacing.md },
     lista: { gap: spacing.sm, marginTop: spacing.md },
     fila: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: spacing.sm,
       borderWidth: 1,
       borderColor: colors.cardBorder,
       borderRadius: radius.md,
       paddingHorizontal: spacing.md,
       paddingVertical: spacing.md,
     },
+    filaToque: { flex: 1 },
     filaOn: { borderColor: colors.champan },
+    agregar: { paddingVertical: spacing.md, paddingHorizontal: spacing.md },
+    agregarText: { fontFamily: fonts.sansMedium, ...typeScale.bodySm, color: colors.champan },
     filaNombre: { fontFamily: fonts.sansMedium, ...typeScale.body, color: colors.marfil },
     filaNombreOn: { color: colors.champan },
     msg: { fontFamily: fonts.sans, ...typeScale.bodySm, color: colors.paloRosa },
