@@ -43,7 +43,15 @@ export {
   listaDeSuper,
   type MenuOptions,
 } from './menu.js';
-export { FOODS, findFood, foodsByRole, matchesAny, normalize } from './foods.js';
+export {
+  FOODS,
+  buscaAlimentos,
+  findFood,
+  foodsByRole,
+  matchesAny,
+  normalize,
+  terminosDeBusqueda,
+} from './foods.js';
 export {
   SUPPLEMENTS,
   pautasDeSuplementos,

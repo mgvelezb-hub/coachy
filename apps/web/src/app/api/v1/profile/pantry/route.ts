@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { FOODS } from "engine";
+import { FOODS, terminosDeBusqueda } from "engine";
 import { z } from "zod";
 
 import { apiUser, unauthorized } from "@/lib/api/auth";
@@ -43,9 +43,26 @@ function grupoDe(role: string): GrupoDespensa | null {
   return null;
 }
 
-/** El catálogo como lo necesita la pantalla: nombre para buscar, grupo para el chip. */
-const CATALOGO = FOODS.map((food) => ({ id: food.id, nombre: food.name, grupo: grupoDe(food.role) }))
-  .filter((item): item is { id: string; nombre: string; grupo: GrupoDespensa } => item.grupo !== null)
+/**
+ * El catálogo como lo necesita la pantalla: nombre para leer, grupo para el
+ * chip y `busqueda` para encontrarlo.
+ *
+ * `busqueda` son los términos del motor —nombre, id, tags y sus sinónimos, ya
+ * sin acentos ni plurales—. Viaja con el catálogo para que la app filtre con
+ * la misma tolerancia que el motor sin cargar la tabla de sinónimos ni pedir
+ * al servidor una búsqueda por cada tecla: quien escribe "Yogurt Griego"
+ * encuentra el "Yogur griego natural 0%".
+ */
+const CATALOGO = FOODS.map((food) => ({
+  id: food.id,
+  nombre: food.name,
+  grupo: grupoDe(food.role),
+  busqueda: terminosDeBusqueda(food),
+}))
+  .filter(
+    (item): item is { id: string; nombre: string; grupo: GrupoDespensa; busqueda: string[] } =>
+      item.grupo !== null,
+  )
   .sort((a, b) => a.nombre.localeCompare(b.nombre, "es"));
 
 const IDS_VALIDOS = new Set(CATALOGO.map((item) => item.id));

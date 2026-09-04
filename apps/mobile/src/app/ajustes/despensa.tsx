@@ -28,6 +28,7 @@ import {
   type AlimentoDeCatalogo,
   type GrupoDespensa,
 } from "@/lib/api";
+import { coincide } from "@/lib/busqueda-alimentos";
 import { fonts, radius, spacing, type as typeScale, type Palette } from "@/lib/theme";
 
 /**
@@ -49,15 +50,6 @@ const GRUPOS: Array<{ valor: GrupoDespensa; nombre: string }> = [
   { valor: "fruta", nombre: "Fruta" },
   { valor: "verdura", nombre: "Verdura" },
 ];
-
-/** Sin acentos y en minúsculas: se busca como se escribe con prisa. */
-function normaliza(texto: string): string {
-  return texto
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .toLowerCase()
-    .trim();
-}
 
 export default function DespensaScreen() {
   const router = useRouter();
@@ -101,13 +93,14 @@ export default function DespensaScreen() {
     );
   }
 
-  const termino = normaliza(busqueda);
+  const termino = busqueda.trim();
 
   const filtrados = useMemo(() => {
     return catalogo.filter((alimento) => {
       if (grupo && alimento.grupo !== grupo) return false;
-      if (termino && !normaliza(alimento.nombre).includes(termino)) return false;
-      return true;
+      // Perdona acentos, mayúsculas, plurales y la palabra regional: el bug
+      // fue buscar "Yogurt Griego" y no ver el "Yogur griego natural 0%".
+      return coincide(alimento, termino);
     });
   }, [catalogo, grupo, termino]);
 

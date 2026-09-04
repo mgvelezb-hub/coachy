@@ -1910,7 +1910,15 @@ export function postCambiarBloqueDia(
 /** Los cinco grupos con los que se filtra la despensa. */
 export type GrupoDespensa = "proteina" | "carbo" | "grasa" | "fruta" | "verdura";
 
-export type AlimentoDeCatalogo = { id: string; nombre: string; grupo: GrupoDespensa };
+export type AlimentoDeCatalogo = {
+  id: string;
+  nombre: string;
+  grupo: GrupoDespensa;
+  /** Términos del motor (nombre, id, tags y sinónimos) para buscar tolerante. */
+  busqueda?: string[];
+  /** Alimento que dio de alta la persona: se puede editar y borrar. */
+  tuyo?: boolean;
+};
 
 export type DespensaResponse = {
   /** Ids de lo que ya tiene en casa. */
