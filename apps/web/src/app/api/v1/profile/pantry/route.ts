@@ -5,6 +5,8 @@ import { z } from "zod";
 import { apiUser, unauthorized } from "@/lib/api/auth";
 import { materializeMealPlans } from "@/lib/coachy/menu";
 import { prisma } from "@/lib/prisma";
+import { alimentosPropiosDe } from "@/lib/coachy/alimentos-propios-db";
+import { grupoDeRol } from "@/lib/coachy/alimentos-propios";
 import { parsePantry } from "@/lib/coachy/mapping";
 
 /**
@@ -67,11 +69,30 @@ const CATALOGO = FOODS.map((food) => ({
 
 const IDS_VALIDOS = new Set(CATALOGO.map((item) => item.id));
 
+type ItemDeCatalogo = (typeof CATALOGO)[number] & { tuyo?: boolean };
+
+/**
+ * El catálogo de esa persona: el de siempre más lo que dio de alta ella.
+ *
+ * Los propios van marcados con `tuyo` porque la pantalla les ofrece lo que a
+ * los del catálogo no: editarlos y borrarlos.
+ */
+async function catalogoDe(userId: string): Promise<{ catalogo: ItemDeCatalogo[]; ids: Set<string> }> {
+  const propios = await alimentosPropiosDe(userId);
+  const suyos: ItemDeCatalogo[] = propios.map((food) => ({
+    id: food.id,
+    nombre: food.name,
+    grupo: grupoDeRol(food.role) as GrupoDespensa,
+    busqueda: terminosDeBusqueda(food),
+    tuyo: true,
+  }));
+
+  const catalogo = [...suyos, ...CATALOGO];
+  return { catalogo, ids: new Set(catalogo.map((item) => item.id)) };
+}
+
 const schema = z.object({
-  pantry: z
-    .array(z.string())
-    .max(200)
-    .transform((ids) => [...new Set(ids)].filter((id) => IDS_VALIDOS.has(id)).slice(0, MAX_DESPENSA)),
+  pantry: z.array(z.string()).max(200),
 });
 
 /** Lunes de la semana de esa fecha, a medianoche. */
@@ -115,9 +136,11 @@ export async function GET(request: Request): Promise<NextResponse> {
     return NextResponse.json({ error: "onboarding incompleto" }, { status: 403 });
   }
 
+  const { catalogo } = await catalogoDe(user.id);
+
   return NextResponse.json({
     pantry: parsePantry(user.profile.pantry),
-    catalogo: CATALOGO,
+    catalogo,
     deTuLista: await deLaUltimaLista(user.id),
   });
 }
@@ -144,7 +167,12 @@ export async function PATCH(request: Request): Promise<NextResponse> {
     );
   }
 
-  const pantry = parsed.data.pantry;
+  // Los ids se validan contra el catálogo DE ESA PERSONA: el de siempre más
+  // sus alimentos propios, que ningún set global puede conocer.
+  const { ids } = await catalogoDe(user.id);
+  const pantry = [...new Set(parsed.data.pantry)]
+    .filter((id) => ids.has(id))
+    .slice(0, MAX_DESPENSA);
   const profile = await prisma.profile.update({
     where: { userId: user.id },
     data: { pantry },

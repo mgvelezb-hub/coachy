@@ -2,8 +2,10 @@ import "server-only";
 
 import type { Decision, MealPlan, Profile } from "@prisma/client";
 import type { Prisma } from "@prisma/client";
-import { distribute, generateMenu, listaDeSuper } from "engine";
+import { catalogoCon, distribute, generateMenu, listaDeSuper } from "engine";
+import type { Food } from "engine";
 
+import { alimentosPropiosDe } from "@/lib/coachy/alimentos-propios-db";
 import { rellenaEquivalencias } from "@/lib/coachy/equivalencias-backfill";
 import { toGroceries } from "@/lib/coachy/menu-view";
 import { porcionNatural } from "@/lib/coachy/porciones";
@@ -57,7 +59,7 @@ export async function syncMealPlans(
     engineProfile,
     undefined,
     engineDecision.menuSeed,
-    { phase: engineDecision.phase },
+    { phase: engineDecision.phase, extraFoods: await alimentosPropiosDe(profile.userId) },
   );
 
   const saved: MealPlan[] = [];
@@ -153,6 +155,9 @@ export async function materializeMealPlans(
 
   const plan = generateMenu(slots, engineProfile, undefined, seed, {
     phase: decision.phase as EngineDecision["phase"],
+    // Los alimentos que dio de alta la persona entran por el mismo camino que
+    // el catálogo: sin esto, darlos de alta no cambiaba nada del menú.
+    extraFoods: await alimentosPropiosDe(profile.userId),
   });
 
   const saved: MealPlan[] = [];
@@ -285,6 +290,8 @@ export function listaDeSuperDe(
   preference: string,
   /** Ids de lo que ya está en casa: la lista lo marca en vez de mandarlo a comprar. */
   pantry: string[] = [],
+  /** Los alimentos propios, para que la lista los reconozca como al resto. */
+  extraFoods: Food[] = [],
 ): ReturnType<typeof toGroceries> {
   const elegidos =
     preference === "MENU_1"
@@ -307,7 +314,7 @@ export function listaDeSuperDe(
     meals: (Array.isArray(plan.mealsJson) ? plan.mealsJson : []) as never,
   }));
 
-  return listaDeSuper(menus as never, diasPorMenu, undefined, pantry).map((item) => ({
+  return listaDeSuper(menus as never, diasPorMenu, catalogoCon(extraFoods), pantry).map((item) => ({
     name: item.name,
     grams: item.grams,
     unit: item.unit,

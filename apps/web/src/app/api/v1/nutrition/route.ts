@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 
 import { apiUser, unauthorized } from "@/lib/api/auth";
 import { parseMealTimes } from "@/lib/coachy/horarios";
+import { alimentosPropiosDe } from "@/lib/coachy/alimentos-propios-db";
 import { currentMealPlan, listaDeSuperDe } from "@/lib/coachy/menu";
 import { parsePantry } from "@/lib/coachy/mapping";
 import { toGroceries, toMenuView } from "@/lib/coachy/menu-view";
@@ -36,7 +37,12 @@ export async function GET(request: Request): Promise<NextResponse> {
   // La lista de súper depende de qué menús se van a cocinar de verdad: los dos
   // repartidos en la semana, o uno solo los siete días.
   const groceries = nutrition
-    ? listaDeSuperDe(nutrition.plans, profile.menuPreference, parsePantry(profile.pantry))
+    ? listaDeSuperDe(
+        nutrition.plans,
+        profile.menuPreference,
+        parsePantry(profile.pantry),
+        await alimentosPropiosDe(user.id),
+      )
     : [];
 
   return NextResponse.json({
